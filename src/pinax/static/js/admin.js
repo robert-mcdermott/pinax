@@ -33,7 +33,7 @@ export async function viewOverview(el) {
       <div class="kpi"><div class="label">Total size</div><div class="value">${bytes(s.bytes)}</div><div class="sub">${bytes(s.alloc)} on disk</div></div>
       <div class="kpi" style="--kpi-accent:var(--fh-teal)"><div class="label">Files</div><div class="value">${num(s.files)}</div><div class="sub">${num(s.dirs)} folders</div></div>
       <div class="kpi" style="--kpi-accent:var(--age-5)"><div class="label">Unchanged for ${thresholdText(cb)}+</div><div class="value">${bytes(cold)}</div><div class="sub">${pct(s.bytes ? (cold / s.bytes) * 100 : 0)} of all data</div></div>
-      <div class="kpi" style="--kpi-accent:var(--fh-bright-blue)"><div class="label">Change since the previous scans</div><div class="value">${signed(change)}</div><div class="sub">${movers.length} folders changed</div></div>
+      <a class="kpi" href="#/history" style="--kpi-accent:var(--fh-bright-blue)"><div class="label">Change since the previous scans</div><div class="value">${signed(change)}</div><div class="sub">${movers.length} folders changed · history</div></a>
       <a class="kpi" href="#/folders?unmapped=1" style="--kpi-accent:var(--fh-purple)"><div class="label">Unmapped folders</div><div class="value">${unmapped.length}</div><div class="sub">${bytes(unmapped.reduce((t, f) => t + f.latest.bytes, 0))} no lab owns</div></a>
     </div>
     <div class="grid cols-${Math.min(3, ov.filesystems.length) || 1}" style="margin-bottom:20px">${ov.filesystems.map((f) => fsCard(f))}</div>
@@ -229,7 +229,10 @@ export async function viewScans(el) {
       <th>Filesystem</th><th>Scan started</th><th>Status</th><th class="num">Entries</th><th class="num">Size</th><th class="num">Errors</th>
       <th class="num">Scan</th><th class="num">Index</th><th>fs-inventory</th></tr></thead><tbody>
       ${snaps.map((s) => html`<tr><td><b>${s.filesystem}</b><div class="sub">${s.host}</div></td>
-        <td class="nowrap">${date(s.started_at, true)}<div class="sub">${when(s.started_at)}</div></td><td>${chip(s.status)}${s.message ? html`<div class="sub">${s.message}</div>` : ""}</td>
+        <td class="nowrap">${s.status === "ready" || s.status === "pruned"
+          ? html`<a href="${s.status === "ready" ? `#/explore?fs=${encodeURIComponent(s.filesystem)}&at=${s.started_at.slice(0, 10)}`
+            : `#/history?fs=${encodeURIComponent(s.filesystem)}&at=${s.started_at.slice(0, 10)}&pruned=1`}">${date(s.started_at, true)}</a>`
+          : date(s.started_at, true)}<div class="sub">${when(s.started_at)}</div></td><td>${chip(s.status)}${s.message ? html`<div class="sub">${s.message}</div>` : ""}</td>
         <td class="num">${num(s.entries)}<div class="sub">${num(s.files)} files</div></td><td class="num nowrap">${bytes(s.bytes)}</td><td class="num">${num(s.errors)}</td>
         <td class="num nowrap">${duration(s.scan_seconds)}</td><td class="num nowrap">${duration(s.build_seconds)}<div class="sub">${bytes(s.index_bytes)}</div></td>
         <td>${s.tool_version}<div class="sub">${s.scan_status}</div></td></tr>`)}</tbody></table></div></div>

@@ -17,15 +17,16 @@ decisions taken are recorded here. Later waves are outlined at the end.
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
 **Where things stand:** wave 1 is released as 0.1.0 and wave 2 as 0.2.0 (tags `v0.1.0` and `v0.2.0` on `main`).
-Wave 3, the production pilot, is next; it starts when production storage is reachable from the development
-machine or a pilot server.
+Wave 3, change over time, is done on `wave3` as 0.3.0, for merging to `main` and tagging `v0.3.0`. The production
+pilot, which needs production storage, is next, as wave 4.
 
 The order follows one principle:
 1. **Trust first.** Totals that agree with an independent computation on every directory, and that say when
    they are lower bounds.
 2. **Then real storage at real scale.** First everything a production deployment needs, checked on real local
-   scans and on synthetic data at scale (wave 2); then production storage itself and a pilot (wave 3).
-3. **Then change over time.** Where the growth comes from, and whether data is ageing.
+   scans and on synthetic data at scale (wave 2); then production storage itself and a pilot (wave 4).
+3. **Then change over time.** Where the growth comes from, and whether data is ageing. It comes before the pilot
+   (wave 3) because it can be built and checked without production storage, which is not yet reachable.
 4. **Then reach.** Everyone in the organization, signed in, with access kept in step with the directory.
 5. **Then action.** Cost, digests, and the decisions reports should lead to.
 
@@ -39,7 +40,7 @@ The order follows one principle:
 | Unit of display | Directories, with subtree totals precomputed per scan; files only in searches and lists |
 | Unit of ownership | A top-level folder of a filesystem, owned by one lab or department; people, labs, memberships, and folder ownership use Tundra's model |
 | Ages | Measured from the scan's start, by modification time unless a view says otherwise; seven buckets from under 90 days to ten years or more |
-| Colors | Interface tokens from Tundra; a validated one-hue age ramp (orange to deep red, red means old in both themes); a custom Pinax logo, not the Fred Hutch logo |
+| Colors | Interface tokens from Tundra; a validated hot-to-cold age scale (red for data changed within two years, blue from then on, split at the default cold threshold; until wave 3 a one-hue orange-to-red ramp); a custom Pinax logo, not the Fred Hutch logo |
 | Development data | The demo seed (sparse files scanned by the real fs-inventory), `bench/synth_scan.py`, and scans of the maintainer's own files; real scans are never committed, only measurements |
 | Default port | 8001 (Tundra uses 8000) |
 
@@ -123,7 +124,7 @@ recorded below as built. Merged to `main` in pull request #1 and released as v0.
 Everything a first production deployment needs, built and checked without production storage: every number
 checked against an independent tool, the shapes of real filesystems handled, 100 million files indexed, scans
 ingested as they arrive, labs onboarded in bulk, and a deployment kit. Production storage and the pilot follow
-in wave 3.
+in wave 4.
 
 ### Wave 2 sequence
 
@@ -134,7 +135,7 @@ in wave 3.
 | 3 | Scale to 100 million (S3, R3, Q3–Q5) | A 100-million-file synthetic scan, built and queried on the development laptop, meets Q3–Q5; whole-filesystem cold folders precomputed per age threshold at build time and answered within Q3; build memory and threads tuned and documented | Done |
 | 4 | Automatic ingest (S4, O4) | `pinax ingest --watch` (or a timer) ingests each new verified scan under a folder once, skipping incomplete and already-ingested scans, safe if two run at once; failures shown on *Scans* with the error; tests for each case | Done |
 | 5 | Bulk onboarding (A5) | Labs, people, memberships, and folder ownership imported from CSV with a dry run that lists every change, refusing ambiguous rows; changes audited; example files and docs | Done |
-| 6 | Deployment kit (P6, A4) | systemd units for the web app and ingest; header mode checked behind oauth2-proxy with a local test identity provider; a health endpoint; `docs/DEPLOYMENT.md` rewritten as an installation guide, confirmed by the pilot's installation in wave 3 | Done |
+| 6 | Deployment kit (P6, A4) | systemd units for the web app and ingest; header mode checked behind oauth2-proxy with a local test identity provider; a health endpoint; `docs/DEPLOYMENT.md` rewritten as an installation guide, confirmed by the pilot's installation in wave 4 | Done |
 | 7 | Release 0.2.0 | README demo script updated; version 0.2.0, changelog, pull request, tag, release | Done |
 
 ### Decisions for wave 2
@@ -145,7 +146,7 @@ in wave 3.
   one of them until explained.
 - Production storage is out of reach while wave 2 is built (decided 2026-10-26). The real scan in slice 2 is the
   maintainer's `~/Documents`: real names and shapes, but one owner on a laptop disk. Owners and labs are covered by
-  the demo seed and synthetic scans; production scans, server hardware, and the pilot are wave 3.
+  the demo seed and synthetic scans; production scans, server hardware, and the pilot are wave 4.
 - Pinax records only counts, timings, and checksums from real scans, never paths or names, in the repository;
   the scans themselves stay outside it and are deleted after measuring.
 - Watching polls a folder on a timer instead of relying on file-change notifications, which network filesystems
@@ -196,7 +197,7 @@ in wave 3.
      video formats, macro-enabled spreadsheets, diagrams, executables, and disk images were added to their
      categories, leaving 0.8%. The scan and its indexes were deleted after measuring.
    - *Done*: the real local scan and the wide and deep synthetic scan equal to rollup on every directory, with
-     the shapes above handled. Measuring production storage moved to wave 3.
+     the shapes above handled. Measuring production storage moved to wave 4.
 3. **Scale to 100 million (S3, R3, Q3–Q5).**
    - A synthetic scan of 100 million files in 2.44 million folders under 2,000 top-level folders, generated in
      155 s (3.8 GB).
@@ -214,7 +215,7 @@ in wave 3.
      file); directory-level queries 1–50 ms; lab searches 22 ms, whole-filesystem searches 2.8 s; every
      directory equal to rollup. With 17 GB and all ten threads the build was no faster (133 s), so the default
      stays 8 GB.
-   - *Done*: Q3–Q5 met at 100 million synthetic files on the laptop; server hardware and production are wave 3.
+   - *Done*: Q3–Q5 met at 100 million synthetic files on the laptop; server hardware and production are wave 4.
 4. **Automatic ingest (S4, O4).**
    - `watch.py` and `pinax ingest --watch [FOLDER] [--interval N] [--once] [--no-verify] [--allow-incomplete]`: each
      pass finds scan folders up to three levels down, oldest first; complete scans are verified with
@@ -272,7 +273,7 @@ in wave 3.
    - Tests: the health states; the header refused from untrusted addresses and accepted from trusted networks;
      demo sign-in off in header mode; every unit's command parsed by the CLI and every setting it names real;
      rebuilds (a lost index, the cache reopening, `--outdated`, a missing scan).
-   - *Done*, except what only a real server shows: the pilot installation in wave 3 confirms the guide and units
+   - *Done*, except what only a real server shows: the pilot installation in wave 4 confirms the guide and units
      (`systemd-analyze verify` and the sandboxing options cannot be run on the development Mac).
 7. **Release 0.2.0.**
    - The demo re-seeded with this wave's code: all four snapshots equal to rollup; the README demo script walked
@@ -282,12 +283,182 @@ in wave 3.
      `wave2` to `main`, then tag `v0.2.0` and the release.
    - *Done*.
 
+## 0.3.0: change over time (wave 3)
+
+Where the growth comes from, and whether data is ageing: a PI sees how their lab's data grew and aged over the
+scans, which folders grew or shrank since a chosen scan, and what is new; IT sees the same for every filesystem.
+Every change is checked against an independent computation, like every total.
+
+### Wave 3 sequence
+
+| Slice | Scope and requirements | Acceptance before the next slice | Status |
+| --- | --- | --- | --- |
+| 1 | Comparing two scans (S9, Q1) | At ingest, every directory's change since the filesystem's previous scan (size, space on disk, files, folders, bytes per age bucket; new and removed folders) is stored with the index; equal on every directory to the difference between `fs-inventory rollup`'s totals of the two scans, joined by path; tested against brute force over two file lists; the added build time measured at 100 million files | Done |
+| 2 | A history to show (demo and benchmarks) | `pinax seed` writes six scans of each filesystem over six months: a lab that grows, a cleanup, a project moved between labs, data ageing past the cold threshold, a new lab; `synth_scan.py --evolve` derives a changed scan from another, for benchmarks and checks at scale; the README demo script updated | Done |
+| 3 | History charts (E7) | Size, files, cold share, and mean age over every scan for each top-level folder, lab or department, and filesystem (from folder history), and for any deeper folder across the retained snapshots; a table view; both themes and 375 pixels; chart colors validated | Done |
+| 4 | The change map (E8) | The age map's treemap colored by growth or shrinkage since a chosen scan (the previous one by default), sized by current or earlier size, with removed folders shown; drill down and up as in the age map; within Q3 for a lab folder at 100 million files | Done |
+| 5 | What changed (R9) | For any folder and two scans: the subfolders that grew and shrank most, new and removed folders, and the largest new and removed files, with CSV; within Q4 for a lab folder at 100 million files | Done |
+| 6 | Older snapshots in the interface (S8) | A snapshot picker on every report, the scan date shown wherever a number is, and links that keep the snapshot; a pruned snapshot offers its folder history only | Done |
+| 7 | Release 0.3.0 | The demo script walked through; version 0.3.0, changelog, pull request, tag, release | Done |
+
+### Decisions for wave 3
+
+- Folders are matched across scans by path, so a renamed or moved folder shows as one removed and one new.
+  Matching them by inode is left for later.
+- The change since the previous scan is computed once, when a scan is ingested, and kept with its index; the change
+  since any other retained scan is computed when asked, for one folder and the levels shown.
+- Below the top level, history and comparisons reach back only as far as the retained snapshots
+  (`PINAX_KEEP_SNAPSHOTS`, 6 by default); top-level folders, labs, and filesystems have history for every scan.
+- The trust check for change uses `fs-inventory rollup` of both scans, so a wrong difference cannot come from
+  Pinax's own totals agreeing with themselves.
+- Growth and shrinkage use a diverging color pair validated like the age ramp, with a neutral gray for no change:
+  gold and teal, apart from the age scale's red and blue.
+- Age is shown hot to cold: red for recent data, blue for cold, so cold data looks cold, as the reports call it.
+  (Changed in wave 3 from an orange-to-red ramp in which all data looked warm.)
+
+### Slices as built
+
+1. **Comparing two scans (S9, Q1).**
+   - `build_index(..., previous=INDEX)` attaches the earlier index read-only and joins the two `dirs` tables by
+     path into `changes`: per directory, both scans' files, folders, bytes, allocated bytes, size-weighted time
+     sum, and files and bytes per age bucket (`CHANGE_MEASURES`), and whether it is in each. Ingest and rebuild
+     pass the filesystem's newest earlier ready snapshot with its index on disk; the index's `meta` records which
+     scan it was compared with. `INDEX_VERSION` is 4; `pinax rebuild --outdated` adds comparisons oldest first.
+   - `crosscheck.check_changes`: `fs-inventory rollup` of both scans, joined by path, against `changes` on 38
+     measures (presence in each scan, and each scan's totals and age mix). `pinax check SNAPSHOT_ID` runs it when
+     the previous scan's folder is still there (`--previous-scan` for a scan directory), and says so when not.
+     The totals check and this one now share their tally of differences.
+   - Tests: every directory of two scans a month apart (a folder deleted, files added and removed, a new top-level
+     folder, everything a month older) against brute force over the two file lists; the index saying what it
+     was compared with; ingest, a scan found late, and rebuild; and, with the binary, equality with two rollups,
+     a tampered change caught, and the command.
+   - *Done*: the demo's changes equal to the two rollups on every directory; at 100 million files the comparison
+     takes 0.9 s of the build and 228 MB of the index, and checking it 24 s (all 2.44 million directories equal).
+2. **A history to show (demo and benchmarks).**
+   - `pinax seed` takes six scans of each filesystem, dated a month apart (`SCANS`, as many as
+     `PINAX_KEEP_SNAPSHOTS` keeps by default), and changes the demo trees before each (`month_files`, `REMOVED`,
+     `MOVED`, `COMPRESSED`, `JOINS`): every month two Illumina runs, a nanopore run, and a new batch for the
+     Fujimoto Lab, which grows from 21 to 27 TB; cleanups in the Chen and Haddad labs (scan 2); a light-sheet
+     project moved from the Bennett Lab to the Haddad Lab (scan 3); the Quintero Lab joining, mostly with data from
+     the PI's previous institution (scan 4); the Lindqvist Lab compressing its FASTQ files (scan 5); and the
+     Kowalski Lab's 2024 project ageing past two years, so its cold share climbs from 64% to 100% at the same size.
+   - Demo-only, in `_make_demo_scan` beside the owner rewrite: each scan is dated a month after the one before, and
+     the times the seed cannot set (directories changing as files are written, inode changes, births, errors) are
+     brought back to that date. Files are dated within the month they are written in, and reference data is read
+     again each month, so ages and access times are as the dates say. A moved project keeps its owners, as `mv`
+     would.
+   - `synth_scan.py --evolve SCAN --days N` writes a scan as it might look N days later: a share of projects
+     deleted, of folders grown, and of files rewritten, and new top-level folders; each generation names its new
+     files apart, so scans can be evolved again and again. It works on any fs-inventory scan, real ones included.
+   - Tests: the six months (every file dated within its month and none after its scan, no file written twice, the
+     cleanups, move, compression, and cold threshold finding what they expect); a scan dated by the seed; an
+     evolved scan's changes against brute force over the two scans' files, and what it says it did; evolving twice;
+     and, with the binary, both totals and changes equal to fs-inventory rollup.
+   - *Done*: every demo snapshot and every change between consecutive demo scans equal to fs-inventory rollup (12
+     snapshots, 10 changes); evolved scans of a real demo scan and of the wide and deep shapes likewise. At one
+     million files, `--evolve` takes 1.6 s, comparing 0.2 s of a 6 s build, and checking the change 1.1 s (all
+     245,361 directories equal). Kept to small scans on the development laptop; the measurement with changed scans
+     at 100 million files waits for server-class hardware in wave 4.
+3. **History charts (E7).**
+   - `explore.history` and `/api/history` take any place: a person's home, a lab or department, a filesystem, a
+     top-level folder (every scan, from folder history), or a deeper folder (the retained snapshots, from their
+     indexes; the response says how many older scans are not covered). Points carry size, space on disk, files,
+     bytes per age bucket, cold bytes, and mean age, and whether the place was in that scan. A place on several
+     filesystems has a point per day with a scan, each filesystem as of its latest scan by then, with its mean
+     age carried forward. Ingest now records each snapshot's filesystem totals, so a filesystem's history reads
+     one row per scan; older snapshots are summed from folder history in SQL.
+   - *History* (`js/history.js`, `js/timechart.js`) in the sidebar and every report's links: size by age as
+     stacked columns (oldest at the bottom, so new data lands on top), then files, cold share, and average age as
+     small multiples on the same dates rather than a second axis; one readout for all four on hover, tap, or the
+     arrow keys; a table view and CSV. Scans a folder was not in leave a gap. The home pages' change figure links
+     to it.
+   - Colors: the stacked columns use the age ramp (ordinal checks pass in both themes); each small multiple has
+     one series in the color of the figure above it (`--series-1`, `--age-5`, `--age-3`), above 3:1 against the
+     surface in both themes. As a categorical set the three would fail the validator, but they are never read
+     against each other: each chart's title names its series.
+   - Tests: every point against brute force over the scans' files for a top-level folder (with pruning), a
+     filesystem (and the same from folder history when totals were not recorded), a deeper folder (retained
+     snapshots, and one deleted in the last scan through an earlier snapshot), a lab on two filesystems scanned on
+     different days, homes, and access.
+   - *Done*: checked in both themes and at 375 pixels on the demo (no page overflow; the table scrolls in its
+     card). On the demo every history request takes 3–13 ms; with 2,000 folders and 150 weekly scans in the
+     catalog, a filesystem's history takes 3 ms and a lab's 4–8 ms.
+4. **The change map (E8).**
+   - `SnapshotIndex.change_children`: a directory and its children in two scans, joined by path, with each scan's
+     files, folders, bytes, allocated bytes, and time sum, and whether it is in each; ranked by the larger of the
+     two sizes, now, or then; the rest folded with exact sums and counts of new and removed folders; and each listed
+     child's largest children. From the `changes` table for the previous scan, or by attaching an older retained
+     index read-only (`attach`, once per index) and joining its `dirs` on the same depth and path ranges.
+   - `explore.change_tree` and `/api/changes` take the same places as the age map, `since` (a day: per filesystem,
+     the newest kept scan on or before it, or the oldest kept), and `metric`; a removed folder can be opened, since
+     it is in the earlier scan. The response says which scan each filesystem was compared with, and offers the days
+     of every kept earlier scan.
+   - *Change map* (`js/changes.js`) after the age map in the sidebar and report links: the treemap colored by the
+     change in size in seven steps (gold shrinking, teal growing, gray unchanged; new and removed folders take the
+     last step and say so on the tile); sized by the larger of then and now by default, so a removed folder keeps
+     its room; a panel with the change, both sizes, new and removed subfolders, and what grew and shrank most; a
+     table view.
+   - Colors (`--chg-*`): the brand's diverging pair, gold to teal, since red is the color of old data. Each arm
+     passes the ordinal checks in both themes (on navy the arms brighten outward); matching steps of the two arms are
+     at least ΔE 17 apart, with normal vision and under color-vision deficiencies; the true gray midpoint is at least
+     ΔE 15 from both first steps with normal vision and at least 10 under deficiencies (the target is 8).
+   - Tests: every tile against brute force over the two scans' files, from the stored previous scan and from an
+     older scan joined when asked; new and removed folders, opening a removed one; folding and two levels with exact
+     sums; sizing; access.
+   - *Done*: checked in both themes and at 375 pixels on the demo. At one million synthetic files (three evolved
+     generations), the root and a lab folder take 7–21 ms from `changes` and 12–31 ms joined with an older scan,
+     against 24 ms for the age map; the 100-million-file measurement waits for server-class hardware (wave 4).
+5. **What changed (R9).**
+   - `SnapshotIndex.change_units`: over a place's subtree in both scans (the stored changes, or an attached older
+     index), the folders in both scans that grew and shrank most, leaving out a folder when one of its subfolders
+     holds nine tenths or more of its change, so a chain of folders is listed once, where the change is; the
+     outermost new and removed folders (whose parent is in both scans); and counts of every new and removed folder.
+     New folders are not listed as growth, nor removed ones as shrinkage: each change is listed once.
+   - `SnapshotIndex.file_changes`: files in one scan and not the other, matched by path, by anti-joining the two
+     scans' file lists over the place's path range; the largest, with their number and total size.
+   - `explore.what_changed` and `/api/changed`, with the places, `since`, and comparison of the change map;
+     `fmt=csv&list=` downloads any of the six lists up to `PINAX_EXPORT_MAX_ROWS`.
+   - *What changed* (`js/changed.js`) after the change map: the change in size, new and removed files and folders,
+     then the six lists, each linking to the change map at that folder, with CSV.
+   - Tests: every list against brute force over the two scans' files, for the root and three folders (one new, one
+     with a removed subfolder), from the stored previous scan and from an older scan; CSV, limits, and access.
+   - *Done*: checked in both themes and at 375 pixels on the demo. At one million synthetic files (three evolved
+     generations), a lab folder's report takes 70–90 ms and the whole filesystem's 0.5–0.6 s; the 100-million-file
+     measurement waits for server-class hardware (wave 4).
+   - Before slice 6, at the maintainer's request: the age scale changed from orange-to-red to hot-to-cold (red for
+     data changed within two years, blue from then on), so cold data looks cold and a map of mostly old data no
+     longer reads as alarming throughout. Each arm passes the ordinal checks in both themes.
+6. **Older snapshots in the interface (S8).**
+   - Every report takes `at`, a day: each filesystem's newest scan by the end of it (`explore.Scan`, accepted
+     wherever a snapshot ID was). A day whose newest scan was pruned answers 410 with where its totals are; History
+     still answers, since it shows every scan's folder totals. A home leaves out a filesystem with no full scan by
+     then. `/api/scan-days` lists a place's scan days, newest first, and whether each is kept in full.
+   - The interface: `state.at` from the address, added by `placeQuery` to every place link and report request, so
+     the sidebar, report links, breadcrumbs, tiles, and CSV downloads keep the scan. The scope header's date is a
+     picker of the place's scan days; an older one is marked, with *Back to the latest*; a day kept only as folder
+     totals opens History, which marks it and says why. History marks any chosen scan in its charts and table.
+     *Scans* links each kept snapshot to its age map and each pruned one to History.
+   - Tests: scan days and which are kept; reports at a chosen day, between scans, and the latest; a home on two
+     filesystems at a day; every report taking the day; a pruned day (410, History still showing it), a day before
+     any scan, and a home leaving a pruned filesystem out. They caught File types and Owners ignoring the day.
+   - *Done*: checked in the browser, in both themes and at 375 pixels: the picker, links keeping the scan, the
+     change map and What changed comparing with the scans before the chosen one, History's mark, and *Scans* links.
+7. **Release 0.3.0.**
+   - The demo re-seeded with this wave's code: all 12 snapshots, and all 10 changes between consecutive scans,
+     equal to rollup. The README demo script walked through against the demo, its numbers checked through the API
+     and the pages seen in the browser; the CSV import applied and the demo seeded again. Two sentences
+     corrected: where `2025_immune_aging` sits, and the tiles folder shown as a very large directory.
+   - Version 0.3.0 in `pyproject.toml`, `pinax.__version__`, and `uv.lock`; `CHANGELOG.md` dated, with upgrade
+     notes; pull request `wave3` to `main`, then tag `v0.3.0` and the release.
+   - Not measured: anything above a million files. The change map's Q3 and What changed's Q4 at 100 million files,
+     and changed scans at that size, wait for server-class hardware (wave 4).
+   - *Done*.
+
 ## Later waves (outlined)
 
 | Wave | Release | Theme | Main content |
 | --- | --- | --- | --- |
-| 3 | 0.3.0 | Production pilot | The largest production scan available ingests and passes `pinax check`; build time, index size, and query times measured on production replace the extrapolations in `docs/ARCHITECTURE.md`; 100 million files on server-class hardware; installation on a pilot server from the deployment kit, scanning on a schedule; IT and a few pilot labs use it, and what they find is fixed or recorded |
-| 4 | 0.4.0 | Change over time | History charts per folder, lab, and filesystem (E6); a change map colored by growth since a chosen scan; what changed between two scans; explore older snapshots (S8) |
+| 4 | 0.4.0 | Production pilot | The largest production scan available ingests and passes `pinax check`; build time, index size, and query times measured on production replace the extrapolations in `docs/ARCHITECTURE.md`; 100 million files on server-class hardware; installation on a pilot server from the deployment kit, scanning on a schedule; IT and a few pilot labs use it, and what they find is fixed or recorded |
 | 5 | 0.5.0 | Reach | PostgreSQL and migrations (P7); single sign-on with roles from directory groups and membership synced from the directory (A6); recertification report (A7); CI, container image (P6); metrics, logs, and alerts (O4, O5); security review |
 | 6 | 0.6.0 | Action | Hard-link aware totals (R7); cost views (R8); periodic digests for PIs; saved and shared views; quotas beside folders; whole-filesystem searches as background jobs |
 | 7 | 1.0.0 | Hardening | Budgets met at a billion files in production; accessibility audit; documentation complete; pilot and early-user feedback addressed |
@@ -299,5 +470,5 @@ in wave 3.
 - Which filesystems record access time reliably enough to show it by default.
 - Scan cadence and snapshot retention for each filesystem.
 - The cost model, if cost views are wanted (wave 6).
-- When production storage becomes reachable for wave 3, and which filesystem and labs the pilot uses.
+- When production storage becomes reachable for wave 4, and which filesystem and labs the pilot uses.
 - Who may see unmapped folders besides storage administrators (for example division data managers).

@@ -1,16 +1,18 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Demo data: two research filesystems, labs, people, and two real fs-inventory scans of each.
+"""Demo data: two research filesystems, labs, people, and six real fs-inventory scans of each, a month apart.
 
 The demo trees hold about 40,000 *sparse* files: each has a realistic logical size (a 120 GB BAM,
 a 2 GB microscopy session) but uses almost no disk, and realistic modification and access times
 going back fifteen years. They are scanned with the real fs-inventory binary, so everything Pinax
-shows comes from genuine scans. One step is demo-only: every file on a laptop belongs to you, so
-after each scan the seed rewrites the owner and group columns to fictional lab accounts (see
-`_assign_demo_owners`). A second scan taken after some simulated activity gives the
-"since the previous scan" comparisons something to show.
+shows comes from genuine scans. Two steps are demo-only (see `_make_demo_scan`): every file on a laptop
+belongs to you, so after each scan the seed rewrites the owner and group columns to fictional lab accounts;
+and the six scans are taken a few seconds apart, so each is dated a month after the one before, with the
+files written for it dated within that month. Between scans the seed simulates six months of activity
+(`MONTHS`): a lab that grows, cleanups, a project moved between labs, data ageing past the cold
+threshold, and a lab that joins.
 
 All names are fictional. Lab folders follow the lastname_f convention used on research storage, and
-the labs and people match Tundra's demo.
+the labs and people match Tundra's demo, plus a lab that joins during the six months.
 """
 
 import json
@@ -22,6 +24,7 @@ import subprocess
 import time
 import unicodedata
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 import duckdb
@@ -33,6 +36,8 @@ from .snapshots import indexes, ingest_scan
 
 KB, MB, GB, TB = 1000, 1000**2, 1000**3, 1000**4
 YEAR = 365.25 * 86400
+MONTH = 30 * 86400
+SCANS = 6  # one a month, as many as PINAX_KEEP_SNAPSHOTS keeps by default
 
 FILESYSTEMS = [
     # slug, name, display root, description
@@ -59,7 +64,11 @@ LABS = [
     ("lindqvist_h", "Lindqvist Lab", "lab", "Clinical Research", "Whole-genome sequencing", [("fast", "lindqvist_h")]),
     ("genomics_sr", "Genomics Shared Resource", "department", "Shared Resources", "Sequencing core services",
      [("fast", "gsr_illumina"), ("fast", "gsr_nanopore")]),
+    ("quintero_v", "Quintero Lab", "lab", "Human Biology", "Spatial transcriptomics", [("fast", "quintero_v")]),
 ]
+
+# Labs that join during the six months: the scan in which their folder first appears.
+JOINS = {"quintero_v": 4}
 
 # Top-level folders that exist but belong to no lab: only administrators see them.
 UNMAPPED = [("fast", "shared_reference"), ("fast", "scratch_legacy"), ("secure", "irb_archive")]
@@ -83,6 +92,7 @@ PEOPLE = [
      [("chen_l", "delegate"), ("johansson_e", "delegate"), ("eriksen_t", "delegate")]),
     ("awong", "Avery Wong", "Staff Scientist", False, [("lindqvist_h", "delegate"), ("genomics_sr", "delegate")]),
     ("cmorgan", "Casey Morgan", "Director, Genomics Shared Resource", False, [("genomics_sr", "pi")]),
+    ("vquintero", "Valeria Quintero", "Principal Investigator", False, [("quintero_v", "pi")]),
     ("rpatel", "Riya Patel", "Postdoctoral Research Fellow", False, []),  # no lab access yet
     ("pnatarajan", "Priya Natarajan", "Storage Engineering Lead", True, []),
     ("srivera", "Sam Rivera", "Research Data Services, Scientific Computing", True, []),
@@ -92,7 +102,8 @@ PEOPLE = [
 MEMBER_NAMES = ["tnguyen", "bokoro", "lfischer", "dmendes", "yzhou", "kpatel", "jkim", "mrossi", "asato", "ebrown",
                 "hsingh", "olarsen", "cdiaz", "nmurphy", "rkhan", "vpetrov", "glopez", "wtanaka", "sali", "fmoreau",
                 "pwalsh", "imartin", "zahmed", "qliu", "uokonkwo", "xchen", "bjensen", "aharris", "tcosta", "lnovak",
-                "mweber", "sgupta", "jsilva", "kito", "ebauer", "ryoung", "dkaur", "fhansen", "nbrooks", "vramos"]
+                "mweber", "sgupta", "jsilva", "kito", "ebauer", "ryoung", "dkaur", "fhansen", "nbrooks", "vramos",
+                "aokeke", "mcarter", "lwalker", "hjoshi"]
 
 
 @dataclass
@@ -101,6 +112,7 @@ class FileSpec:
     size: int
     mtime: float
     atime: float
+    hot: bool = False
 
 
 class TreeBuilder:
@@ -122,7 +134,7 @@ class TreeBuilder:
         for i in range(count if exact else self.n(count)):
             mtime = self.now - r.uniform(age[0], age[1]) * YEAR
             atime = (self.now - r.uniform(0, 14) * 86400) if hot else min(self.now, mtime + r.uniform(0, 45) * 86400)
-            self.files.append(FileSpec(pattern.format(i=i, i1=i + 1), int(r.uniform(*size)), mtime, atime))
+            self.files.append(FileSpec(pattern.format(i=i, i1=i + 1), int(r.uniform(*size)), mtime, atime, hot))
 
     def link(self, path: str, target: str) -> None:
         self.links.append((path, target))
@@ -234,6 +246,8 @@ def lab_files(t: TreeBuilder, top: str) -> None:
             a(f"{top}/raw/2023_dia_cohort/run_{{i:03d}}.raw", 200, (2 * GB, 5 * GB), (1.6, 2.8))
             a(f"{top}/analysis/maxquant/txt/{{i:02d}}_proteinGroups.txt", 40, (10 * MB, 90 * MB), (1.5, 9))
             a(f"{top}/instrument_exports/locked/export_{{i:02d}}.mzML", 10, (500 * MB, 2 * GB), (3, 4))
+            # Untouched since it finished: it ages past the two-year cold threshold during the six months.
+            a(f"{top}/raw/2024_tmt_plex/run_{{i:03d}}.raw", 160, (2 * GB, 5 * GB), (1.62, 1.97))
         case "lindqvist_h":
             p = f"{top}/wgs/2019_tumor_normal"
             a(f"{p}/bam/sample_{{i:03d}}.tumor.bam", 60, (100 * GB, 180 * GB), (6.8, 7.3))
@@ -257,6 +271,13 @@ def lab_files(t: TreeBuilder, top: str) -> None:
                 years = 0.05 + (39 - run) * 0.12
                 fmt = "pod5" if years < 2.5 else "fast5"
                 a(f"{top}/runs/run_{run:03d}/{fmt}/batch_{{i:03d}}.{fmt}", 50, (1 * GB, 4 * GB), (years, years + 0.02))
+        case "quintero_v":
+            # Copied from the PI's previous institution with its modification times, so new here but not new.
+            prev = f"{top}/previous_institution"
+            a(f"{prev}/2019_spatial_atlas/visium/section_{{i:03d}}.tif", 80, (1 * GB, 3 * GB), (5.5, 6.5))
+            a(f"{prev}/2019_spatial_atlas/spaceranger/section_{{i:03d}}.h5", 80, (100 * MB, 400 * MB), (5.4, 5.5))
+            a(f"{prev}/2023_tumor_margins/visium/section_{{i:03d}}.tif", 60, (1 * GB, 3 * GB), (2.6, 3.2))
+            xenium_run(t, 1)
         case "shared_reference":
             a(f"{top}/genomes/hg38/hg38.fa", 1, (3.1 * GB, 3.2 * GB), (5.5, 5.5), hot=True)
             a(f"{top}/genomes/hg38/hg38.fa.fai", 1, (8 * KB, 9 * KB), (5.5, 5.5), hot=True)
@@ -286,28 +307,16 @@ def name_oddities(t: TreeBuilder) -> None:
         t.add(f"eriksen_t/analytics/misc/{name}", 1, (1 * KB, 5 * KB), (1, 2), exact=True)
 
 
-def build_trees(settings: Settings, rng: random.Random, now: float, scale: float) -> dict[str, dict[str, TreeBuilder]]:
-    """Per filesystem: the files present at the first scan ("base"), those added before the second
-    ("later"), and those deleted before it ("removed", relative paths)."""
-    out = {}
-    for fs, *_ in FILESYSTEMS:
-        out[fs] = {"base": TreeBuilder(rng, now, scale), "later": TreeBuilder(rng, now, scale)}
-    tops = [(fs, top) for _, _, _, _, _, folders in LABS for fs, top in folders] + UNMAPPED
+def build_trees(rng: random.Random, now: float, scale: float) -> dict[str, TreeBuilder]:
+    """Per filesystem, the files present at the first scan, taken at `now`."""
+    out = {fs: TreeBuilder(rng, now, scale) for fs, *_ in FILESYSTEMS}
+    tops = [(fs, top) for slug, _, _, _, _, folders in LABS if slug not in JOINS for fs, top in folders] + UNMAPPED
     for fs, top in tops:
-        key = top if fs == "fast" else f"{fs}/{top}"
         if fs == "fast":
-            lab_files(out[fs]["base"], top)
+            lab_files(out[fs], top)
         else:
-            _secure(out[fs]["base"], key, top)
-    name_oddities(out["fast"]["base"])
-    later = out["fast"]["later"]
-    for run in range(140, 144):  # four new sequencing runs since the first scan
-        rid = f"runs/2026_run_{run:04d}_A0{run % 4}"
-        later.add(f"gsr_illumina/{rid}/fastq/Sample_{{i:02d}}_R1.fastq.gz", 24, (2 * GB, 9 * GB), (0.001, 0.004))
-        later.add(f"gsr_illumina/{rid}/fastq/Sample_{{i:02d}}_R2.fastq.gz", 24, (2 * GB, 9 * GB), (0.001, 0.004))
-    later.add("fujimoto_a/projects/2025_immune_aging/cellranger/sample_{i:02d}/outs/possorted_genome_bam.bam", 30,
-              (30 * GB, 90 * GB), (0.001, 0.005))
-    later.add("alvarez_m/projects/2025_spliceosome/raw_movies/movie_b{i:05d}.eer", 150, (1 * GB, 2 * GB), (0.001, 0.01))
+            _secure(out[fs], f"{fs}/{top}", top)
+    name_oddities(out["fast"])
     return out
 
 
@@ -320,10 +329,100 @@ def _secure(t: TreeBuilder, key: str, top: str) -> None:
         t.files.append(f)
 
 
-REMOVED = [  # cleaned up between the two scans (relative to the filesystem root)
-    ("fast", "chen_l/tmp"),
-    ("fast", "haddad_n/models/checkpoints"),
-]
+# ---------- Six months of activity ----------
+
+NEW = (0.001, 0.08)  # years before a scan: written during the month before it
+
+
+def xenium_run(t: TreeBuilder, n: int) -> None:
+    """One spatial transcriptomics run of the Quintero Lab, written in the month before the scan."""
+    run = f"quintero_v/xenium/2026_run_{n:03d}"
+    t.add(f"{run}/morphology_focus/ch{{i:04d}}.ome.tif", 4, (5 * GB, 12 * GB), NEW)
+    t.add(f"{run}/transcripts.parquet", 1, (6 * GB, 10 * GB), NEW)
+    t.add(f"{run}/cells.zarr.zip", 1, (1 * GB, 2 * GB), NEW)
+    t.add(f"{run}/analysis/{{i:02d}}_clusters.csv", 6, (5 * MB, 40 * MB), NEW)
+
+
+def month_files(rng: random.Random, now: float, scale: float, n: int) -> dict[str, TreeBuilder]:
+    """Per filesystem, the files written in the month before scan `n` (2 to 6), taken at `now`. Every month the
+    sequencing cores deliver runs, the Fujimoto Lab's newest project grows, and a few labs add results."""
+    out = {fs: TreeBuilder(rng, now, scale) for fs, *_ in FILESYSTEMS}
+    f, s = out["fast"], out["secure"]
+    year = time.gmtime(now).tm_year
+    for run in range(140 + 2 * (n - 2), 140 + 2 * (n - 1)):  # two sequencing runs a month
+        rid = f"gsr_illumina/runs/{year}_run_{run:04d}_A0{run % 4}"
+        f.add(f"{rid}/fastq/Sample_{{i:02d}}_R1.fastq.gz", 24, (2 * GB, 9 * GB), NEW)
+        f.add(f"{rid}/fastq/Sample_{{i:02d}}_R2.fastq.gz", 24, (2 * GB, 9 * GB), NEW)
+        f.add(f"{rid}/InterOp/metrics_{{i}}.bin", 3, (1 * MB, 30 * MB), NEW)
+    f.add(f"gsr_nanopore/runs/run_{38 + n:03d}/pod5/batch_{{i:03d}}.pod5", 50, (1 * GB, 4 * GB), NEW)
+    # The lab that grows: a new batch of samples every month, then results.
+    p = "fujimoto_a/projects/2025_immune_aging"
+    f.add(f"{p}/raw/fastq/B{n}_S{{i:03d}}_R1.fastq.gz", 20, (10 * GB, 30 * GB), NEW)
+    f.add(f"{p}/raw/fastq/B{n}_S{{i:03d}}_R2.fastq.gz", 20, (10 * GB, 30 * GB), NEW)
+    if n == 2:
+        f.add(f"{p}/cellranger/sample_{{i:02d}}/outs/possorted_genome_bam.bam", 30, (30 * GB, 90 * GB), NEW)
+    if n == 6:
+        f.add(f"{p}/analysis/immune_aging_atlas.h5ad", 1, (80 * GB, 90 * GB), NEW)
+    f.add(f"alvarez_m/projects/2025_spliceosome/raw_movies/movie_m{n}_{{i:04d}}.eer", 50, (1 * GB, 2 * GB), NEW)
+    f.add(f"iverson_p/experiments/2026_panels/run_m{n}_{{i:04d}}.fcs", 30, (5 * MB, 50 * MB), NEW)
+    f.add(f"chen_l/analysis/output/tables/table_m{n}_{{i:03d}}.tsv", 10, (100 * KB, 5 * MB), NEW)
+    f.add(f"haddad_n/logs/slurm-m{n}{{i:05d}}.out", 40, (5 * KB, 2 * MB), NEW)
+    for slug, joins in JOINS.items():
+        if n == joins:  # the folder arrives: the lab's own files, then its first run here
+            lab_files(f, slug)
+        elif n > joins:
+            xenium_run(f, n - joins + 1)
+    s.add(f"eriksen_t/trials/FH-2024-007/edc_exports/visit_m{n}_{{i:03d}}.csv", 15, (2 * MB, 40 * MB), NEW)
+    s.add(f"chen_l/cohort_linked/2024_registry_link/linked_records_m{n}_{{i:02d}}.sas7bdat", 2, (2 * GB, 8 * GB), NEW)
+    return out
+
+
+# What is done to the demo filesystems before a scan, besides writing new files (relative to a filesystem root).
+REMOVED = {2: [("fast", "chen_l/tmp"), ("fast", "haddad_n/models/checkpoints")]}
+MOVED = {3: [("fast", "bennett_k/imaging/2024_lightsheet", "haddad_n/datasets/2024_lightsheet_bennett")]}
+COMPRESSED = {5: [("fast", "lindqvist_h/wgs/2024_germline/fastq_uncompressed", "lindqvist_h/wgs/2024_germline/fastq")]}
+
+# The six months in a sentence each, printed by the seed (and listed in the README).
+MONTHS = {
+    2: "the Fujimoto Lab's Cell Ranger results arrive; the Chen and Haddad labs delete temporary files and checkpoints",
+    3: "a light-sheet project moves from the Bennett Lab to the Haddad Lab",
+    4: "the Quintero Lab joins, with data from the PI's previous institution",
+    5: "the Lindqvist Lab compresses its uncompressed FASTQ files",
+    6: "the Fujimoto Lab writes its atlas; the Kowalski Lab's 2024 TMT project is now past two years",
+}
+
+
+def _compress(src: Path, dst: Path) -> None:
+    """Replace each file in `src` with a gzipped one in `dst`, about a quarter the size, keeping its times as
+    gzip does."""
+    dst.mkdir(parents=True, exist_ok=True)
+    for p in sorted(src.iterdir()):
+        st = p.stat()
+        q = dst / f"{p.name}.gz"
+        with open(q, "wb") as fh:
+            fh.truncate(st.st_size * 27 // 100)
+        os.utime(q, ns=(st.st_atime_ns, st.st_mtime_ns))
+    shutil.rmtree(src)
+
+
+def simulate_month(n: int, roots: dict[str, Path], trees: dict[str, TreeBuilder], rng: random.Random, now: float,
+                   scale: float) -> None:
+    """Change the demo filesystems as they would have changed in the month before scan `n`, dated up to `now`."""
+    for fs, t in month_files(rng, now, scale, n).items():
+        t.write(roots[fs])
+        trees[fs].files += t.files
+    for fs, rel in REMOVED.get(n, []):
+        shutil.rmtree(roots[fs] / rel)
+    for fs, src, dst in MOVED.get(n, []):
+        (roots[fs] / dst).parent.mkdir(parents=True, exist_ok=True)
+        os.rename(roots[fs] / src, roots[fs] / dst)
+    for fs, src, dst in COMPRESSED.get(n, []):
+        _compress(roots[fs] / src, roots[fs] / dst)
+    for fs, t in trees.items():  # reference data read every few days stays recently accessed
+        for f in t.files:
+            p = roots[fs] / f.path
+            if f.hot and p.exists():
+                os.utime(p, (now - rng.uniform(0, 14) * 86400, f.mtime))
 
 
 # ---------- Owners (demo only) ----------
@@ -364,9 +463,12 @@ def demo_accounts(rng: random.Random) -> tuple[dict[str, list[tuple[int, str | N
     return owners, groups
 
 
-def _assign_demo_owners(scan_dir: Path, fs: str, root: str, owners: dict, groups: dict) -> None:
-    """Rewrite uid and gid in a demo scan so files belong to fictional lab accounts, and write
-    matching users and groups tables. Real scans are never modified."""
+def _make_demo_scan(scan_dir: Path, fs: str, root: str, owners: dict, groups: dict, taken: float) -> None:
+    """Make a scan of a demo filesystem look like one of research storage (real scans are never modified):
+    - uid and gid rewritten so files belong to fictional lab accounts, with matching users and groups tables;
+      a moved project keeps the accounts of the lab it came from, as `mv` would;
+    - the scan dated `taken`, and every time after that (the times the seed could not set: directories
+      changing as files are written, inode changes, births, errors) set to `taken`."""
     prefix = root.rstrip("/") + "/"
     con = duckdb.connect()
     rows, lab_of = [], {}
@@ -384,26 +486,40 @@ def _assign_demo_owners(scan_dir: Path, fs: str, root: str, owners: dict, groups
     con.executemany("INSERT INTO m VALUES (?, ?, ?, ?, ?)", rows)
     manifest = json.loads((scan_dir / "manifest.json").read_text())
     L = len(prefix) + 1
+    rel = f"substr(path, {L})"
+    moved = " ".join(f"WHEN {rel} = '{dst}' OR {rel} LIKE '{dst}/%' THEN '{src.split('/')[0]}'"
+                     for n in MOVED for f, src, dst in MOVED[n] if f == fs)
+    top = f"CASE {moved} ELSE split_part({rel}, '/', 1) END" if moved else f"split_part({rel}, '/', 1)"
+    stamp = datetime.fromtimestamp(taken, UTC)
+    ts = f"TIMESTAMPTZ '{stamp.isoformat()}'"
+
+    def until_taken(src: Path) -> str:
+        cols = con.execute(f"DESCRIBE SELECT * FROM read_parquet('{src}')").fetchall()
+        return ", ".join(f'(CASE WHEN "{c}" > {ts} THEN {ts} ELSE "{c}" END)::{t} AS "{c}"' for c, t, *_ in cols
+                         if t.startswith("TIMESTAMP"))
+
     for part in manifest["parts"]["entries"]:
         src = scan_dir / part["file"]
         tmp = src.with_suffix(".tmp")
         con.execute(f"""
             COPY (
-              WITH e AS (SELECT *, split_part(substr(path, {L}), '/', 1) AS _top,
-                                split_part(substr(path, {L}), '/', 2) AS _proj FROM read_parquet('{src}')),
+              WITH e AS (SELECT *, {top} AS _top, split_part({rel}, '/', 2) AS _proj FROM read_parquet('{src}')),
               k AS (SELECT e.*, (SELECT n FROM m WHERE m.top = e._top LIMIT 1) AS _n FROM e)
-              SELECT k.* EXCLUDE (_top, _proj, _n, uid, gid),
-                     coalesce(m.uid, 20000)::BIGINT AS uid, coalesce(m.gid, 29999)::BIGINT AS gid
+              SELECT k.* EXCLUDE (_top, _proj, _n) REPLACE (
+                     coalesce(m.uid, 20000)::BIGINT AS uid, coalesce(m.gid, 29999)::BIGINT AS gid, {until_taken(src)})
               FROM k LEFT JOIN m ON m.top = k._top AND m.i = CASE
                    WHEN hash(k.path) % 7 = 0 THEN hash(k.path) % k._n
                    ELSE hash(k._top || '/' || k._proj) % k._n END
             ) TO '{tmp}' (FORMAT parquet, COMPRESSION zstd)
         """)
-        # Restore the original column order.
-        cols = [r[0] for r in con.execute(f"DESCRIBE SELECT * FROM read_parquet('{src}')").fetchall()]
-        con.execute(f"COPY (SELECT {', '.join(cols)} FROM read_parquet('{tmp}')) TO '{src}' "
+        os.replace(tmp, src)
+        part["bytes"] = src.stat().st_size
+    for part in manifest["parts"].get("errors", []):
+        src = scan_dir / part["file"]
+        tmp = src.with_suffix(".tmp")
+        con.execute(f"COPY (SELECT * REPLACE ({until_taken(src)}) FROM read_parquet('{src}')) TO '{tmp}' "
                     "(FORMAT parquet, COMPRESSION zstd)")
-        tmp.unlink()
+        os.replace(tmp, src)
         part["bytes"] = src.stat().st_size
     names = {uid: name for accts in owners.values() for uid, name in accts}
     names[20000] = "svc_storage"
@@ -419,9 +535,13 @@ def _assign_demo_owners(scan_dir: Path, fs: str, root: str, owners: dict, groups
         con.execute(f"COPY t TO '{out}' (FORMAT parquet)")
         manifest["parts"][table] = [{"bytes": out.stat().st_size, "file": f"{table}/part-000000.parquet",
                                      "rows": len(items)}]
+    manifest["started_at"] = stamp.isoformat().replace("+00:00", "Z")
+    finished = datetime.fromtimestamp(taken + (manifest.get("duration_seconds") or 0), UTC)
+    manifest["finished_at"] = finished.isoformat().replace("+00:00", "Z")
     (scan_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
-    (scan_dir / "DEMO-OWNERS.txt").write_text(
-        "Pinax demo: uid and gid in this scan were rewritten to fictional lab accounts by `pinax seed`.\n")
+    (scan_dir / "DEMO.txt").write_text(
+        "Pinax demo: uid and gid in this scan were rewritten to fictional lab accounts by `pinax seed`, and the scan\n"
+        f"was dated {manifest['started_at']}, with later times set to that date.\n")
     con.close()
 
 
@@ -470,10 +590,11 @@ def run_seed(scale: float = 1.0) -> None:
     fs_roots = {fs: settings.demo_root / "fs" / fs for fs, *_ in FILESYSTEMS}
 
     print("Writing demo filesystems (sparse files)")
-    trees = build_trees(settings, rng, now, scale)
+    taken = [now - (SCANS - n) * MONTH for n in range(1, SCANS + 1)]
+    trees = build_trees(rng, taken[0], scale)
     for fs, root in fs_roots.items():
         root.mkdir(parents=True, exist_ok=True)
-        trees[fs]["base"].write(root)
+        trees[fs].write(root)
     locked = fs_roots["fast"] / "kowalski_d" / "instrument_exports" / "locked"
     locked.chmod(0)  # unreadable: the scan records an error and carries on
 
@@ -503,22 +624,20 @@ def run_seed(scale: float = 1.0) -> None:
 
     owners, groups = demo_accounts(rng)
     scan_root = settings.demo_root / "scans"
-    for round_no in (1, 2):
-        if round_no == 2:
-            print("Simulating activity: new sequencing runs and projects, cleanups")
-            for fs, root in fs_roots.items():
-                trees[fs]["later"].write(root)
-            for fs, rel in REMOVED:
-                shutil.rmtree(fs_roots[fs] / rel, ignore_errors=True)
-            time.sleep(1.1)
+    last = {}
+    for n in range(1, SCANS + 1):
+        when = time.strftime("%Y-%m-%d", time.gmtime(taken[n - 1]))
+        if n > 1:
+            print(f"Month {n - 1}: {MONTHS[n]}")
+            simulate_month(n, fs_roots, trees, rng, taken[n - 1], scale)
         for fs, root in fs_roots.items():
-            out = scan_root / fs / f"scan-{round_no}"
-            print(f"Scanning {fs} with fs-inventory (scan {round_no} of 2)")
+            out = scan_root / fs / f"scan-{n}"
+            print(f"Scanning {fs} with fs-inventory (scan {n} of {SCANS}, dated {when})")
             _scan(settings, root, out)
-            _assign_demo_owners(out, fs, str(root.resolve()), owners, groups)
+            _make_demo_scan(out, fs, str(root.resolve()), owners, groups, taken[n - 1])
             with session_scope() as s:
                 snap = ingest_scan(s, out, fs_slug=fs, settings=settings, progress=lambda m: None)
+                last[fs] = snap.files
                 print(f"  snapshot {snap.id}: {snap.files:,} files, {snap.bytes / TB:,.1f} TB logical, "
                       f"index built in {snap.build_seconds}s")
-    total = sum(len(t["base"].files) + len(t["later"].files) for t in trees.values())
-    print(f"Done: {total:,} demo files across {len(fs_roots)} filesystems. Run `uv run pinax serve`.")
+    print(f"Done: {sum(last.values()):,} demo files across {len(fs_roots)} filesystems. Run `uv run pinax serve`.")

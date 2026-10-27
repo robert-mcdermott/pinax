@@ -5,7 +5,10 @@ import {
   setActiveNav, showPersonaPicker, startRouter, state,
 } from "/js/core.js";
 import { folderCard, renderSidebar } from "/js/shell.js";
+import { viewChanged } from "/js/changed.js";
+import { viewChanges } from "/js/changes.js";
 import { viewExplore } from "/js/explore.js";
+import { viewHistory } from "/js/history.js";
 import { viewAges, viewCold, viewFiles, viewOwners, viewTypes } from "/js/reports.js";
 import { viewAccess, viewFolders, viewHealth, viewOverview, viewScans } from "/js/admin.js";
 import { coldBytes, thresholdText } from "/js/viz.js";
@@ -38,8 +41,8 @@ async function viewHome(el) {
     <div class="kpis">
       <div class="kpi"><div class="label">Total size</div><div class="value">${bytes(s.bytes)}</div><div class="sub">${num(s.files)} files in ${num(folders.length)} folder${folders.length === 1 ? "" : "s"}</div></div>
       <div class="kpi" style="--kpi-accent:var(--age-5)"><div class="label">Unchanged for ${thresholdText(cb)}+</div><div class="value">${bytes(cold)}</div><div class="sub">${pct(s.bytes ? (cold / s.bytes) * 100 : 0)} of your data</div></div>
-      <div class="kpi" style="--kpi-accent:var(--age-2)"><div class="label">Average age</div><div class="value">${ageText(s.mean_age_days)}</div><div class="sub">Weighted by size</div></div>
-      <div class="kpi" style="--kpi-accent:var(--fh-bright-blue)"><div class="label">Change since the previous scan</div><div class="value">${!hasChange ? "—" : change ? `${change > 0 ? "+" : "−"}${bytes(Math.abs(change))}` : "No change"}</div><div class="sub">${hasChange ? "Across your folders" : "Only one scan so far"}</div></div>
+      <div class="kpi" style="--kpi-accent:var(--age-4)"><div class="label">Average age</div><div class="value">${ageText(s.mean_age_days)}</div><div class="sub">Weighted by size</div></div>
+      <a class="kpi" href="#/history" style="--kpi-accent:var(--fh-bright-blue)"><div class="label">Change since the previous scan</div><div class="value">${!hasChange ? "—" : change ? `${change > 0 ? "+" : "−"}${bytes(Math.abs(change))}` : "No change"}</div><div class="sub">${hasChange ? "Across your folders · history" : "Only one scan so far"}</div></a>
     </div>
     <h2 style="margin:8px 0 14px">Your folders</h2>
     <div class="folder-cards">${folders.map((f) => folderCard(f, cb))}</div>
@@ -54,7 +57,10 @@ async function viewHome(el) {
 const routes = [
   [/^#\/?$/, viewHome],
   [/^#\/explore(\?.*)?$/, viewExplore],
+  [/^#\/changes(\?.*)?$/, viewChanges],
+  [/^#\/changed(\?.*)?$/, viewChanged],
   [/^#\/ages(\?.*)?$/, viewAges],
+  [/^#\/history(\?.*)?$/, viewHistory],
   [/^#\/types(\?.*)?$/, viewTypes],
   [/^#\/cold(\?.*)?$/, viewCold],
   [/^#\/owners(\?.*)?$/, viewOwners],

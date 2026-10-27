@@ -102,7 +102,7 @@ def _measures() -> list[tuple[str, str, str]]:
     return out
 
 
-def _age_pivot() -> str:
+def _age_pivot(view: str = "ages") -> str:
     """rollup_ages as one row per directory. Rollup's bucket 0 is `future` and bucket b + 1 is Pinax's b."""
     def buckets(i: int) -> str:
         return "bucket IN (0, 1)" if i == 0 else f"bucket = {i + 1}"
@@ -110,7 +110,7 @@ def _age_pivot() -> str:
     cols = [f"sum(files) FILTER (WHERE time = 'mtime' AND {buckets(i)})::BIGINT AS mf{i}" for i in range(NB)]
     cols += [f"sum(bytes) FILTER (WHERE time = 'mtime' AND {buckets(i)})::BIGINT AS mb{i}" for i in range(NB)]
     cols += [f"sum(bytes) FILTER (WHERE time = 'atime' AND {buckets(i)})::BIGINT AS ab{i}" for i in range(NB)]
-    return f"SELECT dir_id, {', '.join(cols)} FROM ages GROUP BY dir_id"
+    return f"SELECT dir_id, {', '.join(cols)} FROM {view} GROUP BY dir_id"
 
 
 def _show(measure: str, value) -> str:
@@ -143,6 +143,8 @@ class CheckReport:
     index_version: int
     rollup_seconds: float = 0.0
     compare_seconds: float = 0.0
+    subject: str = "directories"
+    against: str = "fs-inventory rollup"
 
     @property
     def ok(self) -> bool:
@@ -161,11 +163,11 @@ class CheckReport:
     def text(self) -> str:
         lines = []
         if self.ok:
-            lines.append(f"OK: {self.dirs:,} directories, {len(self.measures)} measures each, all equal "
-                         f"to fs-inventory rollup (age buckets {self.edges}, compared down to depth {self.age_depth})")
+            lines.append(f"OK: {self.dirs:,} {self.subject}, {len(self.measures)} measures each, all equal "
+                         f"to {self.against} (age buckets {self.edges}, compared down to depth {self.age_depth})")
         else:
-            lines.append(f"MISMATCH: {self.dirs:,} directories compared on {len(self.measures)} measures "
-                         f"(age buckets {self.edges}, compared down to depth {self.age_depth})")
+            lines.append(f"MISMATCH: {self.dirs:,} {self.subject} compared on {len(self.measures)} measures "
+                         f"against {self.against} (age buckets {self.edges}, compared down to depth {self.age_depth})")
             for name, count, examples in (("only in Pinax", self.only_pinax_count, self.only_pinax),
                                           ("only in rollup", self.only_rollup_count, self.only_rollup)):
                 if count:
@@ -211,39 +213,118 @@ def compare(index_dir: Path, rollup_scan: Path, *, age_depth: int, examples: int
             LEFT JOIN ({_age_pivot()}) a ON a.dir_id = r.dir_id
         """)
 
-        def differ(i: int) -> str:
-            ages = " AND has_ages" if measures[i][0].endswith("]") else ""
-            return f"in_p AND in_r{ages} AND p{i} IS DISTINCT FROM r{i}"
-
-        counts = ", ".join(f"count(*) FILTER (WHERE {differ(i)})" for i in range(len(measures)))
-        row = con.execute(f"""
-            SELECT count(*) FILTER (WHERE in_p AND in_r), count(*) FILTER (WHERE NOT in_r),
-                   count(*) FILTER (WHERE NOT in_p), {counts}
-            FROM j
-        """).fetchone()
-        both, only_p, only_r, per = row[0], row[1], row[2], row[3:]
-        version = con.execute("SELECT value FROM p.meta WHERE key = 'index_version'").fetchone()
-
-        def paths(where: str) -> list[str]:
-            rows = con.execute(f"SELECT path FROM j WHERE {where} ORDER BY path LIMIT {examples}").fetchall()
-            return [r[0] for r in rows]
-
-        mismatches = []
-        for i, ((name, _, _), n) in enumerate(zip(measures, per, strict=True)):
-            if not n:
-                continue
-            ex = con.execute(f"""
-                SELECT path, p{i}, r{i} FROM j WHERE {differ(i)} ORDER BY path LIMIT {examples}
-            """).fetchall()
-            mismatches.append(Mismatch(name, n, [{"path": p, "pinax": a, "rollup": b} for p, a, b in ex]))
-        return CheckReport(
-            dirs=both, only_pinax=paths("NOT in_r") if only_p else [], only_rollup=paths("NOT in_p") if only_r else [],
-            only_pinax_count=only_p, only_rollup_count=only_r, measures=[m[0] for m in measures],
-            mismatches=mismatches, age_depth=age_depth, edges=rollup_edges(),
-            index_version=int(json.loads(version[0])) if version else 0, compare_seconds=time.monotonic() - t0,
-        )
+        report = _tally(con, measures, age_depth=age_depth, examples=examples)
+        report.compare_seconds = time.monotonic() - t0
+        return report
     finally:
         con.close()
+
+
+def _tally(con: duckdb.DuckDBPyConnection, measures: list[tuple[str, str, str]], *, age_depth: int,
+           examples: int) -> CheckReport:
+    """Count the differences in the view `j` (in_p, in_r, has_ages, path, and p{i}, r{i} for each measure), with
+    a few examples of each. Age measures (their names end in `]`) count only where `has_ages`."""
+    def differ(i: int) -> str:
+        ages = " AND has_ages" if measures[i][0].endswith("]") else ""
+        return f"in_p AND in_r{ages} AND p{i} IS DISTINCT FROM r{i}"
+
+    counts = ", ".join(f"count(*) FILTER (WHERE {differ(i)})" for i in range(len(measures)))
+    row = con.execute(f"""
+        SELECT count(*) FILTER (WHERE in_p AND in_r), count(*) FILTER (WHERE NOT in_r),
+               count(*) FILTER (WHERE NOT in_p), {counts}
+        FROM j
+    """).fetchone()
+    both, only_p, only_r, per = row[0], row[1], row[2], row[3:]
+    version = con.execute("SELECT value FROM p.meta WHERE key = 'index_version'").fetchone()
+
+    def paths(where: str) -> list[str]:
+        rows = con.execute(f"SELECT path FROM j WHERE {where} ORDER BY path LIMIT {examples}").fetchall()
+        return [r[0] for r in rows]
+
+    mismatches = []
+    for i, ((name, _, _), n) in enumerate(zip(measures, per, strict=True)):
+        if not n:
+            continue
+        ex = con.execute(f"SELECT path, p{i}, r{i} FROM j WHERE {differ(i)} ORDER BY path LIMIT {examples}").fetchall()
+        mismatches.append(Mismatch(name, n, [{"path": p, "pinax": a, "rollup": b} for p, a, b in ex]))
+    return CheckReport(
+        dirs=both, only_pinax=paths("NOT in_r") if only_p else [], only_rollup=paths("NOT in_p") if only_r else [],
+        only_pinax_count=only_p, only_rollup_count=only_r, measures=[m[0] for m in measures],
+        mismatches=mismatches, age_depth=age_depth, edges=rollup_edges(),
+        index_version=int(json.loads(version[0])) if version else 0,
+    )
+
+
+def _change_measures() -> list[tuple[str, str, str]]:
+    """(name, Pinax expression over the `changes` row `c`, rollup expression over the two scans' rollups `b` and
+    their age pivots `an` and `ao`). Every measure is compared for both scans; a directory missing from a scan
+    has none of its measures."""
+    labels = [b.short for b in AGE_BUCKETS]
+    out = [("in the previous scan", "c.in_old", "b.o_id IS NOT NULL"), ("in this scan", "c.in_new", "b.n_id IS NOT NULL")]
+    for side, pre, ages in (("previous", "o", "ao"), ("this", "n", "an")):
+        here = f"b.{pre}_id IS NOT NULL"
+        for name, mine, theirs in (("files", "files", "files"), ("dirs", "dirs", "dirs"), ("bytes", "bytes", "bytes"),
+                                   ("alloc_bytes", "alloc", "alloc_bytes")):
+            out.append((f"{name} ({side} scan)", f"c.{pre}_{mine}", f"b.{pre}_{theirs}"))
+        out += [(f"mtime_files ({side} scan)[{labels[i]}]", f"c.{pre}_mf{i}",
+                 f"CASE WHEN {here} THEN coalesce({ages}.mf{i}, 0) END") for i in range(NB)]
+        out += [(f"mtime_bytes ({side} scan)[{labels[i]}]", f"c.{pre}_mb{i}",
+                 f"CASE WHEN {here} THEN coalesce({ages}.mb{i}, 0) END") for i in range(NB)]
+    return out
+
+
+def compare_changes(index_dir: Path, new_rollup: Path, old_rollup: Path, *, age_depth: int, examples: int = 10,
+                    memory_limit: str = "4GB", temp_dir: Path | None = None) -> CheckReport:
+    """Compare the index's `changes` table with the two scans' rollups, joined by path: each directory's totals
+    in each scan, and whether it is in each."""
+    t0 = time.monotonic()
+    con = duckdb.connect()
+    try:
+        con.execute(f"SET memory_limit = {_sql_str(memory_limit)}")
+        if temp_dir:
+            con.execute(f"SET temp_directory = {_sql_str(str(temp_dir))}")
+        con.execute(f"ATTACH {_sql_str(str(index_dir / 'index.duckdb'))} AS p (READ_ONLY)")
+        for side, folder in (("n", new_rollup), ("o", old_rollup)):
+            for view, table in ((f"r{side}", "rollup"), (f"ages_{side}", "rollup_ages")):
+                glob = _sql_str(str(folder / table / "*.parquet"))
+                con.execute(f"CREATE TEMP VIEW {view} AS SELECT * FROM read_parquet({glob})")
+        measures = _change_measures()
+        cols = ", ".join(f"{p} AS p{i}, {r} AS r{i}" for i, (_, p, r) in enumerate(measures))
+        sides = ", ".join(f"r{x}.dir_id AS {x}_id, r{x}.files AS {x}_files, r{x}.dirs AS {x}_dirs, "
+                          f"r{x}.bytes AS {x}_bytes, r{x}.alloc_bytes AS {x}_alloc_bytes" for x in ("n", "o"))
+        con.execute(f"""
+            CREATE TEMP VIEW j AS
+            WITH b AS (SELECT coalesce(rn.path, ro.path) AS path, {sides} FROM rn FULL JOIN ro ON ro.path = rn.path)
+            SELECT coalesce(c.path, b.path) AS path, c.path IS NOT NULL AS in_p, b.path IS NOT NULL AS in_r,
+                   true AS has_ages, {cols}
+            FROM p.changes c
+            FULL JOIN b ON b.path = c.path
+            LEFT JOIN ({_age_pivot('ages_n')}) an ON an.dir_id = b.n_id
+            LEFT JOIN ({_age_pivot('ages_o')}) ao ON ao.dir_id = b.o_id
+        """)
+        report = _tally(con, measures, age_depth=age_depth, examples=examples)
+        report.subject = "directories of the two scans"
+        report.against = "the two scans' fs-inventory rollups"
+        report.compare_seconds = time.monotonic() - t0
+        return report
+    finally:
+        con.close()
+
+
+def check_changes(index_dir: Path, scan_dir: Path, previous_scan: Path, work_dir: Path, *, binary: str,
+                  examples: int = 10, memory_limit: str = "4GB") -> CheckReport:
+    """Run `fs-inventory rollup` on both scans and compare their difference with the index's `changes`. Each
+    rollup's age histograms reach the whole depth of its scan."""
+    t0 = time.monotonic()
+    new = run_rollup(scan_dir, work_dir / "this", binary=binary, age_depth=scan_depth(scan_dir))
+    old = run_rollup(previous_scan, work_dir / "previous", binary=binary, age_depth=scan_depth(previous_scan))
+    rollup_seconds = time.monotonic() - t0
+    (work_dir / "tmp").mkdir(parents=True, exist_ok=True)
+    depth = max(scan_depth(scan_dir), scan_depth(previous_scan))
+    report = compare_changes(index_dir, new, old, age_depth=depth, examples=examples, memory_limit=memory_limit,
+                             temp_dir=work_dir / "tmp")
+    report.rollup_seconds = rollup_seconds
+    return report
 
 
 def check(scan_dir: Path, index_dir: Path, work_dir: Path, *, binary: str, examples: int = 10,

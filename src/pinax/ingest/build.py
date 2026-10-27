@@ -17,6 +17,8 @@ directory level is precomputed once per scan, so no page ever reads per-file row
                                top_owner
                                cold_units  per age threshold, the largest folders in which nothing is
                                            younger, ordered by (threshold, path)
+                               changes     every directory of this scan or the previous one, joined by
+                                           path, with both scans' totals; ordered by (depth, path)
                                tops, users, groups, errors, name_flags, meta
     <index>/files/gNNNNNN/*.parquet        every non-directory entry, in at most 64 groups of
                                            top-level folders, each sorted by path (so any folder,
@@ -45,7 +47,7 @@ from ..categories import AGE_BUCKETS, CATEGORIES, COMPRESSION_SUFFIXES, OTHER, b
 
 log = logging.getLogger("pinax.build")
 
-INDEX_VERSION = 3
+INDEX_VERSION = 4
 # Files are staged and sorted in at most this many groups of top-level folders. A partitioned write keeps a
 # file open and buffered for each partition, so one per top-level folder does not scale to thousands of them.
 FILE_GROUPS = 64
@@ -82,6 +84,7 @@ class BuildResult:
     seconds: float
     totals: dict
     steps: dict[str, float] = field(default_factory=dict)
+    compared: dict | None = None  # the previous scan this one was compared with
 
 
 def read_manifest(scan_dir: Path) -> dict:
@@ -218,6 +221,38 @@ def _cold_units() -> str:
         WHERE {cold(b, 'd')} AND (p.dir_id IS NULL OR NOT {cold(b, 'p')})""" for b in range(1, NB))
 
 
+# What `changes` keeps of each scan, per directory (subtree totals, as in `dirs`).
+CHANGE_MEASURES = (["files", "dirs", "bytes", "alloc", "m_wsum"] + [f"mf{i}" for i in range(NB)]
+                   + [f"mb{i}" for i in range(NB)])
+
+
+def _compare(con: duckdb.DuckDBPyConnection, previous: Path, root: str, step: Callable) -> dict | None:
+    """Join this scan's directories with the previous scan's by path, keeping both scans' totals (`o_` for the
+    previous, `n_` for this one): a directory in only one of them is new or removed. Ages are each scan's own,
+    measured from its start. Returns what the comparison was with, for `meta`."""
+    con.execute(f"ATTACH {_sql_str(str(previous / 'index.duckdb'))} AS prev (READ_ONLY)")
+    try:
+        meta = {k: json.loads(v) for k, v in con.execute("SELECT key, value FROM prev.meta").fetchall()}
+        if meta.get("root") != root:
+            log.warning("not comparing with %s: its root is %s, not %s", previous, meta.get("root"), root)
+            return None
+        cols = ", ".join(f"o.{c} AS o_{c}, n.{c} AS n_{c}" for c in CHANGE_MEASURES)
+        step("changes", f"""
+            CREATE TABLE changes AS
+            SELECT coalesce(n.path, o.path) AS path, coalesce(n.depth, o.depth) AS depth,
+                   coalesce(n.name, o.name) AS name, n.dir_id IS NOT NULL AS in_new, o.dir_id IS NOT NULL AS in_old,
+                   {cols}
+            FROM dirs n FULL JOIN prev.dirs o ON o.path = n.path
+            ORDER BY depth, path
+        """)
+        new, removed = con.execute("SELECT count(*) FILTER (WHERE NOT in_old), count(*) FILTER (WHERE NOT in_new) "
+                                   "FROM changes").fetchone()
+        return {"scan_id": meta.get("scan_id"), "started_at": meta.get("started_at"), "ref_day": meta.get("ref_day"),
+                "index_version": meta.get("index_version"), "new_dirs": int(new), "removed_dirs": int(removed)}
+    finally:
+        con.execute("DETACH prev")
+
+
 def build_index(
     scan_dir: Path,
     index_dir: Path,
@@ -225,10 +260,12 @@ def build_index(
     memory_limit: str = "8GB",
     threads: int = 0,
     allow_incomplete: bool = False,
+    previous: Path | None = None,
     progress: Callable[[str], None] | None = None,
 ) -> BuildResult:
     """Build `index_dir` from the fs-inventory scan in `scan_dir`. Writes to a temporary sibling
-    folder and renames it into place only when complete."""
+    folder and renames it into place only when complete. With `previous`, the index of the same
+    filesystem's previous scan, it also records how every directory changed since then."""
     say = progress or (lambda m: log.info(m))
     t0 = time.monotonic()
     steps: dict[str, float] = {}
@@ -481,6 +518,11 @@ def build_index(
     say("Finding cold folders")
     step("cold", f"CREATE TABLE cold_units AS SELECT * FROM ({_cold_units()}) ORDER BY bucket, path")
 
+    compared = None
+    if previous is not None:
+        say("Comparing with the previous scan")
+        compared = _compare(con, Path(previous), root, step)
+
     say("Writing type and owner tables")
     step("dir_ext", """
         CREATE TABLE dir_ext AS
@@ -553,6 +595,7 @@ def build_index(
         "dimensions": describe(),
         "build": {"threads": all_threads, "scan_threads": scan_threads, "memory_limit": memory_limit},
         "totals": totals,
+        "previous": compared,
     }
     con.execute("CREATE TABLE meta (key VARCHAR PRIMARY KEY, value JSON)")
     con.executemany("INSERT INTO meta VALUES (?, ?)", [(k, json.dumps(v)) for k, v in meta.items()])
@@ -568,4 +611,4 @@ def build_index(
     seconds = time.monotonic() - t0
     say(f"Index built in {seconds:.1f}s")
     return BuildResult(index_dir=index_dir, manifest=manifest, root=root, started_at=started_at, seconds=seconds,
-                       totals=totals, steps={k: round(v, 3) for k, v in steps.items()})
+                       totals=totals, steps={k: round(v, 3) for k, v in steps.items()}, compared=compared)

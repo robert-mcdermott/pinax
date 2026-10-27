@@ -89,9 +89,9 @@ def test_file_search_and_csv(client):
 
 def test_history_and_snapshots(client):
     login(client, "ada")
-    pts = client.get("/api/history", params={"fs": "fast", "folder": "alpha_lab"}).json()["points"]
+    pts = client.get("/api/history", params={"fs": "fast", "path": ALPHA}).json()["points"]
     assert len(pts) == 1 and pts[0]["bytes"] == 19061
-    assert client.get("/api/history", params={"fs": "fast", "folder": "beta_lab"}).status_code == 404
+    assert client.get("/api/history", params={"fs": "fast", "path": BETA}).status_code == 404
     login(client, "ivy")
     snaps = client.get("/api/admin/snapshots").json()
     assert snaps[0]["status"] == "ready" and snaps[0]["errors"] == 1

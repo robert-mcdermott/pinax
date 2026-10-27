@@ -28,10 +28,10 @@ export async function viewAges(el, query) {
     ${scopeHeader("ages", place, { asOf: data.as_of, lab: !place ? data.node.lab : null })}
     <div class="kpis">
       <div class="kpi"><div class="label">Size</div><div class="value">${bytes(s.bytes)}</div><div class="sub">${num(s.files)} files</div></div>
-      <div class="kpi" style="--kpi-accent:var(--age-3)"><div class="label">Average age</div><div class="value">${ageText(s.mean_age_days)}</div><div class="sub">Since last change, weighted by size</div></div>
+      <div class="kpi" style="--kpi-accent:var(--age-4)"><div class="label">Average age</div><div class="value">${ageText(s.mean_age_days)}</div><div class="sub">Since last change, weighted by size</div></div>
       <div class="kpi" style="--kpi-accent:var(--age-5)"><div class="label">Unchanged for ${thresholdText(cb)}+</div><div class="value">${bytes(cold)}</div><div class="sub">${pct(s.bytes ? (cold / s.bytes) * 100 : 0)} of the data</div></div>
-      <div class="kpi" style="--kpi-accent:var(--age-1)"><div class="label">Not read for a year+</div><div class="value">${bytes(notRead)}</div><div class="sub">By last access time, where recorded</div></div>
-      <div class="kpi" style="--kpi-accent:var(--fh-bright-blue)"><div class="label">Last change</div><div class="value">${s.newest ? ageText(daysSince(s.newest, data.as_of)) : "—"}</div><div class="sub">${s.newest ? `ago, on ${date(s.newest)}` : "No files"}</div></div>
+      <div class="kpi" style="--kpi-accent:var(--age-4)"><div class="label">Not read for a year+</div><div class="value">${bytes(notRead)}</div><div class="sub">By last access time, where recorded</div></div>
+      <div class="kpi" style="--kpi-accent:var(--fh-bright-blue)"><div class="label">Last change</div><div class="value">${s.newest ? ageText(daysSince(s.newest, data.as_of)) : "—"}</div><div class="sub">${s.newest ? `${daysSince(s.newest, data.as_of) < 1 ? "" : "ago, "}on ${date(s.newest)}` : "No files"}</div></div>
     </div>
     <div class="grid split">
       <div class="card"><div class="card-head"><h2>Age profile</h2>
@@ -160,7 +160,7 @@ export async function viewCold(el, query) {
     data.dirs.map((d) => [d.fs, displayPath(d.fs, d.path), d.stats.bytes, d.stats.files, d.stats.newest, d.stats.oldest, d.lab?.name || ""])));
 }
 
-function downloadCsv(name, header, rows) {
+export function downloadCsv(name, header, rows) {
   const cell = (v) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
   const text = [header, ...rows].map((r) => r.map(cell).join(",")).join("\n");
   const a = document.createElement("a");

@@ -71,6 +71,9 @@ def main() -> None:
     check.add_argument("--age-depth", type=int,
                        help="Compare age histograms down to this depth (default: the whole scan; rollup needs about "
                             "0.5 KB of memory per directory down to it)")
+    check.add_argument("--previous-scan", type=Path,
+                       help="With a scan directory and --index: the previous scan, to check the index's changes "
+                            "(a snapshot ID finds it in the catalog)")
     check.add_argument("--json", action="store_true", help="Print the report as JSON")
 
     args = parser.parse_args()
@@ -287,12 +290,16 @@ def _check(args: argparse.Namespace) -> int:
     import tempfile
 
     from .config import get_settings
-    from .crosscheck import CheckError, check
+    from .crosscheck import CheckError, check, check_changes
+    from .index import SnapshotIndex
     from .ingest.build import BuildError, build_index
 
     settings = get_settings()
     settings.ensure_dirs()
+    previous_scan = args.previous_scan
     if args.target.isdigit():
+        from sqlalchemy import select
+
         from .db import init_db, session_scope
         from .models import Snapshot, SnapshotStatus
 
@@ -303,6 +310,12 @@ def _check(args: argparse.Namespace) -> int:
                 print(f"error: no ready snapshot {args.target} (see `pinax snapshots`)", file=sys.stderr)
                 return 2
             scan_dir, index_dir = Path(snap.scan_dir), Path(snap.index_dir)
+            idx = SnapshotIndex(index_dir, memory_limit="256MB", threads=1)
+            prev_id = (idx.previous or {}).get("scan_id")
+            idx.close()
+            if prev_id:
+                prev = s.scalar(select(Snapshot).where(Snapshot.scan_id == prev_id))
+                previous_scan = Path(prev.scan_dir) if prev else None
     else:
         scan_dir, index_dir = Path(args.target), args.index
     if not (scan_dir / "manifest.json").exists():
@@ -317,10 +330,27 @@ def _check(args: argparse.Namespace) -> int:
                         allow_incomplete=args.allow_incomplete)
         report = check(scan_dir, index_dir, work, binary=settings.fs_inventory_path(), examples=args.examples,
                        age_depth=args.age_depth, memory_limit=settings.build_memory_limit)
+        changes, note = None, ""
+        idx = SnapshotIndex(index_dir, memory_limit="256MB", threads=1)
+        has_changes = idx.has_changes
+        idx.close()
+        if has_changes and previous_scan and (previous_scan / "manifest.json").exists():
+            changes = check_changes(index_dir, scan_dir, previous_scan, work / "changes",
+                                    binary=settings.fs_inventory_path(), examples=args.examples,
+                                    memory_limit=settings.build_memory_limit)
+        elif has_changes:
+            note = "The changes since the previous scan were not checked: its scan folder is gone."
     except (BuildError, CheckError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
     finally:
         shutil.rmtree(work, ignore_errors=True)
-    print(json.dumps(report.json(), indent=2, default=str) if args.json else report.text())
-    return 0 if report.ok else 1
+    if args.json:
+        print(json.dumps({**report.json(), "changes": changes.json() if changes else None}, indent=2, default=str))
+    else:
+        print(report.text())
+        if changes:
+            print("Changes since the previous scan:\n" + changes.text())
+        elif note:
+            print(note)
+    return 0 if report.ok and (changes is None or changes.ok) else 1

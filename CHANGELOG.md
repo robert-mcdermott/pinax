@@ -1,15 +1,74 @@
 # Changelog
 
+## 0.3.0 (2026-10-27)
+
+Third release (wave 3, "change over time"): where the growth comes from and whether data is ageing. Each index
+records how every directory changed since the previous scan, checked against `fs-inventory rollup` of both scans;
+the demo has six months of scans to show it; and the interface gains history charts, a change map, a report of
+what changed, and any kept scan in every report. Age is now shown hot to cold. Built and checked on small and
+synthetic data (up to a million files); the production pilot (wave 4) measures it at scale. See
+[pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+
+Upgrading from 0.2.0: indexes are now version 4. Indexes built by 0.2.0 still answer, but have no change since the
+previous scan, so the change map and What changed for them compare by joining an older kept index, and `pinax
+check` cannot check their changes; `pinax rebuild --outdated` builds them again, oldest first. Snapshots ingested
+from now on record their filesystem's totals for History; earlier ones are summed from folder history, which is
+slower on large catalogs. `/api/history` takes `fs`, `path`, `lab`, `snapshot`, and `at`, instead of `fs` and
+`folder`. There is no catalog schema change.
+
+### Added
+
+- **Comparing two scans (wave 3, slice 1).** Each new index records how every directory changed since the
+  filesystem's previous scan: both scans' files, folders, bytes, allocated bytes, and files and bytes per age
+  bucket, and which folders are new or removed (`changes`, index version 4). `pinax check` compares it with
+  `fs-inventory rollup` of both scans, and `pinax rebuild --outdated` adds it to existing snapshots, oldest first.
+- **A history to show (wave 3, slice 2).** `pinax seed` takes six scans of each filesystem, dated a month apart,
+  with six months of activity between them: a lab that grows, cleanups, a project moved between labs, a lab that
+  compresses its FASTQ files, data ageing past the cold threshold, and a lab that joins (the Quintero Lab, with a
+  new PI, Valeria Quintero). `bench/synth_scan.py --evolve SCAN --days N` writes a scan as it might look N days
+  later, for checking and timing comparisons at any size.
+- **History charts (wave 3, slice 3).** *History*, in the sidebar and every report's links, shows how a folder,
+  lab or department, filesystem, or a person's home grew and aged over its scans: size by age as stacked
+  columns, with files, cold share, and average age as small charts on the same dates, one readout for all four,
+  and a table view with CSV. Top-level folders, labs, and filesystems have every scan; deeper folders the
+  retained snapshots. `/api/history` takes the same places as the other reports (`fs`, `path`, `lab`,
+  `snapshot`) instead of `fs` and `folder`.
+
+- **The change map (wave 3, slice 4).** *Change map*, after the age map, colors the treemap by how much each
+  folder grew (teal) or shrank (gold) since an earlier scan: the previous one by default, or any whose index is
+  kept. New and removed folders are drawn, and a removed folder can be opened. Size by the larger of then and
+  now, size now, or size then; one or two levels; a table view. `/api/changes` serves it.
+
+- **What changed (wave 3, slice 5).** *What changed*, after the change map, lists for any folder and two scans
+  where it grew and shrank most, the new and removed folders, and the largest new and removed files, with the
+  number and size of each, and a CSV of each list. `/api/changed` serves it.
+
+- **Older snapshots in the interface (wave 3, slice 6).** Every report has a scan picker beside its date: the
+  latest scan, or any earlier day whose scan is kept in full; an older scan is marked, with a way back, and links
+  keep it. A day kept only as folder totals opens History, which marks it. *Scans* links each snapshot. Every report
+  endpoint takes `at` (a day), and `/api/scan-days` lists a place's scan days.
+
+### Changed
+
+- **Age colors, hot to cold.** The age map, age bars, legends, and history now show recent data in red and cold
+  data in blue: red from under 90 days (the darkest) to one to two years (the palest), blue from two to three years
+  (the palest) to ten years or more (the darkest), split at the default two-year cold threshold. The orange-to-red
+  ramp made all data look warm. Both themes have their own validated steps; tiles without files are a lighter gray.
+
+- Ingest records each snapshot's whole-filesystem totals, so a filesystem's history reads one row per scan.
+  Snapshots ingested earlier are summed from folder history instead, which is slower on large catalogs (about a
+  second for 300,000 folder rows).
+
 ## 0.2.0 (2026-10-26)
 
 Second release (wave 2, "ready for real storage"): everything a first production deployment needs, built and
-checked without production storage, which wave 3 brings. Every directory is checked against `fs-inventory
-rollup`; real-world shapes and 100 million files are handled; new scans are ingested automatically; labs and
-people are imported from CSV; and there is an installation guide with systemd units and oauth2-proxy sign-on.
-See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+checked without production storage, which the production pilot (wave 4) brings. Every directory is checked
+against `fs-inventory rollup`; real-world shapes and 100 million files are handled; new scans are ingested
+automatically; labs and people are imported from CSV; and there is an installation guide with systemd units and
+oauth2-proxy sign-on. See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
 
-Upgrading from 0.1.0: indexes are now version 3. Indexes built by 0.1.0 still answer, without precomputed cold
-folders and with the age-bucket rounding fixed below; `pinax rebuild --outdated` builds them again from their
+Upgrading from 0.1.0: indexes are now version 3. Indexes built by 0.1.0 still answer, but they have neither the
+precomputed cold folders nor the age-bucket fix below; `pinax rebuild --outdated` builds them again from their
 scans. The catalog gains a `heartbeat` table (created at start-up) and a `skipped` snapshot status.
 
 ### Added

@@ -93,22 +93,34 @@
   --btn-navy-fg: #FFFFFF;
   --btn-navy-hover: #112345;
 
-  /* Data visualization (validated with the dataviz ordinal checks; see docs/DEVELOPMENT.md).
-     Age ramp: seven steps, one hue (orange to deep red), fresh to old, light to dark. */
-  --age-0: #e8a75c;
-  --age-1: #d38a45;
-  --age-2: #be6e2f;
-  --age-3: #a8531b;
-  --age-4: #913705;
-  --age-5: #7a1900;
-  --age-6: #620000;
+  /* Data visualization (validated with the dataviz checks; see docs/DEVELOPMENT.md).
+     Age scale: seven steps from hot to cold. Red for data changed within two years, from under 90 days (the
+     darkest) to one to two years (the palest); blue from then on, from two to three years (the palest) to ten
+     years or more (the darkest). The split is the default cold threshold, so cold data is blue. Each arm passes the
+     ordinal checks, and steps either side of the split are apart under CVD. */
+  --age-0: #B3262C;
+  --age-1: #D9603F;
+  --age-2: #EFA07F;
+  --age-3: #93B4E6;
+  --age-4: #6489CF;
+  --age-5: #3A62AE;
+  --age-6: #1D3B78;
   /* Share ramp (teal, five steps): what fraction of a folder is one kind of data. */
   --share-0: #3cbdd8;
   --share-1: #2d9bbd;
   --share-2: #217ba1;
   --share-3: #185c85;
   --share-4: #0f4067;
-  --tile-none: #D3D8DE;           /* no files, or none of the chosen kind */
+  --tile-none: #E2E2E2;           /* no files, or none of the chosen kind: a true gray, apart from the pale blue */
+  /* Change since an earlier scan: gold for shrinking, teal for growing, a true gray for no change (apart from the
+     age scale's red and blue). Each arm passes the ordinal checks; paired steps and the gray are apart under CVD. */
+  --chg-n3: #855E00;
+  --chg-n2: #B98807;
+  --chg-n1: #D9A93C;
+  --chg-0: #D2D2D2;
+  --chg-p1: #5FB9D4;
+  --chg-p2: #2E98BC;
+  --chg-p3: #156A90;
   --tile-frame: #EEF0F2;          /* the frame around nested tiles */
   --tile-ink: #0B1022;
 }
@@ -172,21 +184,29 @@
   --btn-navy-bg: #00ABC8;
   --btn-navy-fg: #112345;
   --btn-navy-hover: #FFFFFF;
-  /* Dark mode has its own validated steps. The ramp is not inverted, so red means old in both themes;
-     its darkest (oldest) step still clears 2:1 against the navy surface. */
-  --age-0: #f9ca9c;
-  --age-1: #eeb281;
-  --age-2: #e39968;
-  --age-3: #d88052;
-  --age-4: #cc663e;
-  --age-5: #be4b2e;
-  --age-6: #af2c22;
+  /* Dark mode has its own validated steps: red for recent and blue for cold, as in light mode, but on navy each
+     arm brightens outward, so the newest and the oldest data still stand out most; the palest steps clear 3:1. */
+  --age-0: #FF7A66;
+  --age-1: #E35A4A;
+  --age-2: #B9503F;
+  --age-3: #5274B8;
+  --age-4: #6E95DA;
+  --age-5: #94B6F0;
+  --age-6: #C2DAFF;
   --share-0: #116d8a;
   --share-1: #3289a3;
   --share-2: #4ea6bd;
   --share-3: #6ac3d7;
   --share-4: #86e2f2;
   --tile-none: #2C4C77;
+  /* On navy the arms brighten outward, so more change still reads as more. */
+  --chg-n3: #FFCF56;
+  --chg-n2: #C79A24;
+  --chg-n1: #A27D1E;
+  --chg-0: #5E5E5E;
+  --chg-p1: #2E8CAB;
+  --chg-p2: #3BB2D0;
+  --chg-p3: #8FE3F2;
   --tile-frame: #18365D;
   --tile-ink: #06101F;
 }
@@ -635,7 +655,12 @@ pre.json { background: var(--surface-2); color: var(--text); border: 1px solid v
 .crumbs .sep { color: var(--text-muted); display: inline-flex; }
 .crumbs .sep svg { width: 14px; height: 14px; }
 .crumbs .here { font-weight: 700; color: var(--heading); }
-.asof { font-size: 12.5px; color: var(--text-muted); display: inline-flex; gap: 6px; align-items: center; }
+.asof { font-size: 12.5px; color: var(--text-muted); display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.asof label { display: inline-flex; gap: 6px; align-items: center; }
+/* An older scan is shown: say so where the date is, with the way back. */
+.asof.older { background: var(--info-bg); border: 1px solid var(--info-border); border-radius: var(--radius); padding: 3px 10px; color: var(--text); }
+.asof-latest { font-weight: 700; }
+.select.xs { padding: 3px 8px; font-size: 12.5px; width: auto; min-width: 0; border-radius: 6px; }
 .subnav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 18px; }
 .subnav a { padding: 7px 14px; border-radius: var(--pill); border: 1px solid var(--border-strong); color: var(--text);
   font-weight: 500; font-size: 13.5px; background: var(--surface); display: inline-flex; gap: 6px; align-items: center; }
@@ -680,6 +705,26 @@ pre.json { background: var(--surface-2); color: var(--text); border: 1px solid v
 .tm-tip dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .tm-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
 
+/* Charts over time (timechart.js): recessive hairline grid and axes; the marks carry the color. */
+.tc { position: relative; width: 100%; }
+.tc-svg { display: block; overflow: visible; font-family: var(--fh-font-body); }
+.tc-svg:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: 4px; }
+.tc-grid { stroke: var(--border); stroke-width: 1; }
+.tc-base { stroke: var(--border-strong); stroke-width: 1; }
+.tc-axis { fill: var(--text-muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.tc-label { fill: var(--text); font-size: 12.5px; font-weight: 700; }
+.tc-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.tc-dot { stroke: var(--surface); stroke-width: 2; }
+.tc-band { fill: var(--surface-2); }
+.tc-cross { stroke: var(--border-strong); stroke-width: 1; }
+.tc-mark { stroke: var(--strong); stroke-width: 1; }
+.table tr.marked td { background: var(--accent-tint); }
+.tc-hit { fill: transparent; }
+.tc-tip { width: 260px; }
+.tc-tip .agebar { margin-top: 8px; }
+.tc-tip dl.tc-keys { border-top: 1px solid var(--border); padding-top: 8px; font-size: 12px; }
+.tc-tip .key { display: inline-block; width: 12px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+
 /* Age distribution: one stacked bar, segments in age order, 2px surface gaps. */
 .agebar { display: flex; gap: 2px; height: 12px; border-radius: 3px; background: var(--surface); min-width: 60px; }
 .agebar > span { display: block; height: 100%; min-width: 2px; }
@@ -688,6 +733,10 @@ pre.json { background: var(--surface-2); color: var(--text); border: 1px solid v
 .agebar.lg { height: 22px; }
 .agebar.empty { background: var(--surface-2); }
 
+.plain-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13.5px; }
+.plain-list li { display: flex; justify-content: space-between; gap: 10px; min-width: 0; }
+.plain-list li a { overflow-wrap: anywhere; }
+.swatch-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 8px; vertical-align: -1px; }
 .ramp-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--text-muted); margin-top: 12px; align-items: center; }
 .ramp-legend .lt { font-weight: 700; color: var(--text); margin-right: 2px; }
 .ramp-legend span { display: inline-flex; align-items: center; gap: 6px; }

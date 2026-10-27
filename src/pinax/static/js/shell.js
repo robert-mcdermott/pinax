@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Shared page chrome for Pinax views: the sidebar, the scope header (breadcrumbs, scan date, and
 // links to the same folder in every report), and folder cards.
-import { $, bytes, date, displayPath, fsInfo, html, icon, mount, num, pct, placeHash, setActiveNav, state, when } from "/js/core.js";
+import { $, $$, api, bytes, date, displayPath, fsInfo, hashAt, html, icon, mount, num, pct, placeHash, raw, setActiveNav, state, when } from "/js/core.js";
 import { ageBar, thresholdText } from "/js/viz.js";
 
 state.place = null; // the folder the person is looking at, carried between report pages
@@ -20,7 +20,10 @@ export function renderSidebar() {
     ${link("folders", "folder", admin ? "Folders and labs" : "My folders", false)}
     <h4 class="scope-label">EXPLORE${p && p.fs ? html` <span class="tiny" title="${p.name || ""}">· ${p.name || ""}</span>` : ""}</h4>
     ${link("explore", "treemap", "Age map")}
+    ${link("changes", "activity", "Change map")}
+    ${link("changed", "list", "What changed")}
     ${link("ages", "clock", "Age report")}
+    ${link("history", "trend", "History")}
     ${link("types", "pie", "File types")}
     ${link("cold", "snowflake", "Cold data")}
     ${link("owners", "users", "Owners")}
@@ -34,7 +37,7 @@ export function renderSidebar() {
 
 // ---------- Scope header ----------
 export const REPORTS = [
-  ["explore", "treemap", "Age map"], ["ages", "clock", "Age report"], ["types", "pie", "File types"],
+  ["explore", "treemap", "Age map"], ["changes", "activity", "Change map"], ["changed", "list", "What changed"], ["ages", "clock", "Age report"], ["history", "trend", "History"], ["types", "pie", "File types"],
   ["cold", "snowflake", "Cold data"], ["owners", "users", "Owners"], ["files", "search", "Find files"],
 ];
 
@@ -60,10 +63,44 @@ export function placeName(place, labName) {
   return place.path.split("/").pop();
 }
 
+// ---------- Choosing a scan ----------
+// The days each place was scanned, fetched once per place per visit.
+const scanDays = new Map();
+function daysFor(place, lab) {
+  const query = place && place.fs ? { fs: place.fs } : lab ? { lab: lab.slug } : {};
+  const key = JSON.stringify(query);
+  if (!scanDays.has(key)) scanDays.set(key, api("scan-days", { query, quiet: true }).then((r) => r.days).catch(() => []));
+  return scanDays.get(key);
+}
+
+/** Fill a header's scan picker: every day the place was scanned; days kept only as folder totals open History. */
+async function fillPicker(select, place, lab, asOf) {
+  const days = await daysFor(place, lab);
+  if (!document.body.contains(select) || !days.length) return;
+  const shown = (asOf || "").slice(0, 10);
+  if (days[0].day === shown) { // a day was chosen, but it is the latest scan's
+    select.closest(".asof")?.classList.remove("older");
+    select.closest(".asof")?.querySelector(".asof-latest")?.remove();
+  }
+  select.innerHTML = days.map((d) => String(html`<option value="${d.latest ? "" : d.ready ? d.day : `totals:${d.day}`}"
+    ${d.day === shown ? raw("selected") : ""}>${date(`${d.day}T12:00:00Z`)}${d.latest ? " (latest)" : d.ready ? "" : " (folder totals only)"}</option>`)).join("");
+}
+
+// One listener for every header's picker: the same page at the chosen scan, or History for a day only its folder
+// totals remain from.
+document.addEventListener("change", (e) => {
+  const select = e.target.closest?.(".asof-pick");
+  if (!select) return;
+  const v = select.value;
+  location.hash = v.startsWith("totals:") ? `${hashAt(v.slice(7), "history")}&pruned=1` : hashAt(v || null);
+});
+
 /** Remember the place for the sidebar, and render the header shared by every explore page. */
 export function scopeHeader(route, place, { asOf, title, lede = "", actions = "", lab } = {}) {
   state.place = place && place.fs ? { ...place, name: placeName(place) } : null;
   renderSidebar();
+  // After the view mounts the header: fill its scan picker.
+  setTimeout(() => $$(".asof-pick").forEach((s) => fillPicker(s, place, lab, asOf)), 0);
   const all = crumbsFor(place, lab?.name);
   // Deep folders: keep the first two crumbs and the last four; the ellipsis leads to the deepest hidden one.
   const hidden = all.length > 7 ? all.slice(2, -4) : [];
@@ -82,7 +119,8 @@ export function scopeHeader(route, place, { asOf, title, lede = "", actions = ""
       <nav class="crumbs" aria-label="Folder path">${crumbs.map((c, i) => html`${i ? html`<span class="sep">${icon("chevronRight")}</span>` : ""}${
         i === last ? html`<span class="here" aria-current="page" title="${c.label}">${c.label}</span>`
         : html`<a href="${placeHash(route, c.place, c.place ? {} : extra)}" title="${c.title || c.label}">${c.label}</a>`}`)}</nav>
-      ${asOf ? html`<span class="asof">${icon("clock")}As of the scan on ${date(asOf, true)}</span>` : ""}
+      ${asOf ? html`<span class="asof ${state.at ? "older" : ""}">${icon("clock")}<label>As of the scan of <select class="select xs asof-pick" aria-label="Scan to show">
+          <option selected>${date(asOf)}</option></select></label>${state.at ? html`<a class="asof-latest" href="${hashAt(null)}">Back to the latest</a>` : ""}</span>` : ""}
     </div>
     <nav class="subnav" aria-label="Reports for this folder">${REPORTS.map(([r, ic, label]) =>
       html`<a href="${placeHash(r, place, extra)}" class="${r === route ? "active" : ""}">${icon(ic)}${label}</a>`)}</nav>`;
