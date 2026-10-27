@@ -160,7 +160,7 @@ export async function viewCold(el, query) {
     data.dirs.map((d) => [d.fs, displayPath(d.fs, d.path), d.stats.bytes, d.stats.files, d.stats.newest, d.stats.oldest, d.lab?.name || ""])));
 }
 
-function downloadCsv(name, header, rows) {
+export function downloadCsv(name, header, rows) {
   const cell = (v) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
   const text = [header, ...rows].map((r) => r.map(cell).join(",")).join("\n");
   const a = document.createElement("a");

@@ -136,7 +136,9 @@ retries any step that still runs out.
    survives the earlier index being pruned.
 
 Then ingest records the snapshot and one `FolderStat` row per top-level folder in the catalog: those rows are
-the durable history (growth, cold share, mean age per scan) and they survive when old indexes are pruned.
+the durable history (growth, cold share, mean age per scan) and they survive when old indexes are pruned. The
+snapshot also records the whole filesystem's totals (`info["totals"]`), so a filesystem's history reads one row
+per scan rather than one per folder.
 
 Ingests run one at a time, under a file lock in `PINAX_VAR_ROOT`, and a scan ID is recorded once. `pinax ingest
 --watch` (`watch.py`) polls a folder for new scans and ingests each complete one once; scans it does not ingest
@@ -224,6 +226,15 @@ values from requests are bound as parameters; the only SQL fragments built in co
   of `cold_units`. Indexes built before version 3 find them at query time by joining directories with their
   parents.
 - **Files**: the top-level folder's Parquet files, restricted to the subtree's path range, filtered and sorted.
+- **History** (`/api/history`): size, space on disk, files, bytes per age bucket, cold share, and mean age per
+  scan. A filesystem uses the totals recorded with each scan; a top-level folder, a lab, or a person's home sums
+  folder history in the catalog, for every scan, pruned ones included. A folder below the top level reads its
+  node from each retained snapshot's index, so its history covers `PINAX_KEEP_SNAPSHOTS` scans. Filesystems are
+  scanned on their own schedules, so a place on several of them has a point per day with a scan, each
+  filesystem as of its latest scan by then, its mean age carried forward to the point's time; cold shares are
+  as of each filesystem's scan. With 2,000 top-level folders and 150 weekly scans, a filesystem's history takes
+  3 ms and a lab's 4–8 ms (snapshots ingested before 0.3.0, which lack recorded totals, are summed instead:
+  1.3 s at that size).
 
 A request without a filesystem and path covers the person's *home*: each of their labs' folders (which may be
 on several filesystems), or every filesystem root for an administrator. Results from each place are merged;

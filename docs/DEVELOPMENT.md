@@ -106,6 +106,8 @@ The interface is plain HTML, CSS, and JavaScript modules with no framework or bu
   modals, the hash router, and Pinax helpers (`displayPath`, `placeHash`, `parseQuery`).
 - `js/viz.js`: age buckets, color modes, size metrics, legends, and small charts (age bars, histograms, bars).
 - `js/treemap.js`: the squarified treemap, drawn as positioned links so tiles are real navigation targets.
+- `js/timechart.js`: charts over time (stacked columns and lines on a shared date axis, with a hover and keyboard
+  readout that several charts share); `js/history.js` draws the history view with it.
 - `js/shell.js`: the sidebar and the scope header (breadcrumbs, scan date, links to every report for the same folder).
 - `js/explore.js`, `js/reports.js`, `js/admin.js`: the views. `js/app.js`: routes and the home page.
 - **Escape everything.** Build markup with `html`; use `raw()` only for markup you wrote.

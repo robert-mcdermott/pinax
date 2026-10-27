@@ -21,6 +21,7 @@ export function renderSidebar() {
     <h4 class="scope-label">EXPLORE${p && p.fs ? html` <span class="tiny" title="${p.name || ""}">· ${p.name || ""}</span>` : ""}</h4>
     ${link("explore", "treemap", "Age map")}
     ${link("ages", "clock", "Age report")}
+    ${link("history", "trend", "History")}
     ${link("types", "pie", "File types")}
     ${link("cold", "snowflake", "Cold data")}
     ${link("owners", "users", "Owners")}
@@ -34,7 +35,7 @@ export function renderSidebar() {
 
 // ---------- Scope header ----------
 export const REPORTS = [
-  ["explore", "treemap", "Age map"], ["ages", "clock", "Age report"], ["types", "pie", "File types"],
+  ["explore", "treemap", "Age map"], ["ages", "clock", "Age report"], ["history", "trend", "History"], ["types", "pie", "File types"],
   ["cold", "snowflake", "Cold data"], ["owners", "users", "Owners"], ["files", "search", "Find files"],
 ];
 

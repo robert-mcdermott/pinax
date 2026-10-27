@@ -33,7 +33,7 @@ export async function viewOverview(el) {
       <div class="kpi"><div class="label">Total size</div><div class="value">${bytes(s.bytes)}</div><div class="sub">${bytes(s.alloc)} on disk</div></div>
       <div class="kpi" style="--kpi-accent:var(--fh-teal)"><div class="label">Files</div><div class="value">${num(s.files)}</div><div class="sub">${num(s.dirs)} folders</div></div>
       <div class="kpi" style="--kpi-accent:var(--age-5)"><div class="label">Unchanged for ${thresholdText(cb)}+</div><div class="value">${bytes(cold)}</div><div class="sub">${pct(s.bytes ? (cold / s.bytes) * 100 : 0)} of all data</div></div>
-      <div class="kpi" style="--kpi-accent:var(--fh-bright-blue)"><div class="label">Change since the previous scans</div><div class="value">${signed(change)}</div><div class="sub">${movers.length} folders changed</div></div>
+      <a class="kpi" href="#/history" style="--kpi-accent:var(--fh-bright-blue)"><div class="label">Change since the previous scans</div><div class="value">${signed(change)}</div><div class="sub">${movers.length} folders changed · history</div></a>
       <a class="kpi" href="#/folders?unmapped=1" style="--kpi-accent:var(--fh-purple)"><div class="label">Unmapped folders</div><div class="value">${unmapped.length}</div><div class="sub">${bytes(unmapped.reduce((t, f) => t + f.latest.bytes, 0))} no lab owns</div></a>
     </div>
     <div class="grid cols-${Math.min(3, ov.filesystems.length) || 1}" style="margin-bottom:20px">${ov.filesystems.map((f) => fsCard(f))}</div>

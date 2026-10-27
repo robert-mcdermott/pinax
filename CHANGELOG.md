@@ -13,6 +13,18 @@
   compresses its FASTQ files, data ageing past the cold threshold, and a lab that joins (the Quintero Lab, with a
   new PI, Valeria Quintero). `bench/synth_scan.py --evolve SCAN --days N` writes a scan as it might look N days
   later, for checking and timing comparisons at any size.
+- **History charts (wave 3, slice 3).** *History*, in the sidebar and every report's links, shows how a folder,
+  lab or department, filesystem, or a person's home grew and aged over its scans: size by age as stacked
+  columns, with files, cold share, and average age as small charts on the same dates, one readout for all four,
+  and a table view with CSV. Top-level folders, labs, and filesystems have every scan; deeper folders the
+  retained snapshots. `/api/history` takes the same places as the other reports (`fs`, `path`, `lab`,
+  `snapshot`) instead of `fs` and `folder`.
+
+### Changed
+
+- Ingest records each snapshot's whole-filesystem totals, so a filesystem's history reads one row per scan.
+  Snapshots ingested earlier are summed from folder history instead, which is slower on large catalogs (about a
+  second for 300,000 folder rows).
 
 ## 0.2.0 (2026-10-26)
 

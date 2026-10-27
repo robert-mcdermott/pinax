@@ -12,7 +12,7 @@ from pathlib import Path
 
 import duckdb
 import pytest
-from conftest import ROOT
+from conftest import FILES, ROOT
 from scanfix import fs_inventory, write_scan
 
 from pinax import seed
@@ -163,3 +163,154 @@ def test_evolved_scans_match_rollups(evolved, tmp_path):
     assert report.ok, report.text()
     report = check_changes(index, new, old, tmp_path / "work", binary=fs_inventory())
     assert report.ok, report.text()
+
+
+# ---------- History charts: every point against brute force over the scans' files ----------
+
+SECURE = "/research/secure"
+T1 = datetime(2026, 7, 1, 8, tzinfo=UTC)
+HOUR = timedelta(hours=1)
+
+
+def _older(files: list[dict], days: int) -> list[dict]:
+    return [dict(f, age_days=f["age_days"] + days) for f in files]
+
+
+SEC_1 = [{"path": "alpha_lab/linked/records.sas7bdat", "size": 4000, "age_days": 200},
+         {"path": "alpha_lab/linked/registry.sas7bdat", "size": 100, "age_days": 800}]
+FAST_2 = _older(FILES, 30) + [{"path": "gamma_lab/run1/reads.bam", "size": 7000, "age_days": 10}]
+FAST_3 = [f for f in _older(FAST_2, 30) if not f["path"].startswith("beta_lab/imaging/")] + [
+    {"path": "alpha_lab/projects/2025_new/S3_R1.fastq.gz", "size": 2500, "age_days": 3}]
+# Fast is scanned monthly; Secure two hours after Fast, but not in the second month.
+SCANS = [("fast", ROOT, T1, FILES), ("secure", SECURE, T1 + 2 * HOUR, SEC_1),
+         ("fast", ROOT, T1 + timedelta(days=30), FAST_2), ("fast", ROOT, T1 + timedelta(days=60), FAST_3),
+         ("secure", SECURE, T1 + timedelta(days=60) + 2 * HOUR, _older(SEC_1, 60) + [
+             {"path": "alpha_lab/linked/new.csv", "size": 50, "age_days": 1}])]
+
+
+@pytest.fixture
+def months(env, tmp_path, monkeypatch):
+    """Two filesystems over three months, keeping two snapshots: the Alpha Lab owns a folder on each, the Gamma
+    Lab's folder appears in the second month, and a folder is deleted in the third."""
+    from fastapi.testclient import TestClient
+
+    from pinax import config
+    from pinax.db import session_scope
+    from pinax.main import app
+    from pinax.models import Filesystem, Lab, LabFolder, LabMembership, User
+    from pinax.snapshots import ingest_scan
+
+    monkeypatch.setenv("PINAX_KEEP_SNAPSHOTS", "2")
+    config.get_settings.cache_clear()
+    with session_scope() as s:
+        fss = {slug: Filesystem(slug=slug, name=slug.title(), root=root) for slug, root in (("fast", ROOT), ("secure", SECURE))}
+        s.add_all(fss.values())
+        s.flush()
+        alpha, gamma = Lab(slug="alpha", name="Alpha Lab"), Lab(slug="gamma", name="Gamma Lab")
+        s.add_all([alpha, gamma])
+        s.flush()
+        s.add_all([LabFolder(lab_id=alpha.id, filesystem_id=fss["fast"].id, path="alpha_lab"),
+                   LabFolder(lab_id=alpha.id, filesystem_id=fss["secure"].id, path="alpha_lab"),
+                   LabFolder(lab_id=gamma.id, filesystem_id=fss["fast"].id, path="gamma_lab")])
+        ada = User(username="ada", display_name="Ada", email="ada@example.org")
+        s.add_all([ada, User(username="ivy", display_name="Ivy", email="ivy@example.org", is_admin=True)])
+        s.flush()
+        s.add(LabMembership(user_id=ada.id, lab_id=alpha.id, role="pi"))
+    for i, (slug, root, started, files) in enumerate(SCANS):
+        write_scan(tmp_path / f"s{i}", root, files, started=started)
+        with session_scope() as s:
+            ingest_scan(s, tmp_path / f"s{i}", fs_slug=slug, progress=lambda m: None)
+    with TestClient(app) as c:
+        yield c
+
+
+def _expect(parts: list[tuple[list[dict], str, float]]) -> dict:
+    """Brute force for one point: the files under each prefix ("" for all), with ages `shift` days later."""
+    from pinax.categories import bucket_for_days
+    from pinax.snapshots import cold_bucket
+
+    below = [(f, shift) for files, prefix, shift in parts for f in files if not prefix or f["path"].startswith(prefix + "/")]
+    size = sum(f["size"] for f, _ in below)
+    age = [sum(f["size"] for f, _ in below if bucket_for_days(f["age_days"]) == i) for i in range(7)]
+    return {"present": bool(below), "bytes": size, "files": len(below), "age_bytes": age,
+            "cold_bytes": sum(age[cold_bucket():]),
+            "mean_age_days": sum(f["size"] * (f["age_days"] + s) for f, s in below) / size if size else None}
+
+
+def _check(points: list[dict], expected: list[dict]) -> None:
+    assert len(points) == len(expected)
+    for got, want in zip(points, expected, strict=True):
+        for k, v in want.items():
+            assert got[k] == (pytest.approx(v, abs=0.02) if k == "mean_age_days" and v is not None else v), (k, got)
+
+
+def _history(client, user: str, **params) -> dict:
+    client.cookies.set("pinax_user", user)
+    r = client.get("/api/history", params=params)
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def test_a_top_level_folder_has_every_scan(months):
+    h = _history(months, "ada", fs="fast", path=f"{ROOT}/alpha_lab")
+    assert h["kind"] == "folder" and h["lab"]["slug"] == "alpha" and not h["merged"]
+    fast = [files for slug, _, _, files in SCANS if slug == "fast"]
+    _check(h["points"], [_expect([(files, "alpha_lab", 0)]) for files in fast])  # the first scan's index is pruned
+    gamma = _history(months, "ivy", fs="fast", path=f"{ROOT}/gamma_lab")["points"]
+    assert [p["present"] for p in gamma] == [False, True, True] and gamma[0]["bytes"] == 0
+
+
+def test_a_filesystem_has_every_scan(months):
+    h = _history(months, "ivy", fs="fast")
+    _check(h["points"], [_expect([(files, "", 0)]) for slug, _, _, files in SCANS if slug == "fast"])
+    assert h["points"][1]["taken_at"].startswith("2026-07-31")
+    # Snapshots ingested before their filesystem totals were recorded: summed from folder history instead.
+    from sqlalchemy import select
+
+    from pinax.db import session_scope
+    from pinax.models import Snapshot
+
+    with session_scope() as s:
+        for snap in s.scalars(select(Snapshot)):
+            assert "totals" in snap.info
+            snap.info = {k: v for k, v in snap.info.items() if k != "totals"}
+    again = _history(months, "ivy", fs="fast")["points"]
+    _check(again, [{k: v for k, v in p.items() if k not in ("taken_at", "snapshots")} for p in h["points"]])
+
+
+def test_a_deeper_folder_has_the_retained_snapshots(months):
+    h = _history(months, "ada", fs="fast", path=f"{ROOT}/alpha_lab/projects")
+    assert h["kind"] == "subfolder" and h["older_scans"] == 1 and h["keep_snapshots"] == 2
+    _check(h["points"], [_expect([(f, "alpha_lab/projects", 0)]) for f in (FAST_2, FAST_3)])
+    # Deleted in the last scan, so found through the snapshot before it.
+    months.cookies.set("pinax_user", "ivy")
+    assert months.get("/api/history", params={"fs": "fast", "path": f"{ROOT}/beta_lab/imaging"}).status_code == 404
+    before = _history(months, "ivy", fs="fast")["points"][1]["snapshots"][0]
+    gone = _history(months, "ivy", fs="fast", path=f"{ROOT}/beta_lab/imaging", snapshot=before)["points"]
+    assert [p["present"] for p in gone] == [True, False] and gone[-1]["mean_age_days"] is None
+
+
+def test_a_lab_on_two_filesystems_is_summed_by_day(months):
+    """A point per day with a scan; each filesystem as of its latest scan by then, its average age carried
+    forward to the point's time."""
+    h = _history(months, "ada", lab="alpha")
+    assert h["kind"] == "lab" and h["merged"] and h["name"] == "Alpha Lab"
+    f1, s1, f2, f3, s2 = (files for _, _, _, files in SCANS)
+    two_hours, month = 2 / 24, 30.0
+    _check(h["points"], [
+        _expect([(f1, "alpha_lab", two_hours), (s1, "alpha_lab", 0)]),
+        _expect([(f2, "alpha_lab", 0), (s1, "alpha_lab", month - two_hours)]),
+        _expect([(f3, "alpha_lab", two_hours), (s2, "alpha_lab", 0)]),
+    ])
+    assert [len(p["snapshots"]) for p in h["points"]] == [2, 2, 2]
+    assert _history(months, "ada")["points"] == h["points"]  # Ada's home is the Alpha Lab's folders
+
+
+def test_history_follows_access(months):
+    months.cookies.set("pinax_user", "ada")
+    assert months.get("/api/history", params={"fs": "fast"}).status_code == 404
+    assert months.get("/api/history", params={"fs": "fast", "path": f"{ROOT}/gamma_lab"}).status_code == 404
+    assert months.get("/api/history", params={"lab": "gamma"}).status_code == 404
+    everything = _history(months, "ivy")
+    assert everything["name"] == "All data" and len(everything["points"]) == 3
+    _check(everything["points"][-1:], [_expect([(SCANS[3][3], "", 2 / 24), (SCANS[4][3], "", 0)])])

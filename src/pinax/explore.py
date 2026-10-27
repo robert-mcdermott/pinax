@@ -9,9 +9,10 @@ which may span several filesystems. Reports over home merge the results of each 
 import heapq
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import datetime
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import BigInteger, cast, func, select
 from sqlalchemy.orm import Session, selectinload
 
 from .auth import Identity, folder_owners
@@ -492,13 +493,139 @@ def folder_rows(session: Session, ident: Identity) -> list[dict]:
     return out
 
 
-def history(session: Session, ident: Identity, fs_slug: str, folder: str) -> dict:
-    fs = session.scalar(select(Filesystem).where(Filesystem.slug == fs_slug))
-    if fs is None or not ident.can_view_folder(fs.id, folder or None):
-        raise not_found()
-    rows = session.scalars(select(FolderStat).where(FolderStat.filesystem_id == fs.id, FolderStat.folder == folder)
-                           .order_by(FolderStat.taken_at)).all()
-    return {"fs": fs.slug, "folder": folder, "points": [folder_stat_json(r) for r in rows]}
+# ---------- History ----------
+
+SCANNED = (SnapshotStatus.READY, SnapshotStatus.PRUNED)  # snapshots with folder history
+
+
+def _point(taken_at: datetime, snaps: list[int], parts: list[tuple[dict, float]], cold_from: int) -> dict:
+    """One point of a history: the sum of `parts`, each (totals, days from its scan to `taken_at`), with mean
+    ages carried forward to `taken_at`."""
+    age = [0] * NB
+    total = {"bytes": 0, "alloc_bytes": 0, "files": 0}
+    wsum = 0.0
+    for t, shift in parts:
+        for k in total:
+            total[k] += t[k]
+        age = [a + b for a, b in zip(age, t["age_bytes"], strict=True)]
+        if t["mean_age_days"] is not None:
+            wsum += t["bytes"] * (t["mean_age_days"] + shift)
+    present = bool(parts)
+    return {"taken_at": iso(taken_at), "snapshots": snaps, "present": present, **total,
+            "cold_bytes": sum(age[cold_from:]), "age_bytes": age,
+            "mean_age_days": round(wsum / total["bytes"], 2) if total["bytes"] else None}
+
+
+def _scans(session: Session, members: dict[int, set[str] | None]) -> dict[int, list[tuple[Snapshot, dict | None]]]:
+    """Per filesystem, its scans oldest first, each with the totals of the member folders (None: the whole
+    filesystem); a scan without them (the folder did not exist yet, or no longer) has None. A whole filesystem's
+    totals are recorded with each scan; folders, and scans ingested before Pinax recorded them, are summed from
+    folder history by the catalog."""
+    sums = [func.sum(FolderStat.bytes), func.sum(FolderStat.alloc_bytes), func.sum(FolderStat.files),
+            func.sum(FolderStat.bytes * FolderStat.mean_age_days),
+            *[func.sum(cast(FolderStat.age_bytes[i].as_string(), BigInteger)) for i in range(NB)]]
+    out = {}
+    for fs_id, names in members.items():
+        snaps = session.scalars(select(Snapshot).where(Snapshot.filesystem_id == fs_id, Snapshot.status.in_(SCANNED))
+                                .order_by(Snapshot.started_at)).all()
+        totals = {snap.id: snap.info["totals"] for snap in snaps if names is None and "totals" in (snap.info or {})}
+        q = select(FolderStat.snapshot_id, *sums).where(FolderStat.filesystem_id == fs_id).group_by(FolderStat.snapshot_id)
+        if names is not None:
+            q = q.where(FolderStat.folder.in_(sorted(names)))
+        else:
+            q = q.where(FolderStat.snapshot_id.in_([snap.id for snap in snaps if snap.id not in totals]))
+        for sid, b, alloc, files, wsum, *age in (session.execute(q) if names is not None or len(totals) < len(snaps) else []):
+            b = int(b or 0)
+            totals[sid] = {"bytes": b, "alloc_bytes": int(alloc or 0), "files": int(files or 0),
+                           "age_bytes": [int(a or 0) for a in age], "mean_age_days": (wsum or 0) / b if b else None}
+        out[fs_id] = [(snap, totals.get(snap.id)) for snap in snaps]
+    return out
+
+
+def _series(session: Session, members: dict[int, set[str] | None], cold_from: int) -> list[dict]:
+    """Points over every scan. With one filesystem, a point per scan. With several, whose scans are taken
+    independently, a point per day with a scan, each filesystem as of its latest scan by the end of that day."""
+    scans = _scans(session, members)
+    if len(scans) == 1:
+        return [_point(snap.started_at, [snap.id], [(t, 0.0)] if t else [], cold_from) for snap, t in
+                next(iter(scans.values()))]
+    days = sorted({snap.started_at.date() for series in scans.values() for snap, _ in series})
+    points = []
+    for day in days:
+        latest = [next((x for x in reversed(series) if x[0].started_at.date() <= day), None) for series in scans.values()]
+        latest = [x for x in latest if x]
+        at = max(snap.started_at for snap, _ in latest)
+        parts = [(t, (at - snap.started_at).total_seconds() / DAY) for snap, t in latest if t]
+        points.append(_point(at, [snap.id for snap, _ in latest], parts, cold_from))
+    return points
+
+
+def _retained(session: Session, place: Place, cold_from: int) -> tuple[list[dict], int]:
+    """A folder below the top level, in each snapshot whose index is kept; and how many older scans are not."""
+    snaps = session.scalars(select(Snapshot).where(Snapshot.filesystem_id == place.fs.id,
+                                                   Snapshot.status.in_(SCANNED)).order_by(Snapshot.started_at)).all()
+    points, older = [], 0
+    for snap in snaps:
+        if snap.status != SnapshotStatus.READY:
+            older += 1
+            continue
+        idx = indexes.get(snap)
+        row = idx.node(place.path)
+        if row is None:
+            points.append(_point(snap.started_at, [snap.id], [], cold_from))
+            continue
+        j = Stats.from_row(row).json(idx.ref_day)
+        t = {"bytes": j["bytes"], "alloc_bytes": j["alloc"], "files": j["files"], "age_bytes": j["age_bytes"],
+             "mean_age_days": j["mean_age_days"]}
+        points.append(_point(snap.started_at, [snap.id], [(t, 0.0)], cold_from))
+    return points, older
+
+
+def history(session: Session, ident: Identity, fs_slug: str | None, path: str | None, snap_id: int | None = None,
+            lab_slug: str | None = None) -> dict:
+    """A place's size, files, age profile, cold share, and average age over its scans, oldest first: every scan
+    for the person's home, a lab or department, a filesystem, or a top-level folder (from folder history); the
+    retained snapshots for a deeper folder."""
+    cold_from = cold_bucket()
+    lab = session.scalar(select(Lab).where(Lab.slug == lab_slug)) if lab_slug and not fs_slug else None
+    older = 0
+    if fs_slug:
+        place = resolve(session, ident, fs_slug, path, snap_id)[0]
+        idx, lab = place.idx, place.lab
+        node = idx.node(place.path)
+        if node is None:
+            raise not_found()
+        depth = idx.depth_of(place.path)
+        if depth == 0:
+            kind, name, members = "filesystem", place.fs.name, {place.fs.id: None}
+        elif depth == 1:
+            kind, name, members = "folder", node["name"], {place.fs.id: {idx.top_of(place.path)}}
+        else:
+            kind, name, members = "subfolder", node["name"], None
+    elif lab_slug:
+        if lab is None:
+            raise not_found("No such lab or department")
+        members = defaultdict(set)
+        for f in session.scalars(select(LabFolder).where(LabFolder.lab_id == lab.id)):
+            if ident.can_view_folder(f.filesystem_id, f.path):
+                members[f.filesystem_id].add(f.path)
+        if not members:
+            raise not_found("That lab or department is not shared with you")
+        kind, name = "lab", lab.name
+    elif ident.is_admin:
+        kind, name, members = "home", "All data", {fs.id: None for fs in _filesystems(session)}
+    else:
+        members = defaultdict(set)
+        for fs_id, folder in ident.folders:
+            members[fs_id].add(folder)
+        kind, name = "home", "My data"
+    if members is None:
+        points, older = _retained(session, place, cold_from)
+    else:
+        points = _series(session, dict(members), cold_from) if members else []
+    return {"kind": kind, "name": name, "lab": lab_brief(lab), "points": points, "older_scans": older,
+            "keep_snapshots": get_settings().keep_snapshots, "merged": members is not None and len(members) > 1,
+            "cold_bucket": cold_from, "as_of": points[-1]["taken_at"] if points else None}
 
 
 def lab_summaries(session: Session, ident: Identity) -> list[dict]:

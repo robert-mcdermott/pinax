@@ -345,6 +345,11 @@ def _record_folder_stats(session: Session, snap: Snapshot, index_dir: Path, sett
         session.query(FolderStat).filter(FolderStat.snapshot_id == snap.id).delete()
         cold_from = cold_bucket(settings)
         root = idx.node(idx.root)
+        whole = Stats.from_row(root).json(idx.ref_day)
+        # The filesystem's own totals, so its history needs one row per scan rather than one per folder.
+        snap.info = {**(snap.info or {}), "totals": {
+            "bytes": whole["bytes"], "alloc_bytes": whole["alloc"], "files": whole["files"],
+            "age_bytes": whole["age_bytes"], "mean_age_days": whole["mean_age_days"]}}
         kids = idx.children(idx.root, limit=1_000_000)
         rows = [(r["name"], Stats.from_row(r)) for r in kids["rows"]]
         # Files directly in the root belong to no top-level folder; record them under "".

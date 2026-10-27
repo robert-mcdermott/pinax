@@ -17,7 +17,7 @@ decisions taken are recorded here. Later waves are outlined at the end.
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
 **Where things stand:** wave 1 is released as 0.1.0 and wave 2 as 0.2.0 (tags `v0.1.0` and `v0.2.0` on `main`).
-Wave 3, change over time, is in progress on `wave3`: slices 1 and 2 are done, and slice 3 (history charts) is next. The production pilot,
+Wave 3, change over time, is in progress on `wave3`: slices 1 to 3 are done, and slice 4 (the change map) is next. The production pilot,
 which needs production storage, follows as wave 4.
 
 The order follows one principle:
@@ -295,8 +295,8 @@ Every change is checked against an independent computation, like every total.
 | --- | --- | --- | --- |
 | 1 | Comparing two scans (S9, Q1) | At ingest, every directory's change since the filesystem's previous scan (size, space on disk, files, folders, bytes per age bucket; new and removed folders) is stored with the index; equal on every directory to the difference between `fs-inventory rollup`'s totals of the two scans, joined by path; tested against brute force over two file lists; the added build time measured at 100 million files | Done |
 | 2 | A history to show (demo and benchmarks) | `pinax seed` writes six scans of each filesystem over six months: a lab that grows, a cleanup, a project moved between labs, data ageing past the cold threshold, a new lab; `synth_scan.py --evolve` derives a changed scan from another, for benchmarks and checks at scale; the README demo script updated | Done |
-| 3 | History charts (E7) | Size, files, cold share, and mean age over every scan for each top-level folder, lab or department, and filesystem (from folder history), and for any deeper folder across the retained snapshots; a table view; both themes and 375 pixels; chart colors validated | Next |
-| 4 | The change map (E8) | The age map's treemap colored by growth or shrinkage since a chosen scan (the previous one by default), sized by current or earlier size, with removed folders shown; drill down and up as in the age map; within Q3 for a lab folder at 100 million files | To come |
+| 3 | History charts (E7) | Size, files, cold share, and mean age over every scan for each top-level folder, lab or department, and filesystem (from folder history), and for any deeper folder across the retained snapshots; a table view; both themes and 375 pixels; chart colors validated | Done |
+| 4 | The change map (E8) | The age map's treemap colored by growth or shrinkage since a chosen scan (the previous one by default), sized by current or earlier size, with removed folders shown; drill down and up as in the age map; within Q3 for a lab folder at 100 million files | Next |
 | 5 | What changed (R9) | For any folder and two scans: the subfolders that grew and shrank most, new and removed folders, and the largest new and removed files, with CSV; within Q4 for a lab folder at 100 million files | To come |
 | 6 | Older snapshots in the interface (S8) | A snapshot picker on every report, the scan date shown wherever a number is, and links that keep the snapshot; a pruned snapshot offers its folder history only | To come |
 | 7 | Release 0.3.0 | The demo script walked through; version 0.3.0, changelog, pull request, tag, release | To come |
@@ -357,6 +357,30 @@ Every change is checked against an independent computation, like every total.
      million files, `--evolve` takes 1.6 s, comparing 0.2 s of a 6 s build, and checking the change 1.1 s (all
      245,361 directories equal). Kept to small scans on the development laptop; the measurement with changed scans
      at 100 million files waits for server-class hardware in wave 4.
+3. **History charts (E7).**
+   - `explore.history` and `/api/history` take any place: a person's home, a lab or department, a filesystem, a
+     top-level folder (every scan, from folder history), or a deeper folder (the retained snapshots, from their
+     indexes; the response says how many older scans are not covered). Points carry size, space on disk, files,
+     bytes per age bucket, cold bytes, and mean age, and whether the place was in that scan. A place on several
+     filesystems has a point per day with a scan, each filesystem as of its latest scan by then, with its mean
+     age carried forward. Ingest now records each snapshot's filesystem totals, so a filesystem's history reads
+     one row per scan; older snapshots are summed from folder history in SQL.
+   - *History* (`js/history.js`, `js/timechart.js`) in the sidebar and every report's links: size by age as
+     stacked columns (oldest at the bottom, so new data lands on top), then files, cold share, and average age as
+     small multiples on the same dates rather than a second axis; one readout for all four on hover, tap, or the
+     arrow keys; a table view and CSV. Scans a folder was not in leave a gap. The home pages' change figure links
+     to it.
+   - Colors: the stacked columns use the age ramp (ordinal checks pass in both themes); each small multiple has
+     one series in the color of the figure above it (`--series-1`, `--age-5`, `--age-3`), above 3:1 against the
+     surface in both themes. As a categorical set the three would fail the validator, but they are never read
+     against each other: each chart's title names its series.
+   - Tests: every point against brute force over the scans' files for a top-level folder (with pruning), a
+     filesystem (and the same from folder history when totals were not recorded), a deeper folder (retained
+     snapshots, and one deleted in the last scan through an earlier snapshot), a lab on two filesystems scanned on
+     different days, homes, and access.
+   - *Done*: checked in both themes and at 375 pixels on the demo (no page overflow; the table scrolls in its
+     card). On the demo every history request takes 3–13 ms; with 2,000 folders and 150 weekly scans in the
+     catalog, a filesystem's history takes 3 ms and a lab's 4–8 ms.
 
 ## Later waves (outlined)
 

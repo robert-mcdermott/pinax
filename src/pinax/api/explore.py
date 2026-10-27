@@ -73,10 +73,11 @@ def files(fs: str | None = None, path: str | None = None, q: str = "", in_path: 
 
 
 @router.get("/history")
-def history(fs: str, folder: str, identity: Identity = Depends(current_identity),
-            session: Session = Depends(get_session)):
-    """A top-level folder's totals in every scan, oldest first."""
-    return explore.history(session, identity, fs, folder)
+def history(fs: str | None = None, path: str | None = None, snapshot: int | None = None, lab: str | None = None,
+            identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
+    """Size, files, age profile, cold share, and average age over the scans, oldest first: every scan for a home,
+    lab, filesystem, or top-level folder; the retained snapshots for a deeper folder."""
+    return explore.history(session, identity, fs, path, snapshot, lab)
 
 
 COLUMNS = ["fs", "path", "size", "alloc", "mtime", "atime", "category", "ext", "owner", "uid", "gid", "nlink", "kind"]
