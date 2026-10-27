@@ -465,6 +465,16 @@ Every change is checked against an independent computation, like every total.
   deactivating and reactivating, and the guards that keep an administrator. Checked in both themes and at 375
   pixels.
 
+- **Signing in without single sign-on (A9)**, at the maintainer's request, so a site without an identity provider can
+  run Pinax, and move to single sign-on later. `PINAX_AUTH_MODE=local` (`signin.py`, `api/signin.py`): scrypt
+  password hashes; server-side sessions; temporary passwords made up by Pinax and shown once, which must be changed
+  before anything else; lockout after repeated failures; requests that change something must come from a page of
+  Pinax; every sign-in, failure, lock, and password change audited, never a password. `pinax user add | password |
+  list` makes the first administrator. Demo mode is kept as it was, for showing Pinax, and refused when
+  `PINAX_ENVIRONMENT=prod`. New catalog columns are added at start-up (`db.add_missing_columns`), so a 0.3.0 catalog
+  keeps working. Tests: each of these, the demo unchanged, and an older catalog upgraded; checked in the browser in
+  both themes and at 375 pixels, in local and demo modes.
+
 ## Later waves (outlined)
 
 | Wave | Release | Theme | Main content |

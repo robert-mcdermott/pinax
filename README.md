@@ -32,6 +32,9 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
   storage health (scan errors, very large directories, small-file hotspots, problem file names, deleted
   owners), the scan history, and people and access: add people, change their details, lab memberships, and
   administrator role, and deactivate and reactivate them, every change audited.
+- **Sign-in three ways**: the demo's persona switcher, to show Pinax with the seeded people (no setup; refused in
+  production); usernames and passwords Pinax keeps, for sites without single sign-on; or single sign-on, such as
+  Entra ID behind oauth2-proxy. People, labs, and access are managed the same way in all three.
 - **Built for scale**: each scan is indexed once into directory-level totals, so a treemap of a petabyte
   draws in tens of milliseconds: at 100 million files, every directory-level query takes 50 ms or less, and the
   index builds in two minutes. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and measured
@@ -204,6 +207,7 @@ single sign-on with oauth2-proxy, scheduled scans, upgrades, sizing, and operati
 | `uv run pinax ingest --watch [FOLDER] [--interval N] [--once] [--no-verify]` | Ingest each new verified scan under a folder (default `PINAX_SCAN_ROOT`) once |
 | `uv run pinax snapshots` | List snapshots |
 | `uv run pinax rebuild SNAPSHOT_ID... \| --outdated` | Build ready snapshots' indexes again from their scans, after an upgrade or a lost index |
+| `uv run pinax user add USERNAME --name NAME --email EMAIL [--admin]` | Add a person, for example the first administrator; with `PINAX_AUTH_MODE=local`, prints a temporary password (`pinax user password USERNAME` makes a new one, `pinax user list` lists people) |
 | `uv run pinax import FOLDER [--apply]` | Import labs, people, memberships, and folder ownership from CSV; a dry run unless `--apply` ([docs/IMPORT.md](docs/IMPORT.md)) |
 | `uv run pinax check SNAPSHOT_ID \| SCAN_DIR [--index DIR] [--age-depth N] [--json]` | Check an index, and its changes since the previous scan, against `fs-inventory rollup`, directory by directory |
 | `uv run pytest` | Tests: index correctness, the rollup cross-check, queries, authorization, and an end-to-end scan |

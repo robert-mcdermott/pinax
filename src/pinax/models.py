@@ -17,9 +17,11 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Index,
+    Integer,
     String,
     Text,
     UniqueConstraint,
+    false,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -103,8 +105,34 @@ class User(Base):
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)  # IT: sees every filesystem and folder
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    # Local sign-in (PINAX_AUTH_MODE=local) only; unused behind single sign-on. The hash names its algorithm and
+    # parameters (signin.py). A password set by an administrator must be changed at the next sign-in.
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    password_set_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    must_change_password: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    failed_logins: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     memberships: Mapped[list["LabMembership"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+
+
+class LoginSession(Base):
+    """A signed-in browser, for local sign-in. The cookie holds a random token; only its SHA-256 is stored, so the
+    table cannot be used to sign in. Ended by signing out, by expiry, and when the person is deactivated or their
+    password is set or changed."""
+
+    __tablename__ = "login_session"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    address: Mapped[str] = mapped_column(String(64), default="")
+
+    user: Mapped[User] = relationship()
 
 
 class LabMembership(Base):

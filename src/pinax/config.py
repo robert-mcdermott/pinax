@@ -46,11 +46,25 @@ class Settings(BaseSettings):
     # Reporting defaults. Data counts as cold when nothing in it has changed for this many days.
     cold_days: int = 730
 
-    # Identity. "demo" uses a persona cookie; "header" trusts a username header (X-Remote-User by default) set
-    # by a single sign-on proxy, and only on requests from TRUSTED_PROXIES (addresses or networks; a JSON list).
-    auth_mode: Literal["demo", "header"] = "demo"
+    # Identity. "demo" uses a persona cookie: anyone picks anyone, for showing Pinax with the seeded people (refused
+    # when ENVIRONMENT=prod). "local": people sign in with a password Pinax keeps, for sites without single sign-on.
+    # "header" trusts a username header (X-Remote-User by default) set by a single sign-on proxy, and only on
+    # requests from TRUSTED_PROXIES (addresses or networks; a JSON list).
+    auth_mode: Literal["demo", "local", "header"] = "demo"
     auth_header: str = "X-Remote-User"
     trusted_proxies: list[str] = ["127.0.0.1", "::1"]
+    # Local sign-in. A session lasts this long from signing in. This many failed sign-ins in a row lock the account
+    # for this many minutes. Passwords need at least this many characters. Session cookies are marked Secure (sent
+    # only over HTTPS) when COOKIE_SECURE is true, or by default when ENVIRONMENT=prod.
+    session_hours: int = 12
+    login_max_failures: int = 5
+    login_lockout_minutes: int = 15
+    password_min_length: int = 12
+    cookie_secure: bool | None = None
+
+    @property
+    def secure_cookies(self) -> bool:
+        return self.environment == "prod" if self.cookie_secure is None else self.cookie_secure
 
     @property
     def db_url(self) -> str:
@@ -71,6 +85,14 @@ class Settings(BaseSettings):
     def ensure_dirs(self) -> None:
         for p in (self.var_root, self.snapshot_root):
             p.mkdir(parents=True, exist_ok=True)
+
+
+def unsafe(settings: Settings) -> str | None:
+    """Why these settings must not run, or None."""
+    if settings.environment == "prod" and settings.auth_mode == "demo":
+        return ("PINAX_AUTH_MODE=demo lets anyone sign in as anyone, so it is refused when PINAX_ENVIRONMENT=prod. "
+                "Use local (passwords Pinax keeps) or header (single sign-on), or a demo or dev environment.")
+    return None
 
 
 @lru_cache

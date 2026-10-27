@@ -81,6 +81,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | A5 | Import labs, people, memberships, and folder ownership in bulk | done (wave 2, slice 5: `pinax import`, docs/IMPORT.md) |
 | A6 | Single sign-on with roles from directory groups; membership synced from the directory | planned (wave 5) |
 | A7 | An access recertification report | planned (wave 5) |
+| A9 | Sign in without single sign-on: passwords Pinax keeps, temporary passwords that must be changed, lockout, sessions, audit; the first administrator from the command line; the demo's sign-in-as-anyone refused in production | done (after 0.3.0: `PINAX_AUTH_MODE=local`) |
 | A8 | Manage people in the app, as in Tundra: add people, change their details, lab memberships, and administrator role, deactivate and reactivate them; every change audited; an administrator always remains | done (after 0.3.0: *People and access*) |
 
 ## IT operations

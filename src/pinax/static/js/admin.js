@@ -312,7 +312,7 @@ async function peopleTab(el, q) {
         <td><div class="row" style="flex-wrap:nowrap"><span class="avatar ${p.is_admin ? "strong" : ""}">${p.initials}</span>
           <div><a class="title-cell" href="#/access/people/${encodeURIComponent(p.username)}">${p.display_name}</a><div class="sub">${p.title || "—"}</div></div></div></td>
         <td><div class="mono">${p.username}</div><div class="sub">${p.email}</div></td>
-        <td>${accessBadges(p)}</td><td>${statusChip(p.active)}</td></tr>`)}
+        <td>${accessBadges(p)}</td><td>${statusChip(p.active)}${state.config.auth_mode === "local" && passwordNote(p) ? html`<div class="sub">${passwordNote(p)}</div>` : ""}</td></tr>`)}
       </tbody></table></div>` : emptyState("users", "No people here", view === "inactive" ? "Nobody has been deactivated." : "Try another view or search.")}</div>`);
   const go = (changes) => { location.hash = `#/access?${new URLSearchParams({ tab: "people", view, q: $("#people-q", el).value, ...changes })}`; };
   $$("[data-view]", el).forEach((b) => b.addEventListener("click", () => go({ view: b.dataset.view })));
@@ -321,6 +321,16 @@ async function peopleTab(el, q) {
     if (!e.target.closest("a, button")) location.hash = tr.dataset.href;
   }));
 }
+
+/** Local sign-in: where a person's password stands, for the person page and the list. */
+function passwordState(p) {
+  if (!p.has_password) return "No password yet: they cannot sign in until you give them a temporary one.";
+  if (p.locked_until && new Date(p.locked_until) > new Date()) return `Locked until ${date(p.locked_until, true)} after repeated failed sign-ins. A new temporary password unlocks it.`;
+  if (p.must_change_password) return `Temporary password made ${date(p.password_set_at, true)}; they must change it when they sign in.`;
+  return `Set ${date(p.password_set_at)}${p.last_login_at ? `; last signed in ${when(p.last_login_at)}` : "; not signed in since"}.`;
+}
+const passwordNote = (p) => (!p.active ? "" : !p.has_password ? "No password" : p.locked_until && new Date(p.locked_until) > new Date() ? "Locked"
+  : p.must_change_password ? "Temporary password" : "");
 
 // ---------- A person ----------
 export async function viewPerson(el, username) {
@@ -395,6 +405,9 @@ export async function viewPerson(el, username) {
             <dt>Added</dt><dd>${date(person.created_at)}</dd></dl>
             ${person.history.length ? html`<h3 style="margin-top:14px">Recent changes</h3><ul class="feed">${person.history.map((h) => html`<li style="padding:6px 0"><span><span class="small">${h.summary}</span><br>
               <span class="tiny muted">${date(h.ts, true)}${h.by ? ` · ${h.by}` : ""}</span></span></li>`)}</ul>` : ""}</div>` : ""}
+          ${person && state.config.auth_mode === "local" ? html`<div class="card"><h3>Password</h3>
+            <p class="small" style="margin-top:8px">${passwordState(person)}</p>
+            ${person.active ? html`<button class="btn btn-secondary btn-sm" id="set-password">${icon("lock")}${person.has_password ? "Set a new temporary password" : "Set a temporary password"}</button>` : ""}</div>` : ""}
           ${person && person.active && !self ? html`<div class="card"><h3>Deactivate</h3>
             <p class="small muted" style="margin-top:8px">${person.display_name} will no longer be able to sign in. Their memberships and role are kept, unused, and come back if you reactivate them; nothing is deleted.</p>
             <button class="btn btn-warn btn-sm" id="deactivate">${icon("lock")}Deactivate</button></div>` : ""}
@@ -421,6 +434,7 @@ export async function viewPerson(el, username) {
     });
     $("#save", el)?.addEventListener("click", save);
     $("#deactivate", el)?.addEventListener("click", () => change("deactivate"));
+    $("#set-password", el)?.addEventListener("click", setPassword);
     $("#reactivate", el)?.addEventListener("click", () => change("reactivate"));
   };
 
@@ -432,6 +446,28 @@ export async function viewPerson(el, username) {
       state.users = null;
       if (creating) location.hash = `#/access/people/${encodeURIComponent(saved.username)}`;
       else viewPerson(el, username);
+    } catch (e) { toast(e.message, "error"); }
+  };
+
+  const setPassword = async () => {
+    const ok = await modal({
+      title: `A temporary password for ${person.display_name}?`,
+      body: html`<p>Pinax will make one up and show it to you once. ${person.display_name} must change it when they sign in.</p>
+        <p class="small muted">${person.has_password ? "Their current password stops working, their sessions end, and a locked account is unlocked." : "Until then they cannot sign in."}</p>`,
+      confirm: "Make a temporary password",
+    });
+    if (!ok) return;
+    try {
+      const r = await api(`admin/people/${encodeURIComponent(username)}/password`, { method: "POST" });
+      await modal({
+        title: `Temporary password for ${person.display_name}`,
+        body: html`<p class="small">Give it to them privately. It is not shown again; you can make a new one at any time.</p>
+          <div class="secret" id="temp-pass">${r.temporary_password}</div>
+          <p class="small muted">Username: <span class="mono">${person.username}</span></p>`,
+        confirm: "Copy and close", cancel: "Close",
+        onConfirm: async () => { await navigator.clipboard?.writeText(r.temporary_password).catch(() => {}); toast("Copied"); },
+      });
+      viewPerson(el, username);
     } catch (e) { toast(e.message, "error"); }
   };
 

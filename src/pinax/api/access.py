@@ -9,7 +9,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from .. import people as people_service
+from .. import signin
 from ..auth import Identity, require_admin
+from ..config import get_settings
 from ..db import get_session
 from ..models import AuditEvent, Filesystem, Lab, LabFolder, LabMembership, User
 from ..serialize import iso, lab_json, user_json
@@ -96,15 +98,38 @@ def change_person(username: str, body: PersonBody, identity: Identity = Depends(
     return _save(session, identity, _person(session, username), body)
 
 
-@router.post("/people/{username}/{change}")
-def activate(username: str, change: str, identity: Identity = Depends(require_admin),
-             session: Session = Depends(get_session)):
-    """`deactivate` (cannot sign in; memberships and role kept, unused) or `reactivate`."""
-    if change not in ("deactivate", "reactivate"):
-        raise HTTPException(404)
+@router.post("/people/{username}/password")
+def set_password(username: str, identity: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+    """Local sign-in: give a person a new temporary password, returned this once, which they must change when they
+    sign in. Unlocks their account and ends their sessions."""
+    if get_settings().auth_mode != "local":
+        raise HTTPException(409, "Pinax keeps no passwords unless PINAX_AUTH_MODE is local")
     user = _person(session, username)
     try:
-        people_service.set_active(session, identity.user, user, change == "reactivate")
+        password = signin.set_temporary_password(session, user, identity.user)
+    except signin.SignInError as e:
+        session.rollback()
+        raise HTTPException(e.status, str(e)) from e
+    session.expire_all()
+    return {"temporary_password": password,
+            "person": _person_json(session, _person(session, username)) | {"is_self": user.id == identity.user.id}}
+
+
+@router.post("/people/{username}/deactivate")
+def deactivate(username: str, identity: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+    """The person cannot sign in, and their sessions end; their memberships and role are kept, unused."""
+    return _set_active(session, identity, username, False)
+
+
+@router.post("/people/{username}/reactivate")
+def reactivate(username: str, identity: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+    return _set_active(session, identity, username, True)
+
+
+def _set_active(session: Session, identity: Identity, username: str, active: bool) -> dict:
+    user = _person(session, username)
+    try:
+        people_service.set_active(session, identity.user, user, active)
     except people_service.PeopleError as e:
         session.rollback()
         raise HTTPException(e.status, str(e)) from e

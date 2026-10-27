@@ -8,6 +8,7 @@ audited with the fields before and after. At least one active storage administra
 can remove their own administrator role or deactivate themselves.
 """
 
+import getpass
 import re
 from collections.abc import Iterable
 from typing import Any
@@ -16,6 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .models import AuditEvent, Lab, LabMembership, User
+from .signin import end_sessions
 
 ROLES = ("pi", "delegate")
 PROFILE = ("display_name", "email", "title", "is_admin")
@@ -52,8 +54,11 @@ def active_admins(session: Session) -> int:
     return session.scalar(select(func.count()).select_from(User).where(User.is_admin, User.active)) or 0
 
 
-def _audit(session: Session, actor: User, action: str, summary: str, detail: dict) -> None:
-    session.add(AuditEvent(actor_id=actor.id, action=action, summary=summary, detail={**detail, "source": "app"}))
+def _audit(session: Session, actor: User | None, action: str, summary: str, detail: dict) -> None:
+    """`actor` None: a change from the command line, recorded with the operating-system user who made it."""
+    source = {"source": "app"} if actor is not None else {"source": "cli", "by": getpass.getuser()}
+    session.add(AuditEvent(actor_id=actor.id if actor else None, action=action, summary=summary,
+                           detail={**detail, **source}))
 
 
 def _text(data: dict[str, Any], key: str) -> str:
@@ -80,7 +85,7 @@ def _memberships(session: Session, wanted: list[dict[str, Any]]) -> dict[int, tu
     return out
 
 
-def save_person(session: Session, actor: User, user: User | None, data: dict[str, Any]) -> User:
+def save_person(session: Session, actor: User | None, user: User | None, data: dict[str, Any]) -> User:
     """Add a person (`user` None) or change one: profile, administrator role, and, if given, lab memberships
     (`memberships`: [{lab: slug, role}], the full list)."""
     creating = user is None
@@ -106,7 +111,7 @@ def save_person(session: Session, actor: User, user: User | None, data: dict[str
         if "username" in data and str(data["username"]).strip() != user.username:
             raise PeopleError("A username cannot be changed: it is the name the sign-on sends")
         if user.is_admin and not profile["is_admin"]:
-            if user.id == actor.id:
+            if actor is not None and user.id == actor.id:
                 raise PeopleError("You cannot remove your own administrator role", 409)
             if active_admins(session) <= 1:
                 raise PeopleError("At least one active storage administrator is required", 409)
@@ -131,7 +136,7 @@ def save_person(session: Session, actor: User, user: User | None, data: dict[str
     return user
 
 
-def _set_memberships(session: Session, actor: User, user: User, wanted: dict[int, tuple[Lab, str]]) -> None:
+def _set_memberships(session: Session, actor: User | None, user: User, wanted: dict[int, tuple[Lab, str]]) -> None:
     """Make the person's memberships of active labs exactly `wanted`, auditing each change (memberships of inactive
     labs, which give no access and are not shown, are left as they are)."""
     current = {m.lab_id: m for m in session.scalars(select(LabMembership).where(LabMembership.user_id == user.id))}
@@ -153,16 +158,18 @@ def _set_memberships(session: Session, actor: User, user: User, wanted: dict[int
                {"lab": lab.slug, "username": user.username, "role": role, "before": was})
 
 
-def set_active(session: Session, actor: User, user: User, active: bool) -> None:
+def set_active(session: Session, actor: User | None, user: User, active: bool) -> None:
     """Deactivate a person (they cannot sign in; their memberships and role are kept, unused) or reactivate them."""
     if user.active == active:
         raise PeopleError(f"{user.display_name} is already {'active' if active else 'inactive'}", 409)
     if not active:
-        if user.id == actor.id:
+        if actor is not None and user.id == actor.id:
             raise PeopleError("You cannot deactivate yourself", 409)
         if user.is_admin and active_admins(session) <= 1:
             raise PeopleError("At least one active storage administrator is required", 409)
     user.active = active
+    if not active:
+        end_sessions(session, user)
     labs = sorted(f"{m.lab.name} ({m.role})" for m in user.memberships if m.lab.active)
     kept = ", ".join(labs + (["storage administrator"] if user.is_admin else [])) or "no access"
     _audit(session, actor, "person.reactivated" if active else "person.deactivated",

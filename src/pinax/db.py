@@ -10,7 +10,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
@@ -97,4 +97,31 @@ def get_session() -> Iterator[Session]:
 def init_db() -> None:
     from . import models  # noqa: F401 - register tables
 
-    Base.metadata.create_all(get_engine())
+    engine = get_engine()
+    Base.metadata.create_all(engine)
+    add_missing_columns(engine)
+
+
+def add_missing_columns(engine: Engine) -> list[str]:
+    """Add columns that a newer version of a table has and the catalog's copy lacks (create_all adds only whole
+    tables), with their server defaults, so an existing catalog keeps working after an upgrade. Until migrations
+    arrive (Alembic, with PostgreSQL), new columns are nullable or have a server default."""
+    added = []
+    have_tables = set(inspect(engine).get_table_names())
+    prep = engine.dialect.identifier_preparer
+    with engine.begin() as conn:
+        for table in Base.metadata.sorted_tables:
+            if table.name not in have_tables:
+                continue
+            have = {c["name"] for c in inspect(conn).get_columns(table.name)}
+            for col in table.columns:
+                if col.name in have:
+                    continue
+                ddl = f"ALTER TABLE {prep.quote(table.name)} ADD COLUMN {prep.quote(col.name)} {col.type.compile(engine.dialect)}"
+                if col.server_default is not None:
+                    arg = col.server_default.arg
+                    default = arg if isinstance(arg, str) else arg.compile(dialect=engine.dialect)
+                    ddl += f" DEFAULT {default}"
+                conn.execute(text(ddl))
+                added.append(f"{table.name}.{col.name}")
+    return added

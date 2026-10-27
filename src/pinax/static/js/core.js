@@ -64,7 +64,10 @@ export async function api(path, { method = "GET", body, query, quiet = false } =
       const data = await res.json();
       detail = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
     } catch { /* not JSON */ }
-    if (res.status === 401 && !quiet) showPersonaPicker(true);
+    if (res.status === 401 && !quiet) {
+      if (state.config && state.config.auth_mode === "local") showSignIn(); else showPersonaPicker(true);
+    }
+    if (res.status === 403 && detail === "Change your password before going on" && !quiet) showPasswordChange({ forced: true });
     throw new ApiError(res.status, detail);
   }
   const type = res.headers.get("content-type") || "";
@@ -261,6 +264,88 @@ function personaRow(u) {
     <span><span class="who">${u.display_name}</span><br><span class="what">${labs}</span></span></button>`;
 }
 
+// ---------- Local sign-in (PINAX_AUTH_MODE=local) ----------
+const isLocal = () => state.config && state.config.auth_mode === "local";
+
+/** The sign-in form, over whatever page is showing. After signing in: the password change, if one is required,
+ * else Pinax itself. */
+export function showSignIn() {
+  if ($(".modal-backdrop.sign-in")) return;
+  const wrap = document.createElement("div");
+  wrap.className = "modal-backdrop sign-in";
+  wrap.innerHTML = String(html`<form class="modal" role="dialog" aria-modal="true" aria-labelledby="si-title" novalidate>
+    <div class="modal-head"><h2 id="si-title">Sign in to Pinax</h2></div>
+    <div class="modal-body">
+      <div class="field"><label for="si-user">Username</label><input class="input" id="si-user" autocomplete="username" autocapitalize="none" spellcheck="false" required></div>
+      <div class="field"><label for="si-pass">Password</label><input class="input" id="si-pass" type="password" autocomplete="current-password" required></div>
+      <p class="form-error" role="alert" hidden></p>
+      <p class="small muted" style="margin:0">Forgotten your password? Ask a Pinax administrator for a temporary one.</p></div>
+    <div class="modal-foot"><button class="btn btn-primary" type="submit">${icon("lock")}Sign in</button></div></form>`);
+  document.body.append(wrap);
+  const form = $("form", wrap);
+  $("#si-user", wrap).focus();
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const err = $(".form-error", wrap);
+    const button = $("button[type=submit]", wrap);
+    button.disabled = true;
+    try {
+      const r = await api("auth/login", { method: "POST", quiet: true,
+        body: { username: $("#si-user", wrap).value, password: $("#si-pass", wrap).value } });
+      wrap.remove();
+      if (r.must_change_password) showPasswordChange({ forced: true });
+      else if (location.pathname.startsWith("/app")) location.reload(); else location.href = "/app/";
+    } catch (ex) {
+      err.textContent = ex.message;
+      err.hidden = false;
+      $("#si-pass", wrap).value = "";
+      $("#si-pass", wrap).focus();
+    } finally { button.disabled = false; }
+  });
+}
+
+/** Change one's own password. Forced after signing in with a temporary password: nothing else works until then. */
+export function showPasswordChange({ forced = false } = {}) {
+  if ($(".modal-backdrop.password-change")) return;
+  const min = state.config?.password_min_length || 12;
+  const wrap = document.createElement("div");
+  wrap.className = "modal-backdrop password-change";
+  wrap.innerHTML = String(html`<form class="modal" role="dialog" aria-modal="true" aria-labelledby="pc-title" novalidate>
+    <div class="modal-head"><h2 id="pc-title">${forced ? "Choose your password" : "Change your password"}</h2>
+      ${forced ? html`<p class="small muted" style="margin-top:6px">You signed in with a temporary password. Choose your own to go on.</p>` : ""}</div>
+    <div class="modal-body">
+      <div class="field"><label for="pc-current">${forced ? "Temporary password" : "Current password"}</label><input class="input" id="pc-current" type="password" autocomplete="current-password"></div>
+      <div class="field"><label for="pc-new">New password</label><input class="input" id="pc-new" type="password" autocomplete="new-password" aria-describedby="pc-hint">
+        <span class="hint" id="pc-hint">At least ${min} characters, not containing your username. A few words make a good one.</span></div>
+      <div class="field"><label for="pc-again">New password again</label><input class="input" id="pc-again" type="password" autocomplete="new-password"></div>
+      <p class="form-error" role="alert" hidden></p></div>
+    <div class="modal-foot">${forced ? html`<button class="btn btn-ghost" type="button" data-act="out">Sign out</button>`
+      : html`<button class="btn btn-ghost" type="button" data-act="cancel">Cancel</button>`}
+      <button class="btn btn-primary" type="submit">${icon("check")}Save password</button></div></form>`);
+  document.body.append(wrap);
+  $("#pc-current", wrap).focus();
+  const err = $(".form-error", wrap);
+  const fail = (message) => { err.textContent = message; err.hidden = false; };
+  $("[data-act=cancel]", wrap)?.addEventListener("click", () => wrap.remove());
+  $("[data-act=out]", wrap)?.addEventListener("click", signOut);
+  $("form", wrap).addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if ($("#pc-new", wrap).value !== $("#pc-again", wrap).value) return fail("The new passwords are not the same");
+    try {
+      await api("auth/password", { method: "POST", quiet: true,
+        body: { current_password: $("#pc-current", wrap).value, new_password: $("#pc-new", wrap).value } });
+      wrap.remove();
+      toast("Password changed");
+      if (forced) location.reload();
+    } catch (ex) { fail(ex.message); }
+  });
+}
+
+export async function signOut() {
+  await api("auth/logout", { method: "POST", quiet: true }).catch(() => {});
+  location.href = "/";
+}
+
 async function switchTo(username) {
   await api("demo/session", { method: "POST", body: { username } });
   if (location.pathname.startsWith("/app")) { location.hash = "#/"; location.reload(); } else location.href = "/app/";
@@ -319,6 +404,7 @@ export function renderTopbar({ mode, nav = [] } = {}) {
         ? html`<button class="user-button" id="user-button" aria-haspopup="true" aria-expanded="false">
             <span class="avatar ${isAdmin ? "admin" : ""}">${me.initials}</span>
             <span class="user-text"><span>${me.display_name}</span><small>${sub}</small></span></button>`
+        : isLocal() ? html`<button class="btn btn-sm btn-light" id="sign-in">${icon("lock")}Sign in</button>`
         : state.config && state.config.auth_mode !== "demo" ? ""
         : html`<button class="btn btn-sm btn-light" id="user-button">Choose identity</button>`}
     </div>`);
@@ -329,6 +415,7 @@ export function renderTopbar({ mode, nav = [] } = {}) {
     $("#theme-toggle").focus();  // keep keyboard focus on the toggle after re-rendering
     window.dispatchEvent(new Event("pinax:theme"));
   });
+  $("#sign-in")?.addEventListener("click", showSignIn);
   $("#user-button")?.addEventListener("click", async (e) => {
     e.stopPropagation();
     const existing = $(".dropdown");
@@ -340,14 +427,19 @@ export function renderTopbar({ mode, nav = [] } = {}) {
     const users = demo ? await loadUsers() : [];
     dd.innerHTML = String(html`<h4>SIGNED IN AS</h4>
       <div style="padding:4px 10px 10px"><b>${me.display_name}</b><br><span class="small muted">${me.title} · ${me.email}</span></div>
+      ${isLocal() ? html`<button class="menu-item" data-act="password">${icon("lock")}Change password</button>
+        <button class="menu-item" data-act="sign-out">${icon("arrowRight")}Sign out</button>` : ""}
       ${demo ? html`<h4>SWITCH DEMO IDENTITY</h4>
       ${users.filter((u) => u.is_admin).map(personaRow)}
       ${users.filter((u) => !u.is_admin).map(personaRow)}
-      <div class="demo-note">Demo mode. Production uses single sign-on; set PINAX_AUTH_MODE=header behind the identity proxy.</div>` : ""}`);
+      <div class="demo-note">Demo mode: anyone can be anyone. For real use, set PINAX_AUTH_MODE=local (passwords) or header (single sign-on).</div>` : ""}`);
     dd.addEventListener("click", (ev) => {
       ev.stopPropagation();
       const p = ev.target.closest(".persona");
       if (p) switchTo(p.dataset.user);
+      const act = ev.target.closest("[data-act]")?.dataset.act;
+      if (act === "password") { dd.remove(); showPasswordChange(); }
+      if (act === "sign-out") signOut();
     });
     $(".user-menu").append(dd);
     $("#user-button").setAttribute("aria-expanded", "true");
