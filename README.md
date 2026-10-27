@@ -23,8 +23,13 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
   storage health (scan errors, very large directories, small-file hotspots, problem file names, deleted
   owners), the scan history, and people and access.
 - **Built for scale**: each scan is indexed once into directory-level totals, so a treemap of a petabyte
-  draws in tens of milliseconds. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and
-  measured performance.
+  draws in tens of milliseconds: at 100 million files, every directory-level query takes 50 ms or less, and the
+  index builds in two minutes. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and measured
+  performance.
+- **Numbers you can check**: `pinax check` compares every directory's totals with `fs-inventory rollup`, an
+  independent implementation, and reports any difference.
+- **Ready to run**: new scans are ingested automatically, labs and people are imported from CSV with a dry run
+  first, and `deploy/` has systemd units and an oauth2-proxy configuration for single sign-on.
 - **Light and dark themes**, keyboard-reachable tiles, and a table view for every chart.
 
 ## Documentation
@@ -131,8 +136,9 @@ Every top-level folder of a filesystem is a unit of ownership: map each one to a
 ```bash
 uv run pinax import examples/import
 ```
- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) is the installation guide: systemd
-services (in `deploy/`), single sign-on with oauth2-proxy, scheduled scans, upgrades, sizing, and operations.
+
+To install Pinax on a server, follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): systemd services (in `deploy/`),
+single sign-on with oauth2-proxy, scheduled scans, upgrades, sizing, and operations.
 
 ## Commands
 

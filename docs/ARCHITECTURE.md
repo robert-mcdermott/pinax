@@ -282,8 +282,8 @@ uv run python bench/bench_index.py /scratch/synth-10m --index /scratch/synth-10m
 | Demo owners rewritten to fictional accounts after each demo scan | Real owners from the scan | Only `seed.py` rewrites owners, only in its own demo scans |
 | SQLite catalog | PostgreSQL | SQLAlchemy models; migrations (Alembic) still to add |
 | Demo identity switcher | Single sign-on proxy, `PINAX_AUTH_MODE=header` | Checked behind oauth2-proxy 7.15 with a stand-in identity provider |
-| People, labs, and folder mappings managed in the app | The same, fed from the authoritative source | Same model as Tundra |
-| One server | Web and ingest can run on separate hosts sharing `var/snapshots` | Indexes are immutable once built |
+| People, labs, and folder mappings managed in the app | The same, fed from the authoritative source; until then imported from CSV (`pinax import`) | Same model as Tundra |
+| One server | Web and ingest can run on separate hosts sharing `var/snapshots` | Indexes are replaced, never changed in place; keep every ingest on one host, since the ingest lock is a file lock in `PINAX_VAR_ROOT` |
 
 ## Known limits
 

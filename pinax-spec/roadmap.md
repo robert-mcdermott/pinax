@@ -16,9 +16,9 @@ decisions taken are recorded here. Later waves are outlined at the end.
 **Progress** is marked here as each slice is committed: done, next or to come. Each requirement's status is
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
-**Where things stand:** wave 1 is released as 0.1.0 (tag `v0.1.0` on `main`). Wave 2 is in progress on `wave2`:
-slices 1 to 6 are done, and slice 7 (release 0.2.0) is next. Production storage is out of reach while
-wave 2 is built, so testing on it, and the pilot, are wave 3.
+**Where things stand:** wave 1 is released as 0.1.0 and wave 2 as 0.2.0 (tags `v0.1.0` and `v0.2.0` on `main`).
+Wave 3, the production pilot, is next; it starts when production storage is reachable from the development
+machine or a pilot server.
 
 The order follows one principle:
 1. **Trust first.** Totals that agree with an independent computation on every directory, and that say when
@@ -135,7 +135,7 @@ in wave 3.
 | 4 | Automatic ingest (S4, O4) | `pinax ingest --watch` (or a timer) ingests each new verified scan under a folder once, skipping incomplete and already-ingested scans, safe if two run at once; failures shown on *Scans* with the error; tests for each case | Done |
 | 5 | Bulk onboarding (A5) | Labs, people, memberships, and folder ownership imported from CSV with a dry run that lists every change, refusing ambiguous rows; changes audited; example files and docs | Done |
 | 6 | Deployment kit (P6, A4) | systemd units for the web app and ingest; header mode checked behind oauth2-proxy with a local test identity provider; a health endpoint; `docs/DEPLOYMENT.md` rewritten as an installation guide, confirmed by the pilot's installation in wave 3 | Done |
-| 7 | Release 0.2.0 | README demo script updated; version 0.2.0, changelog, pull request, tag, release | Next |
+| 7 | Release 0.2.0 | README demo script updated; version 0.2.0, changelog, pull request, tag, release | Done |
 
 ### Decisions for wave 2
 
@@ -274,6 +274,13 @@ in wave 3.
      rebuilds (a lost index, the cache reopening, `--outdated`, a missing scan).
    - *Done*, except what only a real server shows: the pilot installation in wave 3 confirms the guide and units
      (`systemd-analyze verify` and the sandboxing options cannot be run on the development Mac).
+7. **Release 0.2.0.**
+   - The demo re-seeded with this wave's code: all four snapshots equal to rollup; the README demo script walked
+     through (its numbers hold), with steps added for *Scans* and the CSV import.
+   - README features, the architecture's production table, and the changelog's upgrade notes brought up to date.
+   - Version 0.2.0 in `pyproject.toml`, `pinax.__version__`, and `uv.lock`; `CHANGELOG.md` dated; pull request
+     `wave2` to `main`, then tag `v0.2.0` and the release.
+   - *Done*.
 
 ## Later waves (outlined)
 
