@@ -26,26 +26,26 @@ def home(identity: Identity = Depends(current_identity), session: Session = Depe
 
 @router.get("/tree")
 def tree(fs: str | None = None, path: str | None = None, metric: str = "bytes", depth: int = Query(1, ge=1, le=2),
-         snapshot: int | None = None, lab: str | None = None,
+         snapshot: int | None = None, at: date | None = None, lab: str | None = None,
          identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
     """A directory and its largest children (and grandchildren with depth=2), for the treemap."""
-    return explore.tree(session, identity, fs, path, metric=metric, depth=depth, snap_id=snapshot, lab_slug=lab)
+    return explore.tree(session, identity, fs, path, metric=metric, depth=depth, scan=snapshot or at, lab_slug=lab)
 
 
 @router.get("/changes")
 def changes(fs: str | None = None, path: str | None = None, since: date | None = None, metric: str = "max",
-            depth: int = Query(1, ge=1, le=2), snapshot: int | None = None, lab: str | None = None,
+            depth: int = Query(1, ge=1, le=2), snapshot: int | None = None, at: date | None = None, lab: str | None = None,
             identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
     """The change map: a directory and its children in this scan and an earlier one (the previous one, or the
     newest kept on or before `since`), with folders in only one of them."""
     return explore.change_tree(session, identity, fs, path, since=since, metric=metric, depth=depth,
-                               snap_id=snapshot, lab_slug=lab)
+                               scan=snapshot or at, lab_slug=lab)
 
 
 @router.get("/changed")
 def changed(fs: str | None = None, path: str | None = None, since: date | None = None,
             limit: int = Query(20, ge=1), fmt: str = "json", which: str = Query("grew", alias="list"),
-            snapshot: int | None = None,
+            snapshot: int | None = None, at: date | None = None,
             lab: str | None = None, identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
     """What changed between this scan and an earlier one: the folders that grew and shrank most, new and removed
     folders, and the largest new and removed files. fmt=csv downloads one `list`."""
@@ -54,10 +54,10 @@ def changed(fs: str | None = None, path: str | None = None, since: date | None =
         if which not in explore.CHANGE_LISTS:
             raise HTTPException(422, f"Unknown list {which!r}")
         res = explore.what_changed(session, identity, fs, path, since=since, limit=min(limit, s.export_max_rows),
-                                   snap_id=snapshot, lab_slug=lab)
+                                   scan=snapshot or at, lab_slug=lab)
         return _change_csv(which, res[which])
     return explore.what_changed(session, identity, fs, path, since=since, limit=min(limit, s.search_max_rows),
-                                snap_id=snapshot, lab_slug=lab)
+                                scan=snapshot or at, lab_slug=lab)
 
 
 def _change_csv(name: str, rows: list[dict]) -> StreamingResponse:
@@ -78,33 +78,33 @@ def _change_csv(name: str, rows: list[dict]) -> StreamingResponse:
 
 
 @router.get("/types")
-def types(fs: str | None = None, path: str | None = None, snapshot: int | None = None, lab: str | None = None,
+def types(fs: str | None = None, path: str | None = None, snapshot: int | None = None, at: date | None = None, lab: str | None = None,
           identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
     """Bytes and files by category and file type over a subtree."""
-    return explore.types(session, identity, fs, path, snapshot, lab)
+    return explore.types(session, identity, fs, path, snapshot or at, lab)
 
 
 @router.get("/owners")
-def owners(fs: str | None = None, path: str | None = None, snapshot: int | None = None, lab: str | None = None,
+def owners(fs: str | None = None, path: str | None = None, snapshot: int | None = None, at: date | None = None, lab: str | None = None,
            identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
     """Bytes and files by owning account over a subtree."""
-    return explore.owners(session, identity, fs, path, snapshot, lab)
+    return explore.owners(session, identity, fs, path, snapshot or at, lab)
 
 
 @router.get("/cold")
 def cold(fs: str | None = None, path: str | None = None, older: int = Query(..., ge=1), min_bytes: int = 0,
-         limit: int = Query(200, ge=1, le=2000), snapshot: int | None = None, lab: str | None = None,
+         limit: int = Query(200, ge=1, le=2000), snapshot: int | None = None, at: date | None = None, lab: str | None = None,
          identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
     """The largest folders in which nothing has changed for longer than the chosen age."""
     return explore.cold(session, identity, fs, path, older=older, min_bytes=min_bytes, limit=limit,
-                        snap_id=snapshot, lab_slug=lab)
+                        scan=snapshot or at, lab_slug=lab)
 
 
 @router.get("/files")
 def files(fs: str | None = None, path: str | None = None, q: str = "", in_path: bool = False, category: str = "",
           ext: str = "", min_size: int | None = None, max_size: int | None = None, older: int | None = None,
           newer: int | None = None, uid: int | None = None, direct: bool = False, sort: str = "size",
-          limit: int = Query(100, ge=1), fmt: str = "json", snapshot: int | None = None, lab: str | None = None,
+          limit: int = Query(100, ge=1), fmt: str = "json", snapshot: int | None = None, at: date | None = None, lab: str | None = None,
           identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
     """Find files: by name or glob, type, size, age, and owner, largest or oldest first. fmt=csv downloads."""
     s = get_settings()
@@ -112,18 +112,25 @@ def files(fs: str | None = None, path: str | None = None, q: str = "", in_path: 
                              max_size=max_size, older=older, newer=newer, uid=uid, direct=direct)
     if fmt == "csv":
         res = explore.files(session, identity, fs, path, flt=flt, sort=sort, limit=min(limit, s.export_max_rows),
-                            snap_id=snapshot, lab_slug=lab, with_summary=False)
+                            scan=snapshot or at, lab_slug=lab, with_summary=False)
         return _csv(res["files"])
     return explore.files(session, identity, fs, path, flt=flt, sort=sort, limit=min(limit, s.search_max_rows),
-                         snap_id=snapshot, lab_slug=lab)
+                         scan=snapshot or at, lab_slug=lab)
+
+
+@router.get("/scan-days")
+def scan_days(fs: str | None = None, lab: str | None = None, identity: Identity = Depends(current_identity),
+              session: Session = Depends(get_session)):
+    """The days a place was scanned, newest first, and whether each is kept in full or as folder totals only."""
+    return explore.scan_days(session, identity, fs, lab)
 
 
 @router.get("/history")
-def history(fs: str | None = None, path: str | None = None, snapshot: int | None = None, lab: str | None = None,
+def history(fs: str | None = None, path: str | None = None, snapshot: int | None = None, at: date | None = None, lab: str | None = None,
             identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
     """Size, files, age profile, cold share, and average age over the scans, oldest first: every scan for a home,
     lab, filesystem, or top-level folder; the retained snapshots for a deeper folder."""
-    return explore.history(session, identity, fs, path, snapshot, lab)
+    return explore.history(session, identity, fs, path, snapshot or at, lab)
 
 
 COLUMNS = ["fs", "path", "size", "alloc", "mtime", "atime", "category", "ext", "owner", "uid", "gid", "nlink", "kind"]

@@ -21,6 +21,8 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
   scan, the previous one by default, with new and removed folders drawn; drill down as in the age map.
 - **What changed**: for any folder and two scans, where it grew and shrank, the new and removed folders, and the
   largest new and removed files, each list with CSV.
+- **Any kept scan**: every report shows the latest scan or any earlier one kept in full, chosen beside the scan
+  date; links keep the choice. Older scans keep their folder totals, shown in *History*.
 - **Reports for the same folder**: age profile by folder, file types and categories (with a callout for
   uncompressed sequencing data), cold folders that could be archived as a unit, owners (flagging accounts
   that no longer exist), and file search by name or glob, type, size, age, and owner, with CSV export.
@@ -135,7 +137,9 @@ climbs from 64% to 100% at the same size. *History* shows all of it, the *Change
    accounts that no longer exist.
 9. **Find files.** Search `*.bam`, older than five years, largest first; download the CSV.
 10. **Scans.** Six snapshots of each filesystem, a month apart, each with its full index (`PINAX_KEEP_SNAPSHOTS`
-    keeps six), and whether automatic ingest is watching for new scans.
+    keeps six), and whether automatic ingest is watching for new scans. Click a date to open that scan: the
+    header says it is an older one, every report and link stays on it, and *Back to the latest* returns. Choose
+    another scan beside the date on any report.
 11. **Import from CSV.** In a terminal, `uv run pinax import examples/import` lists the 14 changes the example
     files would make: two departments, a lab, three people, their memberships, and owners for the three unmapped
     folders. Add `--apply`, and *Folders and labs* shows no unmapped folders; every change is in the audit log.

@@ -314,3 +314,50 @@ def test_history_follows_access(months):
     everything = _history(months, "ivy")
     assert everything["name"] == "All data" and len(everything["points"]) == 3
     _check(everything["points"][-1:], [_expect([(SCANS[3][3], "", 2 / 24), (SCANS[4][3], "", 0)])])
+
+
+# ---------- Older snapshots (S8) ----------
+
+def _get(client, user: str, endpoint: str, **params):
+    client.cookies.set("pinax_user", user)
+    return client.get(f"/api/{endpoint}", params=params)
+
+
+def test_scan_days_say_which_are_kept_in_full(months):
+    days = _get(months, "ivy", "scan-days", fs="fast").json()["days"]
+    assert days == [{"day": "2026-08-30", "ready": True, "latest": True}, {"day": "2026-07-31", "ready": True, "latest": False},
+                    {"day": "2026-07-01", "ready": False, "latest": False}]  # two kept; the first pruned
+    home = [d["day"] for d in _get(months, "ivy", "scan-days").json()["days"]]
+    assert home == ["2026-08-30", "2026-07-31", "2026-07-01"]  # Secure was scanned on two of those days
+    assert [d["day"] for d in _get(months, "ada", "scan-days", lab="alpha").json()["days"]] == home
+    assert _get(months, "ada", "scan-days", fs="nowhere").status_code == 404
+
+
+def test_reports_show_the_scan_of_a_chosen_day(months):
+    total = lambda files: sum(f["size"] for f in files)
+    tree = _get(months, "ivy", "tree", fs="fast", at="2026-07-31").json()
+    assert tree["as_of"].startswith("2026-07-31") and tree["node"]["stats"]["bytes"] == total(FAST_2)
+    assert _get(months, "ivy", "tree", fs="fast", at="2026-08-15").json()["node"]["stats"]["bytes"] == total(FAST_2)
+    latest = _get(months, "ivy", "tree", fs="fast").json()
+    assert latest["node"]["stats"]["bytes"] == total(FAST_3)
+    # A person's home on that day: each filesystem as of its newest scan by then.
+    home = _get(months, "ada", "tree", at="2026-07-31").json()
+    assert sorted(t["fs"] for t in home["tiles"]) == ["fast", "secure"]
+    assert sum(t["stats"]["bytes"] for t in home["tiles"]) == total(
+        [f for f in FAST_2 if f["path"].startswith("alpha_lab/")]) + total(SEC_1)
+    # Every report takes the day.
+    for endpoint in ("types", "owners", "files", "changes", "changed"):
+        r = _get(months, "ada", endpoint, fs="fast", path=f"{ROOT}/alpha_lab", at="2026-07-31")
+        assert r.status_code == 200 and r.json().get("as_of", "2026-07-31").startswith("2026-07-31"), endpoint
+    assert _get(months, "ivy", "cold", fs="fast", older=3, at="2026-07-31").status_code == 200
+
+
+def test_a_pruned_scan_offers_its_folder_history_only(months):
+    r = _get(months, "ivy", "tree", fs="fast", at="2026-07-01")
+    assert r.status_code == 410 and "History" in r.json()["detail"]
+    h = _get(months, "ivy", "history", fs="fast", path=f"{ROOT}/alpha_lab", at="2026-07-01")
+    assert h.status_code == 200 and h.json()["points"][0]["taken_at"].startswith("2026-07-01")
+    assert _get(months, "ivy", "tree", fs="fast", at="2026-06-01").status_code == 404  # before any scan
+    # The home leaves out a filesystem whose scan by then was pruned, and keeps the others.
+    home = _get(months, "ivy", "tree", at="2026-07-01").json()
+    assert [t["fs"] for t in home["tiles"]] == ["secure"]

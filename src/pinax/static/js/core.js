@@ -232,7 +232,9 @@ function themeToggle() {
 }
 
 // ---------- Identity and chrome ----------
-export const state = { me: null, config: null, users: null };
+// `at`: the day of the scan being looked at (YYYY-MM-DD), or null for the latest. Read from the address on every
+// route, and kept by every place link and report request (placeQuery), so a chosen scan stays chosen.
+export const state = { me: null, config: null, users: null, at: null };
 
 export async function loadIdentity() {
   state.config = await api("config");
@@ -378,6 +380,8 @@ export function startRouter(routes, outlet, { onRoute } = {}) {
     timers.forEach((t) => t.stop());
     timers = [];
     const hash = location.hash || "#/";
+    const at = new URLSearchParams(hash.split("?")[1] || "").get("at");
+    state.at = at && /^\d{4}-\d{2}-\d{2}$/.test(at) ? at : null;
     for (const [pattern, view] of routes) {
       const m = hash.match(pattern);
       if (m) {
@@ -441,9 +445,17 @@ export function relPath(fs, path) {
   if (!f || !path || path === f.root) return "/";
   return path.startsWith(f.root + "/") ? path.slice(f.root.length) : path;
 }
-// Query parameters naming a place (filesystem and path), or nothing for the person's home.
+// Query parameters naming a place (filesystem and path), or nothing for the person's home, and the scan chosen.
 export function placeQuery(place) {
-  return place && place.fs ? { fs: place.fs, path: place.path || undefined } : {};
+  return { ...(place && place.fs ? { fs: place.fs, path: place.path || undefined } : {}), at: state.at || undefined };
+}
+/** The current address with `at` set to `day` (or removed for the latest), keeping every other choice on the page. */
+export function hashAt(day, route) {
+  const [path, query] = (location.hash || "#/").split("?");
+  const q = new URLSearchParams(query || "");
+  if (day) q.set("at", day); else q.delete("at");
+  const qs = String(q);
+  return `${route ? `#/${route}` : path}${qs ? `?${qs}` : ""}`;
 }
 export function placeHash(route, place, extra = {}) {
   const q = new URLSearchParams(Object.entries({ ...placeQuery(place), ...extra }).filter(([, v]) => v !== undefined && v !== null && v !== ""));

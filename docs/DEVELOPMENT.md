@@ -110,7 +110,9 @@ The interface is plain HTML, CSS, and JavaScript modules with no framework or bu
   readout that several charts share); `js/history.js` draws the history view with it.
 - `js/changes.js`: the change map, on `js/treemap.js`, with its seven-step gold-to-teal scale (`--chg-*`);
   `js/changed.js`: what changed, the same comparison as lists.
-- `js/shell.js`: the sidebar and the scope header (breadcrumbs, scan date, links to every report for the same folder).
+- `js/shell.js`: the sidebar and the scope header (breadcrumbs, the scan date and its picker, links to every report
+  for the same folder). The chosen scan is `state.at`, read from the address by the router and added by
+  `placeQuery` to every place link and report request; `hashAt(day)` is the same page at another scan.
 - `js/explore.js`, `js/reports.js`, `js/admin.js`: the views. `js/app.js`: routes and the home page.
 - **Escape everything.** Build markup with `html`; use `raw()` only for markup you wrote.
 - A view is `(element, query)`. The place (filesystem and path) lives in the URL, so every view is bookmarkable.

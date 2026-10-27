@@ -29,6 +29,11 @@
   where it grew and shrank most, the new and removed folders, and the largest new and removed files, with the
   number and size of each, and a CSV of each list. `/api/changed` serves it.
 
+- **Older snapshots in the interface (wave 3, slice 6).** Every report has a scan picker beside its date: the
+  latest scan, or any earlier day whose scan is kept in full; an older scan is marked, with a way back, and links
+  keep it. A day kept only as folder totals opens History, which marks it. *Scans* links each snapshot. Every report
+  endpoint takes `at` (a day), and `/api/scan-days` lists a place's scan days.
+
 ### Changed
 
 - **Age colors, hot to cold.** The age map, age bars, legends, and history now show recent data in red and cold

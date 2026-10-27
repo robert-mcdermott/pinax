@@ -2,7 +2,7 @@
 // History: how a place grew and aged over its scans. Size by age as stacked columns, then files, cold share,
 // and average age as small multiples on the same dates (never two scales on one chart), with one readout for
 // all four; or the same as a table.
-import { $, $$, ageText, api, bytes, date, emptyState, html, icon, mount, num, parseQuery, pct, placeHash, placeQuery } from "/js/core.js";
+import { $, $$, ageText, api, bytes, date, emptyState, html, icon, mount, num, parseQuery, pct, placeHash, placeQuery, state } from "/js/core.js";
 import { downloadCsv } from "/js/reports.js";
 import { scopeHeader } from "/js/shell.js";
 import { link, niceTicks, renderTimeChart } from "/js/timechart.js";
@@ -31,7 +31,9 @@ export async function viewHistory(el, query) {
   const view = q.view === "table" ? "table" : "charts";
   const shown = pts.filter((p) => p.present);
   const first = shown[0], now = shown[shown.length - 1];
-  const head = scopeHeader("history", place, { asOf: data.as_of, lab: !place ? data.lab : null,
+  // A chosen scan (from the picker) is marked: the newest point on or before that day.
+  const marked = state.at ? pts.map((p) => p.taken_at.slice(0, 10)).findLastIndex((d) => d <= state.at) : -1;
+  const head = scopeHeader("history", place, { asOf: marked >= 0 ? pts[marked].taken_at : data.as_of, lab: !place ? data.lab : null,
     lede: place ? "" : data.kind === "lab" ? `Every folder of the ${data.name}, over its scans.` : "Over every scan." });
   if (!shown.length) {
     mount(el, html`${head}<div class="card">${emptyState("trend", "No history yet",
@@ -41,7 +43,7 @@ export async function viewHistory(el, query) {
   const filesOf = (p) => p.files, bytesOf = (p) => p.bytes;
   const since = (f) => (shown.length > 1 ? `${signed(f(now) - f(first), f === filesOf ? num : bytes)} since ${date(first.taken_at)}` : "One scan so far");
   const cold = `Unchanged for ${thresholdText(cb)}+`;
-  const keep = { view: view === "table" ? "table" : undefined, lab: place ? undefined : q.lab };
+  const keep = { view: view === "table" ? "table" : undefined, lab: place ? undefined : q.lab, pruned: q.pruned };
 
   mount(el, html`
     ${head}
@@ -59,6 +61,9 @@ export async function viewHistory(el, query) {
         <button data-view="table" class="${view === "table" ? "active" : ""}" aria-pressed="${view === "table"}">${icon("table")} Table</button></div></div>
       <button class="btn btn-ghost btn-sm" id="h-csv">${icon("download")}Download CSV</button>
     </div>
+    ${marked >= 0 ? html`<div class="alert alert-info">${icon("info")}<div>${q.pruned
+      ? `The scan of ${date(pts[marked].taken_at)} is no longer kept in full, so the other reports cannot show it: only its folder totals remain, marked here.`
+      : `The scan of ${date(pts[marked].taken_at)} is marked.`}</div></div>` : ""}
     ${view === "charts" ? html`
       <div class="card"><div class="card-head"><h2>Size by age</h2><span class="small muted">${num(pts.length)} scan${pts.length === 1 ? "" : "s"}, oldest first</span></div>
         <div class="tc" id="h-size" style="height:300px"></div>
@@ -68,7 +73,7 @@ export async function viewHistory(el, query) {
         <div class="card"><div class="card-head"><h2>Files</h2></div><div class="tc" id="h-files" style="height:190px"></div></div>
         <div class="card"><div class="card-head"><h2>Share ${cold.toLowerCase()}</h2></div><div class="tc" id="h-cold" style="height:190px"></div></div>
         <div class="card"><div class="card-head"><h2>Average age in years</h2></div><div class="tc" id="h-age" style="height:190px"></div></div>
-      </div>` : table(pts, cold)}
+      </div>` : table(pts, cold, marked)}
     ${notes(data)}`);
 
   $$("[data-view]", el).forEach((b) => b.addEventListener("click", () => {
@@ -78,28 +83,28 @@ export async function viewHistory(el, query) {
     ["scan", "present", "bytes", "alloc_bytes", "files", "cold_bytes", "cold_share", "mean_age_days", ...buckets().map((b) => `bytes_${b.short}`)],
     pts.map((p) => [p.taken_at, p.present, p.bytes, p.alloc_bytes, p.files, p.cold_bytes, share(p)?.toFixed(4) ?? "",
       p.mean_age_days ?? "", ...p.age_bytes])));
-  if (view === "charts") drawCharts(el, pts, cold);
+  if (view === "charts") drawCharts(el, pts, cold, marked);
 }
 
-function drawCharts(el, pts, cold) {
+function drawCharts(el, pts, cold, mark) {
   const times = pts.map((p) => new Date(p.taken_at));
   const tip = (i) => String(readout(pts, i, cold));
   let charts = [];
   const onHover = (i) => link(charts)(i);
   const draw = () => {
     charts = [
-      renderTimeChart($("#h-size", el), { times, kind: "stack", tip, onHover, ticks: byteTicks, tick: byteTick,
+      renderTimeChart($("#h-size", el), { times, kind: "stack", tip, onHover, mark, ticks: byteTicks, tick: byteTick,
         // The oldest (coldest, blue) data at the bottom: new data lands on top in red, and old data settles.
         series: buckets().map((b, i) => ({ token: ageColor(i), label: b.label, values: pts.map((p) => (p.present ? p.age_bytes[i] : null)) })).reverse(),
         value: (i) => bytes(pts[i].bytes),
         label: `Size by age over ${pts.length} scans, from ${bytes(pts[0].bytes)} to ${bytes(pts[pts.length - 1].bytes)}` }),
-      renderTimeChart($("#h-files", el), { times, kind: "line", tip, onHover, ticks: (m) => niceTicks(m, { target: 3 }),
+      renderTimeChart($("#h-files", el), { times, kind: "line", tip, onHover, mark, ticks: (m) => niceTicks(m, { target: 3 }),
         tick: (v) => compact.format(v), series: [{ token: "--series-1", label: "Files", values: pts.map((p) => (p.present ? p.files : null)) }],
         value: (i) => compact.format(pts[i].files), label: `Files over ${pts.length} scans` }),
-      renderTimeChart($("#h-cold", el), { times, kind: "line", tip, onHover, ticks: () => [0, 0.25, 0.5, 0.75, 1],
+      renderTimeChart($("#h-cold", el), { times, kind: "line", tip, onHover, mark, ticks: () => [0, 0.25, 0.5, 0.75, 1],
         tick: (v) => pct(v * 100), series: [{ token: "--age-5", label: cold, values: pts.map(share) }],
         value: (i) => pct(share(pts[i]) * 100), label: `${cold} over ${pts.length} scans` }),
-      renderTimeChart($("#h-age", el), { times, kind: "line", tip, onHover, ticks: (m) => niceTicks(m, { target: 3 }),
+      renderTimeChart($("#h-age", el), { times, kind: "line", tip, onHover, mark, ticks: (m) => niceTicks(m, { target: 3 }),
         tick: (v) => (v ? `${+v.toFixed(1)}` : "0"), series: [{ token: "--age-4", label: "Average age", values: pts.map(years) }],
         value: (i) => ageText(pts[i].mean_age_days), label: `Average age over ${pts.length} scans` }),
     ];
@@ -130,12 +135,12 @@ function readout(pts, i, cold) {
     : html`<p class="small" style="margin:6px 0 0">Not in this scan.</p>`}`;
 }
 
-function table(pts, cold) {
-  const rows = pts.map((p, i) => ({ p, prev: pts.slice(0, i).reverse().find((x) => x.present) })).reverse();
+function table(pts, cold, marked = -1) {
+  const rows = pts.map((p, i) => ({ p, i, prev: pts.slice(0, i).reverse().find((x) => x.present) })).reverse();
   return html`<div class="card flush"><div class="table-wrap"><table class="table"><thead><tr>
       <th>Scan</th><th class="num">Size</th><th class="num">Change</th><th class="num">Files</th><th class="num">Change</th>
       <th class="num">${cold}</th><th class="num">Average age</th><th style="width:26%">Age profile (size)</th></tr></thead><tbody>
-    ${rows.map(({ p, prev }) => html`<tr><td class="nowrap">${date(p.taken_at)}</td>
+    ${rows.map(({ p, i, prev }) => html`<tr class="${i === marked ? "marked" : ""}"><td class="nowrap">${date(p.taken_at)}</td>
       ${p.present ? html`<td class="num nowrap">${bytes(p.bytes)}</td><td class="num nowrap">${prev ? signed(p.bytes - prev.bytes, bytes) : "—"}</td>
         <td class="num">${num(p.files)}</td><td class="num nowrap">${prev ? signed(p.files - prev.files, num) : "—"}</td>
         <td class="num">${pct(share(p) * 100)}</td><td class="num nowrap">${ageText(p.mean_age_days)}</td><td>${ageBar(p.age_bytes, { large: true })}</td>`

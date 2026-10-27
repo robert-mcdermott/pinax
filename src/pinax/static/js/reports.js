@@ -31,7 +31,7 @@ export async function viewAges(el, query) {
       <div class="kpi" style="--kpi-accent:var(--age-4)"><div class="label">Average age</div><div class="value">${ageText(s.mean_age_days)}</div><div class="sub">Since last change, weighted by size</div></div>
       <div class="kpi" style="--kpi-accent:var(--age-5)"><div class="label">Unchanged for ${thresholdText(cb)}+</div><div class="value">${bytes(cold)}</div><div class="sub">${pct(s.bytes ? (cold / s.bytes) * 100 : 0)} of the data</div></div>
       <div class="kpi" style="--kpi-accent:var(--age-4)"><div class="label">Not read for a year+</div><div class="value">${bytes(notRead)}</div><div class="sub">By last access time, where recorded</div></div>
-      <div class="kpi" style="--kpi-accent:var(--fh-bright-blue)"><div class="label">Last change</div><div class="value">${s.newest ? ageText(daysSince(s.newest, data.as_of)) : "—"}</div><div class="sub">${s.newest ? `ago, on ${date(s.newest)}` : "No files"}</div></div>
+      <div class="kpi" style="--kpi-accent:var(--fh-bright-blue)"><div class="label">Last change</div><div class="value">${s.newest ? ageText(daysSince(s.newest, data.as_of)) : "—"}</div><div class="sub">${s.newest ? `${daysSince(s.newest, data.as_of) < 1 ? "" : "ago, "}on ${date(s.newest)}` : "No files"}</div></div>
     </div>
     <div class="grid split">
       <div class="card"><div class="card-head"><h2>Age profile</h2>

@@ -50,9 +50,11 @@ function changeText(t) {
 /** "Compare with": the previous scan, or the scan of any day with an earlier kept scan (select#ctl-since). */
 export function sinceSelect(data, since) {
   const latest = data.compared.find((c) => c.previous) || data.compared[0];
+  // One filesystem compared with its previous scan: that day is the first option already, so it is not listed again.
+  const previous = data.compared.length === 1 && latest?.previous ? latest.started_at.slice(0, 10) : null;
   return html`<label class="ctl"><span>Compare with</span><select class="select sm" id="ctl-since">
-    <option value="" ${since ? "" : raw("selected")}>The previous scan${data.compared.length === 1 && latest?.previous ? ` (${date(latest.started_at)})` : ""}</option>
-    ${data.choices.map((d) => html`<option value="${d}" ${since === d ? raw("selected") : ""}>The scan of ${date(`${d}T12:00:00Z`)}</option>`)}
+    <option value="" ${since ? "" : raw("selected")}>The previous scan${previous ? ` (${date(latest.started_at)})` : ""}</option>
+    ${data.choices.filter((d) => d !== previous).map((d) => html`<option value="${d}" ${since === d ? raw("selected") : ""}>The scan of ${date(`${d}T12:00:00Z`)}</option>`)}
   </select></label>`;
 }
 

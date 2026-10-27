@@ -32,10 +32,10 @@ export function niceTicks(max, { target = 4, unit = 1 } = {}) {
  *   series: [{ token, label, values }] (values null where nothing is drawn; a stack lists its bottom first);
  *   ticks(max) -> y tick values; tick(v) -> tick text; value(i) -> the label at the last point (or null);
  *   tip(i) -> trusted HTML for the readout; label: the chart's accessible summary;
- *   onHover(i | null): called as the pointer or keyboard moves.
+ *   onHover(i | null): called as the pointer or keyboard moves; mark: a point to mark for good (a chosen scan).
  */
 export function renderTimeChart(el, opts) {
-  const { times, kind, series, ticks, tick, value, tip, label, onHover = () => {} } = opts;
+  const { times, kind, series, ticks, tick, value, tip, label, onHover = () => {}, mark = null } = opts;
   el.innerHTML = "";
   const W = el.clientWidth, H = el.clientHeight, n = times.length;
   const body = getComputedStyle(document.body).fontFamily;
@@ -68,6 +68,7 @@ export function renderTimeChart(el, opts) {
   const parts = [];
   // Hover band and crosshair sit under the marks.
   parts.push(`<rect class="tc-band" x="0" y="${T}" width="0" height="${ph}" hidden/>`);
+  if (mark != null && mark >= 0 && mark < n) parts.push(`<line class="tc-mark" x1="${xs[mark]}" x2="${xs[mark]}" y1="${T}" y2="${T + ph}"/>`);
   for (const v of ys) {
     parts.push(`<line class="tc-grid" x1="${left}" x2="${left + pw}" y1="${y(v)}" y2="${y(v)}"/>`,
       `<text class="tc-axis" x="${left - 8}" y="${y(v) + 4}" text-anchor="end">${esc(tick(v))}</text>`);

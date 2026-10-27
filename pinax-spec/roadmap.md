@@ -17,7 +17,7 @@ decisions taken are recorded here. Later waves are outlined at the end.
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
 **Where things stand:** wave 1 is released as 0.1.0 and wave 2 as 0.2.0 (tags `v0.1.0` and `v0.2.0` on `main`).
-Wave 3, change over time, is in progress on `wave3`: slices 1 to 5 are done, and slice 6 (older snapshots in the interface) is next. The production pilot,
+Wave 3, change over time, is in progress on `wave3`: slices 1 to 6 are done, and slice 7 (release 0.3.0) is next. The production pilot,
 which needs production storage, follows as wave 4.
 
 The order follows one principle:
@@ -298,8 +298,8 @@ Every change is checked against an independent computation, like every total.
 | 3 | History charts (E7) | Size, files, cold share, and mean age over every scan for each top-level folder, lab or department, and filesystem (from folder history), and for any deeper folder across the retained snapshots; a table view; both themes and 375 pixels; chart colors validated | Done |
 | 4 | The change map (E8) | The age map's treemap colored by growth or shrinkage since a chosen scan (the previous one by default), sized by current or earlier size, with removed folders shown; drill down and up as in the age map; within Q3 for a lab folder at 100 million files | Done |
 | 5 | What changed (R9) | For any folder and two scans: the subfolders that grew and shrank most, new and removed folders, and the largest new and removed files, with CSV; within Q4 for a lab folder at 100 million files | Done |
-| 6 | Older snapshots in the interface (S8) | A snapshot picker on every report, the scan date shown wherever a number is, and links that keep the snapshot; a pruned snapshot offers its folder history only | Next |
-| 7 | Release 0.3.0 | The demo script walked through; version 0.3.0, changelog, pull request, tag, release | To come |
+| 6 | Older snapshots in the interface (S8) | A snapshot picker on every report, the scan date shown wherever a number is, and links that keep the snapshot; a pruned snapshot offers its folder history only | Done |
+| 7 | Release 0.3.0 | The demo script walked through; version 0.3.0, changelog, pull request, tag, release | Next |
 
 ### Decisions for wave 3
 
@@ -425,6 +425,24 @@ Every change is checked against an independent computation, like every total.
    - *Done*: checked in both themes and at 375 pixels on the demo. At one million synthetic files (three evolved
      generations), a lab folder's report takes 70–90 ms and the whole filesystem's 0.5–0.6 s; the 100-million-file
      measurement waits for server-class hardware (wave 4).
+   - Before slice 6, at the maintainer's request: the age scale changed from orange-to-red to hot-to-cold (red for
+     data changed within two years, blue from then on), so cold data looks cold and a map of mostly old data no
+     longer reads as alarming throughout. Each arm passes the ordinal checks in both themes.
+6. **Older snapshots in the interface (S8).**
+   - Every report takes `at`, a day: each filesystem's newest scan by the end of it (`explore.Scan`, accepted
+     wherever a snapshot ID was). A day whose newest scan was pruned answers 410 with where its totals are; History
+     still answers, since it shows every scan's folder totals. A home leaves out a filesystem with no full scan by
+     then. `/api/scan-days` lists a place's scan days, newest first, and whether each is kept in full.
+   - The interface: `state.at` from the address, added by `placeQuery` to every place link and report request, so
+     the sidebar, report links, breadcrumbs, tiles, and CSV downloads keep the scan. The scope header's date is a
+     picker of the place's scan days; an older one is marked, with *Back to the latest*; a day kept only as folder
+     totals opens History, which marks it and says why. History marks any chosen scan in its charts and table.
+     *Scans* links each kept snapshot to its age map and each pruned one to History.
+   - Tests: scan days and which are kept; reports at a chosen day, between scans, and the latest; a home on two
+     filesystems at a day; every report taking the day; a pruned day (410, History still showing it), a day before
+     any scan, and a home leaving a pruned filesystem out. They caught File types and Owners ignoring the day.
+   - *Done*: checked in the browser, in both themes and at 375 pixels: the picker, links keeping the scan, the
+     change map and What changed comparing with the scans before the chosen one, History's mark, and *Scans* links.
 
 ## Later waves (outlined)
 

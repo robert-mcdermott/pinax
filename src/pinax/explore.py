@@ -9,7 +9,7 @@ which may span several filesystems. Reports over home merge the results of each 
 import heapq
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -25,6 +25,7 @@ from .serialize import folder_stat_json, iso, lab_brief
 from .snapshots import cold_bucket, indexes, latest_snapshot, previous_snapshot
 
 NB = len(AGE_BUCKETS)
+SCANNED = (SnapshotStatus.READY, SnapshotStatus.PRUNED)  # snapshots with folder history
 TILE_LIMIT = 60  # children per treemap level; the rest fold into one "smaller folders" tile
 GRAND_LIMIT = 12  # grandchildren per child when drawing two levels
 
@@ -60,20 +61,40 @@ def _filesystems(session: Session) -> list[Filesystem]:
     return list(session.scalars(select(Filesystem).where(Filesystem.active.is_(True)).order_by(Filesystem.name)))
 
 
-def _snapshot_for(session: Session, fs: Filesystem, snap_id: int | None) -> Snapshot | None:
-    if snap_id:
-        snap = session.get(Snapshot, snap_id)
+# Which scan a request is about: the latest (None), a snapshot by ID, or a day, meaning each filesystem's newest
+# scan taken by the end of that day.
+Scan = int | date | None
+
+
+def _snapshot_for(session: Session, fs: Filesystem, scan: Scan) -> Snapshot | None:
+    if isinstance(scan, date):
+        snap = session.scalar(select(Snapshot).where(Snapshot.filesystem_id == fs.id, Snapshot.status.in_(SCANNED),
+                                                     Snapshot.started_at < datetime.combine(scan, time.min) + timedelta(days=1))
+                              .order_by(Snapshot.started_at.desc()).limit(1))
+        if snap is not None and snap.status == SnapshotStatus.PRUNED:
+            raise HTTPException(410, f"The scan of {fs.name} on {snap.started_at:%Y-%m-%d} is no longer kept in full: "
+                                     "only its folder totals remain, in History")
+        if snap is None:
+            raise not_found(f"{fs.name} had not been scanned by {scan:%Y-%m-%d}")
+        return snap
+    if scan:
+        snap = session.get(Snapshot, scan)
         if snap is None or snap.filesystem_id != fs.id or snap.status != SnapshotStatus.READY:
             raise not_found("That snapshot is not available")
         return snap
     return latest_snapshot(session, fs)
 
 
-def home_places(session: Session, ident: Identity, lab_slug: str | None = None) -> list[Place]:
+def home_places(session: Session, ident: Identity, lab_slug: str | None = None, scan: Scan = None) -> list[Place]:
+    """A person's home: each filesystem root (administrators), or their labs' folders, as of `scan` (a day; a
+    filesystem with no full scan by then is left out)."""
     places: list[Place] = []
     owners = folder_owners(session) if ident.is_admin else ident.folders
     for fs in _filesystems(session):
-        snap = latest_snapshot(session, fs)
+        try:
+            snap = _snapshot_for(session, fs, scan if isinstance(scan, date) else None)
+        except HTTPException:
+            continue
         if snap is None:
             continue
         idx = indexes.get(snap)
@@ -90,14 +111,14 @@ def home_places(session: Session, ident: Identity, lab_slug: str | None = None) 
 
 
 def resolve(session: Session, ident: Identity, fs_slug: str | None, path: str | None,
-            snap_id: int | None = None, lab_slug: str | None = None) -> list[Place]:
+            scan: Scan = None, lab_slug: str | None = None) -> list[Place]:
     """The places a request covers, after checking the person may see them."""
     if not fs_slug:
-        return home_places(session, ident, lab_slug)
+        return home_places(session, ident, lab_slug, scan)
     fs = session.scalar(select(Filesystem).where(Filesystem.slug == fs_slug))
     if fs is None:
         raise not_found("No such filesystem")
-    snap = _snapshot_for(session, fs, snap_id)
+    snap = _snapshot_for(session, fs, scan)
     if snap is None:
         raise not_found(f"{fs.name} has not been scanned yet")
     idx = indexes.get(snap)
@@ -193,10 +214,10 @@ def _snap_brief(snap: Snapshot) -> dict:
 # ---------- Treemap ----------
 
 def tree(session: Session, ident: Identity, fs_slug: str | None, path: str | None, *, metric: str = "bytes",
-         depth: int = 1, snap_id: int | None = None, lab_slug: str | None = None) -> dict:
+         depth: int = 1, scan: Scan = None, lab_slug: str | None = None) -> dict:
     if metric not in METRICS:
         raise HTTPException(422, f"Unknown size metric {metric!r}")
-    places = resolve(session, ident, fs_slug, path, snap_id, lab_slug)
+    places = resolve(session, ident, fs_slug, path, scan, lab_slug)
     if fs_slug:
         return _tree_dir(session, ident, places[0], metric, depth)
     return _tree_home(session, ident, places, metric, depth, lab_slug)
@@ -343,12 +364,12 @@ def _change_tiles(fs: Filesystem, res: dict, refs: tuple[float, float], owners: 
 
 
 def change_tree(session: Session, ident: Identity, fs_slug: str | None, path: str | None, *, since: date | None = None,
-                metric: str = "max", depth: int = 1, snap_id: int | None = None, lab_slug: str | None = None) -> dict:
+                metric: str = "max", depth: int = 1, scan: Scan = None, lab_slug: str | None = None) -> dict:
     """The change map: a place and its children (and grandchildren with depth=2) in this scan and an earlier one,
     with folders in only one of them, sized by `metric` (the larger of the two, now, or then)."""
     if metric not in CHANGE_METRICS:
         raise HTTPException(422, f"Unknown size {metric!r}")
-    places = resolve(session, ident, fs_slug, path, snap_id, lab_slug)
+    places = resolve(session, ident, fs_slug, path, scan, lab_slug)
     owners = folder_owners(session) if ident.is_admin else None
     compared, tiles, total = {}, [], {}
     choices = sorted({s.started_at.date() for p in places for s in _earlier(session, p.snap)}, reverse=True)
@@ -419,10 +440,10 @@ def _unit_json(fs: Filesystem, r: dict, refs: tuple[float, float]) -> dict:
 
 
 def what_changed(session: Session, ident: Identity, fs_slug: str | None, path: str | None, *, since: date | None = None,
-                 limit: int = 20, snap_id: int | None = None, lab_slug: str | None = None) -> dict:
+                 limit: int = 20, scan: Scan = None, lab_slug: str | None = None) -> dict:
     """What changed in a place between this scan and an earlier one (as for the change map): the folders that
     grew and shrank most, the new and removed folders, and the largest new and removed files."""
-    places = resolve(session, ident, fs_slug, path, snap_id, lab_slug)
+    places = resolve(session, ident, fs_slug, path, scan, lab_slug)
     choices = sorted({s.started_at.date() for p in places for s in _earlier(session, p.snap)}, reverse=True)
     compared: dict[int, tuple[Snapshot, str | None] | None] = {}
     lists: dict[str, list] = {k: [] for k in CHANGE_LISTS}
@@ -480,8 +501,8 @@ def what_changed(session: Session, ident: Identity, fs_slug: str | None, path: s
 
 # ---------- Reports ----------
 
-def types(session: Session, ident: Identity, fs_slug, path, snap_id=None, lab_slug=None) -> dict:
-    places = resolve(session, ident, fs_slug, path, snap_id, lab_slug)
+def types(session: Session, ident: Identity, fs_slug, path, scan=None, lab_slug=None) -> dict:
+    places = resolve(session, ident, fs_slug, path, scan, lab_slug)
     merged: dict[tuple, dict] = {}
     for p in places:
         for r in p.idx.types(p.path):
@@ -513,8 +534,8 @@ def types(session: Session, ident: Identity, fs_slug, path, snap_id=None, lab_sl
     return {"categories": cats, "types": rows, **_scope_meta(places)}
 
 
-def owners(session: Session, ident: Identity, fs_slug, path, snap_id=None, lab_slug=None) -> dict:
-    places = resolve(session, ident, fs_slug, path, snap_id, lab_slug)
+def owners(session: Session, ident: Identity, fs_slug, path, scan=None, lab_slug=None) -> dict:
+    places = resolve(session, ident, fs_slug, path, scan, lab_slug)
     merged: dict[tuple, dict] = {}
     for p in places:
         for r in p.idx.owners(p.path):
@@ -599,10 +620,10 @@ class FileFilter:
 
 
 def files(session: Session, ident: Identity, fs_slug, path, *, flt: FileFilter, sort: str = "size",
-          limit: int = 100, snap_id=None, lab_slug=None, with_summary: bool = True) -> dict:
+          limit: int = 100, scan=None, lab_slug=None, with_summary: bool = True) -> dict:
     if sort not in FILE_SORTS:
         raise HTTPException(422, "Unknown sort")
-    places = resolve(session, ident, fs_slug, path, snap_id, lab_slug)
+    places = resolve(session, ident, fs_slug, path, scan, lab_slug)
     limit = max(1, min(limit, get_settings().export_max_rows))
     streams, total_files, total_bytes = [], 0, 0
     for p in places:
@@ -631,10 +652,10 @@ def files(session: Session, ident: Identity, fs_slug, path, *, flt: FileFilter, 
 
 
 def cold(session: Session, ident: Identity, fs_slug, path, *, older: int, min_bytes: int = 0, limit: int = 200,
-         snap_id=None, lab_slug=None) -> dict:
+         scan=None, lab_slug=None) -> dict:
     if not 1 <= older < NB:
         raise HTTPException(422, "Choose an age threshold")
-    places = resolve(session, ident, fs_slug, path, snap_id, lab_slug)
+    places = resolve(session, ident, fs_slug, path, scan, lab_slug)
     rows, count, cbytes, cfiles = [], 0, 0, 0
     scope_bytes, cold_file_bytes = 0, 0
     owners = folder_owners(session)
@@ -701,10 +722,33 @@ def folder_rows(session: Session, ident: Identity) -> list[dict]:
     return out
 
 
+# ---------- Scans to choose from ----------
+
+def scan_days(session: Session, ident: Identity, fs_slug: str | None, lab_slug: str | None = None) -> dict:
+    """The days a place was scanned, newest first, for the snapshot picker: `ready` when some scan of that day is
+    kept in full (every report), else only its folder totals remain (History). For a place on several filesystems,
+    a day is any day one of them was scanned; each counts as of its newest scan by then."""
+    if fs_slug:
+        fs = session.scalar(select(Filesystem).where(Filesystem.slug == fs_slug))
+        if fs is None or not (ident.is_admin or any(f == fs.id for f, _ in ident.folders)):
+            raise not_found("No such filesystem")
+        fs_ids = {fs.id}
+    elif lab_slug:
+        lab = session.scalar(select(Lab).where(Lab.slug == lab_slug))
+        fs_ids = {f.filesystem_id for f in (lab.folders if lab else []) if ident.can_view_folder(f.filesystem_id, f.path)}
+    elif ident.is_admin:
+        fs_ids = {fs.id for fs in _filesystems(session)}
+    else:
+        fs_ids = {f for f, _ in ident.folders}
+    days: dict[date, bool] = {}
+    for snap in session.scalars(select(Snapshot).where(Snapshot.filesystem_id.in_(fs_ids), Snapshot.status.in_(SCANNED))):
+        d = snap.started_at.date()
+        days[d] = days.get(d, False) or snap.status == SnapshotStatus.READY
+    order = sorted(days, reverse=True)
+    return {"days": [{"day": d.isoformat(), "ready": days[d], "latest": i == 0} for i, d in enumerate(order)]}
+
+
 # ---------- History ----------
-
-SCANNED = (SnapshotStatus.READY, SnapshotStatus.PRUNED)  # snapshots with folder history
-
 
 def _point(taken_at: datetime, snaps: list[int], parts: list[tuple[dict, float]], cold_from: int) -> dict:
     """One point of a history: the sum of `parts`, each (totals, days from its scan to `taken_at`), with mean
@@ -789,7 +833,7 @@ def _retained(session: Session, place: Place, cold_from: int) -> tuple[list[dict
     return points, older
 
 
-def history(session: Session, ident: Identity, fs_slug: str | None, path: str | None, snap_id: int | None = None,
+def history(session: Session, ident: Identity, fs_slug: str | None, path: str | None, scan: Scan = None,
             lab_slug: str | None = None) -> dict:
     """A place's size, files, age profile, cold share, and average age over its scans, oldest first: every scan
     for the person's home, a lab or department, a filesystem, or a top-level folder (from folder history); the
@@ -798,7 +842,12 @@ def history(session: Session, ident: Identity, fs_slug: str | None, path: str | 
     lab = session.scalar(select(Lab).where(Lab.slug == lab_slug)) if lab_slug and not fs_slug else None
     older = 0
     if fs_slug:
-        place = resolve(session, ident, fs_slug, path, snap_id)[0]
+        try:
+            place = resolve(session, ident, fs_slug, path, scan)[0]
+        except HTTPException as e:  # a pruned scan: its folder totals are what history shows
+            if e.status_code != 410:
+                raise
+            place = resolve(session, ident, fs_slug, path)[0]
         idx, lab = place.idx, place.lab
         node = idx.node(place.path)
         if node is None:

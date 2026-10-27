@@ -229,7 +229,10 @@ export async function viewScans(el) {
       <th>Filesystem</th><th>Scan started</th><th>Status</th><th class="num">Entries</th><th class="num">Size</th><th class="num">Errors</th>
       <th class="num">Scan</th><th class="num">Index</th><th>fs-inventory</th></tr></thead><tbody>
       ${snaps.map((s) => html`<tr><td><b>${s.filesystem}</b><div class="sub">${s.host}</div></td>
-        <td class="nowrap">${date(s.started_at, true)}<div class="sub">${when(s.started_at)}</div></td><td>${chip(s.status)}${s.message ? html`<div class="sub">${s.message}</div>` : ""}</td>
+        <td class="nowrap">${s.status === "ready" || s.status === "pruned"
+          ? html`<a href="${s.status === "ready" ? `#/explore?fs=${encodeURIComponent(s.filesystem)}&at=${s.started_at.slice(0, 10)}`
+            : `#/history?fs=${encodeURIComponent(s.filesystem)}&at=${s.started_at.slice(0, 10)}&pruned=1`}">${date(s.started_at, true)}</a>`
+          : date(s.started_at, true)}<div class="sub">${when(s.started_at)}</div></td><td>${chip(s.status)}${s.message ? html`<div class="sub">${s.message}</div>` : ""}</td>
         <td class="num">${num(s.entries)}<div class="sub">${num(s.files)} files</div></td><td class="num nowrap">${bytes(s.bytes)}</td><td class="num">${num(s.errors)}</td>
         <td class="num nowrap">${duration(s.scan_seconds)}</td><td class="num nowrap">${duration(s.build_seconds)}<div class="sub">${bytes(s.index_bytes)}</div></td>
         <td>${s.tool_version}<div class="sub">${s.scan_status}</div></td></tr>`)}</tbody></table></div></div>

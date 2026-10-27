@@ -248,6 +248,12 @@ values from requests are bound as parameters; the only SQL fragments built in co
   3 ms and a lab's 4–8 ms (snapshots ingested before 0.3.0, which lack recorded totals, are summed instead:
   1.3 s at that size).
 
+Every report takes the scan to show: the latest by default, `snapshot` (an ID), or `at` (a day: each
+filesystem's newest scan taken by the end of it, so a home on several filesystems stays consistent). A day whose
+scan is no longer kept in full answers 410, except in History, which shows every scan's folder totals;
+`/api/scan-days` lists the days a place was scanned and which are kept. The interface keeps `at` in the address
+and adds it to every place link and report request, so a chosen scan stays chosen.
+
 A request without a filesystem and path covers the person's *home*: each of their labs' folders (which may be
 on several filesystems), or every filesystem root for an administrator. Results from each place are merged;
 mean ages are rebased to a common reference time.

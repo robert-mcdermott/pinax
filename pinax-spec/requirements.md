@@ -40,7 +40,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | S5 | Several filesystems, each with its own root and display root | done (wave 1, slice 2) |
 | S6 | Keep the newest snapshots' indexes; keep folder history for every snapshot | done (wave 1, slice 2: `PINAX_KEEP_SNAPSHOTS`) |
 | S7 | Say when totals are lower bounds (folders not read completely) | done (wave 1, slices 2 and 4) |
-| S8 | Explore any retained snapshot, not only the latest | partial (wave 1: the API takes a snapshot; wave 3: the interface) |
+| S8 | Explore any retained snapshot, not only the latest | done (wave 1: the API takes a snapshot; wave 3, slice 6: a scan picker on every report, by day, kept by links; pruned scans open History) |
 | S9 | The change in every directory between two scans of a filesystem: size, space on disk, files, folders, and age mix, with new and removed folders; checked against an independent computation | partial (wave 3, slice 1: since the previous scan, at ingest, checked against two scans' fs-inventory rollups; slices 4 and 5: any two retained scans) |
 
 ## Exploration
