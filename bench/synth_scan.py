@@ -5,6 +5,10 @@ The scan has the fs-inventory schema (version 3) and a manifest, and models a re
 top-level lab folders, projects of different ages, runs and batches, and a realistic mix of file types
 and sizes. It is generated entirely inside DuckDB, so ten million entries take well under a minute.
 
+`--wide N` adds the shapes real filesystems have and the model doesn't: `lab_wide/files` holding N files in one
+folder and `lab_wide/folders` holding N/10 subfolders; `--deep N` adds a chain of N nested folders under
+`lab_deep`, with a file at the bottom.
+
     uv run python bench/synth_scan.py --files 10000000 -o /scratch/synth-10m
 """
 
@@ -36,6 +40,8 @@ def main() -> None:
     ap.add_argument("--root", default="/synth/research", help="Root path recorded in the scan")
     ap.add_argument("-o", "--output", type=Path, required=True)
     ap.add_argument("--part-rows", type=int, default=5_000_000)
+    ap.add_argument("--wide", type=int, default=0, help="Files in one folder (and a tenth as many subfolders in another)")
+    ap.add_argument("--deep", type=int, default=0, help="Depth of a chain of nested folders")
     args = ap.parse_args()
 
     t0 = time.monotonic()
@@ -64,7 +70,8 @@ def main() -> None:
     dirs = f"""
       WITH lv AS (
         SELECT 0 AS depth, 0 AS t, 0 AS p, 0 AS s, 0 AS l, 1::BIGINT AS dir_id, 0::BIGINT AS parent_id,
-               '{root}' AS path, '' AS parent_path, '{root.rsplit('/', 1)[-1]}' AS name, {T} AS kids
+               '{root}' AS path, '' AS parent_path, '{root.rsplit('/', 1)[-1]}' AS name,
+               {T + bool(args.wide) + bool(args.deep)} AS kids
         UNION ALL SELECT 1, t, 0, 0, 0, 2 + t, 1, '{root}/' || printf('lab_%04d', t), '{root}',
                printf('lab_%04d', t), {P} FROM range({T}) r(t)
         UNION ALL SELECT 2, i // {P}, i % {P}, 0, 0, {b2} + i, 2 + i // {P},
@@ -117,14 +124,16 @@ def main() -> None:
     """
     con.execute(f"COPY ({files}) TO '{out / 'entries'}' (FORMAT parquet, COMPRESSION zstd, ROW_GROUP_SIZE 1048576, "
                 f"FILE_SIZE_BYTES '1GB', FILENAME_PATTERN 'part-files-{{i}}', OVERWRITE_OR_IGNORE)")
+    if args.wide or args.deep:
+        _shapes(con, out, root, ref, b4 + leaves, args.wide, args.deep)
     parts = []
     total_rows = 0
     for p in sorted((out / "entries").glob("*.parquet")):
         rows = con.execute(f"SELECT count(*) FROM read_parquet('{p}')").fetchone()[0]
         total_rows += rows
         parts.append({"file": f"entries/{p.name}", "rows": rows, "bytes": p.stat().st_size})
-    total_bytes = con.execute(f"SELECT sum(size) FROM read_parquet('{out / 'entries' / '*.parquet'}') "
-                              "WHERE kind = 'file'").fetchone()[0]
+    total_bytes, nfiles = con.execute(f"SELECT sum(size), count(*) FROM read_parquet('{out / 'entries' / '*.parquet'}') "
+                                      "WHERE kind = 'file'").fetchone()
     ndirs = total_rows - nfiles
     manifest = {
         "tool": "fs-inventory", "tool_version": "1.0.0", "schema_version": 3, "scan_id": str(uuid.uuid4()),
@@ -139,6 +148,54 @@ def main() -> None:
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2))
     print(f"Wrote {total_rows:,} entries ({nfiles:,} files, {ndirs:,} directories) to {out} "
           f"in {time.monotonic() - t0:.1f}s")
+
+
+def _shapes(con: duckdb.DuckDBPyConnection, out: Path, root: str, ref: float, first_id: int, wide: int, deep: int) -> None:
+    """The wide folders and the deep chain, as entries with the same columns as the rest of the scan."""
+    rows = []
+    if wide:
+        w, m = first_id, wide // 10
+        rows += [
+            f"SELECT '{root}/lab_wide', '{root}', 'lab_wide', NULL, 'dir', 1, {w}, 1, 2, 4096, 30",
+            f"SELECT '{root}/lab_wide/files', '{root}/lab_wide', 'files', NULL, 'dir', 2, {w + 1}, {w}, {wide}, 4096, 30",
+            f"SELECT '{root}/lab_wide/folders', '{root}/lab_wide', 'folders', NULL, 'dir', 2, {w + 2}, {w}, {m}, 4096, 30",
+            f"""SELECT '{root}/lab_wide/folders/' || printf('f_%07d', i), '{root}/lab_wide/folders', printf('f_%07d', i),
+                NULL, 'dir', 3, {w + 3} + i, {w + 2}, 1, 4096, 30 FROM range({m}) r(i)""",
+            f"""SELECT '{root}/lab_wide/files/' || printf('w_%08d.dat', i), '{root}/lab_wide/files', printf('w_%08d.dat', i),
+                'dat', 'file', 3, NULL, {w + 1}, NULL, 1000 + i % 5000, i % 5000 FROM range({wide}) r(i)""",
+            f"""SELECT '{root}/lab_wide/folders/' || printf('f_%07d', i) || '/x.dat', '{root}/lab_wide/folders/' ||
+                printf('f_%07d', i), 'x.dat', 'dat', 'file', 4, NULL, {w + 3} + i, NULL, 100, i % 4000 FROM range({m}) r(i)""",
+        ]
+        first_id = w + 3 + m
+    if deep:
+        d = first_id
+        chain = "array_to_string(list_transform(range(1, k + 1), lambda x: printf('l%04d', x)), '/')"
+        rows += [
+            f"SELECT '{root}/lab_deep', '{root}', 'lab_deep', NULL, 'dir', 1, {d}, 1, 1, 4096, 30",
+            f"""SELECT '{root}/lab_deep/' || {chain}, '{root}/lab_deep' || CASE WHEN k > 1 THEN '/' ||
+                array_to_string(list_transform(range(1, k), lambda x: printf('l%04d', x)), '/') ELSE '' END, printf('l%04d', k),
+                NULL, 'dir', 1 + k, {d} + k, {d} + k - 1, 1, 4096, 30
+                FROM range(1, {deep + 1}) r(k)""",
+            f"""SELECT '{root}/lab_deep/' || array_to_string(list_transform(range(1, {deep + 1}), lambda x: printf('l%04d', x)), '/')
+                || '/bottom.bam', '{root}/lab_deep/' || array_to_string(list_transform(range(1, {deep + 1}),
+                lambda x: printf('l%04d', x)), '/'), 'bottom.bam', 'bam', 'file', {deep + 2}, NULL, {d + deep}, NULL, 5000, 900""",
+        ]
+    src = " UNION ALL ".join(f"({r})" for r in rows)
+    con.execute(f"""
+        COPY (
+          SELECT path, parent_path, name, extension::VARCHAR AS extension, NULL::BLOB AS path_raw, 0 AS name_flags, kind,
+                 depth::INTEGER AS depth, dir_id::BIGINT AS dir_id, parent_id::BIGINT AS parent_id, 1::UBIGINT AS dev,
+                 (4000000000 + row_number() OVER ())::UBIGINT AS ino, 1::BIGINT AS nlink, 20000::BIGINT AS uid,
+                 30000::BIGINT AS gid, CASE WHEN kind = 'dir' THEN 16877 ELSE 33188 END AS mode, size::BIGINT AS size,
+                 size::BIGINT AS alloc_bytes, to_timestamp({ref} - 86400 * age_days) AS atime,
+                 to_timestamp({ref} - 86400 * age_days) AS mtime, to_timestamp({ref} - 86400 * age_days) AS ctime,
+                 NULL::TIMESTAMPTZ AS btime, NULL::UBIGINT AS rdev, kids::BIGINT AS dir_entries, NULL::BIGINT AS dir_files,
+                 NULL::BIGINT AS dir_subdirs, NULL::BIGINT AS dir_bytes, NULL::BIGINT AS dir_alloc_bytes,
+                 false AS is_mount_point, 0 AS time_flags, NULL::VARCHAR AS error, NULL::VARCHAR AS symlink_target,
+                 NULL::BLOB AS symlink_target_raw
+          FROM ({src}) s(path, parent_path, name, extension, kind, depth, dir_id, parent_id, kids, size, age_days)
+        ) TO '{out / 'entries' / 'part-shapes.parquet'}' (FORMAT parquet, COMPRESSION zstd)
+    """)
 
 
 if __name__ == "__main__":

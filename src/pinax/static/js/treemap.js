@@ -3,7 +3,7 @@
 // every tile is a real, keyboard-reachable navigation target. Tiles are separated by a 2px surface
 // gap (never a stroke), labels are measured and only drawn when they fit, and nested tiles sit in a
 // neutral frame whose header names the parent folder.
-import { esc } from "/js/core.js";
+import { esc, visible } from "/js/core.js";
 
 const GAP = 1; // inset per side: 2px between neighbors
 const HEADER = 19; // frame header height when drawing two levels
@@ -129,7 +129,7 @@ export function renderTreemap(el, tiles, opts) {
       a.style.background = c.bg;
       a.style.color = c.fg;
     }
-    const name = t.name || "";
+    const name = visible(t.name || "");
     a.setAttribute("aria-label", `${name}: ${label(t)}`);
     const room = w - 12;
     if (room > 18 && h >= 18) {

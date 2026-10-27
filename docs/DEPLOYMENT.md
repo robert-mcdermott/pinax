@@ -60,6 +60,26 @@ Notes:
 - An interrupted scan can be continued with `fs-inventory resume`. Pinax refuses scans that are not complete;
   `pinax ingest --allow-incomplete` also accepts `incomplete` scans (stalled directories are missing).
 - Keep scan folders as long as you want to be able to rebuild indexes. Pinax does not need them after ingest.
+  It reads only the parts a scan's manifest lists, so leftovers of an interrupted run in the folder are ignored.
+- fs-inventory does not enter other filesystems mounted below the root unless asked. If labs' folders are their
+  own filesystems (filesets, exports, automounts), scan with `--cross-mounts`; otherwise each is counted as a
+  folder not read, with nothing in it, and Pinax says its totals are lower bounds.
+- Scans in microseconds (the default) and in nanoseconds (`--time-unit ns`) are both accepted; Pinax keeps
+  microseconds.
+
+## Checking a filesystem's numbers
+
+After the first scan of a filesystem, and after upgrading Pinax, check the index against fs-inventory's own
+computation of the same totals:
+
+```bash
+uv run pinax check 12
+```
+
+It runs `fs-inventory rollup` on a copy of the scan's manifest (the scan folder is not written to) and compares
+every directory, printing the ones that differ. Rollup keeps an age histogram of about 0.5 KB for every
+directory down to the depth compared, so on scans with tens of millions of directories bound it, for example
+`--age-depth 4`; the other totals are still compared at every depth.
 
 ## Running the web app
 

@@ -127,18 +127,37 @@ def test_check_command(env, edge_scan, monkeypatch, capsys):
     with pytest.raises(SystemExit) as exit_:
         cli.main()
     assert exit_.value.code == 0, capsys.readouterr()
-    assert capsys.readouterr().out.startswith("OK: 16 directories, 31 measures each")
+    assert capsys.readouterr().out.startswith("OK: 16 directories, 31 measures each, all equal")
     assert not list(env.var_root.glob("check-*"))
 
 
 @needs_binary
 def test_synthetic_scan_matches_rollup(tmp_path):
-    """The generator behind the 1- and 10-million-file checks, at a small size."""
+    """The generator behind the 1- and 10-million-file checks, at a small size, with its wide and deep shapes."""
     out = tmp_path / "synth"
     script = Path(__file__).parents[1] / "bench" / "synth_scan.py"
-    subprocess.run([sys.executable, str(script), "--files", "6000", "--tops", "3", "-o", str(out)], check=True,
-                   capture_output=True)
+    subprocess.run([sys.executable, str(script), "--files", "6000", "--tops", "3", "--wide", "2000", "--deep", "150",
+                    "-o", str(out)], check=True, capture_output=True)
     build_index(out, tmp_path / "index", memory_limit="1GB", threads=2, progress=lambda m: None)
     report = check(out, tmp_path / "index", tmp_path / "work", binary=fs_inventory())
     assert report.ok, report.text()
-    assert report.dirs == 1 + 3 + 3 * 20 + 3 * 200 + 3 * 1000
+    # The model's folders, then the wide ones (one with 2,000 files, one with 200 subfolders) and a deep chain.
+    assert report.dirs == (1 + 3 + 3 * 20 + 3 * 200 + 3 * 1000) + (3 + 200) + (1 + 150)
+    assert report.age_depth == 151
+
+
+@needs_binary
+def test_nanosecond_scan_matches_rollup(tmp_path):
+    files = [dict(f, extra_ns=999) for f in _files()]
+    write_scan(tmp_path / "scan", ROOT, files, started=STARTED, time_unit="ns")
+    build_index(tmp_path / "scan", tmp_path / "index", memory_limit="1GB", threads=2, progress=lambda m: None)
+    report = check(tmp_path / "scan", tmp_path / "index", tmp_path / "work", binary=fs_inventory())
+    assert report.ok, report.text()
+
+
+@needs_binary
+def test_age_histograms_can_stop_at_a_depth(edge_scan, edge_index, tmp_path):
+    """On scans with tens of millions of directories, rollup's histograms are bounded by depth; deeper
+    directories share their ancestor's histogram there, so their ages are not compared."""
+    report = check(edge_scan, edge_index, tmp_path / "work", binary=fs_inventory(), age_depth=2)
+    assert report.ok and report.age_depth == 2, report.text()

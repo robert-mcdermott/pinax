@@ -18,7 +18,7 @@ export function renderSidebar() {
     <h4>OVERVIEW</h4>
     <a class="side-link" href="#/" data-route="#/">${icon("home")}${admin ? "All data" : "My data"}</a>
     ${link("folders", "folder", admin ? "Folders and labs" : "My folders", false)}
-    <h4>EXPLORE${p && p.fs ? html` <span class="tiny" style="font-weight:500;letter-spacing:0">· ${p.name || ""}</span>` : ""}</h4>
+    <h4 class="scope-label">EXPLORE${p && p.fs ? html` <span class="tiny" title="${p.name || ""}">· ${p.name || ""}</span>` : ""}</h4>
     ${link("explore", "treemap", "Age map")}
     ${link("ages", "clock", "Age report")}
     ${link("types", "pie", "File types")}
@@ -64,18 +64,24 @@ export function placeName(place, labName) {
 export function scopeHeader(route, place, { asOf, title, lede = "", actions = "", lab } = {}) {
   state.place = place && place.fs ? { ...place, name: placeName(place) } : null;
   renderSidebar();
-  const crumbs = crumbsFor(place, lab?.name);
+  const all = crumbsFor(place, lab?.name);
+  // Deep folders: keep the first two crumbs and the last four; the ellipsis leads to the deepest hidden one.
+  const hidden = all.length > 7 ? all.slice(2, -4) : [];
+  const crumbs = hidden.length
+    ? [...all.slice(0, 2), { ...hidden.at(-1), label: "…", title: hidden.map((c) => c.label).join("/") }, ...all.slice(-4)]
+    : all;
   const last = crumbs.length - 1;
   const extra = lab ? { lab: lab.slug } : {};
+  const path = place && place.fs ? displayPath(place.fs, place.path || fsInfo(place.fs)?.root) : "";
   return html`
     <div class="page-head"><div><div class="eyebrow">${REPORTS.find((r) => r[0] === route)?.[2] || ""}</div>
       <h1>${title || placeName(place, lab?.name)}</h1>
-      ${place && place.fs ? html`<p class="path">${displayPath(place.fs, place.path || fsInfo(place.fs)?.root)}</p>` : lede ? html`<p>${lede}</p>` : ""}</div>
+      ${path ? html`<p class="path clamp" title="${path}">${path}</p>` : lede ? html`<p>${lede}</p>` : ""}</div>
       <div class="actions">${actions}</div></div>
     <div class="scope">
       <nav class="crumbs" aria-label="Folder path">${crumbs.map((c, i) => html`${i ? html`<span class="sep">${icon("chevronRight")}</span>` : ""}${
-        i === last ? html`<span class="here" aria-current="page">${c.label}</span>`
-        : html`<a href="${placeHash(route, c.place, c.place ? {} : extra)}">${c.label}</a>`}`)}</nav>
+        i === last ? html`<span class="here" aria-current="page" title="${c.label}">${c.label}</span>`
+        : html`<a href="${placeHash(route, c.place, c.place ? {} : extra)}" title="${c.title || c.label}">${c.label}</a>`}`)}</nav>
       ${asOf ? html`<span class="asof">${icon("clock")}As of the scan on ${date(asOf, true)}</span>` : ""}
     </div>
     <nav class="subnav" aria-label="Reports for this folder">${REPORTS.map(([r, ic, label]) =>

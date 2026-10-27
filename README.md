@@ -128,7 +128,7 @@ sizing, retention, and single sign-on.
 | `uv run pinax scan SLUG [--no-ingest] [-- fs-inventory options]` | Scan with fs-inventory, verify, and ingest |
 | `uv run pinax ingest SCAN_DIR [--fs SLUG] [--allow-incomplete]` | Build a snapshot index from a finished scan |
 | `uv run pinax snapshots` | List snapshots |
-| `uv run pinax check SNAPSHOT_ID \| SCAN_DIR [--index DIR] [--json]` | Check an index against `fs-inventory rollup`, directory by directory |
+| `uv run pinax check SNAPSHOT_ID \| SCAN_DIR [--index DIR] [--age-depth N] [--json]` | Check an index against `fs-inventory rollup`, directory by directory |
 | `uv run pytest` | Tests: index correctness, the rollup cross-check, queries, authorization, and an end-to-end scan |
 
 API documentation is served at `/api/docs`.

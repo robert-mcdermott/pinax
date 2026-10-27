@@ -10,12 +10,27 @@
   and files and bytes per age bucket. It takes a snapshot ID or a scan directory, lists the directories that
   differ, and exits 1 on any difference. The demo scans and 1- and 10-million-file synthetic scans match on
   every directory; tests run the check on an edge-case scan when fs-inventory is installed.
+- **Real-filesystem shapes (wave 2, slice 2).** `synth_scan.py --wide N --deep D` adds a folder of N files, a folder
+  of N/10 subfolders, and a deep chain; `bench_index.py` reports a scan's shape and query timings without any path
+  or name. `pinax check --age-depth N` bounds rollup's memory on very large scans.
+- **More file types (wave 2, slice 2).** Camera photo and video formats (HEIC, WebP, camera raw, action-camera
+  video), macro-enabled spreadsheets and Access databases, Visio drawings and Windows metafiles,
+  executables and libraries, and Apple disk images now have categories; a real disk had 35% of its bytes in
+  *other* before and 0.8% after. New snapshots use them.
 
 ### Fixed
 
 - **Age buckets at their edges (wave 2, slice 1).** Ages are whole microseconds from the scan's start instead of
   fractional days, whose rounding put a file exactly on a bucket edge in the younger bucket for about one scan
   start time in eleven (one in four at the ten-year edge). Indexes are now version 2.
+- **Nanosecond scans (wave 2, slice 2).** Scans made with `--time-unit ns` failed to build; their times are now
+  kept as microseconds, truncated toward zero as fs-inventory rollup does.
+- **Leftover parts (wave 2, slice 2).** The build reads only the parts a scan's manifest lists, so files left by an
+  interrupted run in the scan folder are not counted twice.
+- **Odd names in the interface (wave 2, slice 2).** Control characters and bidirectional overrides in names are
+  shown as escapes, so a name with a newline no longer looks like one with a space and `report\u202Etxt.exe` no
+  longer displays as `reportexe.txt`. Deep folders no longer push the page sideways: long breadcrumb trails
+  collapse and long paths are clamped.
 - **Revisited directories (wave 2, slice 1).** A directory reached a second time under `--detect-cycles` no
   longer counts as incomplete; its contents are counted where it was first found, as fs-inventory does.
 

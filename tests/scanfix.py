@@ -36,12 +36,13 @@ def _ext(name: str) -> str | None:
 def write_scan(out: Path, root: str, files: list[dict], *, started: datetime | None = None, status: str = "complete",
                errors: dict[str, str] | None = None, users: dict[int, str | None] | None = None,
                dirs_only: list[str] | None = None, mounts: set[str] | None = None,
-               revisits: set[str] | None = None) -> dict:
+               revisits: set[str] | None = None, time_unit: str = "us") -> dict:
     """`files`: dicts with `path` (relative to root), `size`, `age_days` (since `started`), and optional
     `atime_days`, `uid`, `name_flags`, `kind`. Directories are inferred, plus any in `dirs_only` (which may be
     empty); `errors` maps relative directory paths to an error string (the directory is recorded as
     unreadable). `mounts` are mount points not entered and `revisits` directories reached twice under
-    `--detect-cycles`; neither is listed."""
+    `--detect-cycles`; neither is listed. With `time_unit="ns"`, times are nanoseconds (`--time-unit ns`), and a
+    file's `extra_ns` adds nanoseconds below the microsecond."""
     started = started or datetime(2026, 10, 1, tzinfo=UTC)
     # Times are whole microseconds, as fs-inventory writes them, so ages can sit exactly on a bucket edge.
     ref = (started - datetime(1970, 1, 1, tzinfo=UTC)) // timedelta(microseconds=1)
@@ -77,7 +78,7 @@ def write_scan(out: Path, root: str, files: list[dict], *, started: datetime | N
             "parent_id": dirs[parent] if rel else 0, "ino": did, "uid": 1000, "gid": 1000, "mode": 0o40755, "size": 4096,
             "alloc_bytes": 4096, "mtime": ago(1), "atime": ago(1),
             "dir_entries": len(kids) + len(kfiles) if listed else None, "error": err, "name_flags": 0,
-            "is_mount_point": rel in mounts,
+            "is_mount_point": rel in mounts, "extra_ns": 0,
         })
     for i, f in enumerate(files):
         rel = f["path"]
@@ -89,7 +90,7 @@ def write_scan(out: Path, root: str, files: list[dict], *, started: datetime | N
             "depth": rel.count("/") + 1, "dir_id": None, "parent_id": dirs[parent], "ino": 10_000 + i, "uid": f.get("uid", 1000),
             "gid": 1000, "mode": 0o100644, "size": f["size"], "alloc_bytes": f.get("alloc", f["size"]), "mtime": mtime,
             "atime": ago(f.get("atime_days", f.get("age_days", 0))), "dir_entries": None, "error": None,
-            "name_flags": f.get("name_flags", 0), "is_mount_point": False,
+            "name_flags": f.get("name_flags", 0), "is_mount_point": False, "extra_ns": f.get("extra_ns", 0),
         })
     (out / "entries").mkdir(parents=True)
     part = out / "entries" / "part-w00-000000.parquet"
@@ -98,13 +99,18 @@ def write_scan(out: Path, root: str, files: list[dict], *, started: datetime | N
     con.execute("""CREATE TABLE e (path VARCHAR, parent_path VARCHAR, name VARCHAR, extension VARCHAR, kind VARCHAR,
         depth INTEGER, dir_id BIGINT, parent_id BIGINT, ino UBIGINT, uid BIGINT, gid BIGINT, mode INTEGER, size BIGINT,
         alloc_bytes BIGINT, mtime BIGINT, atime BIGINT, dir_entries BIGINT, error VARCHAR, name_flags INTEGER,
-        is_mount_point BOOLEAN)""")
+        is_mount_point BOOLEAN, extra_ns BIGINT)""")
     keys = ["path", "parent_path", "name", "extension", "kind", "depth", "dir_id", "parent_id", "ino", "uid", "gid", "mode",
-            "size", "alloc_bytes", "mtime", "atime", "dir_entries", "error", "name_flags", "is_mount_point"]
+            "size", "alloc_bytes", "mtime", "atime", "dir_entries", "error", "name_flags", "is_mount_point", "extra_ns"]
+    def ts(col: str) -> str:
+        if time_unit == "ns":
+            return f"make_timestamp_ns({col} * 1000 + extra_ns)::TIMESTAMPTZ_NS"
+        return f"make_timestamp({col})::TIMESTAMPTZ"
+
     con.executemany(f"INSERT INTO e VALUES ({', '.join('?' for _ in keys)})", [[r[k] for k in keys] for r in rows])
     con.execute(f"""COPY (SELECT path, parent_path, name, extension, NULL::BLOB AS path_raw, name_flags, kind, depth, dir_id,
-        parent_id, 1::UBIGINT AS dev, ino, 1::BIGINT AS nlink, uid, gid, mode, size, alloc_bytes, make_timestamp(atime)::TIMESTAMPTZ AS atime,
-        make_timestamp(mtime)::TIMESTAMPTZ AS mtime, make_timestamp(mtime)::TIMESTAMPTZ AS ctime, NULL::TIMESTAMPTZ AS btime, NULL::UBIGINT AS rdev,
+        parent_id, 1::UBIGINT AS dev, ino, 1::BIGINT AS nlink, uid, gid, mode, size, alloc_bytes, {ts('atime')} AS atime,
+        {ts('mtime')} AS mtime, {ts('mtime')} AS ctime, NULL::TIMESTAMPTZ AS btime, NULL::UBIGINT AS rdev,
         dir_entries, NULL::BIGINT AS dir_files, NULL::BIGINT AS dir_subdirs, NULL::BIGINT AS dir_bytes,
         NULL::BIGINT AS dir_alloc_bytes, is_mount_point, 0 AS time_flags, error, NULL::VARCHAR AS symlink_target,
         NULL::BLOB AS symlink_target_raw FROM e) TO '{part}' (FORMAT parquet)""")

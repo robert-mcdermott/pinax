@@ -149,6 +149,15 @@ twenty seconds); `bench/bench_index.py` builds an index from it and times the qu
 Use them to check that a change keeps directory-level queries flat as scans grow. `uv run pinax check SCAN_DIR`
 builds a temporary index from the same scan and compares every directory with fs-inventory rollup.
 
+`synth_scan.py --wide N --deep D` adds what real filesystems have and the model lacks: a folder of N files, a
+folder of N/10 subfolders, and a chain D folders deep. `bench_index.py` prints the scan's shape (counts only:
+depth, widest folders, longest path, flagged names, links, mount points) and the query timings, never a path or
+a name, so a run on a real filesystem can be recorded as it is (`--json FILE` saves it).
+
+The interface shows control characters and bidirectional overrides in names as escapes (`visible()` in
+`core.js`, applied to every value `html` puts in text). Attribute values keep the exact text, since some are
+read back.
+
 ## Demo data
 
 `seed.py` defines the demo filesystems (`FILESYSTEMS`), labs (`LABS`), unmapped folders, people (`PEOPLE`),

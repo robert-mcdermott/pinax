@@ -31,7 +31,7 @@ from pathlib import Path
 import duckdb
 
 from .categories import AGE_BUCKETS, bucket_edges
-from .ingest.build import INDEX_VERSION
+from .ingest.build import INDEX_VERSION, parquet_source, read_manifest, scan_parts
 
 NB = len(AGE_BUCKETS)
 
@@ -55,9 +55,9 @@ def _sql_str(s: str) -> str:
 
 def scan_depth(scan_dir: Path) -> int:
     """The deepest directory in the scan, read from the scan itself."""
-    glob = _sql_str(str(scan_dir / "entries" / "*.parquet"))
+    source = parquet_source(scan_parts(scan_dir, read_manifest(scan_dir), "entries"))
     with duckdb.connect() as con:
-        depth = con.execute(f"SELECT max(depth) FROM read_parquet({glob}) WHERE kind = 'dir'").fetchone()[0]
+        depth = con.execute(f"SELECT max(depth) FROM {source} WHERE kind = 'dir'").fetchone()[0]
     return int(depth or 0)
 
 
@@ -162,10 +162,10 @@ class CheckReport:
         lines = []
         if self.ok:
             lines.append(f"OK: {self.dirs:,} directories, {len(self.measures)} measures each, all equal "
-                         f"to fs-inventory rollup (age buckets {self.edges}, age depth {self.age_depth})")
+                         f"to fs-inventory rollup (age buckets {self.edges}, compared down to depth {self.age_depth})")
         else:
             lines.append(f"MISMATCH: {self.dirs:,} directories compared on {len(self.measures)} measures "
-                         f"(age buckets {self.edges}, age depth {self.age_depth})")
+                         f"(age buckets {self.edges}, compared down to depth {self.age_depth})")
             for name, count, examples in (("only in Pinax", self.only_pinax_count, self.only_pinax),
                                           ("only in rollup", self.only_rollup_count, self.only_rollup)):
                 if count:
@@ -183,27 +183,39 @@ class CheckReport:
         return "\n".join(lines)
 
 
-def compare(index_dir: Path, rollup_scan: Path, *, age_depth: int, examples: int = 10) -> CheckReport:
-    """Compare Pinax's `dirs` table in `index_dir` with the rollup tables in `rollup_scan`."""
+def compare(index_dir: Path, rollup_scan: Path, *, age_depth: int, examples: int = 10, memory_limit: str = "4GB",
+            temp_dir: Path | None = None) -> CheckReport:
+    """Compare Pinax's `dirs` table in `index_dir` with the rollup tables in `rollup_scan`. Age histograms are
+    compared for directories down to `age_depth` (deeper ones share an ancestor's histogram in rollup)."""
     t0 = time.monotonic()
     con = duckdb.connect()
     try:
+        con.execute(f"SET memory_limit = {_sql_str(memory_limit)}")
+        if temp_dir:
+            con.execute(f"SET temp_directory = {_sql_str(str(temp_dir))}")
         con.execute(f"ATTACH {_sql_str(str(index_dir / 'index.duckdb'))} AS p (READ_ONLY)")
         for view, table in (("r", "rollup"), ("ages", "rollup_ages")):
             glob = _sql_str(str(rollup_scan / table / "*.parquet"))
             con.execute(f"CREATE TEMP VIEW {view} AS SELECT * FROM read_parquet({glob})")
         measures = _measures()
         cols = ", ".join(f"{p} AS p{i}, {r} AS r{i}" for i, (_, p, r) in enumerate(measures))
+        # A view, not a table: a billion-file scan has tens of millions of directories, and only the counts and
+        # a few examples are needed.
         con.execute(f"""
-            CREATE TEMP TABLE j AS
+            CREATE TEMP VIEW j AS
             SELECT coalesce(d.dir_id, r.dir_id) AS dir_id, coalesce(d.path, r.path) AS path,
-                   d.dir_id IS NOT NULL AS in_p, r.dir_id IS NOT NULL AS in_r, {cols}
+                   d.dir_id IS NOT NULL AS in_p, r.dir_id IS NOT NULL AS in_r, r.depth <= {int(age_depth)} AS has_ages,
+                   {cols}
             FROM p.dirs d
             FULL JOIN r ON r.dir_id = d.dir_id
             LEFT JOIN ({_age_pivot()}) a ON a.dir_id = r.dir_id
         """)
-        counts = ", ".join(f"count(*) FILTER (WHERE in_p AND in_r AND p{i} IS DISTINCT FROM r{i})"
-                           for i in range(len(measures)))
+
+        def differ(i: int) -> str:
+            ages = " AND has_ages" if measures[i][0].endswith("]") else ""
+            return f"in_p AND in_r{ages} AND p{i} IS DISTINCT FROM r{i}"
+
+        counts = ", ".join(f"count(*) FILTER (WHERE {differ(i)})" for i in range(len(measures)))
         row = con.execute(f"""
             SELECT count(*) FILTER (WHERE in_p AND in_r), count(*) FILTER (WHERE NOT in_r),
                    count(*) FILTER (WHERE NOT in_p), {counts}
@@ -221,8 +233,7 @@ def compare(index_dir: Path, rollup_scan: Path, *, age_depth: int, examples: int
             if not n:
                 continue
             ex = con.execute(f"""
-                SELECT path, p{i}, r{i} FROM j WHERE in_p AND in_r AND p{i} IS DISTINCT FROM r{i}
-                ORDER BY path LIMIT {examples}
+                SELECT path, p{i}, r{i} FROM j WHERE {differ(i)} ORDER BY path LIMIT {examples}
             """).fetchall()
             mismatches.append(Mismatch(name, n, [{"path": p, "pinax": a, "rollup": b} for p, a, b in ex]))
         return CheckReport(
@@ -235,12 +246,17 @@ def compare(index_dir: Path, rollup_scan: Path, *, age_depth: int, examples: int
         con.close()
 
 
-def check(scan_dir: Path, index_dir: Path, work_dir: Path, *, binary: str, examples: int = 10) -> CheckReport:
-    """Run `fs-inventory rollup` on the scan and compare it with the index built from that scan."""
+def check(scan_dir: Path, index_dir: Path, work_dir: Path, *, binary: str, examples: int = 10,
+          age_depth: int | None = None, memory_limit: str = "4GB") -> CheckReport:
+    """Run `fs-inventory rollup` on the scan and compare it with the index built from that scan. Rollup keeps
+    an age histogram (about 0.5 KB) for every directory down to `age_depth`, the whole scan by default; a smaller
+    depth bounds its memory on scans with tens of millions of directories."""
     t0 = time.monotonic()
-    depth = scan_depth(scan_dir)
+    depth = scan_depth(scan_dir) if age_depth is None else age_depth
     shadow = run_rollup(scan_dir, work_dir, binary=binary, age_depth=depth)
     rollup_seconds = time.monotonic() - t0
-    report = compare(index_dir, shadow, age_depth=depth, examples=examples)
+    (work_dir / "tmp").mkdir(exist_ok=True)
+    report = compare(index_dir, shadow, age_depth=depth, examples=examples, memory_limit=memory_limit,
+                     temp_dir=work_dir / "tmp")
     report.rollup_seconds = rollup_seconds
     return report

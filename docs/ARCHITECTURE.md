@@ -148,6 +148,34 @@ rounding put a file exactly on a bucket edge in the younger bucket for about one
 (one in four at the ten-year edge). Directories revisited under `--detect-cycles` were counted as incomplete.
 The tests include a scan built to sit on those edges.
 
+## Real filesystems
+
+What real storage has and a model does not, and how Pinax handles it:
+
+- **Names.** fs-inventory writes bytes that are not UTF-8 as `\xNN` in `path` and keeps the exact bytes in
+  `path_raw`; Pinax uses `path`. Names with control characters (a newline, a tab) or bidirectional overrides
+  (which make `report\u202Etxt.exe` display as `reportexe.txt`) are shown as escapes in the interface, and
+  storage health counts names by flag. A valid name that contains the text `\xFF` renders like the byte 0xFF,
+  so two such siblings would share a path; totals are joined on `dir_id` and stay right, but the two folders
+  would show as one place.
+- **Mount points** not entered are folders not read, so their totals are lower bounds; scans with
+  `--cross-mounts` include them.
+- **Times** in nanoseconds (`--time-unit ns`) are kept as microseconds, truncated toward zero as rollup does;
+  times before 1970 and after the scan are accepted.
+- **Scan folders** are read through the parts their manifest lists, so leftovers of an interrupted run don't
+  count twice.
+- **Deep and wide trees.** Subtree totals take one statement per depth level, about 10 ms each, so a chain
+  1,000 folders deep adds about 10 seconds to a build. Paths of thousands of characters, folders of two million
+  files, and folders of 200,000 subfolders work (timings below). The interface collapses long breadcrumb trails
+  and clamps long paths.
+
+A real scan was checked the same way: the maintainer's documents folder on a laptop (56 K files, 4.7 K folders,
+118 GB, 16 levels, 260 file types, 15 flagged names, one owner). Every directory is equal to rollup; the index
+builds in 0.8 s and every query takes under 25 ms. It also showed common types that were counted as *other*:
+camera photo and video formats, macro-enabled spreadsheets, diagrams, executables, and disk images, 35% of its
+bytes. With those added, *other* is 0.8% of its bytes, nearly all of it files without an extension. Production
+storage, with many owners and a billion files, is measured in wave 3.
+
 ## Querying
 
 `index.py` opens each snapshot's `index.duckdb` read-only and gives every request its own cursor. All
@@ -188,6 +216,12 @@ file system (200 lab folders, projects of different ages, a realistic mix of fil
 |---|---|---|---|---|---|---|---|---|
 | 1 M files, 24 K folders | 3.4 s | 0.06 GB | 26 ms | 23 ms | 1 ms | 11 ms | 9 ms | 30 ms |
 | 10 M files, 244 K folders | 22 s | 0.54 GB | 64 ms | 42 ms | 1 ms | 20 ms | 10 ms | 273 ms |
+| 12.2 M files, 445 K folders, with wide and deep folders | 34 s | 0.59 GB | 69 ms | 43 ms | 1 ms | 23 ms | 9 ms | 304 ms |
+
+The last scan adds a folder of two million files, a folder of 200,000 subfolders, and a chain 1,000 folders deep
+(`--wide 2000000 --deep 1000`). The treemap of the folder with 200,000 subfolders takes 108 ms, the deepest
+folder 9 ms, and the largest files in the two-million-file folder 32 ms; 10 of the 34 seconds of the build are
+the 1,000 levels of subtree totals.
 
 Build time is about 2.2 seconds per million files once fixed costs are amortized, so a billion-file scan
 would take on the order of 40 minutes on this laptop, and less on a server with more cores and faster disks.

@@ -102,6 +102,33 @@ def check_manifest(manifest: dict, *, allow_incomplete: bool = False) -> None:
         raise BuildError(f"scan is missing columns Pinax needs: {', '.join(sorted(missing))}")
 
 
+def scan_parts(scan_dir: Path, manifest: dict, table: str) -> list[Path]:
+    """The part files of one of a scan's tables. The manifest lists them, and only those are the scan: a scan
+    folder can also hold leftovers of an interrupted run. Scans whose manifest lists none are read whole."""
+    listed = (manifest.get("parts") or {}).get(table)
+    if listed is None:
+        return sorted((scan_dir / table).glob("*.parquet"))
+    parts = [scan_dir / p["file"] for p in listed]
+    missing = [str(p) for p in parts if not p.exists()]
+    if missing:
+        raise BuildError(f"the manifest lists {table} parts that are missing: {', '.join(missing[:3])}")
+    return parts
+
+
+def parquet_source(parts: list[Path]) -> str:
+    return "read_parquet([" + ", ".join(_sql_str(str(p)) for p in parts) + "])"
+
+
+def _is_ns(con: duckdb.DuckDBPyConnection, query: str) -> bool:
+    return con.execute(f"DESCRIBE {query}").fetchone()[1].endswith("_NS")
+
+
+def _to_us(col: str) -> str:
+    """Scans made with `--time-unit ns` have nanosecond times. The index keeps microseconds, truncated toward
+    zero as fs-inventory rollup does (a plain cast rounds to the nearest)."""
+    return f"(TIMESTAMPTZ '1970-01-01 00:00:00+00' + to_microseconds(epoch_ns({col}) // 1000))"
+
+
 def _parse_ts(value: str) -> datetime:
     return datetime.fromisoformat(value).astimezone(UTC).replace(tzinfo=None)
 
@@ -157,6 +184,9 @@ def build_index(
     scan_dir = scan_dir.resolve()
     manifest = read_manifest(scan_dir)
     check_manifest(manifest, allow_incomplete=allow_incomplete)
+    entry_parts = scan_parts(scan_dir, manifest, "entries")
+    if not entry_parts:
+        raise BuildError(f"{scan_dir} has no entries")
     root = manifest["roots"][0]["path"]
     started_at = _parse_ts(manifest["started_at"])
     ref_us = (started_at - EPOCH) // timedelta(microseconds=1)
@@ -184,8 +214,7 @@ def build_index(
         con.execute(sql, params or [])
         steps[name] = steps.get(name, 0.0) + time.monotonic() - s
 
-    entries_glob = _sql_str(str(scan_dir / "entries" / "*.parquet"))
-    con.execute(f"CREATE TEMP VIEW entries AS SELECT * FROM read_parquet({entries_glob})")
+    con.execute(f"CREATE TEMP VIEW entries AS SELECT * FROM {parquet_source(entry_parts)}")
 
     # ---- Top-level folders and the extension map ----
     say("Finding top-level folders")
@@ -201,11 +230,17 @@ def build_index(
     say("Classifying files")
     comp = ", ".join(_sql_str(s) for s in COMPRESSION_SUFFIXES)
     rel = f"substr(path, {len(prefix) + 1})"
+
+    ns_times = _is_ns(con, "SELECT mtime FROM entries")
+
+    def us(col: str, alias: str | None = None, ns: bool = ns_times) -> str:
+        return f"{_to_us(col) if ns else col} AS {alias or col.split('.')[-1]}"
+
     step("stage", f"""
         COPY (
           WITH e AS (
-            SELECT path, parent_id, name, depth, kind, size, alloc_bytes, uid, gid, mtime, atime, ctime, nlink,
-                   name_flags, extension,
+            SELECT path, parent_id, name, depth, kind, size, alloc_bytes, uid, gid, {us('mtime')}, {us('atime')},
+                   {us('ctime')}, nlink, name_flags, extension,
                    CASE WHEN extension IN ({comp})
                         THEN coalesce(regexp_extract(lower(name), '\\.([^./]{{1,16}})\\.[^./]+$', 1), '')
                         ELSE '' END AS inner_ext,
@@ -228,7 +263,7 @@ def build_index(
         CREATE TABLE s.dirbase AS
         SELECT e.dir_id, e.parent_id, e.depth::INTEGER AS depth,
                CASE WHEN e.depth = 0 THEN 0 ELSE coalesce(t.top_id, 0) END::INTEGER AS top_id,
-               e.path, e.name, e.uid, e.gid, e.mtime AS self_mtime, e.error, e.is_mount_point, e.dir_entries,
+               e.path, e.name, e.uid, e.gid, {us('e.mtime', 'self_mtime')}, e.error, e.is_mount_point, e.dir_entries,
                -- Not read completely: an error, or never listed (a mount point not entered, --max-depth). A
                -- revisit (--detect-cycles) isn't missing anything: its contents are counted where first found.
                (NOT coalesce(starts_with(e.error, 'revisit'), false)
@@ -389,18 +424,19 @@ def build_index(
 
     # ---- Owner names, errors ----
     for table, key in (("users", "uid"), ("groups", "gid")):
-        parts = list((scan_dir / table).glob("*.parquet"))
+        parts = scan_parts(scan_dir, manifest, table)
         if parts:
-            con.execute(f"CREATE TABLE {table} AS SELECT {key}, name FROM "
-                        f"read_parquet({_sql_str(str(scan_dir / table / '*.parquet'))})")
+            con.execute(f"CREATE TABLE {table} AS SELECT {key}, name FROM {parquet_source(parts)}")
         else:
             con.execute(f"CREATE TABLE {table} ({key} BIGINT, name VARCHAR)")
-    if list((scan_dir / "errors").glob("*.parquet")):
+    error_parts = scan_parts(scan_dir, manifest, "errors")
+    if error_parts:
         step("errors", f"""
             CREATE TABLE errors AS
-            SELECT r.path, r.op, r.errno, r.errno_name, r.message, r.time,
+            SELECT r.path, r.op, r.errno, r.errno_name, r.message,
+                   {us('r.time', ns=_is_ns(con, f"SELECT time FROM {parquet_source(error_parts)}"))},
                    CASE WHEN r.path = {_sql_str(root)} THEN 0 ELSE coalesce(t.top_id, 0) END AS top_id
-            FROM read_parquet({_sql_str(str(scan_dir / 'errors' / '*.parquet'))}) r
+            FROM {parquet_source(error_parts)} r
             LEFT JOIN tops t ON t.name = split_part(substr(r.path, {len(prefix) + 1}), '/', 1)
         """)
     else:

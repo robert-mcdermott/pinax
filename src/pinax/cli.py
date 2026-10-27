@@ -48,6 +48,9 @@ def main() -> None:
     check.add_argument("--allow-incomplete", action="store_true",
                        help="With a scan directory: accept a scan with status incomplete")
     check.add_argument("--examples", type=int, default=10, help="Directories to list for each difference")
+    check.add_argument("--age-depth", type=int,
+                       help="Compare age histograms down to this depth (default: the whole scan; rollup needs about "
+                            "0.5 KB of memory per directory down to it)")
     check.add_argument("--json", action="store_true", help="Print the report as JSON")
 
     args = parser.parse_args()
@@ -190,7 +193,8 @@ def _check(args: argparse.Namespace) -> int:
             index_dir = work / "index"
             build_index(scan_dir, index_dir, memory_limit=settings.build_memory_limit, threads=settings.build_threads,
                         allow_incomplete=args.allow_incomplete)
-        report = check(scan_dir, index_dir, work, binary=settings.fs_inventory_path(), examples=args.examples)
+        report = check(scan_dir, index_dir, work, binary=settings.fs_inventory_path(), examples=args.examples,
+                       age_depth=args.age_depth, memory_limit=settings.build_memory_limit)
     except (BuildError, CheckError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
