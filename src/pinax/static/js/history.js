@@ -50,7 +50,7 @@ export async function viewHistory(el, query) {
       <div class="kpi" style="--kpi-accent:var(--series-1)"><div class="label">Files</div><div class="value">${num(now.files)}</div><div class="sub">${since(filesOf)}</div></div>
       <div class="kpi" style="--kpi-accent:var(--age-5)"><div class="label">${cold}</div><div class="value">${pct(share(now) * 100)}</div>
         <div class="sub">${shown.length > 1 ? `${pct(share(first) * 100)} at the first scan` : `${bytes(now.cold_bytes)} of the data`}</div></div>
-      <div class="kpi" style="--kpi-accent:var(--age-3)"><div class="label">Average age</div><div class="value">${ageText(now.mean_age_days)}</div>
+      <div class="kpi" style="--kpi-accent:var(--age-4)"><div class="label">Average age</div><div class="value">${ageText(now.mean_age_days)}</div>
         <div class="sub">${shown.length > 1 ? `${ageText(first.mean_age_days)} at the first scan` : "Since last change, weighted by size"}</div></div>
     </div>
     <div class="toolbar">
@@ -89,7 +89,7 @@ function drawCharts(el, pts, cold) {
   const draw = () => {
     charts = [
       renderTimeChart($("#h-size", el), { times, kind: "stack", tip, onHover, ticks: byteTicks, tick: byteTick,
-        // The oldest data at the bottom: new data lands on top, and old data settles.
+        // The oldest (coldest, blue) data at the bottom: new data lands on top in red, and old data settles.
         series: buckets().map((b, i) => ({ token: ageColor(i), label: b.label, values: pts.map((p) => (p.present ? p.age_bytes[i] : null)) })).reverse(),
         value: (i) => bytes(pts[i].bytes),
         label: `Size by age over ${pts.length} scans, from ${bytes(pts[0].bytes)} to ${bytes(pts[pts.length - 1].bytes)}` }),
@@ -100,7 +100,7 @@ function drawCharts(el, pts, cold) {
         tick: (v) => pct(v * 100), series: [{ token: "--age-5", label: cold, values: pts.map(share) }],
         value: (i) => pct(share(pts[i]) * 100), label: `${cold} over ${pts.length} scans` }),
       renderTimeChart($("#h-age", el), { times, kind: "line", tip, onHover, ticks: (m) => niceTicks(m, { target: 3 }),
-        tick: (v) => (v ? `${+v.toFixed(1)}` : "0"), series: [{ token: "--age-3", label: "Average age", values: pts.map(years) }],
+        tick: (v) => (v ? `${+v.toFixed(1)}` : "0"), series: [{ token: "--age-4", label: "Average age", values: pts.map(years) }],
         value: (i) => ageText(pts[i].mean_age_days), label: `Average age over ${pts.length} scans` }),
     ];
   };

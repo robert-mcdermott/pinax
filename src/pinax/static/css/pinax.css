@@ -93,24 +93,27 @@
   --btn-navy-fg: #FFFFFF;
   --btn-navy-hover: #112345;
 
-  /* Data visualization (validated with the dataviz ordinal checks; see docs/DEVELOPMENT.md).
-     Age ramp: seven steps, one hue (orange to deep red), fresh to old, light to dark. */
-  --age-0: #e8a75c;
-  --age-1: #d38a45;
-  --age-2: #be6e2f;
-  --age-3: #a8531b;
-  --age-4: #913705;
-  --age-5: #7a1900;
-  --age-6: #620000;
+  /* Data visualization (validated with the dataviz checks; see docs/DEVELOPMENT.md).
+     Age scale: seven steps from hot to cold. Red for data changed within two years, from under 90 days (the
+     darkest) to one to two years (the palest); blue from then on, from two to three years (the palest) to ten
+     years or more (the darkest). The split is the default cold threshold, so cold data is blue. Each arm passes the
+     ordinal checks, and steps either side of the split are apart under CVD. */
+  --age-0: #B3262C;
+  --age-1: #D9603F;
+  --age-2: #EFA07F;
+  --age-3: #93B4E6;
+  --age-4: #6489CF;
+  --age-5: #3A62AE;
+  --age-6: #1D3B78;
   /* Share ramp (teal, five steps): what fraction of a folder is one kind of data. */
   --share-0: #3cbdd8;
   --share-1: #2d9bbd;
   --share-2: #217ba1;
   --share-3: #185c85;
   --share-4: #0f4067;
-  --tile-none: #D3D8DE;           /* no files, or none of the chosen kind */
-  /* Change since an earlier scan: gold for shrinking, teal for growing, a true gray for no change (red stays the
-     color of old data). Each arm passes the ordinal checks; paired steps and the gray are apart under CVD. */
+  --tile-none: #E2E2E2;           /* no files, or none of the chosen kind: a true gray, apart from the pale blue */
+  /* Change since an earlier scan: gold for shrinking, teal for growing, a true gray for no change (apart from the
+     age scale's red and blue). Each arm passes the ordinal checks; paired steps and the gray are apart under CVD. */
   --chg-n3: #855E00;
   --chg-n2: #B98807;
   --chg-n1: #D9A93C;
@@ -181,15 +184,15 @@
   --btn-navy-bg: #00ABC8;
   --btn-navy-fg: #112345;
   --btn-navy-hover: #FFFFFF;
-  /* Dark mode has its own validated steps. The ramp is not inverted, so red means old in both themes;
-     its darkest (oldest) step still clears 2:1 against the navy surface. */
-  --age-0: #f9ca9c;
-  --age-1: #eeb281;
-  --age-2: #e39968;
-  --age-3: #d88052;
-  --age-4: #cc663e;
-  --age-5: #be4b2e;
-  --age-6: #af2c22;
+  /* Dark mode has its own validated steps: red for recent and blue for cold, as in light mode, but on navy each
+     arm brightens outward, so the newest and the oldest data still stand out most; the palest steps clear 3:1. */
+  --age-0: #FF7A66;
+  --age-1: #E35A4A;
+  --age-2: #B9503F;
+  --age-3: #5274B8;
+  --age-4: #6E95DA;
+  --age-5: #94B6F0;
+  --age-6: #C2DAFF;
   --share-0: #116d8a;
   --share-1: #3289a3;
   --share-2: #4ea6bd;

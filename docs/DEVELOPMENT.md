@@ -127,19 +127,24 @@ Charts use their own tokens in `css/pinax.css`, defined separately for each them
 
 | Tokens | Used for |
 |---|---|
-| `--age-0` … `--age-6` | Age buckets, youngest to oldest. One hue (orange to deep red), monotone lightness |
+| `--age-0` … `--age-6` | Age buckets, youngest to oldest: hot to cold. Red for under two years, blue from two years (the default cold threshold), palest either side of the split |
 | `--share-0` … `--share-4` | "Share of" color modes (teal), lowest to highest |
-| `--tile-none` | Tiles with no files, or none of the chosen kind |
+| `--tile-none` | Tiles with no files, or none of the chosen kind (a true gray, apart from the palest blue) |
+| `--chg-n3` … `--chg-p3` | The change map: gold for shrinking, a true gray for no change, teal for growing |
 | `--tile-frame`, `--tile-ink` | The frame around nested tiles; dark label text on light tiles |
 
 The ramps were checked with the dataviz ordinal validator (monotone lightness, adjacent steps at least 0.06
 apart in OKLCH lightness, a single hue within 40 degrees, and the step nearest the surface at least 2:1
-against it). In dark mode the age ramp is *not* inverted, so red means old in both themes; its darkest step
-clears 2:1 against the navy surface. Re-run the validator if you change any step.
+against it). The age scale and the change map are two arms each, checked as two ordinal ramps out from the
+split, with the steps either side of it, and the no-files and no-change grays, at least ΔE 15 apart with normal
+vision and 8 under color-vision deficiencies. In dark mode each arm brightens outward instead of darkening, so the
+most recent and the oldest data stand out most on navy; red is recent and blue is old in both themes. Re-run the
+validator if you change any step.
 
 Rules:
 
-- **Age is ordinal**: always use the age ramp for it, in bucket order. Never use those reds for anything else.
+- **Age is ordinal**: always use the age scale for it, in bucket order: red is recent, blue is cold. Never use
+  those reds and blues for anything else; the change map has its own gold and teal.
 - **Single-series bars** (categories, owners) use `--chart-1`; the label names each bar.
 - **Tile labels** pick white or `--tile-ink`, whichever contrasts more with the tile, at draw time.
 - **Never color alone**: tooltips, tables, and labels carry every value; each chart has a legend and a table view.

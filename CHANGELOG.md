@@ -31,6 +31,11 @@
 
 ### Changed
 
+- **Age colors, hot to cold.** The age map, age bars, legends, and history now show recent data in red and cold
+  data in blue: red from under 90 days (the darkest) to one to two years (the palest), blue from two to three years
+  (the palest) to ten years or more (the darkest), split at the default two-year cold threshold. The orange-to-red
+  ramp made all data look warm. Both themes have their own validated steps; tiles without files are a lighter gray.
+
 - Ingest records each snapshot's whole-filesystem totals, so a filesystem's history reads one row per scan.
   Snapshots ingested earlier are summed from folder history instead, which is slower on large catalogs (about a
   second for 300,000 folder rows).

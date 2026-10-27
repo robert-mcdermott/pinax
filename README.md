@@ -9,7 +9,8 @@ old, what kind, and who owns it, for multi-petabyte file systems with billions o
 A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library of Alexandria.
 
 - **Age map** (`/app/#/explore`): a treemap of any folder's subfolders, sized by how much they hold and
-  colored by how old the data is. A large red tile is a large folder of old data; click it to go one level
+  colored by how old the data is: red for recent data, blue for cold. A large dark blue tile is a large folder of
+  data untouched for years; click it to go one level
   down and find where the old data is. Size by bytes, space on disk, file count, data of one kind
   (for example sequencing data), or data older than a threshold. Color by average age, time since the last
   change, age of the oldest file, time since the last access, the share that is cold, or the share of one kind
@@ -100,13 +101,14 @@ climbs from 64% to 100% at the same size. *History* shows all of it, the *Change
 
 1. **Home page.** Choose *Continue as Hanna Lindqvist* (a PI). *My data* shows one folder: 19 TiB, most of
    it unchanged for years.
-2. **Age map.** Open it. `wgs/2019_tumor_normal` is a large dark red tile: 17 TiB of alignments last changed
+2. **Age map.** Open it. `wgs/2019_tumor_normal` is a large blue tile: 17 TiB of alignments last changed
    about seven years ago. Hover for details; switch *Color by* to *Time since last access* and
    *Size by* to *Size of sequencing and genomics*.
 3. **File types.** The callout shows terabytes of uncompressed SAM files; click `.sam` to list them. (The lab
    compressed its uncompressed FASTQ files before the fifth scan.)
 4. **Switch identity** (top right) to *Aiko Fujimoto*. Drill into `projects`, then `2022_tumor_atlas`, then
-   `raw`: an active project hides `2014_legacy_reruns`, the darkest red tile, eleven years old.
+   `raw`: an active project hides `2014_legacy_reruns`, the darkest blue tile, eleven years old. Next to it,
+   `2025_immune_aging` is red: data written this year.
    **Cold data** at two years lists `raw` as one cold unit; at ten years it lists `2014_legacy_reruns` alone.
    **History** for `fujimoto_a`: the lab grew from 19 to 25 TiB in six scans, and new data on top of the columns
    brought its cold share down from 77% to 60%. Hover a column for that scan; the three small charts follow.

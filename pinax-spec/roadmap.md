@@ -40,7 +40,7 @@ The order follows one principle:
 | Unit of display | Directories, with subtree totals precomputed per scan; files only in searches and lists |
 | Unit of ownership | A top-level folder of a filesystem, owned by one lab or department; people, labs, memberships, and folder ownership use Tundra's model |
 | Ages | Measured from the scan's start, by modification time unless a view says otherwise; seven buckets from under 90 days to ten years or more |
-| Colors | Interface tokens from Tundra; a validated one-hue age ramp (orange to deep red, red means old in both themes); a custom Pinax logo, not the Fred Hutch logo |
+| Colors | Interface tokens from Tundra; a validated hot-to-cold age scale (red for data changed within two years, blue from then on, split at the default cold threshold; until wave 3 a one-hue orange-to-red ramp); a custom Pinax logo, not the Fred Hutch logo |
 | Development data | The demo seed (sparse files scanned by the real fs-inventory), `bench/synth_scan.py`, and scans of the maintainer's own files; real scans are never committed, only measurements |
 | Default port | 8001 (Tundra uses 8000) |
 
@@ -311,8 +311,10 @@ Every change is checked against an independent computation, like every total.
   (`PINAX_KEEP_SNAPSHOTS`, 6 by default); top-level folders, labs, and filesystems have history for every scan.
 - The trust check for change uses `fs-inventory rollup` of both scans, so a wrong difference cannot come from
   Pinax's own totals agreeing with themselves.
-- Growth and shrinkage use a diverging color pair validated like the age ramp, with a neutral gray for no change;
-  red stays the color of old data.
+- Growth and shrinkage use a diverging color pair validated like the age ramp, with a neutral gray for no change:
+  gold and teal, apart from the age scale's red and blue.
+- Age is shown hot to cold: red for recent data, blue for cold, so cold data looks cold, as the reports call it.
+  (Changed in wave 3 from an orange-to-red ramp in which all data looked warm.)
 
 ### Slices as built
 
