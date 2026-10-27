@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pinax · Explore your data</title>
+  <link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+  <script>try{if(localStorage.getItem("pinax-theme")==="dark")document.documentElement.dataset.theme="dark"}catch(e){}</script>
+  <link rel="stylesheet" href="/css/pinax.css">
+</head>
+<body>
+  <header class="topbar" id="topbar"></header>
+
+  <section class="hero">
+    <div class="hero-inner">
+      <h1>Pinax</h1>
+      <p>See what is stored in your lab's folders: how much, how old, what kind, and who owns it. Find the old data
+        hiding deep in a project, the sequencing runs nobody has touched in years, and where your space is going.</p>
+    </div>
+  </section>
+
+  <section class="entry-cards">
+    <article class="entry">
+      <div class="icon-ovoid" id="icon-owner"></div>
+      <h2>For PIs and lab members</h2>
+      <p>Explore your lab's folders as an age map: big red tiles are big folders of old data. Click to dive in,
+        then break the same folder down by file type, owner, or age, and find files by name.</p>
+      <div class="personas" id="owner-personas"></div>
+    </article>
+    <article class="entry ops">
+      <div class="icon-ovoid" id="icon-ops"></div>
+      <h2>For IT and storage administrators</h2>
+      <p>Every filesystem at once: growth since the last scan, cold data by lab, unmapped folders, small-file
+        hotspots, problem names, scan errors, and files owned by accounts that no longer exist.</p>
+      <div class="personas" id="ops-personas"></div>
+    </article>
+  </section>
+
+  <section class="principles" aria-label="How Pinax works">
+    <div class="principle"><h3>Read-only, always</h3><p>Pinax reads inventories made by fs-inventory. It never opens, moves, or changes a file.</p></div>
+    <div class="principle"><h3>Built for billions of files</h3><p>Every folder's totals are computed once per scan, so a treemap of a petabyte draws as fast as a treemap of a gigabyte.</p></div>
+    <div class="principle"><h3>Ages as of the scan</h3><p>Every age is measured from when the scan ran, and every page says which scan it shows.</p></div>
+    <div class="principle"><h3>Your folders only</h3><p>People see the folders their labs own. IT sees everything. Every check happens on the server.</p></div>
+  </section>
+
+  <section class="flow">
+    <h2>From scan to answer</h2>
+    <div class="flow-steps">
+      <div class="flow-step"><b>1. Scan</b>fs-inventory crawls the filesystem in parallel.<span class="who">Scheduled scan</span></div>
+      <div class="flow-step"><b>2. Index</b>Pinax totals every folder: size, ages, types, owners.<span class="who">pinax ingest</span></div>
+      <div class="flow-step"><b>3. Explore</b>Age maps, drill-down, and reports for each folder.<span class="who">Everyone</span></div>
+      <div class="flow-step"><b>4. Find</b>Search files by name, type, size, age, and owner.<span class="who">Everyone</span></div>
+      <div class="flow-step"><b>5. Compare</b>Each scan is kept as history, so growth shows over time.<span class="who">IT and PIs</span></div>
+      <div class="flow-step"><b>6. Act</b>Archive cold folders, compress raw reads, tidy problem names.<span class="who">Data owners</span></div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="inner">
+      <img src="/img/pinax-logo.svg" alt="Pinax: Explore your data">
+      <span>Pinax proof of concept · Licensed under the Apache License 2.0 · Demo data is fictional</span>
+    </div>
+  </footer>
+
+  <script type="module">
+    import { api, html, icon, loadIdentity, mount, renderTopbar, $ } from "/js/core.js";
+
+    mount($("#icon-owner"), icon("treemap"));
+    mount($("#icon-ops"), icon("server"));
+    await loadIdentity();
+    renderTopbar({ mode: "home" });
+
+    const picks = { owner: ["afujimoto", "hlindqvist", "jokafor", "cmorgan"], ops: ["pnatarajan"] };
+    const users = await api("demo/users").catch(() => []);
+    const byName = Object.fromEntries(users.map((u) => [u.username, u]));
+    const chip = (u) => html`<button class="seg" data-user="${u.username}">
+      Continue as ${u.display_name}${u.is_admin ? "" : u.labs.some((l) => l.role === "pi") ? " (PI)" : " (delegate)"}</button>`;
+    if (users.length) {
+      mount($("#owner-personas"), picks.owner.filter((n) => byName[n]).map((n) => chip(byName[n])));
+      mount($("#ops-personas"), picks.ops.filter((n) => byName[n]).map((n) => chip(byName[n])));
+    } else {
+      // Single sign-on: no personas, just the way in.
+      for (const id of ["#owner-personas", "#ops-personas"]) mount($(id), html`<a class="btn btn-primary" href="/app/">Open Pinax</a>`);
+    }
+    document.addEventListener("click", async (e) => {
+      const b = e.target.closest("button.seg[data-user]");
+      if (!b) return;
+      await api("demo/session", { method: "POST", body: { username: b.dataset.user } });
+      location.href = "/app/";
+    });
+  </script>
+</body>
+</html>
