@@ -26,8 +26,8 @@ validation that shows it. Requirement IDs are stable and never reused.
 | P3 | Read-only: never opens, moves, or changes a file on the storage it reports on; reads only fs-inventory scans | done (wave 1, slice 2) |
 | P4 | Light and dark themes, keyboard-reachable charts, WCAG AA text contrast, a table view for every chart, chart colors validated in both themes | done (wave 1, slices 1 and 4: age and share ramps pass the ordinal checks in both themes; checked at 375 px) |
 | P5 | A demo that builds in one command with real fs-inventory scans of realistic data | done (wave 1, slice 7: about 34,000 sparse files, 117 TB logical, two scans per filesystem, about ten seconds) |
-| P6 | Service files for the web app and ingest; a container image | planned (wave 2: service files; wave 4: container) |
-| P7 | PostgreSQL catalog with migrations | planned (wave 4) |
+| P6 | Service files for the web app and ingest; a container image | partial (wave 2, slice 6: systemd units in `deploy/`; wave 5: container) |
+| P7 | PostgreSQL catalog with migrations | planned (wave 5) |
 
 ## Scans and indexes
 
@@ -35,12 +35,12 @@ validation that shows it. Requirement IDs are stable and never reused.
 | --- | --- | --- |
 | S1 | Read fs-inventory Parquet scans of schema versions 2 and 3; accept only complete scans (`--allow-incomplete` for `incomplete`); refuse several roots, other formats, missing columns | done (wave 1, slice 2) |
 | S2 | Install the pinned fs-inventory release with checksum and version checks; `pinax scan` runs scan and verify, then ingests | done (wave 1, slice 2: fs-inventory 1.0.0) |
-| S3 | Build a snapshot index with subtree totals for every directory, bounded memory, at billion-file scale | partial (wave 1, slice 2: measured to 10 million files; wave 2: measured on real scans and at 100 million) |
-| S4 | Ingest new verified scans automatically, never twice, with failures visible | planned (wave 2) |
+| S3 | Build a snapshot index with subtree totals for every directory, bounded memory, at billion-file scale | partial (wave 1, slice 2: measured to 10 million files; wave 2, slice 2: a real local scan and 12 million synthetic files with wide and deep folders; wave 2, slice 3: 100 million synthetic files in 121 s within 8 GB; wave 3: production scans) |
+| S4 | Ingest new verified scans automatically, never twice, with failures visible | done (wave 2, slice 4: `pinax ingest --watch`) |
 | S5 | Several filesystems, each with its own root and display root | done (wave 1, slice 2) |
 | S6 | Keep the newest snapshots' indexes; keep folder history for every snapshot | done (wave 1, slice 2: `PINAX_KEEP_SNAPSHOTS`) |
 | S7 | Say when totals are lower bounds (folders not read completely) | done (wave 1, slices 2 and 4) |
-| S8 | Explore any retained snapshot, not only the latest | partial (wave 1: the API takes a snapshot; wave 3: the interface) |
+| S8 | Explore any retained snapshot, not only the latest | partial (wave 1: the API takes a snapshot; wave 4: the interface) |
 
 ## Exploration
 
@@ -51,20 +51,20 @@ validation that shows it. Requirement IDs are stable and never reused.
 | E3 | Color tiles by average age, time since last change, oldest file, time since last access, cold share, or one category's share | done (wave 1, slice 4) |
 | E4 | One or two levels; the long tail folded into one tile; a folder's own files as a tile | done (wave 1, slice 4: 60 children, 12 grandchildren each) |
 | E5 | A person's home spans every folder their labs own, on any filesystem; a lab's own scope | done (wave 1, slice 3) |
-| E6 | Change over time: history charts, a change map, what changed between two scans | planned (wave 3) |
+| E6 | Change over time: history charts, a change map, what changed between two scans | planned (wave 4) |
 
 ## Reports
 
 | # | Requirement | Status |
 | --- | --- | --- |
 | R1 | Age profile of any folder by modification and access time, and of each subfolder | done (wave 1, slice 5) |
-| R2 | File types and categories; compressed files counted as what they contain | done (wave 1, slices 2 and 5: twelve categories) |
-| R3 | Cold folders: the largest self-contained folders unchanged for a chosen time | done (wave 1, slice 5; wave 2: instant for whole filesystems) |
+| R2 | File types and categories; compressed files counted as what they contain | done (wave 1, slices 2 and 5: twelve categories; wave 2, slice 2: types found on a real disk added) |
+| R3 | Cold folders: the largest self-contained folders unchanged for a chosen time | done (wave 1, slice 5; wave 2, slice 3: precomputed per threshold, 21 ms for a whole 100-million-file filesystem) |
 | R4 | Owners of any folder, flagging accounts that no longer exist | done (wave 1, slice 5) |
 | R5 | Find files by name or glob, type, category, size, age, and owner; CSV export | done (wave 1, slice 5) |
 | R6 | Call out uncompressed sequencing data | done (wave 1, slice 5) |
-| R7 | Totals that count hard-linked files once | planned (wave 5) |
-| R8 | Cost by lab, department, and filesystem | planned (wave 5) |
+| R7 | Totals that count hard-linked files once | planned (wave 6) |
+| R8 | Cost by lab, department, and filesystem | planned (wave 6) |
 
 ## Access
 
@@ -73,10 +73,10 @@ validation that shows it. Requirement IDs are stable and never reused.
 | A1 | People see only the top-level folders their active labs own, checked on the server for every request; others' folders answer 404; paths must be canonical | done (wave 1, slice 3: tests cover prefixes, `..`, other roots) |
 | A2 | Storage administrators see every filesystem and folder | done (wave 1, slice 3) |
 | A3 | Labs and departments own top-level folders (one owner each), the same model as Tundra; changes audited | done (wave 1, slice 6) |
-| A4 | Demo identity; trust a single sign-on proxy's header in production | done (wave 1, slice 1; wave 2: tested behind oauth2-proxy) |
-| A5 | Import labs, people, memberships, and folder ownership in bulk | planned (wave 2) |
-| A6 | Single sign-on with roles from directory groups; membership synced from the directory | planned (wave 4) |
-| A7 | An access recertification report | planned (wave 4) |
+| A4 | Demo identity; trust a single sign-on proxy's header in production | done (wave 1, slice 1; wave 2, slice 6: only from trusted proxies, checked behind oauth2-proxy 7.15) |
+| A5 | Import labs, people, memberships, and folder ownership in bulk | done (wave 2, slice 5: `pinax import`, docs/IMPORT.md) |
+| A6 | Single sign-on with roles from directory groups; membership synced from the directory | planned (wave 5) |
+| A7 | An access recertification report | planned (wave 5) |
 
 ## IT operations
 
@@ -85,15 +85,15 @@ validation that shows it. Requirement IDs are stable and never reused.
 | O1 | Overview of every filesystem: totals, largest folders, biggest changes, unmapped folders, activity | done (wave 1, slice 6) |
 | O2 | Storage health: scan errors, folders not read, very large directories, small-file hotspots, problem names, deleted owners | done (wave 1, slice 6) |
 | O3 | Scans: every snapshot with its status, timings, and sizes | done (wave 1, slice 6) |
-| O4 | Alerts when a scan or ingest fails | planned (wave 2: visible on *Scans*; wave 4: alerts) |
-| O5 | Metrics, structured logs, slow-query logging | planned (wave 4) |
+| O4 | Alerts when a scan or ingest fails | partial (wave 2, slice 4: failed and skipped scans, and a watcher that stopped, shown on *Scans*; `--once` exits 1 on a failure; wave 5: alerts) |
+| O5 | Metrics, structured logs, slow-query logging | planned (wave 5) |
 
 ## Quality and performance
 
 | # | Requirement | Status |
 | --- | --- | --- |
-| Q1 | Totals agree with an independent computation | partial (wave 1, slice 7: equal to brute-force sums over every file in the tests; wave 2: equal to `fs-inventory rollup` on every directory of real and synthetic scans) |
+| Q1 | Totals agree with an independent computation | partial (wave 1, slice 7: equal to brute-force sums over every file in the tests; wave 2, slice 1: `pinax check` equal to `fs-inventory rollup` on every directory of the demo and synthetic scans; wave 2, slice 2: equal on a real local scan and on wide and deep synthetic scans; wave 3: production scans) |
 | Q2 | Every request value is bound as a query parameter; SQL fragments come only from fixed lists | done (wave 1, slice 3) |
-| Q3 | Directory-level queries (treemap, types, owners, cold folders of a lab) within 100 ms at a billion files | partial (wave 1: 23–64 ms at 10 million files; wave 2: measured at 100 million and on real scans) |
-| Q4 | Searches scoped to a lab folder within 1 s; whole-filesystem searches within 60 s at a billion files | partial (wave 1: 10 ms and 273 ms at 10 million files) |
-| Q5 | Index build within 2 hours per billion files on a server; index at most 60 bytes per file | partial (wave 1: 2.2 s per million files on a 10-core laptop; 55 bytes per file) |
+| Q3 | Directory-level queries (treemap, types, owners, cold folders of a lab) within 100 ms at a billion files | partial (wave 1: 23–64 ms at 10 million files; wave 2, slice 3: 1–50 ms at 100 million synthetic files; wave 3: on production) |
+| Q4 | Searches scoped to a lab folder within 1 s; whole-filesystem searches within 60 s at a billion files | partial (wave 1: 10 ms and 273 ms at 10 million files; wave 2, slice 3: 22 ms and 2.8 s at 100 million, about 30 s projected at a billion; wave 3: on production) |
+| Q5 | Index build within 2 hours per billion files on a server; index at most 60 bytes per file | partial (wave 1: 2.2 s per million files on a 10-core laptop; 55 bytes per file; wave 2, slice 3: 1.2 s per million at 100 million within 8 GB, about 20 minutes projected per billion; 56 bytes per file; wave 3: on a server) |

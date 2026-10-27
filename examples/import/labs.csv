@@ -1,0 +1,4 @@
+slug,name,kind,division,research_area,active
+research_computing,Research Computing,department,Information Technology,Shared reference data and scratch,true
+irb_office,IRB Office,department,Research Administration,Regulated study archives,true
+ortiz_v,Ortiz Lab,lab,Public Health Sciences,Biostatistics,true

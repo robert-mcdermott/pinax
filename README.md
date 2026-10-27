@@ -23,8 +23,13 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
   storage health (scan errors, very large directories, small-file hotspots, problem file names, deleted
   owners), the scan history, and people and access.
 - **Built for scale**: each scan is indexed once into directory-level totals, so a treemap of a petabyte
-  draws in tens of milliseconds. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and
-  measured performance.
+  draws in tens of milliseconds: at 100 million files, every directory-level query takes 50 ms or less, and the
+  index builds in two minutes. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and measured
+  performance.
+- **Numbers you can check**: `pinax check` compares every directory's totals with `fs-inventory rollup`, an
+  independent implementation, and reports any difference.
+- **Ready to run**: new scans are ingested automatically, labs and people are imported from CSV with a dry run
+  first, and `deploy/` has systemd units and an oauth2-proxy configuration for single sign-on.
 - **Light and dark themes**, keyboard-reachable tiles, and a table view for every chart.
 
 ## Documentation
@@ -33,7 +38,8 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
 |---|---|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Design, the snapshot index, how it is built and queried, security, measured performance and sizing |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every setting, its default, and what it does |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Running in production: scan hosts, scheduling, the web server, single sign-on, sizing, operations |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Installing on a server: systemd services, single sign-on, scheduled scans, upgrades, sizing, operations |
+| [docs/IMPORT.md](docs/IMPORT.md) | The CSV format for importing labs, people, memberships, and folder ownership |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Code layout, conventions, the HTTP API, the interface, themes and chart colors, tests, benchmarks |
 | [pinax-spec/roadmap.md](pinax-spec/roadmap.md) | The plan: waves (one release each) and their slices, what is done, what is next, decisions |
 | [pinax-spec/requirements.md](pinax-spec/requirements.md) | What Pinax must do, with stable IDs and each requirement's status |
@@ -65,7 +71,7 @@ Then open <http://127.0.0.1:8001>. `seed` writes two demo filesystems of about 3
 with fs-inventory (with some simulated activity in between), and ingests the scans. It takes about
 ten seconds. It resets `var/` and `demo/` each time, and refuses to run when `PINAX_ENVIRONMENT=prod`.
 
-## Demo script (about 10 minutes)
+## Demo script (about 12 minutes)
 
 1. **Home page.** Choose *Continue as Hanna Lindqvist* (a PI). *My data* shows one folder: 20 TiB, most of
    it unchanged for years.
@@ -87,6 +93,10 @@ ten seconds. It resets `var/` and `demo/` each time, and refuses to run when `PI
    (a newline, a leading dash, a Windows-reserved character, a name that is not NFC), and files owned by
    accounts that no longer exist.
 9. **Find files.** Search `*.bam`, older than five years, largest first; download the CSV.
+10. **Scans.** The snapshots of both filesystems, and whether automatic ingest is watching for new scans.
+11. **Import from CSV.** In a terminal, `uv run pinax import examples/import` lists the 14 changes the example
+    files would make: two departments, a lab, three people, their memberships, and owners for the three unmapped
+    folders. Add `--apply`, and *Folders and labs* shows no unmapped folders; every change is in the audit log.
 
 ## Using real filesystems
 
@@ -106,9 +116,29 @@ Or ingest a scan made elsewhere, for example by a scheduled job on a storage nod
 uv run pinax ingest /scans/fast/2026-10-26
 ```
 
+Or let Pinax pick up each new scan written under a folder, checking every five minutes:
+
+```bash
+uv run pinax ingest --watch /scans
+```
+
+Check that every directory's totals equal an independent computation by `fs-inventory rollup` (the ID is from
+`pinax snapshots`):
+
+```bash
+uv run pinax check 1
+```
+
 Every top-level folder of a filesystem is a unit of ownership: map each one to a lab or department under
-*Folders and labs*, and its members see it. [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) covers scheduling,
-sizing, retention, and single sign-on.
+*Folders and labs*, and its members see it. To set up many labs and people at once, import them from CSV
+([docs/IMPORT.md](docs/IMPORT.md)):
+
+```bash
+uv run pinax import examples/import
+```
+
+To install Pinax on a server, follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): systemd services (in `deploy/`),
+single sign-on with oauth2-proxy, scheduled scans, upgrades, sizing, and operations.
 
 ## Commands
 
@@ -120,8 +150,12 @@ sizing, retention, and single sign-on.
 | `uv run pinax filesystem list` | List filesystems and their latest scan |
 | `uv run pinax scan SLUG [--no-ingest] [-- fs-inventory options]` | Scan with fs-inventory, verify, and ingest |
 | `uv run pinax ingest SCAN_DIR [--fs SLUG] [--allow-incomplete]` | Build a snapshot index from a finished scan |
+| `uv run pinax ingest --watch [FOLDER] [--interval N] [--once] [--no-verify]` | Ingest each new verified scan under a folder (default `PINAX_SCAN_ROOT`) once |
 | `uv run pinax snapshots` | List snapshots |
-| `uv run pytest` | Tests: index correctness, queries, authorization, and an end-to-end scan |
+| `uv run pinax rebuild SNAPSHOT_ID... \| --outdated` | Build ready snapshots' indexes again from their scans, after an upgrade or a lost index |
+| `uv run pinax import FOLDER [--apply]` | Import labs, people, memberships, and folder ownership from CSV; a dry run unless `--apply` ([docs/IMPORT.md](docs/IMPORT.md)) |
+| `uv run pinax check SNAPSHOT_ID \| SCAN_DIR [--index DIR] [--age-depth N] [--json]` | Check an index against `fs-inventory rollup`, directory by directory |
+| `uv run pytest` | Tests: index correctness, the rollup cross-check, queries, authorization, and an end-to-end scan |
 
 API documentation is served at `/api/docs`.
 
@@ -132,8 +166,11 @@ src/pinax/
   config.py, db.py, models.py      settings, catalog engine, catalog schema
   categories.py                    file categories, type normalization, age buckets
   ingest/build.py                  scan -> snapshot index (DuckDB + Parquet)
+  crosscheck.py                    an index against fs-inventory rollup, directory by directory
   index.py                         read-only queries over one snapshot index
   snapshots.py                     scanning, ingest, retention, the cache of open indexes
+  watch.py                         automatic ingest of new scans under a folder
+  onboard.py                       labs, people, memberships, and folder ownership from CSV
   auth.py, explore.py              identity and folder access; explore and report services
   serialize.py, api/               JSON views; FastAPI routers (identity, explore, admin, access)
   seed.py, cli.py, main.py         demo data, command line, app

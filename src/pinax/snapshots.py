@@ -1,24 +1,28 @@
 # SPDX-License-Identifier: Apache-2.0
 """Snapshots: running scans, ingesting them into indexes, retention, and the cache of open indexes."""
 
+import fcntl
 import json
 import logging
 import shutil
 import subprocess
 import threading
 from collections import OrderedDict
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
+import duckdb
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .categories import AGE_BUCKETS, CATEGORY_KEYS, bucket_edges
 from .config import Settings, get_settings
 from .db import utcnow
 from .index import SnapshotIndex, Stats
-from .ingest.build import BuildError, build_index, check_manifest, read_manifest
+from .ingest.build import INDEX_VERSION, BuildError, build_index, check_manifest, read_manifest
 from .models import AuditEvent, Filesystem, FolderStat, Snapshot, SnapshotStatus
 
 log = logging.getLogger("pinax.snapshots")
@@ -39,37 +43,50 @@ def cold_bucket(settings: Settings | None = None) -> int:
 
 # ---------- Open indexes ----------
 
+def _stamp(index_dir: str) -> tuple[int, int] | None:
+    try:
+        st = (Path(index_dir) / "index.duckdb").stat()
+    except OSError:
+        return None
+    return st.st_ino, st.st_mtime_ns
+
+
 class IndexCache:
-    """Keeps recently used snapshot indexes open (each is a read-only DuckDB connection)."""
+    """Keeps recently used snapshot indexes open (each is a read-only DuckDB connection). An index rebuilt since
+    it was opened (`pinax rebuild`, in another process) is a new file, and is opened again."""
 
     def __init__(self, size: int = 8):
         self.size = size
-        self._items: OrderedDict[int, SnapshotIndex] = OrderedDict()
+        self._items: OrderedDict[int, tuple[SnapshotIndex, tuple | None]] = OrderedDict()
         self._lock = threading.Lock()
 
     def get(self, snap: Snapshot) -> SnapshotIndex:
         with self._lock:
-            idx = self._items.get(snap.id)
-            if idx is not None:
+            stamp = _stamp(snap.index_dir)
+            item = self._items.get(snap.id)
+            if item is not None and item[1] == stamp:
                 self._items.move_to_end(snap.id)
-                return idx
+                return item[0]
+            if item is not None:
+                self._items.pop(snap.id)
+                item[0].close()
             s = get_settings()
             idx = SnapshotIndex(Path(snap.index_dir), memory_limit=s.query_memory_limit, threads=s.query_threads)
-            self._items[snap.id] = idx
+            self._items[snap.id] = (idx, stamp)
             while len(self._items) > self.size:
-                _, old = self._items.popitem(last=False)
+                _, (old, _) = self._items.popitem(last=False)
                 old.close()
             return idx
 
     def drop(self, snapshot_id: int) -> None:
         with self._lock:
-            idx = self._items.pop(snapshot_id, None)
-            if idx:
-                idx.close()
+            item = self._items.pop(snapshot_id, None)
+            if item:
+                item[0].close()
 
     def clear(self) -> None:
         with self._lock:
-            for idx in self._items.values():
+            for idx, _ in self._items.values():
                 idx.close()
             self._items.clear()
 
@@ -128,12 +145,70 @@ def find_filesystem_for(session: Session, root: str, slug: str | None) -> Filesy
     return session.scalar(select(Filesystem).where(Filesystem.root == root))
 
 
+@contextmanager
+def ingest_lock(settings: Settings) -> Iterator[None]:
+    """One ingest at a time per catalog: `pinax ingest`, `pinax scan`, and any number of watchers take this lock
+    (a file lock in VAR_ROOT), so two never build at once or claim the same scan."""
+    settings.ensure_dirs()
+    with open(settings.var_root / "ingest.lock", "a+") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
+
+
+def _scan_fields(snap: Snapshot, manifest: dict, scan_dir: Path) -> None:
+    finished = manifest.get("finished_at")
+    snap.scan_dir = str(scan_dir)
+    snap.finished_at = (datetime.fromisoformat(finished).astimezone(UTC).replace(tzinfo=None)
+                        if finished else None)
+    snap.scan_seconds = manifest.get("duration_seconds")
+    snap.scan_status = manifest.get("status", "")
+    snap.tool_version = manifest.get("tool_version", "")
+    snap.host = manifest.get("host", "")
+
+
+def _started(manifest: dict) -> datetime:
+    value = manifest.get("started_at")
+    return datetime.fromisoformat(value).astimezone(UTC).replace(tzinfo=None) if value else utcnow()
+
+
+def record_scan(session: Session, scan_dir: Path, manifest: dict, fs: Filesystem, status: str, message: str,
+                settings: Settings | None = None) -> Snapshot | None:
+    """Record a scan that was found but not loaded (SKIPPED or FAILED, with why), so it shows on *Scans* and is
+    not tried again automatically. Returns None if the scan is already recorded."""
+    with ingest_lock(settings or get_settings()):
+        if session.scalar(select(Snapshot.id).where(Snapshot.scan_id == manifest["scan_id"])) is not None:
+            return None
+        snap = Snapshot(filesystem_id=fs.id, scan_id=manifest["scan_id"], started_at=_started(manifest),
+                        status=status, message=message)
+        _scan_fields(snap, manifest, Path(scan_dir).resolve())
+        session.add(snap)
+        session.add(AuditEvent(action=f"snapshot.{status}", summary=f"Did not ingest a scan of {fs.name}: {message}",
+                               detail={"scan_dir": str(scan_dir), "scan_id": manifest["scan_id"]}))
+        session.commit()
+        return snap
+
+
 def ingest_scan(session: Session, scan_dir: Path, *, fs_slug: str | None = None, allow_incomplete: bool = False,
-                settings: Settings | None = None, progress: Callable[[str], None] = print) -> Snapshot:
-    """Build an index from a finished scan and register it as the filesystem's newest snapshot."""
+                only_new: bool = False, settings: Settings | None = None,
+                progress: Callable[[str], None] = print) -> Snapshot:
+    """Build an index from a finished scan and register it as the filesystem's newest snapshot. A scan recorded
+    earlier as failed, skipped, or building (an ingest that died) is built again, unless `only_new` (automatic
+    ingest); a ready one is refused."""
     settings = settings or get_settings()
-    scan_dir = Path(scan_dir).resolve()
-    manifest = read_manifest(scan_dir)
+    with ingest_lock(settings):
+        return _ingest(session, Path(scan_dir).resolve(), fs_slug=fs_slug, allow_incomplete=allow_incomplete,
+                       only_new=only_new, settings=settings, progress=progress)
+
+
+def _ingest(session: Session, scan_dir: Path, *, fs_slug: str | None, allow_incomplete: bool, only_new: bool,
+            settings: Settings, progress: Callable[[str], None]) -> Snapshot:
+    try:
+        manifest = read_manifest(scan_dir)
+    except BuildError as e:
+        raise IngestError(str(e)) from e
     try:
         check_manifest(manifest, allow_incomplete=allow_incomplete)
     except BuildError as e:
@@ -146,22 +221,22 @@ def ingest_scan(session: Session, scan_dir: Path, *, fs_slug: str | None = None,
         raise IngestError(f"scan root {root} does not match filesystem {fs.slug} ({fs.root})")
     existing = session.scalar(select(Snapshot).where(Snapshot.scan_id == manifest["scan_id"]))
     if existing is not None and existing.status == SnapshotStatus.READY:
-        raise IngestError(f"scan {manifest['scan_id']} is already snapshot {existing.id}")
+        raise IngestError(f"scan {manifest['scan_id']} is already snapshot {existing.id} "
+                          f"(build its index again with `pinax rebuild {existing.id}`)")
+    if existing is not None and only_new:
+        raise IngestError(f"scan {manifest['scan_id']} is already recorded as snapshot {existing.id} ({existing.status})")
 
-    started = datetime.fromisoformat(manifest["started_at"]).astimezone(UTC).replace(tzinfo=None)
-    finished = manifest.get("finished_at")
+    started = _started(manifest)
     snap = existing or Snapshot(filesystem_id=fs.id, scan_id=manifest["scan_id"], started_at=started)
-    snap.scan_dir = str(scan_dir)
     snap.status = SnapshotStatus.BUILDING
     snap.message = ""
-    snap.finished_at = (datetime.fromisoformat(finished).astimezone(UTC).replace(tzinfo=None)
-                        if finished else None)
-    snap.scan_seconds = manifest.get("duration_seconds")
-    snap.scan_status = manifest.get("status", "")
-    snap.tool_version = manifest.get("tool_version", "")
-    snap.host = manifest.get("host", "")
+    _scan_fields(snap, manifest, scan_dir)
     session.add(snap)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError as e:  # claimed by an ingest that does not take the lock (another catalog host)
+        session.rollback()
+        raise IngestError(f"scan {manifest['scan_id']} is already being ingested") from e
 
     index_dir = settings.snapshot_root / fs.slug / f"{started:%Y%m%dT%H%M%SZ}-{manifest['scan_id'][:8]}"
     try:
@@ -173,6 +248,18 @@ def ingest_scan(session: Session, scan_dir: Path, *, fs_slug: str | None = None,
         session.commit()
         raise
 
+    _record_build(session, snap, index_dir, result, manifest, settings)
+    snap.status = SnapshotStatus.READY
+    session.add(AuditEvent(action="snapshot.ingested",
+                           summary=f"Ingested scan of {fs.name} taken {started:%Y-%m-%d %H:%M} UTC",
+                           detail={"snapshot_id": snap.id, "scan_dir": str(scan_dir), "files": snap.files,
+                                   "bytes": snap.bytes, "build_seconds": snap.build_seconds}))
+    session.commit()
+    prune(session, fs, settings)
+    return snap
+
+
+def _record_build(session: Session, snap: Snapshot, index_dir: Path, result, manifest: dict, settings: Settings) -> None:
     t = result.totals
     snap.index_dir = str(index_dir)
     snap.ingested_at = utcnow()
@@ -182,16 +269,56 @@ def ingest_scan(session: Session, scan_dir: Path, *, fs_slug: str | None = None,
     snap.index_bytes = sum(p.stat().st_size for p in index_dir.rglob("*") if p.is_file())
     snap.info = {"steps": result.steps, "incomplete_dirs": t["incomplete_dirs"], "tops": t["tops"],
                  "categories": list(CATEGORY_KEYS), "age_buckets": [b.short for b in AGE_BUCKETS],
-                 "errors_by_kind": manifest.get("errors_by_kind", [])}
+                 "errors_by_kind": manifest.get("errors_by_kind", []), "index_version": INDEX_VERSION}
     session.flush()
     _record_folder_stats(session, snap, index_dir, settings)
-    snap.status = SnapshotStatus.READY
-    session.add(AuditEvent(action="snapshot.ingested",
-                           summary=f"Ingested scan of {fs.name} taken {started:%Y-%m-%d %H:%M} UTC",
-                           detail={"snapshot_id": snap.id, "scan_dir": str(scan_dir), "files": snap.files,
-                                   "bytes": snap.bytes, "build_seconds": snap.build_seconds}))
-    session.commit()
-    prune(session, fs, settings)
+
+
+def index_version(snap: Snapshot) -> int | None:
+    """The format version of a snapshot's index on disk; None if it is missing or unreadable."""
+    try:
+        idx = SnapshotIndex(Path(snap.index_dir), memory_limit="256MB", threads=1)
+    except (OSError, duckdb.Error):
+        return None
+    try:
+        return int(idx.meta.get("index_version", 0))
+    finally:
+        idx.close()
+
+
+def rebuild_snapshot(session: Session, snap: Snapshot, *, settings: Settings | None = None,
+                     progress: Callable[[str], None] = print) -> Snapshot:
+    """Build a ready snapshot's index again from its scan, in place: after an upgrade changes the index format,
+    or if the index was lost. The snapshot stays ready on its old index until the new one replaces it, and keeps
+    it if the build fails."""
+    settings = settings or get_settings()
+    with ingest_lock(settings):
+        session.refresh(snap)
+        if snap.status != SnapshotStatus.READY:
+            raise IngestError(f"snapshot {snap.id} is {snap.status}; only ready snapshots are rebuilt "
+                              "(ingest its scan with `pinax ingest`)")
+        scan_dir = Path(snap.scan_dir)
+        try:
+            manifest = read_manifest(scan_dir)
+        except BuildError as e:
+            raise IngestError(f"snapshot {snap.id}'s scan is gone: {e}") from e
+        if manifest.get("scan_id") != snap.scan_id:
+            raise IngestError(f"{scan_dir} now holds a different scan than snapshot {snap.id}")
+        index_dir = Path(snap.index_dir)
+        try:
+            result = build_index(scan_dir, index_dir, memory_limit=settings.build_memory_limit,
+                                 threads=settings.build_threads, allow_incomplete=snap.scan_status != "complete",
+                                 progress=progress)
+        except Exception as e:  # record it, keep the old index, then re-raise for the caller
+            snap.message = f"Rebuild failed; the previous index is still in use: {e}"
+            session.commit()
+            raise
+        _record_build(session, snap, index_dir, result, manifest, settings)
+        snap.message = ""
+        session.add(AuditEvent(action="snapshot.rebuilt", summary=f"Rebuilt the index of snapshot {snap.id}",
+                               detail={"snapshot_id": snap.id, "index_version": INDEX_VERSION,
+                                       "build_seconds": snap.build_seconds}))
+        session.commit()
     return snap
 
 

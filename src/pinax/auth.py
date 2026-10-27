@@ -7,6 +7,8 @@ authorization decision happens here, server-side: IT administrators see everythi
 sees only the top-level folders mapped to their active labs and departments.
 """
 
+import ipaddress
+import logging
 from dataclasses import dataclass, field
 
 from fastapi import Depends, HTTPException, Request, status
@@ -18,6 +20,7 @@ from .db import get_session
 from .models import Lab, LabFolder, LabMembership, User
 
 DEMO_COOKIE = "pinax_user"
+log = logging.getLogger("pinax.auth")
 
 
 @dataclass
@@ -49,6 +52,11 @@ def _load_user(session: Session, username: str) -> User | None:
 def current_identity(request: Request, session: Session = Depends(get_session)) -> Identity:
     settings = get_settings()
     if settings.auth_mode == "header":
+        if not from_trusted_proxy(request, settings.trusted_proxies):
+            # Anyone could send the header; only the sign-on proxy's word counts.
+            log.warning("ignored a sign-on header from %s, which is not a trusted proxy",
+                        request.client.host if request.client else "?")
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Sign in through the single sign-on proxy")
         username = request.headers.get(settings.auth_header, "")
     else:
         username = request.cookies.get(DEMO_COOKIE, "") or request.headers.get("X-Pinax-User", "")
@@ -60,6 +68,24 @@ def current_identity(request: Request, session: Session = Depends(get_session)) 
     if not user.active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "This account has been deactivated")
     return identity_for(user)
+
+
+def from_trusted_proxy(request: Request, trusted: list[str]) -> bool:
+    """Whether the request came straight from one of the `trusted` addresses or networks. A request over a Unix
+    socket has no address, and only local processes can make one."""
+    if request.client is None:
+        return True
+    try:
+        addr = ipaddress.ip_address(request.client.host)
+    except ValueError:
+        return False
+    for net in trusted:
+        try:
+            if addr in ipaddress.ip_network(net, strict=False):
+                return True
+        except ValueError:
+            log.error("PINAX_TRUSTED_PROXIES entry %r is not an address or network", net)
+    return False
 
 
 def identity_for(user: User) -> Identity:

@@ -139,7 +139,7 @@ function detailPanel(node, data, q, cb) {
   const sparse = s.alloc > 0 && s.alloc < s.bytes * 0.5; // compressed, deduplicated, sparse, or tiered
   return html`<aside class="card detail" aria-label="About this folder">
     <h2>${node.name}</h2>
-    ${node.path ? html`<div class="path muted">${displayPath(node.fs, node.path)}</div>` : ""}
+    ${node.path ? html`<div class="path muted clamp" title="${displayPath(node.fs, node.path)}">${displayPath(node.fs, node.path)}</div>` : ""}
     ${node.lab ? html`<span class="tag">${icon("users")}${node.lab.name}</span>` : ""}
     <div class="mini-kpis">
       <div><b>${bytes(s.bytes)}</b><span>Size${sparse ? ` (${bytes(s.alloc)} on disk)` : ""}</span></div>

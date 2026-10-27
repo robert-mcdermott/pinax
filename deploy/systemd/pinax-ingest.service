@@ -1,0 +1,36 @@
+# Automatic ingest: each new scan under PINAX_SCAN_ROOT, once (docs/DEPLOYMENT.md, "Scans").
+[Unit]
+Description=Pinax automatic ingest of new scans
+Documentation=https://github.com/robert-mcdermott/pinax/blob/main/docs/DEPLOYMENT.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pinax
+Group=pinax
+WorkingDirectory=/opt/pinax
+EnvironmentFile=/etc/pinax/pinax.env
+ExecStart=/opt/pinax/.venv/bin/pinax ingest --watch --interval 300
+Restart=on-failure
+RestartSec=30
+# Building an index uses up to PINAX_BUILD_MEMORY_LIMIT and every core; let the web app come first.
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/lib/pinax
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

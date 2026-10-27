@@ -9,14 +9,34 @@ class Safe {
 }
 const ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 export const esc = (v) => String(v).replace(/[&<>"']/g, (c) => ESC[c]);
-const render = (v) => {
+
+// File names can hold control characters (a newline shows as a space) and bidirectional overrides (which make
+// "report‮txt.exe" display as "reportexe.txt"). Displayed text shows them as escapes, as fs-inventory's
+// CSV does. Attribute values keep the exact text, because some are read back (data-map).
+const INVISIBLE = /[\u0000-\u001f\u007f-\u009f؜‎‏‪-‮⁦-⁩]/g;
+const NAMED = { "\n": "\\n", "\t": "\\t", "\r": "\\r" };
+const hex = (c, n) => c.charCodeAt(0).toString(16).toUpperCase().padStart(n, "0");
+export const visible = (v) => String(v).replace(INVISIBLE, (c) =>
+  NAMED[c] ?? (c.charCodeAt(0) < 0x100 ? `\\x${hex(c, 2)}` : `\\u${hex(c, 4)}`));
+
+const render = (v, inAttr) => {
   if (v == null || v === false) return "";
   if (v instanceof Safe) return v.s;
-  if (Array.isArray(v)) return v.map(render).join("");
-  return esc(v);
+  if (Array.isArray(v)) return v.map((x) => render(x, inAttr)).join("");
+  return esc(inAttr ? v : visible(v));
 };
-export const html = (strings, ...vals) =>
-  new Safe(strings.reduce((out, s, i) => out + s + (i < vals.length ? render(vals[i]) : ""), ""));
+// Inside a double-quoted attribute when the template text so far has an odd number of quotes (values are
+// escaped, so only the template text has quotes).
+const quotes = (s) => s.split('"').length - 1;
+export const html = (strings, ...vals) => {
+  let out = "", n = 0;
+  strings.forEach((s, i) => {
+    out += s;
+    n += quotes(s);
+    if (i < vals.length) out += render(vals[i], n % 2 === 1);
+  });
+  return new Safe(out);
+};
 export const raw = (s) => new Safe(String(s));
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];

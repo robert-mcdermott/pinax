@@ -125,6 +125,7 @@ class SnapshotStatus:
     READY = "ready"
     FAILED = "failed"
     PRUNED = "pruned"  # index deleted by retention; folder history kept
+    SKIPPED = "skipped"  # found by automatic ingest but not loaded (an incomplete or failed scan); see message
 
 
 class Snapshot(Base):
@@ -190,6 +191,17 @@ class FolderStat(Base):
     incomplete: Mapped[int] = mapped_column(BigInteger, default=0)
     age_bytes: Mapped[list[int]] = mapped_column(JSON, default=list)  # bytes per age bucket (mtime)
     cat_bytes: Mapped[dict[str, int]] = mapped_column(JSON, default=dict)  # bytes per file category
+
+
+class Heartbeat(Base):
+    """The latest word from a long-running process, such as `pinax ingest --watch`, so the interface can say
+    whether it is running."""
+
+    __tablename__ = "heartbeat"
+
+    name: Mapped[str] = mapped_column(String(64), primary_key=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    detail: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
 
 class AuditEvent(Base):

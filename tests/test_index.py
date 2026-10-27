@@ -2,8 +2,9 @@
 """Queries over an index: children with folding, subtree types, cold folders, and search patterns."""
 
 import pytest
-from conftest import ROOT
+from conftest import FILES, ROOT
 
+from pinax.categories import bucket_edges
 from pinax.index import SnapshotIndex, Stats, child_range, pattern_to_like
 from pinax.ingest.build import build_index
 
@@ -45,8 +46,7 @@ def test_types_over_a_deep_subtree(idx):
 
 
 def test_cold_folders_are_maximal(idx):
-    cutoff = idx.ref_epoch - 3 * 365.25 * 86400
-    res = idx.cold_dirs(ROOT + "/alpha_lab", cutoff)
+    res = idx.cold_dirs(ROOT + "/alpha_lab", 4)  # three years or more
     paths = {r["path"] for r in res["rows"]}
     # 2015_old is cold as a whole, so its reads/ subfolder is not listed separately; legacy/ is cold
     # inside an active project.
@@ -68,3 +68,41 @@ def test_files_in_one_top_folder_only(idx):
     names = {f["name"] for f in idx.files(ROOT + "/alpha_lab", limit=100)}
     assert "brain.nii.gz" not in names  # alpha_lab2 shares a prefix but is another folder
     assert "run1.bam" in names
+
+
+def _brute_cold(place: str, older: int) -> tuple[set[str], int]:
+    """Maximal cold folders at or below `place`, straight from the file list: folders whose every file is at
+    least as old as the threshold, and whose parent has a newer one (or is above `place`)."""
+    edge = bucket_edges()[older - 1]
+    rel = place[len(ROOT) + 1:] if place != ROOT else ""
+    dirs = {""} | {"/".join(f["path"].split("/")[:i]) for f in FILES for i in range(1, f["path"].count("/") + 1)}
+
+    def under(d: str) -> list[dict]:
+        return [f for f in FILES if not d or f["path"].startswith(d + "/")]
+
+    def cold(d: str) -> bool:
+        fs = under(d)
+        return bool(fs) and all(f["age_days"] >= edge for f in fs)
+
+    def parent(d: str) -> str:
+        return d.rsplit("/", 1)[0] if "/" in d else ""
+
+    inside = [d for d in dirs if d == rel or (not rel and d) or d.startswith(rel + "/")]
+    units = {d for d in inside if cold(d) and (d == rel or not cold(parent(d)))}
+    full = {f"{ROOT}/{d}" if d else ROOT for d in units}
+    return full, sum(f["size"] for d in units for f in under(d))
+
+
+@pytest.mark.parametrize("older", range(1, 7))
+def test_precomputed_cold_folders_match_brute_force(idx, older):
+    assert idx.has_cold_units
+    places = [ROOT, ROOT + "/alpha_lab", ROOT + "/alpha_lab/projects", ROOT + "/alpha_lab/projects/2015_old",
+              ROOT + "/beta_lab", ROOT + "/beta_lab/imaging", ROOT + "/orphans"]
+    for place in places:
+        res = idx.cold_dirs(place, older)
+        paths, total = _brute_cold(place, older)
+        assert {r["path"] for r in res["rows"]} == paths, (place, older)
+        assert (res["count"], res["bytes"]) == (len(paths), total), (place, older)
+        # The same as joining every directory with its parent at query time (indexes before version 3).
+        legacy = idx._cold_scan(place, idx.ref_epoch - bucket_edges()[older - 1] * 86400)
+        assert {r["path"] for r in legacy["rows"]} == paths and legacy["bytes"] == total, (place, older)

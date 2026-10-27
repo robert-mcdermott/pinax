@@ -29,8 +29,9 @@ class Settings(BaseSettings):
     scan_threads: int = 32
     scan_extra_args: list[str] = []
 
-    # Building snapshot indexes. DuckDB uses this much memory and these threads, spilling to
-    # VAR_ROOT/tmp beyond the memory limit. 0 threads means one per CPU.
+    # Building snapshot indexes. DuckDB uses this much memory and these threads, spilling beside the index
+    # beyond the memory limit. 0 threads means one per CPU; steps that read the scan use fewer if the memory
+    # limit requires. More memory doesn't make the build faster (measured at 100 million files).
     build_memory_limit: str = "8GB"
     build_threads: int = 0
     # Snapshots kept per filesystem; older indexes are deleted, their folder history is kept.
@@ -45,9 +46,11 @@ class Settings(BaseSettings):
     # Reporting defaults. Data counts as cold when nothing in it has changed for this many days.
     cold_days: int = 730
 
-    # Identity. "demo" uses a persona cookie; "header" trusts X-Remote-User from an SSO proxy.
+    # Identity. "demo" uses a persona cookie; "header" trusts a username header (X-Remote-User by default) set
+    # by a single sign-on proxy, and only on requests from TRUSTED_PROXIES (addresses or networks; a JSON list).
     auth_mode: Literal["demo", "header"] = "demo"
     auth_header: str = "X-Remote-User"
+    trusted_proxies: list[str] = ["127.0.0.1", "::1"]
 
     @property
     def db_url(self) -> str:

@@ -164,9 +164,15 @@ class SnapshotIndex:
         tops = self._con.execute("SELECT top_id, name, path FROM tops ORDER BY top_id").fetchall()
         self.top_ids = {name: tid for tid, name, _ in tops}
         self.top_names = {tid: name for tid, name, _ in tops}
-        self.parts = {
-            tid for (tid,) in self._con.execute("SELECT top_id FROM file_parts WHERE files > 0").fetchall()
-        }
+        # Where each top-level folder's files are: a group folder (gNNNNNN, index version 3), or, in older
+        # indexes, a folder of its own (tNNNNNN).
+        cols = {r[0] for r in self._con.execute("DESCRIBE file_parts").fetchall()}
+        rows = self._con.execute(
+            f"SELECT top_id, {'grp' if 'grp' in cols else 'NULL'} FROM file_parts WHERE files > 0").fetchall()
+        self.parts = {tid: f"g{grp:06d}" if grp is not None else f"t{tid:06d}" for tid, grp in rows}
+        # Indexes before version 3 have no precomputed cold folders; they are found at query time instead.
+        self.has_cold_units = bool(self._con.execute(
+            "SELECT count(*) FROM duckdb_tables() WHERE table_name = 'cold_units'").fetchone()[0])
 
     def close(self) -> None:
         self._con.close()
@@ -210,7 +216,8 @@ class SnapshotIndex:
         return self.prefix + name
 
     def file_sources(self, top_ids: Iterable[int]) -> str | None:
-        globs = [str(self.index_dir / "files" / f"t{t:06d}" / "*.parquet") for t in sorted(set(top_ids)) if t in self.parts]
+        folders = sorted({self.parts[t] for t in top_ids if t in self.parts})
+        globs = [str(self.index_dir / "files" / f / "*.parquet") for f in folders]
         if not globs:
             return None
         return "read_parquet([" + ", ".join("'" + g.replace("'", "''") + "'" for g in globs) + "])"
@@ -236,25 +243,29 @@ class SnapshotIndex:
         rows = self._rows(
             f"SELECT {DIR_COLUMNS} FROM dirs WHERE depth = ? AND path >= ? AND path < ? "
             f"ORDER BY {expr} DESC, path LIMIT ?", [depth + 1, lo, hi, limit], ROW_KEYS)
-        agg = ", ".join([f"sum({k}) AS {k}" for k in SUM_KEYS]
-                        + [f"{fn}(epoch({k})) AS {k}" for k, fn in EXTREMES.items()])
-        all_sum, rest = self._child_sums(agg, depth + 1, lo, hi, expr, limit)
+        ids = [r["dir_id"] for r in rows]
+        all_sum, rest = self._child_sums(depth + 1, lo, hi, ids)
         out = {"rows": rows, "all": all_sum, "rest": rest}
         if grand_limit and rows:
-            out["grand"] = self._grandchildren(path, depth, expr, grand_limit)
+            out["grand"] = self._grandchildren(path, depth, expr, grand_limit, ids)
         return out
 
-    def _child_sums(self, agg: str, depth: int, lo: str, hi: str, expr: str, limit: int) -> tuple[dict, dict]:
+    def _child_sums(self, depth: int, lo: str, hi: str, listed: list[int]) -> tuple[dict, dict]:
+        """Totals over all the children, and over those not listed. One aggregate pass split by whether a child
+        is listed, rather than ranking every child: a folder can have hundreds of thousands of subfolders."""
         keys = ["n"] + SUM_KEYS + list(EXTREMES)
-        sql = f"""
-            WITH c AS (SELECT *, row_number() OVER (ORDER BY {expr} DESC, path) AS rn
-                       FROM dirs WHERE depth = ? AND path >= ? AND path < ?)
-            SELECT 'all' AS which, count(*) AS n, {agg} FROM c
-            UNION ALL
-            SELECT 'rest', count(*), {agg} FROM c WHERE rn > ?
-        """
-        res = {r[0]: dict(zip(keys, r[1:])) for r in self._raw(sql, [depth, lo, hi, limit])}
-        return res["all"], res["rest"]
+        agg = ", ".join([f"sum({k})" for k in SUM_KEYS] + [f"{fn}(epoch({k}))" for k, fn in EXTREMES.items()])
+        res = {bool(r[0]): dict(zip(keys, r[1:])) for r in self._raw(
+            f"SELECT list_contains(?::BIGINT[], dir_id), count(*), {agg} FROM dirs "
+            "WHERE depth = ? AND path >= ? AND path < ? GROUP BY 1", [listed, depth, lo, hi])}
+        empty = {"n": 0, **{k: None for k in SUM_KEYS + list(EXTREMES)}}
+        parts = [res[k] for k in (True, False) if k in res]
+        if not parts:
+            return dict(empty), dict(empty)
+        total = Stats.zero()
+        for x in parts:
+            total = total.add(Stats.from_row(x))
+        return {"n": sum(x["n"] for x in parts), **total.values}, res.get(False, dict(empty))
 
     def _raw(self, sql: str, params: list) -> list[tuple]:
         cur = self._cursor()
@@ -263,21 +274,22 @@ class SnapshotIndex:
         finally:
             cur.close()
 
-    def _grandchildren(self, path: str, depth: int, expr: str, limit: int) -> dict[int, dict]:
+    def _grandchildren(self, path: str, depth: int, expr: str, limit: int, parents: list[int]) -> dict[int, dict]:
+        """The largest children of each listed child (`parents`); the others are not drawn."""
         lo, hi = child_range(path)
         rows = self._rows(f"""
             WITH g AS (SELECT {DIR_COLUMNS}, {expr} AS m,
                               row_number() OVER (PARTITION BY parent_id ORDER BY {expr} DESC, path) AS rn
-                       FROM dirs WHERE depth = ? AND path >= ? AND path < ?)
+                       FROM dirs WHERE depth = ? AND path >= ? AND path < ? AND list_contains(?::BIGINT[], parent_id))
             SELECT * EXCLUDE (m) FROM g WHERE rn <= ? ORDER BY parent_id, rn
-        """, [depth + 2, lo, hi, limit])
+        """, [depth + 2, lo, hi, parents, limit])
         # Group by (parent, beyond-the-limit) rather than using FILTER aggregates: one pass, and far faster.
         agg = ", ".join([f"sum({k})" for k in SUM_KEYS] + [f"{fn}(epoch({k}))" for k, fn in EXTREMES.items()])
         sums = self._raw(f"""
             WITH g AS (SELECT *, (row_number() OVER (PARTITION BY parent_id ORDER BY {expr} DESC, path) > ?) AS rest
-                       FROM dirs WHERE depth = ? AND path >= ? AND path < ?)
+                       FROM dirs WHERE depth = ? AND path >= ? AND path < ? AND list_contains(?::BIGINT[], parent_id))
             SELECT parent_id, rest, count(*), {agg} FROM g GROUP BY parent_id, rest
-        """, [limit, depth + 2, lo, hi])
+        """, [limit, depth + 2, lo, hi, parents])
         keys = SUM_KEYS + list(EXTREMES)
         out: dict[int, dict] = {}
         for r in rows:
@@ -304,9 +316,32 @@ class SnapshotIndex:
         return self._rows(f"SELECT {DIR_COLUMNS} FROM dirs WHERE {cond} ORDER BY {order} LIMIT ?",
                           [lo, hi, *(params or []), limit], ROW_KEYS)
 
-    def cold_dirs(self, path: str, cutoff_epoch: float, *, min_bytes: int = 0, limit: int = 200) -> dict:
-        """The largest directories below `path` in which no file changed after `cutoff_epoch`, whose
-        parent did have a newer change (or is `path` itself): each is a self-contained cold unit."""
+    def cold_dirs(self, path: str, older: int, *, min_bytes: int = 0, limit: int = 200) -> dict:
+        """The largest directories at or below `path` in which every file is in age bucket `older` or older, and
+        whose parent holds a newer file (or is above `path`): each is a self-contained cold unit."""
+        if not self.has_cold_units:
+            edge_days = [b.max_days for b in AGE_BUCKETS if b.max_days][older - 1]
+            return self._cold_scan(path, self.ref_epoch - edge_days * DAY, min_bytes=min_bytes, limit=limit)
+        node = self.node(path)
+        if node is None:
+            return {"rows": [], "count": 0, "bytes": 0, "files": 0}
+        if node["files"] > 0 and node["mtime_max"] is not None and not sum(node[f"mf{i}"] for i in range(older)):
+            # The folder itself is cold: it is the one unit.
+            rows = [node] if node["bytes"] >= min_bytes else []
+            return {"rows": rows, "count": 1, "bytes": int(node["bytes"]), "files": int(node["files"])}
+        # Not cold, so neither is anything above it, and the units below it are the filesystem's units there.
+        lo, hi = child_range(path)
+        units = "SELECT dir_id, depth, path, files, bytes FROM cold_units WHERE bucket = ? AND path >= ? AND path < ?"
+        params = [older, lo, hi]
+        total = self._one(f"SELECT count(*), coalesce(sum(bytes), 0), coalesce(sum(files), 0) FROM ({units})", params)
+        rows = self._rows(
+            f"SELECT {dir_columns('d')} FROM (SELECT * FROM ({units}) WHERE bytes >= ? ORDER BY bytes DESC LIMIT ?) u "
+            "JOIN dirs d ON d.depth = u.depth AND d.path = u.path ORDER BY u.bytes DESC, d.path",
+            [*params, min_bytes, limit], ROW_KEYS)
+        return {"rows": rows, "count": int(total[0]), "bytes": int(total[1]), "files": int(total[2])}
+
+    def _cold_scan(self, path: str, cutoff_epoch: float, *, min_bytes: int = 0, limit: int = 200) -> dict:
+        """`cold_dirs` for indexes without `cold_units`: joins every directory below `path` with its parent."""
         lo, hi = child_range(path)
         depth = self.depth_of(path)
         base = """

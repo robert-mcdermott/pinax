@@ -30,8 +30,8 @@ uvx ruff check src tests bench
 ```
 
 Use `uv` for everything: `uv add <package>` for dependencies and `uv run` for scripts. Tests create their own
-temporary catalog and snapshot folders and never touch the demo. The end-to-end test runs the real
-fs-inventory binary and is skipped when it is not installed.
+temporary catalog and snapshot folders and never touch the demo. The end-to-end test and the rollup
+cross-check tests run the real fs-inventory binary and are skipped when it is not installed.
 
 ## Code layout
 
@@ -42,8 +42,11 @@ src/pinax/
   models.py        catalog schema: people, labs, folder ownership, filesystems, snapshots, folder history, audit
   categories.py    file categories, type normalization, age buckets
   ingest/build.py  fs-inventory scan -> snapshot index (DuckDB SQL)
+  crosscheck.py    `pinax check`: every directory of an index against fs-inventory rollup
   index.py         SnapshotIndex: read-only queries over one index; Stats: additive totals
-  snapshots.py     running scans, ingest, retention, the cache of open indexes
+  snapshots.py     running scans, ingest (one at a time, under a file lock), retention, the cache of open indexes
+  watch.py         `pinax ingest --watch`: each new scan under a folder once, and a heartbeat for *Scans*
+  onboard.py       `pinax import`: labs, people, memberships, and folder ownership from CSV (docs/IMPORT.md)
   auth.py          identity (demo cookie or SSO header) and folder access
   explore.py       explore and report services: resolving places, merging results across places
   serialize.py     JSON views of catalog objects
@@ -65,7 +68,13 @@ tests/             pytest suite; scanfix.py writes exact fs-inventory-shaped sca
   (`METRICS`, `FILE_SORTS`). Never interpolate request input into SQL.
 - **The index is immutable.** A snapshot index is never changed after it is built; build a new one instead.
   New per-directory measures go in `ADDITIVE` or `EXTREMES` in `ingest/build.py`, which flow through the
-  roll-up, `Stats`, and the API automatically. Bump `INDEX_VERSION` when the layout changes.
+  roll-up, `Stats`, and the API automatically. Bump `INDEX_VERSION` when the layout or a measure's meaning
+  changes.
+- **The index must agree with fs-inventory.** A change to the build keeps `uv run pinax check` passing on the
+  demo scans and on a synthetic scan (see Benchmarks). A measure fs-inventory rollup also computes is added to
+  `_measures()` in `crosscheck.py`.
+- **Age buckets use whole microseconds** (`epoch_us`), never fractional days, so a file exactly on an edge is
+  in the older bucket, as in fs-inventory rollup.
 - **Times** come out of DuckDB as epoch seconds (`epoch(...)`), never as timezone-aware values.
 - **Schema changes** to the catalog: edit `models.py`, then re-seed (`uv run pinax seed`). There are no
   migrations yet; Alembic must be added before production data exists.
@@ -139,7 +148,24 @@ navy in the header, `img/pinax-logo.svg` (mark and wordmark) where there is room
 
 `bench/synth_scan.py` writes a synthetic fs-inventory scan of any size in DuckDB (ten million files in about
 twenty seconds); `bench/bench_index.py` builds an index from it and times the queries the interface makes.
-Use them to check that a change keeps directory-level queries flat as scans grow.
+Use them to check that a change keeps directory-level queries flat as scans grow. `uv run pinax check SCAN_DIR`
+builds a temporary index from the same scan and compares every directory with fs-inventory rollup.
+
+`synth_scan.py --wide N --deep D` adds what real filesystems have and the model lacks: a folder of N files, a
+folder of N/10 subfolders, and a chain D folders deep. `bench_index.py` prints the scan's shape (counts only:
+depth, widest folders, longest path, flagged names, links, mount points) and the query timings, never a path or
+a name, so a run on a real filesystem can be recorded as it is (`--json FILE` saves it).
+
+## Deployment files
+
+`deploy/` holds what `docs/DEPLOYMENT.md` installs: the systemd units, `pinax.env`, and an oauth2-proxy
+configuration. `tests/test_deploy.py` checks that each unit's command is one `pinax` accepts and that the settings
+they name exist. `scripts/sso-check.py --oauth2-proxy PATH` runs a real oauth2-proxy against a stand-in OpenID
+Connect provider on this machine and checks header mode end to end.
+
+The interface shows control characters and bidirectional overrides in names as escapes (`visible()` in
+`core.js`, applied to every value `html` puts in text). Attribute values keep the exact text, since some are
+read back.
 
 ## Demo data
 

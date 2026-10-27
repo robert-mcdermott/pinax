@@ -35,11 +35,13 @@ CATEGORIES: tuple[Category, ...] = (
         "tif", "tiff", "ome.tif", "ome.tiff", "nd2", "czi", "lif", "lsm", "ims", "oib", "oif", "svs", "ndpi", "scn",
         "mrxs", "vsi", "dcm", "dicom", "nii", "nrrd", "mha", "mhd", "mrc", "mrcs", "em", "dm3", "dm4", "tia", "ser",
         "eer", "zarr", "png", "jpg", "jpeg", "bmp", "gif", "jp2", "fcs", "stk", "ics", "ids", "spe", "sld", "xdce",
+        "heic", "heif", "webp", "jfif", "cr2", "cr3", "nef", "arw", "dng", "orf", "rw2", "insp",
     )),
     Category("tabular", "Tabular and array data", "Spreadsheets, data frames, arrays, and scientific containers", (
         "csv", "tsv", "tab", "xlsx", "xls", "parquet", "feather", "arrow", "orc", "avro", "json", "jsonl", "ndjson",
         "xml", "h5", "hdf5", "hdf", "he5", "nc", "netcdf", "mat", "npy", "npz", "rds", "rdata", "rda", "sav", "dta",
         "sas7bdat", "xpt", "db", "sqlite", "sqlite3", "duckdb", "pkl", "pickle", "fst", "qs", "yaml", "yml", "dat",
+        "xlsm", "xlsb", "accdb", "mdb",
     )),
     Category("massspec", "Mass spectrometry", "Instrument raw files and processed spectra", (
         "raw", "mzml", "mzxml", "mzdata", "mgf", "wiff", "wiff2", "wiff.scan", "baf", "tdf", "tdf_bin", "yep", "d",
@@ -57,17 +59,20 @@ CATEGORIES: tuple[Category, ...] = (
         "py", "r", "rmd", "qmd", "ipynb", "sh", "bash", "zsh", "pl", "pm", "java", "c", "h", "cc", "cpp", "hpp", "cxx",
         "f", "f90", "f95", "js", "ts", "go", "rs", "jl", "m", "sql", "nf", "wdl", "smk", "cwl", "scala", "rb", "lua",
         "awk", "sed", "mk", "cmake", "slurm", "sbatch", "pbs", "sas", "do", "class", "jar", "so", "o", "a", "pyc",
+        "exe", "dll", "dylib",
     )),
     Category("documents", "Documents and text", "Papers, slides, notes, and plain text", (
         "pdf", "doc", "docx", "ppt", "pptx", "odt", "odp", "ods", "rtf", "txt", "md", "rst", "tex", "bib", "html", "htm",
         "epub", "key", "pages", "numbers", "msg", "eml", "ai", "eps", "ps", "svg", "indd", "psd",
+        "vsd", "vsdx", "emf", "wmf", "oft", "one",
     )),
     Category("media", "Video and audio", "Recordings and instrument video", (
         "mp4", "mov", "avi", "mkv", "wmv", "m4v", "mpg", "mpeg", "webm", "wav", "mp3", "flac", "aac", "m4a", "ogg",
-        "aiff", "aif",
+        "aiff", "aif", "insv", "lrv", "mts", "m2ts", "3gp",
     )),
     Category("containers", "Containers and disk images", "Container images, virtual machines, and disk images", (
         "sif", "simg", "img", "iso", "qcow2", "vmdk", "vdi", "vhd", "vhdx", "ova", "ovf", "dmg", "docker",
+        "asif", "sparseimage",
     )),
     Category("transient", "Logs and temporary", "Logs, job output, swap, backup, and temporary files", (
         "log", "out", "err", "tmp", "temp", "bak", "swp", "swo", "old", "orig", "lock", "pid", "core", "dump", "trace",

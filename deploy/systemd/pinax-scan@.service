@@ -1,0 +1,32 @@
+# One fs-inventory scan of a registered filesystem, by its slug (pinax-scan@fast.service); started by its timer.
+# The scan lands in PINAX_SCAN_ROOT, and pinax-ingest picks it up.
+[Unit]
+Description=fs-inventory scan of the %i filesystem for Pinax
+Documentation=https://github.com/robert-mcdermott/pinax/blob/main/docs/DEPLOYMENT.md
+
+[Service]
+Type=oneshot
+User=pinax
+Group=pinax
+WorkingDirectory=/opt/pinax
+EnvironmentFile=/etc/pinax/pinax.env
+ExecStart=/opt/pinax/.venv/bin/pinax scan %i --no-ingest
+# Reading every directory's entries and every file's metadata, as the pinax user, needs this one capability.
+# fs-inventory never opens file contents.
+AmbientCapabilities=CAP_DAC_READ_SEARCH
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH
+Nice=10
+IOSchedulingClass=idle
+
+# No ProtectHome: the filesystem being scanned may be anywhere.
+NoNewPrivileges=true
+ProtectSystem=strict
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/lib/pinax
+UMask=0027
