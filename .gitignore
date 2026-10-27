@@ -1,0 +1,16 @@
+.DS_Store
+.venv
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.claude/settings.local.json
+
+# fs-inventory binary (scripts/install-fs-inventory.sh)
+/bin/
+
+# Pinax runtime data: catalog, snapshot indexes, scans, demo filesystems
+/var/
+/scans/
+/demo/
