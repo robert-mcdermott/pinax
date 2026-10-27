@@ -51,9 +51,14 @@ Settings are `PINAX_*` environment variables, or a `.env` file in the folder you
 
 | Setting | Default | What it does |
 |---|---|---|
-| `PINAX_AUTH_MODE` | `demo` | `demo`: a persona switcher sets a cookie. `header`: trust the username in `AUTH_HEADER`, set by a single sign-on proxy |
+| `PINAX_AUTH_MODE` | `demo` | How people sign in. `demo`: a persona switcher, anyone can be anyone, for showing Pinax with the seeded people (refused when `PINAX_ENVIRONMENT=prod`). `local`: usernames and passwords Pinax keeps, for sites without single sign-on. `header`: trust the username in `AUTH_HEADER`, set by a single sign-on proxy such as oauth2-proxy in front of Entra ID |
 | `PINAX_AUTH_HEADER` | `X-Remote-User` | The header the proxy sets the username in; behind oauth2-proxy, `X-Forwarded-Preferred-Username`, `X-Forwarded-Email`, or `X-Forwarded-User` |
 | `PINAX_TRUSTED_PROXIES` | `["127.0.0.1", "::1"]` | In header mode, the addresses or networks (a JSON list, such as `'["10.1.2.3", "10.8.0.0/16"]'`) the header is believed from; from anywhere else a request gets 401 |
+| `PINAX_SESSION_HOURS` | `12` | Local sign-in: how long a session lasts from signing in |
+| `PINAX_LOGIN_MAX_FAILURES` | `5` | Local sign-in: failed sign-ins in a row that lock an account |
+| `PINAX_LOGIN_LOCKOUT_MINUTES` | `15` | Local sign-in: how long a locked account stays locked (a new temporary password unlocks it at once) |
+| `PINAX_PASSWORD_MIN_LENGTH` | `12` | Local sign-in: the shortest password allowed (it also may not contain the username) |
+| `PINAX_COOKIE_SECURE` | unset | Local sign-in: mark the session cookie Secure, so it is sent only over HTTPS. Unset means yes when `PINAX_ENVIRONMENT=prod`, no otherwise |
 
 ## Dimensions
 

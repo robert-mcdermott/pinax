@@ -30,7 +30,7 @@ def public_config(session: Session = Depends(get_session)):
         "filesystems": [fs_json(f) for f in filesystems],
         "app_name": s.app_name, "version": __version__, "environment": s.environment, "auth_mode": s.auth_mode,
         "cold_bucket": cold_bucket(s), "metrics": list(METRICS), "search_max_rows": s.search_max_rows,
-        "export_max_rows": s.export_max_rows, **dimensions(),
+        "export_max_rows": s.export_max_rows, "password_min_length": s.password_min_length, **dimensions(),
     }
 
 

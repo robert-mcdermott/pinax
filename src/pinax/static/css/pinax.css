@@ -315,6 +315,18 @@ svg.i { width: 1.1em; height: 1.1em; vertical-align: -0.18em; flex: none; }
 }
 .persona:hover, .persona:focus-visible { background: var(--surface-2); }
 .persona.current { background: var(--accent-tint); }
+.menu-item {
+  display: flex; gap: 10px; align-items: center; width: 100%; padding: 8px 10px; border: 0; background: none;
+  text-align: left; border-radius: var(--radius); cursor: pointer; font: inherit; font-size: 14px; color: inherit;
+}
+.menu-item:hover, .menu-item:focus-visible { background: var(--surface-2); }
+.menu-item svg { width: 16px; height: 16px; color: var(--accent-icon); }
+/* A form's own error, beside the fields it is about. */
+.form-error { margin: 0 0 14px; padding: 8px 12px; font-size: 13.5px; color: var(--text); background: var(--warn-bg);
+  border-left: 4px solid var(--warn-border); border-radius: 0 var(--radius) var(--radius) 0; }
+/* A secret shown once: large, monospaced, easy to select. */
+.secret { font-family: var(--fh-font-mono); font-size: 20px; letter-spacing: 0.04em; padding: 12px 14px; margin: 8px 0;
+  background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius); user-select: all; overflow-wrap: anywhere; }
 .persona .who { font-weight: 700; font-size: 14px; }
 .persona .what { font-size: 12px; color: var(--text-muted); }
 .menu-link { display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: var(--radius); color: var(--text); }
@@ -584,8 +596,8 @@ pre.json { background: var(--surface-2); color: var(--text); border: 1px solid v
 .tab { background: none; border: 0; border-bottom: 3px solid transparent; padding: 10px 16px; font: inherit; font-weight: 500; color: var(--text-muted); cursor: pointer; white-space: nowrap; }
 .tab:hover { color: var(--text); }
 .tab.active { color: var(--accent-text); border-bottom-color: var(--accent); font-weight: 700; }
-.pills { display: inline-flex; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--pill); padding: 3px; gap: 2px; }
-.pills button { border: 0; background: none; padding: 6px 14px; border-radius: var(--pill); font: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer; color: var(--text); }
+.pills { display: inline-flex; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--pill); padding: 3px; gap: 2px; max-width: 100%; overflow-x: auto; }
+.pills button { border: 0; background: none; padding: 6px 14px; border-radius: var(--pill); font: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer; color: var(--text); white-space: nowrap; }
 .pills button.active { background: var(--strong); color: var(--on-strong); }
 
 /* ---------- Empty states, skeletons ---------- */
@@ -805,6 +817,9 @@ pre.json { background: var(--surface-2); color: var(--text); border: 1px solid v
   .page { padding: 20px 16px 48px; }
   .topbar { gap: 10px; padding: 0 12px 0 4px; }
 }
+/* Columns a narrow screen can do without, because the page shows the same elsewhere. */
+@media (max-width: 600px) { .hide-narrow { display: none; } }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }

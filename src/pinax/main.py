@@ -4,6 +4,7 @@
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
@@ -11,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import __version__
 from .api import router as api_router
+from .config import get_settings, unsafe
 from .db import init_db
 from .snapshots import indexes
 
@@ -20,6 +22,8 @@ log = logging.getLogger("pinax")
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    if problem := unsafe(get_settings()):
+        raise RuntimeError(f"Refusing to start: {problem}")
     init_db()
     yield
     indexes.clear()
@@ -28,6 +32,18 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title="Pinax", version=__version__, lifespan=lifespan, docs_url="/api/docs",
               openapi_url="/api/openapi.json")
 app.include_router(api_router)
+
+
+@app.middleware("http")
+async def same_origin(request: Request, call_next):
+    """With local sign-in, Pinax's own session cookie is what authorizes a request, so a change must come from a
+    page of Pinax: a browser names the page's origin on every request that changes something."""
+    if (request.method not in ("GET", "HEAD", "OPTIONS") and request.url.path.startswith("/api/")
+            and get_settings().auth_mode == "local"):
+        origin = request.headers.get("origin")
+        if origin and urlsplit(origin).netloc != request.headers.get("host"):
+            return JSONResponse({"detail": "Refused: the request did not come from a page of Pinax"}, status_code=403)
+    return await call_next(request)
 
 
 @app.middleware("http")

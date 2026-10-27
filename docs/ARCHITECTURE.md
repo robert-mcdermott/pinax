@@ -260,17 +260,27 @@ mean ages are rebased to a common reference time.
 
 ## Security
 
-- **Identity**: demo mode uses a persona cookie; production trusts a username header set by a single sign-on
-  proxy (`PINAX_AUTH_MODE=header`), as Tundra does, and only on requests that come straight from the proxy's
-  address (`PINAX_TRUSTED_PROXIES`); the same header from anywhere else is refused. `scripts/sso-check.py`
-  checks this behind a real oauth2-proxy.
+- **Identity**, three ways (`PINAX_AUTH_MODE`):
+  - `demo`: a persona cookie, anyone can be anyone, for showing Pinax; refused at start-up with
+    `PINAX_ENVIRONMENT=prod`.
+  - `local` (`signin.py`): passwords hashed with scrypt; sessions kept on the server (the cookie holds a random
+    token, the catalog only its SHA-256), HttpOnly, SameSite=Lax, Secure in production, ended by signing out,
+    expiry, deactivation, or a password set or changed; a temporary password, made up by Pinax and shown once,
+    must be changed before anything else; five failures in a row lock an account for 15 minutes, with the same
+    answer whatever went wrong; requests that change something must come from a page of Pinax (their `Origin`).
+  - `header`: trusts a username header set by a single sign-on proxy, as Tundra does, and only on requests that
+    come straight from the proxy's address (`PINAX_TRUSTED_PROXIES`); the same header from anywhere else is
+    refused. `scripts/sso-check.py` checks this behind a real oauth2-proxy.
 - **Authorization is on the server, for every request.** A request names a filesystem and path; Pinax checks
   that the path is canonical (no `.`, `..`, or empty components) and inside the filesystem root, takes its
   top-level folder, and allows it only for administrators or members of the lab that owns that folder.
   Otherwise it answers 404, so the existence of other labs' folders is not revealed.
 - File queries read only the Parquet files of the top-level folders in scope.
 - People, labs, memberships, and folder ownership use the same model as Tundra (`Lab`, `LabFolder`,
-  `User`, `LabMembership`); changes are audited.
+  `User`, `LabMembership`); changes are audited. People are never deleted: a deactivated person cannot sign in,
+  and keeps their memberships and administrator role, unused, until reactivated. At least one active storage
+  administrator always remains, and nobody can remove their own administrator role or deactivate themselves
+  (`people.py`, shared by *People and access* and `pinax import`).
 - Pinax never reads file contents or writes to the file system it reports on; it reads scan output.
 
 ## Measured performance

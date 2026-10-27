@@ -262,23 +262,250 @@ function watchCard(w) {
 }
 
 // ---------- People and access ----------
-export async function viewAccess(el) {
+// ---------- People and access ----------
+const TABS = [["people", "People"], ["labs", "Labs and departments"]];
+const statusChip = (active) => (active ? html`<span class="chip chip-approved">${icon("check")}Active</span>`
+  : html`<span class="chip chip-muted">${icon("x")}Inactive</span>`);
+const accessBadges = (p) => html`<div class="tags">
+  ${p.is_admin ? html`<span class="badge badge-archived">${icon("shield")}Storage administrator</span>` : ""}
+  ${p.labs.map((l) => html`<span class="badge badge-inside">${l.name} · ${l.role === "pi" ? (l.kind === "department" ? "Owner" : "PI") : "Delegate"}</span>`)}
+  ${!p.is_admin && !p.labs.length ? html`<span class="small muted">No access</span>` : ""}</div>`;
+
+export async function viewAccess(el, query = "") {
   state.place = null;
   renderSidebar();
+  const q = parseQuery(query);
+  const tab = q.tab === "labs" ? "labs" : "people";
+  mount(el, html`
+    <div class="page-head"><div><div class="eyebrow">Administration</div><h1>People and access</h1>
+      <p>Who can sign in, what each person sees, and who administers Pinax. People see the top-level folders their labs and
+        departments own; storage administrators see everything. For many changes at once, use <code>pinax import</code> (docs/IMPORT.md).</p></div>
+      <div class="actions">${tab === "people" ? html`<a class="btn btn-primary" href="#/access/people/new">${icon("plus")}Add person</a>` : ""}</div></div>
+    <div class="tabs" role="tablist">${TABS.map(([k, l]) => html`<button class="tab ${tab === k ? "active" : ""}" role="tab" aria-selected="${tab === k}" data-tab="${k}">${l}</button>`)}</div>
+    <div id="access-body"></div>`);
+  $$(".tab", el).forEach((b) => b.addEventListener("click", () => { location.hash = `#/access?tab=${b.dataset.tab}`; }));
+  const body = $("#access-body", el);
+  if (tab === "labs") await labsTab(body);
+  else await peopleTab(body, q);
+}
+
+const VIEWS = [["active", "All active"], ["admins", "Storage administrators"], ["none", "No access"], ["inactive", "Inactive"]];
+
+async function peopleTab(el, q) {
+  const view = VIEWS.some(([k]) => k === q.view) ? q.view : "active";
+  const text = (q.q || "").trim().toLowerCase();
+  const all = await api("admin/people");
+  const pick = {
+    active: (p) => p.active, admins: (p) => p.active && p.is_admin, none: (p) => p.active && !p.is_admin && !p.labs.length,
+    inactive: (p) => !p.active,
+  }[view];
+  const people = all.filter(pick).filter((p) => !text || [p.display_name, p.username, p.email, p.title].some((v) => (v || "").toLowerCase().includes(text)));
+  mount(el, html`
+    <div class="toolbar">
+      <div class="pills" role="group" aria-label="Show">${VIEWS.map(([k, l]) => html`<button class="${view === k ? "active" : ""}" aria-pressed="${view === k}" data-view="${k}">${l}
+        <span class="tiny">${num(all.filter({ active: (p) => p.active, admins: (p) => p.active && p.is_admin, none: (p) => p.active && !p.is_admin && !p.labs.length, inactive: (p) => !p.active }[k]).length)}</span></button>`)}</div>
+      <label class="ctl grow"><span>Search</span><div class="search-input">${icon("search")}<input class="input" id="people-q" placeholder="Name, username, email, or title" value="${q.q || ""}" autocomplete="off"></div></label>
+    </div>
+    <div class="card flush">${people.length ? html`<div class="table-wrap"><table class="table"><thead><tr>
+      <th>Person</th><th>Username</th><th>Access</th><th>Status</th></tr></thead><tbody>
+      ${people.map((p) => html`<tr class="clickable" data-href="#/access/people/${encodeURIComponent(p.username)}">
+        <td><div class="row" style="flex-wrap:nowrap"><span class="avatar ${p.is_admin ? "strong" : ""}">${p.initials}</span>
+          <div><a class="title-cell" href="#/access/people/${encodeURIComponent(p.username)}">${p.display_name}</a><div class="sub">${p.title || "—"}</div></div></div></td>
+        <td><div class="mono">${p.username}</div><div class="sub">${p.email}</div></td>
+        <td>${accessBadges(p)}</td><td>${statusChip(p.active)}${state.config.auth_mode === "local" && passwordNote(p) ? html`<div class="sub">${passwordNote(p)}</div>` : ""}</td></tr>`)}
+      </tbody></table></div>` : emptyState("users", "No people here", view === "inactive" ? "Nobody has been deactivated." : "Try another view or search.")}</div>`);
+  const go = (changes) => { location.hash = `#/access?${new URLSearchParams({ tab: "people", view, q: $("#people-q", el).value, ...changes })}`; };
+  $$("[data-view]", el).forEach((b) => b.addEventListener("click", () => go({ view: b.dataset.view })));
+  $("#people-q", el).addEventListener("keydown", (e) => { if (e.key === "Enter") go({}); });
+  $$("tr[data-href]", el).forEach((tr) => tr.addEventListener("click", (e) => {
+    if (!e.target.closest("a, button")) location.hash = tr.dataset.href;
+  }));
+}
+
+/** Local sign-in: where a person's password stands, for the person page and the list. */
+function passwordState(p) {
+  if (!p.has_password) return "No password yet: they cannot sign in until you give them a temporary one.";
+  if (p.locked_until && new Date(p.locked_until) > new Date()) return `Locked until ${date(p.locked_until, true)} after repeated failed sign-ins. A new temporary password unlocks it.`;
+  if (p.must_change_password) return `Temporary password made ${date(p.password_set_at, true)}; they must change it when they sign in.`;
+  return `Set ${date(p.password_set_at)}${p.last_login_at ? `; last signed in ${when(p.last_login_at)}` : "; not signed in since"}.`;
+}
+const passwordNote = (p) => (!p.active ? "" : !p.has_password ? "No password" : p.locked_until && new Date(p.locked_until) > new Date() ? "Locked"
+  : p.must_change_password ? "Temporary password" : "");
+
+// ---------- A person ----------
+export async function viewPerson(el, username) {
+  state.place = null;
+  renderSidebar();
+  const creating = username === "new";
+  const [person, labs] = await Promise.all([creating ? null : api(`admin/people/${encodeURIComponent(username)}`), api("admin/labs")]);
+  const active = labs.filter((l) => l.active !== false);
+  const bySlug = Object.fromEntries(labs.map((l) => [l.slug, l]));
+  const form = person
+    ? { display_name: person.display_name, email: person.email, title: person.title, is_admin: person.is_admin,
+        memberships: person.labs.map((l) => ({ lab: l.slug, role: l.role })) }
+    : { username: "", display_name: "", email: "", title: "", is_admin: false, memberships: [] };
+  const inactive = person && !person.active;
+  const self = person?.is_self;
+  const off = (cond) => (cond ? raw("disabled") : "");
+
+  const render = () => {
+    const used = new Set(form.memberships.map((m) => m.lab));
+    const sees = form.memberships.flatMap((m) => (bySlug[m.lab] ? bySlug[m.lab].folders.map((f) => ({ f, lab: bySlug[m.lab] })) : []));
+    const kept = person ? [...person.labs.map((l) => `${l.name} (${l.role === "pi" ? "PI" : "delegate"})`), ...(person.is_admin ? ["storage administrator"] : [])] : [];
+    mount(el, html`
+      <div class="page-head"><div><div class="eyebrow"><a href="#/access?tab=people">${icon("arrowLeft")} People and access</a></div>
+        <h1>${creating ? "Add person" : person.display_name}</h1>
+        ${person ? html`<p>${person.title || "No title"} · <span class="mono">${person.username}</span></p>` : html`<p>Add someone who can sign in to Pinax: a PI, a delegate, or a storage administrator.</p>`}</div>
+        ${person ? statusChip(person.active) : ""}</div>
+      ${inactive ? html`<div class="alert alert-warn">${icon("alert")}<div><b>${person.display_name} is deactivated.</b>
+        <p>They cannot sign in. Their access is kept, unused${kept.length ? `: ${kept.join(", ")}` : ""}. Reactivate them to restore it, or to make changes.</p>
+        <button class="btn btn-primary btn-sm" id="reactivate" style="margin-top:8px">${icon("refresh")}Reactivate</button></div></div>` : ""}
+      <div class="grid split">
+        <div class="stack">
+          <div class="card"><div class="card-head"><h2>Profile</h2></div>
+            <div class="grid cols-2">
+              <div class="field"><label for="p-username">Username</label>
+                ${creating ? html`<input class="input mono" id="p-username" data-field="username" value="${form.username}" placeholder="e.g. jdoe or jdoe@example.org" autocomplete="off" spellcheck="false">
+                  <span class="hint">The name the sign-on sends for this person. It cannot be changed later.</span>`
+                  : html`<div class="input mono readonly">${person.username}</div><span class="hint">The name the sign-on sends; it cannot be changed.</span>`}</div>
+              <div class="field"><label for="p-name">Full name</label><input class="input" id="p-name" data-field="display_name" value="${form.display_name}" ${off(inactive)}></div>
+              <div class="field"><label for="p-email">Email</label><input class="input" id="p-email" type="email" data-field="email" value="${form.email}" ${off(inactive)}></div>
+              <div class="field"><label for="p-title">Title</label><input class="input" id="p-title" data-field="title" value="${form.title}" placeholder="e.g. Lab manager" ${off(inactive)}></div>
+            </div></div>
+          <div class="card"><div class="card-head"><h2>Labs and departments</h2></div>
+            <p class="small muted" style="margin-top:-6px">PIs, owners, and delegates see every folder their lab or department owns.</p>
+            ${form.memberships.length ? html`<div class="table-wrap"><table class="table compact"><thead><tr><th>Lab or department</th><th style="width:120px">Role</th><th class="hide-narrow">Folders</th><th></th></tr></thead><tbody>
+              ${form.memberships.map((m, i) => {
+                const lab = bySlug[m.lab];
+                return html`<tr>
+                  <td><select class="select sm" style="width:100%" data-row="${i}" data-key="lab" aria-label="Lab or department" ${off(inactive)}>
+                    ${active.map((l) => html`<option value="${l.slug}" ${l.slug === m.lab ? raw("selected") : ""} ${used.has(l.slug) && l.slug !== m.lab ? raw("disabled") : ""}>${l.name}</option>`)}</select></td>
+                  <td><select class="select sm" style="width:100%" data-row="${i}" data-key="role" aria-label="Role" ${off(inactive)}>
+                    <option value="pi" ${m.role === "pi" ? raw("selected") : ""}>${lab && lab.kind === "department" ? "Owner" : "PI"}</option>
+                    <option value="delegate" ${m.role === "delegate" ? raw("selected") : ""}>Delegate</option></select></td>
+                  <td class="hide-narrow"><div class="tags">${lab && lab.folders.length ? lab.folders.map((f) => html`<span class="tag mono nowrap" title="${displayPath(f.filesystem, f.path)}">${icon("folder")}${f.filesystem}: ${f.folder}</span>`) : html`<span class="small muted">No folders mapped</span>`}</div></td>
+                  <td class="right">${inactive ? "" : html`<button class="icon-btn" data-remove="${i}" aria-label="Remove ${lab ? lab.name : "this row"}">${icon("x")}</button>`}</td></tr>`;
+              })}</tbody></table></div>` : html`<p class="muted small">Not a member of any lab or department.</p>`}
+            ${inactive ? "" : html`<button class="btn btn-ghost btn-sm" id="add-lab" style="margin-top:12px" ${off(used.size >= active.length)}>${icon("plus")}Add lab or department</button>`}
+          </div>
+          <div class="card"><div class="card-head"><h2>Administration</h2></div>
+            <label class="check-row ${form.is_admin ? "checked" : ""}"><input type="checkbox" data-field="is_admin" ${form.is_admin ? raw("checked") : ""} ${off(inactive || self)}>
+              <span><b>Storage administrator</b><br><span class="small muted">Sees every filesystem and folder, the IT views, and Scans, and manages people, labs, and folder ownership.</span></span></label>
+            ${self ? html`<p class="small muted">You cannot change your own administrator role.</p>` : ""}
+          </div>
+          ${inactive ? "" : html`<div class="row between"><a class="btn btn-ghost" href="#/access?tab=people">Cancel</a>
+            <button class="btn btn-primary" id="save">${icon("check")}${creating ? "Add person" : "Save changes"}</button></div>`}
+        </div>
+        <aside class="stack">
+          <div class="card"><h3>${inactive ? "Would see, once reactivated" : "Sees"}</h3>
+            ${form.is_admin ? html`<p class="small" style="margin-top:8px">${icon("shield")} Everything, as a storage administrator.</p>` : ""}
+            ${sees.length ? html`<ul class="feed" style="margin-top:6px">${sees.map(({ f, lab }) => html`<li style="padding:8px 0">${icon("folder")}<span><span class="mono">${displayPath(f.filesystem, f.path)}</span><br><span class="tiny muted">via ${lab.name}</span></span></li>`)}</ul>`
+              : form.is_admin ? "" : html`<p class="small muted" style="margin-top:8px">No folders. Add a lab or department that owns folders.</p>`}</div>
+          ${person ? html`<div class="card"><h3>Record</h3><dl class="kv" style="margin-top:10px">
+            <dt>Added</dt><dd>${date(person.created_at)}</dd></dl>
+            ${person.history.length ? html`<h3 style="margin-top:14px">Recent changes</h3><ul class="feed">${person.history.map((h) => html`<li style="padding:6px 0"><span><span class="small">${h.summary}</span><br>
+              <span class="tiny muted">${date(h.ts, true)}${h.by ? ` · ${h.by}` : ""}</span></span></li>`)}</ul>` : ""}</div>` : ""}
+          ${person && state.config.auth_mode === "local" ? html`<div class="card"><h3>Password</h3>
+            <p class="small" style="margin-top:8px">${passwordState(person)}</p>
+            ${person.active ? html`<button class="btn btn-secondary btn-sm" id="set-password">${icon("lock")}${person.has_password ? "Set a new temporary password" : "Set a temporary password"}</button>` : ""}</div>` : ""}
+          ${person && person.active && !self ? html`<div class="card"><h3>Deactivate</h3>
+            <p class="small muted" style="margin-top:8px">${person.display_name} will no longer be able to sign in. Their memberships and role are kept, unused, and come back if you reactivate them; nothing is deleted.</p>
+            <button class="btn btn-warn btn-sm" id="deactivate">${icon("lock")}Deactivate</button></div>` : ""}
+        </aside>
+      </div>`);
+    bind();
+  };
+
+  const bind = () => {
+    $$("[data-field]", el).forEach((inp) => inp.addEventListener(inp.type === "checkbox" ? "change" : "input", () => {
+      form[inp.dataset.field] = inp.type === "checkbox" ? inp.checked : inp.value;
+      if (inp.type === "checkbox") render();
+    }));
+    $$("[data-row]", el).forEach((sel) => sel.addEventListener("change", () => {
+      form.memberships[Number(sel.dataset.row)][sel.dataset.key] = sel.value;
+      render();
+    }));
+    $$("[data-remove]", el).forEach((b) => b.addEventListener("click", () => { form.memberships.splice(Number(b.dataset.remove), 1); render(); }));
+    $("#add-lab", el)?.addEventListener("click", () => {
+      const used = new Set(form.memberships.map((m) => m.lab));
+      const next = active.find((l) => !used.has(l.slug));
+      if (next) form.memberships.push({ lab: next.slug, role: "delegate" });
+      render();
+    });
+    $("#save", el)?.addEventListener("click", save);
+    $("#deactivate", el)?.addEventListener("click", () => change("deactivate"));
+    $("#set-password", el)?.addEventListener("click", setPassword);
+    $("#reactivate", el)?.addEventListener("click", () => change("reactivate"));
+  };
+
+  const save = async () => {
+    try {
+      const saved = await api(creating ? "admin/people" : `admin/people/${encodeURIComponent(username)}`,
+        { method: creating ? "POST" : "PUT", body: form });
+      toast(creating ? `${saved.display_name} added` : "Changes saved");
+      state.users = null;
+      if (creating) location.hash = `#/access/people/${encodeURIComponent(saved.username)}`;
+      else viewPerson(el, username);
+    } catch (e) { toast(e.message, "error"); }
+  };
+
+  const setPassword = async () => {
+    const ok = await modal({
+      title: `A temporary password for ${person.display_name}?`,
+      body: html`<p>Pinax will make one up and show it to you once. ${person.display_name} must change it when they sign in.</p>
+        <p class="small muted">${person.has_password ? "Their current password stops working, their sessions end, and a locked account is unlocked." : "Until then they cannot sign in."}</p>`,
+      confirm: "Make a temporary password",
+    });
+    if (!ok) return;
+    try {
+      const r = await api(`admin/people/${encodeURIComponent(username)}/password`, { method: "POST" });
+      await modal({
+        title: `Temporary password for ${person.display_name}`,
+        body: html`<p class="small">Give it to them privately. It is not shown again; you can make a new one at any time.</p>
+          <div class="secret" id="temp-pass">${r.temporary_password}</div>
+          <p class="small muted">Username: <span class="mono">${person.username}</span></p>`,
+        confirm: "Copy and close", cancel: "Close",
+        onConfirm: async () => { await navigator.clipboard?.writeText(r.temporary_password).catch(() => {}); toast("Copied"); },
+      });
+      viewPerson(el, username);
+    } catch (e) { toast(e.message, "error"); }
+  };
+
+  const change = async (what) => {
+    const kept = [...person.labs.map((l) => `${l.name} (${l.role === "pi" ? (l.kind === "department" ? "owner" : "PI") : "delegate"})`),
+      ...(person.is_admin ? ["storage administrator"] : [])];
+    const ok = await modal({
+      title: `${what === "deactivate" ? "Deactivate" : "Reactivate"} ${person.display_name}?`,
+      body: what === "deactivate"
+        ? html`<p>${person.display_name} will no longer be able to sign in.</p><p class="small muted">Their access is kept, unused${kept.length ? `: ${kept.join(", ")}` : ""}. Reactivating them restores it.</p>`
+        : html`<p>${person.display_name} will be able to sign in again, with ${kept.length ? `this access: ${kept.join(", ")}` : "no lab access until you add some"}.</p>`,
+      confirm: what === "deactivate" ? "Deactivate" : "Reactivate", tone: "navy",
+    });
+    if (!ok) return;
+    try {
+      await api(`admin/people/${encodeURIComponent(username)}/${what}`, { method: "POST" });
+      toast(`${person.display_name} ${what}d`);
+      state.users = null;
+      viewPerson(el, username);
+    } catch (e) { toast(e.message, "error"); }
+  };
+
+  render();
+}
+
+async function labsTab(el) {
   const [labs, people] = await Promise.all([api("admin/labs"), api("admin/people")]);
   const render = () => mount(el, html`
-    <div class="page-head"><div><div class="eyebrow">Administration</div><h1>People and access</h1>
-      <p>Who can see what. People see the top-level folders their labs and departments own; storage administrators see everything.
-        Map folders to labs on <a href="#/folders">Folders and labs</a>, or import labs, people, and ownership in bulk with <code>pinax import</code> (docs/IMPORT.md).</p></div></div>
+    <p class="small muted" style="margin-top:-6px">Each lab or department sees the top-level folders it owns. Map folders on <a href="#/folders">Folders and labs</a>.</p>
     <div class="grid cols-2">${labs.map((l) => html`<div class="card"><div class="card-head"><h2>${l.name}</h2><span class="tag">${l.kind === "department" ? "Department" : "Lab"}</span></div>
       <p class="small muted" style="margin-top:-8px">${l.division} · ${l.research_area}</p>
       <h3 style="margin:10px 0 6px">Folders</h3>
       ${l.folders.length ? html`<ul class="feed">${l.folders.map((f) => html`<li><span class="path">${displayPath(f.filesystem, f.path)}</span></li>`)}</ul>` : html`<p class="small muted">None mapped.</p>`}
       <h3 style="margin:10px 0 6px">Members</h3>
-      <ul class="feed">${l.members.map((m) => html`<li><span class="avatar sm">${m.initials}</span><span style="flex:1">${m.display_name}<span class="muted small"> · ${m.role === "pi" ? (l.kind === "department" ? "Owner" : "PI") : "Delegate"}</span></span>
+      <ul class="feed">${l.members.map((m) => html`<li><span class="avatar sm">${m.initials}</span><span style="flex:1">${m.display_name}<span class="muted small"> · ${m.role === "pi" ? (l.kind === "department" ? "Owner" : "PI") : "Delegate"}${m.active ? "" : " · inactive"}</span></span>
         <button class="icon-btn" title="Remove ${m.display_name}" data-remove="${l.slug}|${m.username}">${icon("x")}</button></li>`)}</ul>
       <div class="row" style="margin-top:10px"><select class="select sm" data-add-user="${l.slug}">${opt("", "Add a person…", "")}
-        ${people.filter((p) => !p.is_admin && !l.members.some((m) => m.username === p.username)).map((p) => opt(p.username, p.display_name, ""))}</select>
+        ${people.filter((p) => p.active && !p.is_admin && !l.members.some((m) => m.username === p.username)).map((p) => opt(p.username, p.display_name, ""))}</select>
         <select class="select sm" data-add-role="${l.slug}">${opt("delegate", "Delegate", "delegate")}${opt("pi", l.kind === "department" ? "Owner" : "PI", "")}</select>
         <button class="btn btn-ghost btn-sm" data-add="${l.slug}">${icon("plus")}Add</button></div>
     </div>`)}</div>`);

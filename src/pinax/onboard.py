@@ -30,6 +30,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from .models import AuditEvent, Filesystem, Lab, LabFolder, LabKind, LabMembership, User
+from .people import email_problem, username_problem
 
 ROLES = ("pi", "delegate")
 NONE = "none"  # removes a membership or unmaps a folder; no lab may use it as a slug
@@ -193,17 +194,12 @@ def plan_import(session: Session, *, labs: Path | None = None, people: Path | No
         lower: dict[str, str] = {u.lower(): u for u in cat_users}
         for where, r in rows:
             name = r["username"]
-            if re.search(r"\s", name):
-                P.append(f"{where}: username {name!r} contains a space")
-                continue
-            other = lower.get(name.lower())
-            if other is not None and other != name:
-                P.append(f"{where}: username {name!r} differs only in case from {other!r}, so which person is meant "
-                         "is ambiguous")
+            if problem := username_problem(name, lower.values()):
+                P.append(f"{where}: {problem}")
                 continue
             lower[name.lower()] = name
-            if "@" not in r["email"]:
-                P.append(f"{where}: {r['email']!r} is not an email address")
+            if problem := email_problem(r["email"]):
+                P.append(f"{where}: {problem}")
                 continue
             want = {"display_name": r["display_name"], "email": r["email"]}
             if "title" in r:

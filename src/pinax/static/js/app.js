@@ -2,7 +2,7 @@
 // Pinax app shell: sign-in, sidebar, routes, and the home pages.
 import {
   $, ageText, api, bytes, date, emptyState, html, icon, loadIdentity, mount, num, pct, placeHash, renderTopbar,
-  setActiveNav, showPersonaPicker, startRouter, state,
+  setActiveNav, showPasswordChange, showPersonaPicker, showSignIn, startRouter, state,
 } from "/js/core.js";
 import { folderCard, renderSidebar } from "/js/shell.js";
 import { viewChanged } from "/js/changed.js";
@@ -10,7 +10,7 @@ import { viewChanges } from "/js/changes.js";
 import { viewExplore } from "/js/explore.js";
 import { viewHistory } from "/js/history.js";
 import { viewAges, viewCold, viewFiles, viewOwners, viewTypes } from "/js/reports.js";
-import { viewAccess, viewFolders, viewHealth, viewOverview, viewScans } from "/js/admin.js";
+import { viewAccess, viewFolders, viewHealth, viewOverview, viewPerson, viewScans } from "/js/admin.js";
 import { coldBytes, thresholdText } from "/js/viz.js";
 
 const main = $("#main");
@@ -69,13 +69,20 @@ const routes = [
   [/^#\/health(\?.*)?$/, viewHealth],
   [/^#\/scans$/, viewScans],
   [/^#\/access(\?.*)?$/, viewAccess],
+  [/^#\/access\/people\/([^?]+)$/, viewPerson],
 ];
 
 await loadIdentity();
 renderTopbar({ mode: "app" });
-if (!state.me) {
+if (!state.me && state.config.auth_mode === "local") {
+  mount(main, html`<div class="card">${emptyState("lock", "Sign in to Pinax", "Sign in with the username and password your Pinax administrator gave you.")}</div>`);
+  showSignIn();
+} else if (!state.me) {
   mount(main, html`<div class="card">${emptyState("user", "Choose who you are", "Pick a demo identity to explore Pinax.")}</div>`);
   showPersonaPicker(true);
+} else if (state.me.must_change_password) {
+  mount(main, html`<div class="card">${emptyState("lock", "Choose your password", "You signed in with a temporary password.")}</div>`);
+  showPasswordChange({ forced: true });
 } else {
   renderSidebar();
   startRouter(routes, main, { onRoute: () => setActiveNav((location.hash || "#/").split("?")[0], ".side-link") });

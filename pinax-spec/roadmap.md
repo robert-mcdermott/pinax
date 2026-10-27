@@ -454,6 +454,27 @@ Every change is checked against an independent computation, like every total.
      and changed scans at that size, wait for server-class hardware (wave 4).
    - *Done*.
 
+### After 0.3.0
+
+- **People in the app (A8)**, at the maintainer's request, so the pilot's people can be added without CSV. *People
+  and access* gains a People tab (filters for active, administrators, no access, and inactive; search) and a
+  person editor (profile, lab memberships, the storage administrator role, deactivate and reactivate), on
+  `people.py`, whose rules for usernames and emails `pinax import` now shares. People are never deleted; a
+  deactivated person keeps their access, unused, so reactivating restores it (as `active=false` in the import
+  does; Tundra instead removes it). Tests cover each change and its audit, the shared rules, sign-in after
+  deactivating and reactivating, and the guards that keep an administrator. Checked in both themes and at 375
+  pixels.
+
+- **Signing in without single sign-on (A9)**, at the maintainer's request, so a site without an identity provider can
+  run Pinax, and move to single sign-on later. `PINAX_AUTH_MODE=local` (`signin.py`, `api/signin.py`): scrypt
+  password hashes; server-side sessions; temporary passwords made up by Pinax and shown once, which must be changed
+  before anything else; lockout after repeated failures; requests that change something must come from a page of
+  Pinax; every sign-in, failure, lock, and password change audited, never a password. `pinax user add | password |
+  list` makes the first administrator. Demo mode is kept as it was, for showing Pinax, and refused when
+  `PINAX_ENVIRONMENT=prod`. New catalog columns are added at start-up (`db.add_missing_columns`), so a 0.3.0 catalog
+  keeps working. Tests: each of these, the demo unchanged, and an older catalog upgraded; checked in the browser in
+  both themes and at 375 pixels, in local and demo modes.
+
 ## Later waves (outlined)
 
 | Wave | Release | Theme | Main content |

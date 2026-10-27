@@ -28,8 +28,14 @@ pilot installation (wave 4 in `pinax-spec/roadmap.md`) will confirm it on a real
   indexes (4 GB each at most); fast local SSD for `/var/lib/pinax` (see [Sizing](#sizing)).
 - [uv](https://docs.astral.sh/uv/), which installs the Python Pinax needs (3.13).
 - Read access to the filesystems' metadata from the host that scans them.
-- An OpenID Connect identity provider (for example Microsoft Entra ID) and
-  [oauth2-proxy](https://oauth2-proxy.github.io/oauth2-proxy/) 7.
+- A way for people to sign in, one of:
+  - **single sign-on**: an OpenID Connect identity provider (for example Microsoft Entra ID) and
+    [oauth2-proxy](https://oauth2-proxy.github.io/oauth2-proxy/) 7 (step 6);
+  - **passwords Pinax keeps**, for a site without single sign-on: an HTTPS reverse proxy such as nginx or Caddy
+    in front of Pinax ([Signing in without single sign-on](#signing-in-without-single-sign-on)).
+
+  The demo's persona switcher (`PINAX_AUTH_MODE=demo`) lets anyone be anyone; Pinax refuses to start with it when
+  `PINAX_ENVIRONMENT=prod`.
 
 ## Install
 
@@ -50,7 +56,7 @@ sudo git clone https://github.com/robert-mcdermott/pinax.git /opt/pinax
 ```
 
 ```bash
-cd /opt/pinax && sudo git checkout v0.2.0 && sudo env UV_PYTHON_INSTALL_DIR=/opt/pinax/.python uv sync --frozen --no-dev
+cd /opt/pinax && sudo git checkout v0.3.0 && sudo env UV_PYTHON_INSTALL_DIR=/opt/pinax/.python uv sync --frozen --no-dev
 ```
 
 ```bash
@@ -97,7 +103,8 @@ pinax import /srv/pinax/onboarding --apply
 ```
 
 Usernames must be what the sign-on proxy sends (step 6): with Entra ID and the default header, the user
-principal name, such as `jdoe@example.org`. Folders can also be mapped one at a time under *Folders and labs*.
+principal name, such as `jdoe@example.org`. People can also be added and changed one at a time under *People and
+access*, and folders mapped under *Folders and labs*. Someone must be added, and active, before they can sign in.
 
 ### 5. The services
 
@@ -142,6 +149,33 @@ which one is the Pinax username. Pinax believes it only from `PINAX_TRUSTED_PROX
 the same header from anywhere else gets *401*. If oauth2-proxy runs on another host, put its address in
 `PINAX_TRUSTED_PROXIES` and make Pinax listen where only that host can reach it. `/api/health` is open without
 sign-in, for monitoring.
+
+### Signing in without single sign-on
+
+With `PINAX_AUTH_MODE=local`, people sign in with a username and a password that Pinax keeps (hashed with
+scrypt), instead of steps 6's proxy. Put an HTTPS reverse proxy in front of Pinax (nginx, Caddy, or a load
+balancer, forwarding to `127.0.0.1:8001`): in production the session cookie is sent only over HTTPS.
+
+Nobody can sign in until someone has a password, so make the first administrator on the server. It prints a
+temporary password, which they must change when they first sign in:
+
+```bash
+pinax user add jdoe@example.org --name "Jane Doe" --email jdoe@example.org --admin
+```
+
+(`pinax` here is the shell function from step 3, which runs it as the service does.)
+
+From then on, administrators add people and give them temporary passwords under *People and access*; Pinax
+makes each password up and shows it once. A forgotten password, or an account locked after five failed sign-ins
+(for 15 minutes), needs a new temporary password from an administrator, or `pinax user password USERNAME` on the
+server. Sessions last 12 hours and end on signing out, on deactivation, and when a password is set or changed.
+Every sign-in, failure, lock, and password change is in the audit log, never the passwords. Two limits: behind a
+reverse proxy the log records the proxy's address rather than the person's, and failures lock an account rather
+than slowing down an address.
+
+To move to single sign-on later, set `PINAX_AUTH_MODE=header` and follow step 6. People, labs, and memberships
+stay; passwords are no longer used. Usernames must then be what the proxy sends (with Entra ID, usually the user
+principal name, such as `jdoe@example.org`), so a site that may move should use those usernames from the start.
 
 ### 7. Check the installation
 
@@ -243,7 +277,8 @@ fails. The web app opens rebuilt indexes without a restart. `pinax rebuild SNAPS
 one whose index was lost.
 
 The catalog has no migrations yet (they come with PostgreSQL, in wave 5): new tables are created at start-up,
-and a release that changes existing ones says so; pilot catalogs are then re-created from the import files.
+and so are new columns of existing tables (each new column is nullable or has a default); a release that changes
+anything else says so, and pilot catalogs are then re-created from the import files.
 
 ## Sizing
 

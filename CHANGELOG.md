@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **People in the app.** *People and access* has a People tab, with views of active people, administrators,
+  people with no access, and inactive ones, and search; and a person editor to add someone, change their name,
+  email, title, lab memberships, and storage administrator role, and deactivate or reactivate them. Every change is
+  audited with its before and after, and the person's page shows their recent changes. People are never deleted; a
+  deactivated person cannot sign in and keeps their access, unused, until reactivated. At least one active
+  administrator always remains, and nobody can remove their own role or deactivate themselves. `pinax import`
+  follows the same rules for usernames and emails. API: `GET`, `POST`, and `PUT /api/admin/people[/{username}]`,
+  and `POST /api/admin/people/{username}/deactivate` and `/reactivate`.
+- **Signing in without single sign-on.** `PINAX_AUTH_MODE=local`: people sign in with a username and a password
+  Pinax keeps (scrypt). Administrators give people temporary passwords, made up by Pinax and shown once, which must
+  be changed at the first sign-in; everyone can change their own and sign out. Five failed sign-ins in a row lock
+  an account for 15 minutes. Sessions are kept on the server and end on signing out, after 12 hours, on
+  deactivation, and when a password is set or changed. Every sign-in, failure, lock, and password change is
+  audited. `pinax user add | password | list` makes the first administrator. Settings: `PINAX_SESSION_HOURS`,
+  `PINAX_LOGIN_MAX_FAILURES`, `PINAX_LOGIN_LOCKOUT_MINUTES`, `PINAX_PASSWORD_MIN_LENGTH`, `PINAX_COOKIE_SECURE`.
+
+### Changed
+
+- Pinax refuses to start with `PINAX_AUTH_MODE=demo` when `PINAX_ENVIRONMENT=prod`: the demo lets anyone be anyone.
+  Demo mode is otherwise unchanged, and remains the default.
+- New catalog columns are added at start-up, so an existing catalog keeps working after an upgrade.
+
 ## 0.3.0 (2026-10-27)
 
 Third release (wave 3, "change over time"): where the growth comes from and whether data is ageing. Each index

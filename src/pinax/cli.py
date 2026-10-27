@@ -76,13 +76,34 @@ def main() -> None:
                             "(a snapshot ID finds it in the catalog)")
     check.add_argument("--json", action="store_true", help="Print the report as JSON")
 
+    user = sub.add_parser("user", help="Add a person, give one a temporary password, or list people (for example "
+                                       "the first administrator, before anyone can sign in)")
+    user_sub = user.add_subparsers(dest="user_command", required=True)
+    user_add = user_sub.add_parser("add", help="Add a person; with local sign-in, print a temporary password")
+    user_add.add_argument("username", help="Their sign-in name (with single sign-on, the name the proxy sends)")
+    user_add.add_argument("--name", required=True, help="Full name")
+    user_add.add_argument("--email", required=True)
+    user_add.add_argument("--title", default="")
+    user_add.add_argument("--admin", action="store_true", help="Make them a storage administrator")
+    user_password = user_sub.add_parser("password", help="Local sign-in: print a new temporary password for a person, "
+                                                          "which unlocks their account and ends their sessions")
+    user_password.add_argument("username")
+    user_sub.add_parser("list", help="List people, their role, and whether they can sign in")
+
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
     if args.command == "serve":
         import uvicorn
 
+        from .config import get_settings, unsafe
+
+        if problem := unsafe(get_settings()):
+            print(f"error: {problem}", file=sys.stderr)
+            sys.exit(2)
         uvicorn.run("pinax.main:app", host=args.host, port=args.port, log_level="info")
+    elif args.command == "user":
+        _user(args)
     elif args.command == "seed":
         from .config import get_settings
         from .seed import run_seed
@@ -354,3 +375,53 @@ def _check(args: argparse.Namespace) -> int:
         elif note:
             print(note)
     return 0 if report.ok and (changes is None or changes.ok) else 1
+
+
+def _user(args) -> None:
+    """`pinax user add | password | list`: changes are audited as made from the command line, by the operating-system
+    user who ran them."""
+    from sqlalchemy import select
+
+    from . import people, signin
+    from .config import get_settings
+    from .db import init_db, session_scope
+    from .models import User
+
+    init_db()
+    local = get_settings().auth_mode == "local"
+    with session_scope() as session:
+        if args.user_command == "list":
+            for u in session.scalars(select(User).order_by(User.is_admin.desc(), User.username)):
+                state = "active" if u.active else "inactive"
+                if local:
+                    state += ", no password" if not u.password_hash else ", must change password" if u.must_change_password else ""
+                print(f"{u.username:24} {u.display_name:28} {'administrator' if u.is_admin else '':14} {state}")
+            return
+        if args.user_command == "add":
+            try:
+                user = people.save_person(session, None, None, {
+                    "username": args.username, "display_name": args.name, "email": args.email, "title": args.title,
+                    "is_admin": args.admin})
+            except people.PeopleError as e:
+                print(f"error: {e}", file=sys.stderr)
+                sys.exit(1)
+            print(f"Added {user.display_name} ({user.username}){', a storage administrator' if user.is_admin else ''}.")
+        else:
+            user = session.scalar(select(User).where(User.username == args.username))
+            if user is None:
+                print(f"error: no person {args.username!r}", file=sys.stderr)
+                sys.exit(1)
+        if not local:
+            mode = get_settings().auth_mode
+            print("Pinax keeps no passwords unless PINAX_AUTH_MODE=local: "
+                  + ("they sign in through single sign-on." if mode == "header" else "this is the demo, with no sign-in."))
+            if args.user_command == "password":
+                sys.exit(1)
+            return
+        try:
+            password = signin.set_temporary_password(session, user, None, source="cli")
+        except signin.SignInError as e:
+            print(f"error: {e}", file=sys.stderr)
+            sys.exit(1)
+        print(f"Temporary password for {user.username}: {password}")
+        print("Give it to them privately. They must change it when they sign in; it is not shown again.")

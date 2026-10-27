@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Identity and authorization.
 
-Demo mode identifies the user from a persona cookie set by the UI switcher. Header mode trusts a
-username injected by an SSO reverse proxy (for example oauth2-proxy in front of Entra ID). Every
+Demo mode identifies the user from a persona cookie set by the UI switcher. Local mode finds them from a
+sign-in session (signin.py). Header mode trusts a username injected by an SSO reverse proxy (for example
+oauth2-proxy in front of Entra ID). Every
 authorization decision happens here, server-side: IT administrators see everything; everyone else
 sees only the top-level folders mapped to their active labs and departments.
 """
@@ -18,8 +19,12 @@ from sqlalchemy.orm import Session, selectinload
 from .config import get_settings
 from .db import get_session
 from .models import Lab, LabFolder, LabMembership, User
+from .signin import COOKIE as SESSION_COOKIE
+from .signin import find_session
 
 DEMO_COOKIE = "pinax_user"
+# What someone signed in with a temporary password may do before changing it.
+WHILE_CHANGING_PASSWORD = {"/api/me", "/api/auth/password", "/api/auth/logout"}
 log = logging.getLogger("pinax.auth")
 
 
@@ -58,6 +63,13 @@ def current_identity(request: Request, session: Session = Depends(get_session)) 
                         request.client.host if request.client else "?")
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Sign in through the single sign-on proxy")
         username = request.headers.get(settings.auth_header, "")
+    elif settings.auth_mode == "local":
+        signed_in = find_session(session, request.cookies.get(SESSION_COOKIE))
+        if signed_in is None:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not signed in")
+        if signed_in.user.must_change_password and request.url.path not in WHILE_CHANGING_PASSWORD:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Change your password before going on")
+        username = signed_in.user.username
     else:
         username = request.cookies.get(DEMO_COOKIE, "") or request.headers.get("X-Pinax-User", "")
     if not username:
