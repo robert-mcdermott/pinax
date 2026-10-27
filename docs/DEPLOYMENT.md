@@ -98,9 +98,9 @@ enough memory for `PINAX_QUERY_MEMORY_LIMIT` times the number of indexes it keep
 
 | Item | Rule of thumb |
 |---|---|
-| fs-inventory scan output | about 25 bytes per entry (25 GB per billion) |
-| Snapshot index | about 55 bytes per file (55 GB per billion), times `PINAX_KEEP_SNAPSHOTS` |
-| Index build | about 2 seconds per million files on 10 cores; memory bounded by `PINAX_BUILD_MEMORY_LIMIT`, spilling beside the index |
+| fs-inventory scan output | about 40 bytes per entry (40 GB per billion) |
+| Snapshot index | about 56 bytes per file (56 GB per billion), times `PINAX_KEEP_SNAPSHOTS` |
+| Index build | about 1.2 seconds per million files on 10 cores (100 million in two minutes); 8 GB of memory is enough, spilling beside the index beyond it, and more is no faster |
 | Query memory | `PINAX_QUERY_MEMORY_LIMIT` per open index (4 GB default) |
 | Catalog | tiny: one row per top-level folder per scan for history |
 

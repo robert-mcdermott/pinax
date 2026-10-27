@@ -54,16 +54,34 @@ def test_file_types_and_categories(index):
         == (None, CATEGORY_KEYS.index("other"))
 
 
-def test_files_are_split_by_top_folder_and_sorted(index):
-    out, con = index
-    tops = dict(con.execute("SELECT name, top_id FROM tops").fetchall())
+def test_files_are_grouped_by_top_folder_and_sorted(tmp_path, scan, monkeypatch):
+    """Files are written in groups of top-level folders (at most FILE_GROUPS), each sorted by path, so every
+    top-level folder is a contiguous run in its group's files and queries for it read only its group."""
+    from pinax import index
+    from pinax.ingest import build
+
+    monkeypatch.setattr(build, "FILE_GROUPS", 2)
+    out = tmp_path / "grouped"
+    build_index(scan, out, progress=lambda m: None)
+    with duckdb.connect(str(out / "index.duckdb"), read_only=True) as con:
+        tops = dict(con.execute("SELECT name, top_id FROM tops").fetchall())
+        parts = {t: g for t, g, _ in con.execute("SELECT top_id, grp, files FROM file_parts").fetchall()}
     assert set(tops) == {"alpha_lab", "alpha_lab2", "beta_lab", "orphans"}
-    alpha = sorted((out / "files" / f"t{tops['alpha_lab']:06d}").glob("*.parquet"))
-    paths = [r[0] for r in duckdb.connect().execute(f"SELECT path FROM read_parquet('{alpha[0]}')").fetchall()]
-    assert paths == sorted(paths) and all(p.startswith(ROOT + "/alpha_lab/") for p in paths)
-    # A file directly in the root belongs to no top-level folder.
-    root_files = duckdb.connect().execute(f"SELECT name FROM read_parquet('{out}/files/t000000/*.parquet')").fetchall()
-    assert root_files == [("root_file.txt",)]
+    assert sorted(p.name for p in (out / "files").iterdir()) == ["g000000", "g000001"]
+    # A file directly in the root belongs to no top-level folder (top 0).
+    assert parts[0] == 0 and set(parts) == {0, *tops.values()}
+    for g in ("g000000", "g000001"):
+        rows = duckdb.connect().execute(f"SELECT top_id, path FROM read_parquet('{out}/files/{g}/*.parquet')").fetchall()
+        assert [p for _, p in rows] == sorted(p for _, p in rows)
+        assert {t for t, _ in rows} == {t for t, grp in parts.items() if f"g{grp:06d}" == g}
+    idx = index.SnapshotIndex(out)
+    try:
+        for name in tops:
+            got = {f["path"] for f in idx.files(ROOT + "/" + name, limit=1000)}
+            assert got == {ROOT + "/" + f["path"] for f in FILES if f["path"].startswith(name + "/")}
+        assert len(idx.files(ROOT, limit=1000)) == len(FILES)
+    finally:
+        idx.close()
 
 
 def test_unreadable_directories_are_counted_up_the_tree(index):
@@ -147,3 +165,45 @@ def test_every_extension_has_one_category():
     assert {e: keys[m[e]] for e in ("heic", "xlsm", "vsdx", "insv", "exe", "asif")} == {
         "heic": "imaging", "xlsm": "tabular", "vsdx": "documents", "insv": "media", "exe": "code",
         "asif": "containers"}
+
+
+def test_memory_sizes_and_scan_threads(scan):
+    """Threads reading a scan are set by the memory limit and the scan's row groups, not only by cores."""
+    from pinax.ingest.build import _scan_threads, parse_size, read_manifest, scan_parts
+
+    assert parse_size("8GB") == 8_000_000_000 and parse_size("512MiB") == 512 * 2**20 and parse_size("1.5 TB") == 1.5e12
+    with pytest.raises(BuildError):
+        parse_size("lots")
+    parts = scan_parts(scan, read_manifest(scan), "entries")
+    with duckdb.connect() as con:
+        small, large = _scan_threads(con, parts, "1KB"), _scan_threads(con, parts, "64GB")
+    assert small == 1 and large > 1
+
+
+def test_out_of_memory_retries_with_fewer_threads(tmp_path, scan, monkeypatch):
+    """If the estimate is wrong and a step runs out of memory, it is retried with half the threads."""
+    import duckdb as real
+
+    from pinax.ingest import build
+
+    monkeypatch.setattr(build, "_scan_threads", lambda con, parts, limit: 4)
+    real_connect = real.connect
+    failures = {"stage": 1}
+
+    class Flaky:
+        def __init__(self, con):
+            self._con = con
+
+        def execute(self, sql, *args):
+            if "PARTITION_BY (grp)" in sql and failures["stage"]:
+                failures["stage"] -= 1
+                (tmp_path / "index.tmp" / "stage").mkdir(exist_ok=True)  # a partial COPY to clean up
+                raise real.OutOfMemoryException("simulated")
+            return self._con.execute(sql, *args)
+
+        def __getattr__(self, name):
+            return getattr(self._con, name)
+
+    monkeypatch.setattr(build.duckdb, "connect", lambda *a, **k: Flaky(real_connect(*a, **k)))
+    r = build_index(scan, tmp_path / "index", progress=lambda m: None)
+    assert failures["stage"] == 0 and r.totals["files"] == len(FILES)

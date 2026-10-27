@@ -426,12 +426,11 @@ def cold(session: Session, ident: Identity, fs_slug, path, *, older: int, min_by
     if not 1 <= older < NB:
         raise HTTPException(422, "Choose an age threshold")
     places = resolve(session, ident, fs_slug, path, snap_id, lab_slug)
-    edge_days = [b.max_days for b in AGE_BUCKETS if b.max_days][older - 1]
     rows, count, cbytes, cfiles = [], 0, 0, 0
     scope_bytes, cold_file_bytes = 0, 0
     owners = folder_owners(session)
     for p in places:
-        res = p.idx.cold_dirs(p.path, p.idx.ref_epoch - edge_days * DAY, min_bytes=min_bytes, limit=limit)
+        res = p.idx.cold_dirs(p.path, older, min_bytes=min_bytes, limit=limit)
         count += res["count"]
         cbytes += res["bytes"]
         cfiles += res["files"]

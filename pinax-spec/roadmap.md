@@ -17,7 +17,7 @@ decisions taken are recorded here. Later waves are outlined at the end.
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
 **Where things stand:** wave 1 is released as 0.1.0 (tag `v0.1.0` on `main`). Wave 2 is in progress on `wave2`:
-slices 1 and 2 are done, and slice 3 (scale to 100 million) is next. Production storage is out of reach while
+slices 1 to 3 are done, and slice 4 (automatic ingest) is next. Production storage is out of reach while
 wave 2 is built, so testing on it, and the pilot, are wave 3.
 
 The order follows one principle:
@@ -131,8 +131,8 @@ in wave 3.
 | --- | --- | --- | --- |
 | 1 | Independent cross-check (Q1) | For every directory of the demo scans and of a 1- and 10-million-file synthetic scan, Pinax's files, directories, bytes, allocated bytes, oldest and newest modification time, and bytes and files per age bucket equal `fs-inventory rollup`'s (run with Pinax's bucket edges); a committed check script and a test that runs it when the binary is installed | Done |
 | 2 | Real-world shapes (S3, Q1, Q3, Q4) | A real local scan (the maintainer's `~/Documents`) and a synthetic scan with a two-million-file folder, a 200,000-subfolder folder, and a chain 1,000 deep pass the slice 1 check; names that are not UTF-8 or hold control characters, mount points, nanosecond times, and leftover parts handled; laptop measurements recorded; no real scan, path, or name committed | Done |
-| 3 | Scale to 100 million (S3, R3, Q3–Q5) | A 100-million-file synthetic scan, built and queried on the development laptop, meets Q3–Q5; whole-filesystem cold folders precomputed per age threshold at build time and answered within Q3; build memory and threads tuned and documented | Next |
-| 4 | Automatic ingest (S4, O4) | `pinax ingest --watch` (or a timer) ingests each new verified scan under a folder once, skipping incomplete and already-ingested scans, safe if two run at once; failures shown on *Scans* with the error; tests for each case | To come |
+| 3 | Scale to 100 million (S3, R3, Q3–Q5) | A 100-million-file synthetic scan, built and queried on the development laptop, meets Q3–Q5; whole-filesystem cold folders precomputed per age threshold at build time and answered within Q3; build memory and threads tuned and documented | Done |
+| 4 | Automatic ingest (S4, O4) | `pinax ingest --watch` (or a timer) ingests each new verified scan under a folder once, skipping incomplete and already-ingested scans, safe if two run at once; failures shown on *Scans* with the error; tests for each case | Next |
 | 5 | Bulk onboarding (A5) | Labs, people, memberships, and folder ownership imported from CSV with a dry run that lists every change, refusing ambiguous rows; changes audited; example files and docs | To come |
 | 6 | Deployment kit (P6, A4) | systemd units for the web app and ingest; header mode checked behind oauth2-proxy with a local test identity provider; a health endpoint; `docs/DEPLOYMENT.md` rewritten as an installation guide, confirmed by the pilot's installation in wave 3 | To come |
 | 7 | Release 0.2.0 | README demo script updated; version 0.2.0, changelog, pull request, tag, release | To come |
@@ -197,6 +197,24 @@ in wave 3.
      categories, leaving 0.8%. The scan and its indexes were deleted after measuring.
    - *Done*: the real local scan and the wide and deep synthetic scan equal to rollup on every directory, with
      the shapes above handled. Measuring production storage moved to wave 3.
+3. **Scale to 100 million (S3, R3, Q3–Q5).**
+   - A synthetic scan of 100 million files in 2.44 million folders under 2,000 top-level folders, generated in
+     155 s (3.8 GB).
+   - Found at this scale and fixed: the build ran out of its 8 GB limit reading the scan, because each thread
+     decodes a whole row group of about a million entries (146 MB here). Steps that read the scan now use as many
+     threads as fit three quarters of the limit (6 of 10 here), from the Parquet metadata, and halve them and
+     retry if a step still runs out. Files are staged and sorted in at most 64 groups of top-level folders
+     (`files/gNNNNNN/`), so the staging write keeps few files open however many top-level folders there are.
+   - The two-level treemap ranked the children of every subfolder and all subfolders to total the rest: 310 ms
+     for the root. It now ranks only the 60 shown and totals the rest in one pass: 39–49 ms.
+   - `cold_units`: per age threshold, the largest folders with nothing younger, computed at build time;
+     whole-filesystem cold folders in 21 ms. Tested against a brute force over the files and against the
+     query-time method for every threshold. `INDEX_VERSION` is 3; older indexes still read.
+   - Measured on the 10-core laptop within the 8 GB default: build 121 s (peak 7.7 GB), index 5.56 GB (56 bytes per
+     file); directory-level queries 1–50 ms; lab searches 22 ms, whole-filesystem searches 2.8 s; every
+     directory equal to rollup. With 17 GB and all ten threads the build was no faster (133 s), so the default
+     stays 8 GB.
+   - *Done*: Q3–Q5 met at 100 million synthetic files on the laptop; server hardware and production are wave 3.
 
 ## Later waves (outlined)
 

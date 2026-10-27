@@ -35,7 +35,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | --- | --- | --- |
 | S1 | Read fs-inventory Parquet scans of schema versions 2 and 3; accept only complete scans (`--allow-incomplete` for `incomplete`); refuse several roots, other formats, missing columns | done (wave 1, slice 2) |
 | S2 | Install the pinned fs-inventory release with checksum and version checks; `pinax scan` runs scan and verify, then ingests | done (wave 1, slice 2: fs-inventory 1.0.0) |
-| S3 | Build a snapshot index with subtree totals for every directory, bounded memory, at billion-file scale | partial (wave 1, slice 2: measured to 10 million files; wave 2, slice 2: a real local scan and 12 million synthetic files with wide and deep folders; wave 2: 100 million synthetic; wave 3: production scans) |
+| S3 | Build a snapshot index with subtree totals for every directory, bounded memory, at billion-file scale | partial (wave 1, slice 2: measured to 10 million files; wave 2, slice 2: a real local scan and 12 million synthetic files with wide and deep folders; wave 2, slice 3: 100 million synthetic files in 121 s within 8 GB; wave 3: production scans) |
 | S4 | Ingest new verified scans automatically, never twice, with failures visible | planned (wave 2) |
 | S5 | Several filesystems, each with its own root and display root | done (wave 1, slice 2) |
 | S6 | Keep the newest snapshots' indexes; keep folder history for every snapshot | done (wave 1, slice 2: `PINAX_KEEP_SNAPSHOTS`) |
@@ -59,7 +59,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | --- | --- | --- |
 | R1 | Age profile of any folder by modification and access time, and of each subfolder | done (wave 1, slice 5) |
 | R2 | File types and categories; compressed files counted as what they contain | done (wave 1, slices 2 and 5: twelve categories; wave 2, slice 2: types found on a real disk added) |
-| R3 | Cold folders: the largest self-contained folders unchanged for a chosen time | done (wave 1, slice 5; wave 2: instant for whole filesystems) |
+| R3 | Cold folders: the largest self-contained folders unchanged for a chosen time | done (wave 1, slice 5; wave 2, slice 3: precomputed per threshold, 21 ms for a whole 100-million-file filesystem) |
 | R4 | Owners of any folder, flagging accounts that no longer exist | done (wave 1, slice 5) |
 | R5 | Find files by name or glob, type, category, size, age, and owner; CSV export | done (wave 1, slice 5) |
 | R6 | Call out uncompressed sequencing data | done (wave 1, slice 5) |
@@ -94,6 +94,6 @@ validation that shows it. Requirement IDs are stable and never reused.
 | --- | --- | --- |
 | Q1 | Totals agree with an independent computation | partial (wave 1, slice 7: equal to brute-force sums over every file in the tests; wave 2, slice 1: `pinax check` equal to `fs-inventory rollup` on every directory of the demo and synthetic scans; wave 2, slice 2: equal on a real local scan and on wide and deep synthetic scans; wave 3: production scans) |
 | Q2 | Every request value is bound as a query parameter; SQL fragments come only from fixed lists | done (wave 1, slice 3) |
-| Q3 | Directory-level queries (treemap, types, owners, cold folders of a lab) within 100 ms at a billion files | partial (wave 1: 23–64 ms at 10 million files; wave 2: measured at 100 million synthetic files; wave 3: on production) |
-| Q4 | Searches scoped to a lab folder within 1 s; whole-filesystem searches within 60 s at a billion files | partial (wave 1: 10 ms and 273 ms at 10 million files) |
-| Q5 | Index build within 2 hours per billion files on a server; index at most 60 bytes per file | partial (wave 1: 2.2 s per million files on a 10-core laptop; 55 bytes per file) |
+| Q3 | Directory-level queries (treemap, types, owners, cold folders of a lab) within 100 ms at a billion files | partial (wave 1: 23–64 ms at 10 million files; wave 2, slice 3: 1–50 ms at 100 million synthetic files; wave 3: on production) |
+| Q4 | Searches scoped to a lab folder within 1 s; whole-filesystem searches within 60 s at a billion files | partial (wave 1: 10 ms and 273 ms at 10 million files; wave 2, slice 3: 22 ms and 2.8 s at 100 million, about 30 s projected at a billion; wave 3: on production) |
+| Q5 | Index build within 2 hours per billion files on a server; index at most 60 bytes per file | partial (wave 1: 2.2 s per million files on a 10-core laptop; 55 bytes per file; wave 2, slice 3: 1.2 s per million at 100 million within 8 GB, about 20 minutes projected per billion; 56 bytes per file; wave 3: on a server) |

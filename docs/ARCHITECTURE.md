@@ -26,8 +26,8 @@ snapshot index that makes it fast, how it is built and queried, security, and me
    │ parallel, resumable, read-   │ ───────────────► │   scan -> snapshot index                     │
    │ only) -> Parquet + manifest  │  (shared path)   │   var/snapshots/<fs>/<scan>/                 │
    └──────────────────────────────┘                  │     index.duckdb    directory-level tables   │
-                                                     │     files/tNNNNNN/  per-file Parquet, by     │
-                                                     │                     top-level folder         │
+                                                     │     files/gNNNNNN/  per-file Parquet, by     │
+                                                     │                     group of top folders     │
                                                      │                                              │
                                                      │ catalog (SQLite; PostgreSQL in production)   │
                                                      │   people, labs, folder ownership,            │
@@ -70,11 +70,12 @@ The age color of a folder comes from those totals: the *average age* is weighted
 | `dir_ext` | directory and file type | Totals over the directory's *own* files of that type | `path` |
 | `dir_owner` | directory and owner (uid) | Totals over the directory's *own* files of that owner | `path` |
 | `top_ext`, `top_owner` | top-level folder and type / owner | The same, summed per top-level folder | `top_id` |
+| `cold_units` | age threshold and cold folder | For each threshold (90 days to 10 years), the largest folders in which every file is at least that old and whose parent has a newer one: path, depth, files, bytes | `(bucket, path)` |
 | `tops`, `file_parts` | top-level folder | Name, path, ID; file count and bytes | |
 | `users`, `groups` | uid / gid | Names from the scan (`--resolve-ids`); a missing name is a deleted account | |
 | `errors`, `name_flags` | scan error / top-level folder and flag | Errors with their top-level folder; counts of problem names | |
 | `meta` | key | Scan ID, root, reference time, the age buckets and categories used, totals | |
-| `files/tNNNNNN/part-*.parquet` | non-directory entry | Path, name, normalized type, category, kind, size, allocated bytes, owner, group, times, links, name flags | `path` within each top-level folder |
+| `files/gNNNNNN/part-*.parquet` | non-directory entry | Top-level folder, path, name, normalized type, category, kind, size, allocated bytes, owner, group, times, links, name flags; at most 64 groups of top-level folders (`file_parts` says which group holds each) | `path` within each group |
 
 ### Why the sort orders matter
 
@@ -87,8 +88,9 @@ match. The sort orders turn every query Pinax makes into a contiguous read:
 - **A subtree's type or owner breakdown** sums the rows of `dir_ext` or `dir_owner` with `path = P` or `path`
   in `[P/, P0)`, which are adjacent because those tables are sorted by `path`. Top-level folders and the
   whole filesystem use the pre-summed `top_ext` and `top_owner`.
-- **Files below a folder** live in that top-level folder's own Parquet files, sorted by path, so a
-  subfolder is a range of row groups and the rest are skipped. Nobody's query ever opens another lab's files.
+- **Files below a folder** live in the Parquet files of its top-level folder's group, sorted by path, so the
+  folder is a range of row groups and the rest are skipped. Every file query is limited to the folder's path
+  range, so a lab's query never returns another lab's files, even when they share a group.
 
 ### File types and categories
 
@@ -107,16 +109,26 @@ times after the scan started count as under 90 days.
 
 1. **Top-level folders**: the depth-1 directories of the scan.
 2. **Classify and stage**: one pass over the scan's entries computes each file's top-level folder, type,
-   and category, and writes them partitioned by top-level folder.
-3. **Per top-level folder**, one at a time: sort its files by path into `files/tNNNNNN/`, then aggregate
-   them by parent directory (totals, age buckets, categories, time sums), by directory and type, and by
-   directory and owner. Working one folder at a time bounds memory by the largest folder, not the file system,
-   and DuckDB spills to disk beyond `PINAX_BUILD_MEMORY_LIMIT`.
+   and category, and writes them partitioned by group of top-level folders.
+3. **Per group of top-level folders**, one at a time: sort the group's files by path into `files/gNNNNNN/`,
+   then aggregate them by parent directory (totals, age buckets, categories, time sums), by directory and type,
+   and by directory and owner. There are at most 64 groups, however many top-level folders there are, so the
+   write that stages them keeps a bounded number of files open (DuckDB keeps one open and buffered per
+   partition). Working one group at a time bounds memory by the largest group, not the file system, and DuckDB
+   spills to disk beyond `PINAX_BUILD_MEMORY_LIMIT`.
+
+Steps that read the scan itself use fewer threads than the rest when memory requires: fs-inventory writes row
+groups of about a million entries, and a thread decodes a whole row group (146 MB of the columns Pinax reads, in
+a synthetic scan), so ten threads needed more than 8 GB. The build reads the largest row group's size from the
+Parquet metadata and runs as many threads as fit in three quarters of the memory limit, and halves them and
+retries any step that still runs out.
 4. **Subtree totals, bottom-up one level at a time**: starting from the deepest level, each directory's
    totals are its own files plus the sums of its children's totals (minimums and maximums for times).
    Each level reads only its own rows and the level below, so the whole tree costs one pass, however deep.
 5. **Write** `dirs`, `dir_ext`, `dir_owner`, and the per-folder summaries in their sort orders, plus users,
    groups, errors, and metadata.
+6. **Cold folders**: for each of the six age thresholds, every directory whose files are all at least that old
+   (no files in younger buckets) while its parent's are not: one self-join of `dirs` per threshold.
 
 Then ingest records the snapshot and one `FolderStat` row per top-level folder in the catalog: those rows are
 the durable history (growth, cold share, mean age per scan) and they survive when old indexes are pruned.
@@ -187,7 +199,10 @@ values from requests are bound as parameters; the only SQL fragments built in co
   are a "files in this folder" tile, computed as its subtree minus all of its subfolders.
 - **Types and owners**: range sums over `dir_ext` / `dir_owner`, or the pre-summed per-folder tables.
 - **Cold folders**: directories whose newest file is older than the threshold while their parent has a newer
-  change: each is a self-contained cold unit (folders inside it are not listed again).
+  change: each is a self-contained cold unit (folders inside it are not listed again). If the folder asked
+  about is itself cold, it is the one unit; otherwise its units are the filesystem's units inside it, a range
+  of `cold_units`. Indexes built before version 3 find them at query time by joining directories with their
+  parents.
 - **Files**: the top-level folder's Parquet files, restricted to the subtree's path range, filtered and sorted.
 
 A request without a filesystem and path covers the person's *home*: each of their labs' folders (which may be
@@ -210,28 +225,36 @@ mean ages are rebased to a common reference time.
 ## Measured performance
 
 On an Apple M4 laptop (10 cores, 32 GB), with synthetic scans from `bench/synth_scan.py` that model a research
-file system (200 lab folders, projects of different ages, a realistic mix of file types and sizes):
+file system (lab folders, projects of different ages, a realistic mix of file types and sizes), and the default
+8 GB build memory:
 
 | Scan | Index build | Index size | Treemap (root, 2 levels) | Treemap (lab folder) | Types (lab) | Cold folders (lab) | Name search (lab) | Name search (whole file system) |
 |---|---|---|---|---|---|---|---|---|
 | 1 M files, 24 K folders | 3.4 s | 0.06 GB | 26 ms | 23 ms | 1 ms | 11 ms | 9 ms | 30 ms |
 | 10 M files, 244 K folders | 22 s | 0.54 GB | 64 ms | 42 ms | 1 ms | 20 ms | 10 ms | 273 ms |
-| 12.2 M files, 445 K folders, with wide and deep folders | 34 s | 0.59 GB | 69 ms | 43 ms | 1 ms | 23 ms | 9 ms | 304 ms |
+| 12.2 M files, 445 K folders, with wide and deep folders | 31 s | 0.59 GB | 49 ms | 35 ms | 1 ms | 14 ms | 9 ms | 304 ms |
+| 100 M files, 2.44 M folders, 2,000 top-level folders | 121 s | 5.56 GB | 49 ms | 30 ms | 1 ms | 13 ms | 22 ms | 2.8 s |
 
-The last scan adds a folder of two million files, a folder of 200,000 subfolders, and a chain 1,000 folders deep
-(`--wide 2000000 --deep 1000`). The treemap of the folder with 200,000 subfolders takes 108 ms, the deepest
-folder 9 ms, and the largest files in the two-million-file folder 32 ms; 10 of the 34 seconds of the build are
-the 1,000 levels of subtree totals.
+The first two rows were measured with 0.1.0; treemaps of wide folders are faster since. The third scan adds a
+folder of two million files, a folder of 200,000 subfolders, and a chain 1,000 folders deep (`--wide 2000000
+--deep 1000`): the treemap of the folder with 200,000 subfolders takes 45 ms, the deepest folder 6 ms, and the
+largest files in the two-million-file folder 33 ms; 10 of the 31 seconds of the build are the 1,000 levels of
+subtree totals. At 100 million files every directory-level query takes 50 ms or less (whole-filesystem cold
+folders 21 ms), and every directory is equal to `fs-inventory rollup` (rollup 11 s, compare 1 s).
 
-Build time is about 2.2 seconds per million files once fixed costs are amortized, so a billion-file scan
-would take on the order of 40 minutes on this laptop, and less on a server with more cores and faster disks.
-That is small next to the crawl itself. Directory-level queries depend on the number of directories in the
-range they read, not on file counts, so they stay in the tens of milliseconds for lab folders. Searches across
-a whole file system scan its files' name column, so they grow linearly: roughly 25 seconds at a billion files.
-Scoped to a lab folder they stay fast.
+The 100-million-file build peaks at 7.7 GB within the 8 GB limit, reading the scan with 6 of 10 threads. With
+17 GB and all ten threads it took 133 s instead of 121 s and peaked at 10.5 GB: staging the scan's files does not
+speed up with more threads, so more memory buys nothing here.
 
-Index size is about 55 bytes per file, mostly the per-file Parquet (which is kept sorted and compressed). A
-billion-file snapshot needs about 55 GB; keeping six snapshots per file system (the default) needs about
+Build time is about 1.2 seconds per million files, so a billion-file scan would take about 20 minutes on this
+laptop, and less on a server with more cores and faster disks; that is small next to the crawl itself.
+Directory-level queries depend on the number of directories in the range they read, not on file counts, so
+they stay in the tens of milliseconds. Searches across a whole file system scan its files' name column, so they
+grow linearly: 2.8 seconds at 100 million files, about 30 seconds at a billion. Scoped to a lab folder they stay
+fast. These are projections from synthetic data; wave 3 measures production storage.
+
+Index size is about 56 bytes per file, mostly the per-file Parquet (which is kept sorted and compressed). A
+billion-file snapshot needs about 56 GB; keeping six snapshots per file system (the default) needs about
 330 GB. Folder history in the catalog is tiny.
 
 Reproduce with:
@@ -263,5 +286,3 @@ uv run python bench/bench_index.py /scratch/synth-10m --index /scratch/synth-10m
   still looks old. That is usually what people want, and the interface says which time each view uses.
 - **Access time** depends on mount options; many storage systems update it rarely or never.
 - One root per filesystem; scans with several roots are refused.
-- Whole-filesystem cold-folder reports read every directory row; for very large file systems they take
-  seconds. Precomputing cold units per threshold at build time would make them instant (wave 2 in `pinax-spec/roadmap.md`).

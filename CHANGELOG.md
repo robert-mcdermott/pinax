@@ -13,6 +13,14 @@
 - **Real-filesystem shapes (wave 2, slice 2).** `synth_scan.py --wide N --deep D` adds a folder of N files, a folder
   of N/10 subfolders, and a deep chain; `bench_index.py` reports a scan's shape and query timings without any path
   or name. `pinax check --age-depth N` bounds rollup's memory on very large scans.
+- **Build threads fit the memory limit (wave 2, slice 3).** Steps that read the scan use only as many threads as
+  fit `PINAX_BUILD_MEMORY_LIMIT`, from the size of the scan's row groups, and halve them and retry if a step still
+  runs out of memory. The 8 GB default builds 100 million files in about two minutes on a 10-core laptop; 17 GB
+  and all ten threads were no faster.
+- **Precomputed cold folders (wave 2, slice 3).** Each index holds, per age threshold, the largest folders in which
+  nothing is younger (`cold_units`), so cold-folder reports for a whole filesystem read a range of rows instead
+  of joining every directory with its parent. A file exactly on a threshold now counts as old enough, as in the
+  age histograms. Indexes are now version 3; older ones still answer, at query time.
 - **More file types (wave 2, slice 2).** Camera photo and video formats (HEIC, WebP, camera raw, action-camera
   video), macro-enabled spreadsheets and Access databases, Visio drawings and Windows metafiles,
   executables and libraries, and Apple disk images now have categories; a real disk had 35% of its bytes in
@@ -20,6 +28,15 @@
 
 ### Fixed
 
+- **Large scans ran out of memory (wave 2, slice 3).** Building the index of a 100-million-file scan stopped at the
+  8 GB limit: fs-inventory writes row groups of about a million entries, each thread reading one decodes all of
+  it, and ten threads needed more than 8 GB. See the thread budget above. Files are also staged and sorted in at
+  most 64 groups of top-level folders (`files/gNNNNNN/`) instead of one partition per folder, so the staging
+  write keeps a bounded number of files open however many top-level folders there are; indexes built before
+  still read.
+- **Treemaps of wide folders (wave 2, slice 3).** The two-level treemap ranked the children of every subfolder,
+  not only of the 60 shown, and ranked all subfolders to total the rest: 310 ms for a root with 2,000 top-level
+  folders, now 39 ms.
 - **Age buckets at their edges (wave 2, slice 1).** Ages are whole microseconds from the scan's start instead of
   fractional days, whose rounding put a file exactly on a bucket edge in the younger bucket for about one scan
   start time in eleven (one in four at the ten-year edge). Indexes are now version 2.

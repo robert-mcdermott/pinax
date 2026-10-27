@@ -33,8 +33,8 @@ Settings are `PINAX_*` environment variables, or a `.env` file in the folder you
 
 | Setting | Default | What it does |
 |---|---|---|
-| `PINAX_BUILD_MEMORY_LIMIT` | `8GB` | DuckDB memory limit while building an index; it spills to a temporary folder beside the index beyond this |
-| `PINAX_BUILD_THREADS` | `0` | DuckDB threads while building; 0 means one per CPU |
+| `PINAX_BUILD_MEMORY_LIMIT` | `8GB` | DuckDB memory limit while building an index; it spills to a temporary folder beside the index beyond this. 8 GB builds 100 million files in two minutes; 17 GB was no faster |
+| `PINAX_BUILD_THREADS` | `0` | DuckDB threads while building; 0 means one per CPU. Steps that read the scan use fewer when memory requires: each thread decodes whole row groups of about a million entries, so the build uses as many as fit in three quarters of `PINAX_BUILD_MEMORY_LIMIT` (and halves them if a step still runs out) |
 | `PINAX_KEEP_SNAPSHOTS` | `6` | Snapshots per filesystem that keep their full index. Older ones are pruned to folder history |
 
 ## Queries

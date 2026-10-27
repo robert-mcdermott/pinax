@@ -50,7 +50,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("scan_dir", type=Path)
     ap.add_argument("--index", type=Path, required=True)
-    ap.add_argument("--memory", default="8GB")
+    ap.add_argument("--memory", default="8GB", help="Build memory limit")
     ap.add_argument("--skip-build", action="store_true")
     ap.add_argument("--json", type=Path, help="Also write the results to this file")
     args = ap.parse_args()
@@ -78,7 +78,7 @@ def main() -> None:
     most_files = pick("SELECT path FROM dirs ORDER BY d_files DESC LIMIT 1")
     most_folders = pick("""SELECT d.path FROM dirs d JOIN (SELECT parent_id, count(*) AS n FROM dirs GROUP BY parent_id
                            ORDER BY n DESC LIMIT 1) w ON w.parent_id = d.dir_id""")
-    cutoff = idx.ref_epoch - 3 * 365.25 * 86400
+    three_years = 4  # age buckets 3-5y and older
     cases = [
         ("treemap: filesystem root, two levels", lambda: idx.children(root, grand_limit=12)),
         ("treemap: top-level folder, two levels", lambda: idx.children(top, grand_limit=12)),
@@ -89,8 +89,8 @@ def main() -> None:
         ("file types: top-level folder", lambda: idx.types(top)),
         ("file types: depth-3 folder", lambda: idx.types(deep3)),
         ("owners: top-level folder", lambda: idx.owners(top)),
-        ("cold folders (3y): filesystem root", lambda: idx.cold_dirs(root, cutoff)),
-        ("cold folders (3y): top-level folder", lambda: idx.cold_dirs(top, cutoff)),
+        ("cold folders (3y): filesystem root", lambda: idx.cold_dirs(root, three_years)),
+        ("cold folders (3y): top-level folder", lambda: idx.cold_dirs(top, three_years)),
         ("largest files: top-level folder", lambda: idx.files(top, limit=100)),
         ("largest files: depth-3 folder", lambda: idx.files(deep3, limit=100)),
         ("largest files: folder with most files", lambda: idx.files(most_files, limit=100)),

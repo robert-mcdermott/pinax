@@ -29,8 +29,9 @@ class Settings(BaseSettings):
     scan_threads: int = 32
     scan_extra_args: list[str] = []
 
-    # Building snapshot indexes. DuckDB uses this much memory and these threads, spilling to
-    # VAR_ROOT/tmp beyond the memory limit. 0 threads means one per CPU.
+    # Building snapshot indexes. DuckDB uses this much memory and these threads, spilling beside the index
+    # beyond the memory limit. 0 threads means one per CPU; steps that read the scan use fewer if the memory
+    # limit requires. More memory doesn't make the build faster (measured at 100 million files).
     build_memory_limit: str = "8GB"
     build_threads: int = 0
     # Snapshots kept per filesystem; older indexes are deleted, their folder history is kept.
