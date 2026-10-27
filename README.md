@@ -65,7 +65,7 @@ Then open <http://127.0.0.1:8001>. `seed` writes two demo filesystems of about 3
 with fs-inventory (with some simulated activity in between), and ingests the scans. It takes about
 ten seconds. It resets `var/` and `demo/` each time, and refuses to run when `PINAX_ENVIRONMENT=prod`.
 
-## Demo script (about 10 minutes)
+## Demo script (about 12 minutes)
 
 1. **Home page.** Choose *Continue as Hanna Lindqvist* (a PI). *My data* shows one folder: 20 TiB, most of
    it unchanged for years.
@@ -87,6 +87,10 @@ ten seconds. It resets `var/` and `demo/` each time, and refuses to run when `PI
    (a newline, a leading dash, a Windows-reserved character, a name that is not NFC), and files owned by
    accounts that no longer exist.
 9. **Find files.** Search `*.bam`, older than five years, largest first; download the CSV.
+10. **Scans.** The snapshots of both filesystems, and whether automatic ingest is watching for new scans.
+11. **Import from CSV.** In a terminal, `uv run pinax import examples/import` lists the 14 changes the example
+    files would make: two departments, a lab, three people, their memberships, and owners for the three unmapped
+    folders. Add `--apply`, and *Folders and labs* shows no unmapped folders; every change is in the audit log.
 
 ## Using real filesystems
 
@@ -120,7 +124,13 @@ uv run pinax check 1
 ```
 
 Every top-level folder of a filesystem is a unit of ownership: map each one to a lab or department under
-*Folders and labs*, and its members see it. [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) covers scheduling,
+*Folders and labs*, and its members see it. To set up many labs and people at once, import them from CSV
+([docs/IMPORT.md](docs/IMPORT.md)):
+
+```bash
+uv run pinax import examples/import
+```
+ [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) covers scheduling,
 sizing, retention, and single sign-on.
 
 ## Commands
@@ -135,6 +145,7 @@ sizing, retention, and single sign-on.
 | `uv run pinax ingest SCAN_DIR [--fs SLUG] [--allow-incomplete]` | Build a snapshot index from a finished scan |
 | `uv run pinax ingest --watch [FOLDER] [--interval N] [--once] [--no-verify]` | Ingest each new verified scan under a folder (default `PINAX_SCAN_ROOT`) once |
 | `uv run pinax snapshots` | List snapshots |
+| `uv run pinax import FOLDER [--apply]` | Import labs, people, memberships, and folder ownership from CSV; a dry run unless `--apply` ([docs/IMPORT.md](docs/IMPORT.md)) |
 | `uv run pinax check SNAPSHOT_ID \| SCAN_DIR [--index DIR] [--age-depth N] [--json]` | Check an index against `fs-inventory rollup`, directory by directory |
 | `uv run pytest` | Tests: index correctness, the rollup cross-check, queries, authorization, and an end-to-end scan |
 
@@ -151,6 +162,7 @@ src/pinax/
   index.py                         read-only queries over one snapshot index
   snapshots.py                     scanning, ingest, retention, the cache of open indexes
   watch.py                         automatic ingest of new scans under a folder
+  onboard.py                       labs, people, memberships, and folder ownership from CSV
   auth.py, explore.py              identity and folder access; explore and report services
   serialize.py, api/               JSON views; FastAPI routers (identity, explore, admin, access)
   seed.py, cli.py, main.py         demo data, command line, app

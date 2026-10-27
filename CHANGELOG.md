@@ -13,6 +13,12 @@
 - **Real-filesystem shapes (wave 2, slice 2).** `synth_scan.py --wide N --deep D` adds a folder of N files, a folder
   of N/10 subfolders, and a deep chain; `bench_index.py` reports a scan's shape and query timings without any path
   or name. `pinax check --age-depth N` bounds rollup's memory on very large scans.
+- **Bulk onboarding (wave 2, slice 5).** `pinax import` reads labs, people, memberships, and folder ownership from
+  up to four CSV files (format in `docs/IMPORT.md`, examples in `examples/import/`). It lists every change first and
+  changes nothing without `--apply`; any ambiguous or invalid row (a key listed twice, a username differing only in
+  case, a reference to something that doesn't exist, an unknown column) refuses the whole import with its file and
+  line. Applied changes are audited one by one with the interface's actions, plus a summary with each file's
+  checksum. Running it again makes only the differences.
 - **Automatic ingest (wave 2, slice 4).** `pinax ingest --watch [FOLDER]` checks a folder every few minutes
   (`--interval`) and ingests each new complete scan once, after `fs-inventory verify`. Scans still running or
   interrupted are left until finished; incomplete and failed ones are recorded as skipped, with why. Failed and

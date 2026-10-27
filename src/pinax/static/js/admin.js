@@ -266,7 +266,7 @@ export async function viewAccess(el) {
   const render = () => mount(el, html`
     <div class="page-head"><div><div class="eyebrow">Administration</div><h1>People and access</h1>
       <p>Who can see what. People see the top-level folders their labs and departments own; storage administrators see everything.
-        Map folders to labs on <a href="#/folders">Folders and labs</a>.</p></div></div>
+        Map folders to labs on <a href="#/folders">Folders and labs</a>, or import labs, people, and ownership in bulk with <code>pinax import</code> (docs/IMPORT.md).</p></div></div>
     <div class="grid cols-2">${labs.map((l) => html`<div class="card"><div class="card-head"><h2>${l.name}</h2><span class="tag">${l.kind === "department" ? "Department" : "Lab"}</span></div>
       <p class="small muted" style="margin-top:-8px">${l.division} · ${l.research_area}</p>
       <h3 style="margin:10px 0 6px">Folders</h3>

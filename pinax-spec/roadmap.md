@@ -17,7 +17,7 @@ decisions taken are recorded here. Later waves are outlined at the end.
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
 **Where things stand:** wave 1 is released as 0.1.0 (tag `v0.1.0` on `main`). Wave 2 is in progress on `wave2`:
-slices 1 to 4 are done, and slice 5 (bulk onboarding) is next. Production storage is out of reach while
+slices 1 to 5 are done, and slice 6 (deployment kit) is next. Production storage is out of reach while
 wave 2 is built, so testing on it, and the pilot, are wave 3.
 
 The order follows one principle:
@@ -133,8 +133,8 @@ in wave 3.
 | 2 | Real-world shapes (S3, Q1, Q3, Q4) | A real local scan (the maintainer's `~/Documents`) and a synthetic scan with a two-million-file folder, a 200,000-subfolder folder, and a chain 1,000 deep pass the slice 1 check; names that are not UTF-8 or hold control characters, mount points, nanosecond times, and leftover parts handled; laptop measurements recorded; no real scan, path, or name committed | Done |
 | 3 | Scale to 100 million (S3, R3, Q3–Q5) | A 100-million-file synthetic scan, built and queried on the development laptop, meets Q3–Q5; whole-filesystem cold folders precomputed per age threshold at build time and answered within Q3; build memory and threads tuned and documented | Done |
 | 4 | Automatic ingest (S4, O4) | `pinax ingest --watch` (or a timer) ingests each new verified scan under a folder once, skipping incomplete and already-ingested scans, safe if two run at once; failures shown on *Scans* with the error; tests for each case | Done |
-| 5 | Bulk onboarding (A5) | Labs, people, memberships, and folder ownership imported from CSV with a dry run that lists every change, refusing ambiguous rows; changes audited; example files and docs | Next |
-| 6 | Deployment kit (P6, A4) | systemd units for the web app and ingest; header mode checked behind oauth2-proxy with a local test identity provider; a health endpoint; `docs/DEPLOYMENT.md` rewritten as an installation guide, confirmed by the pilot's installation in wave 3 | To come |
+| 5 | Bulk onboarding (A5) | Labs, people, memberships, and folder ownership imported from CSV with a dry run that lists every change, refusing ambiguous rows; changes audited; example files and docs | Done |
+| 6 | Deployment kit (P6, A4) | systemd units for the web app and ingest; header mode checked behind oauth2-proxy with a local test identity provider; a health endpoint; `docs/DEPLOYMENT.md` rewritten as an installation guide, confirmed by the pilot's installation in wave 3 | Next |
 | 7 | Release 0.2.0 | README demo script updated; version 0.2.0, changelog, pull request, tag, release | To come |
 
 ### Decisions for wave 2
@@ -231,6 +231,22 @@ in wave 3.
      watchers at once; the heartbeat; `--once` exit codes; and, with the binary, a scan failing verify and a real
      scan verified and ingested.
    - *Done*: all of the above, checked on the demo scans and the *Scans* page (desktop and 375 pixels).
+5. **Bulk onboarding (A5).**
+   - `onboard.py` and `pinax import [FOLDER] [--labs|--people|--memberships|--folders FILE] [--apply]`: four CSV
+     files keyed by lab slug, username, (lab, username), and (filesystem, folder). A dry run lists every create,
+     update (each field before and after), and removal; `--apply` makes all of them in one transaction or, if any
+     row is refused, none. Present columns set fields, absent ones leave them; `none` removes a membership or
+     unmaps a folder; labs and people are deactivated, never deleted.
+   - Refused: unreadable files, missing, unknown, or repeated columns, wrong value counts, empty required values,
+     keys listed twice, usernames differing only in case, references to labs, people, or filesystems that exist
+     nowhere, and values Pinax does not accept.
+   - Audit: one event per change with the interface's actions, marked as from an import with who ran it, and an
+     `import.applied` summary with each file's SHA-256.
+   - `docs/IMPORT.md` is the format, so the future authoritative source can produce it; `examples/import/` adds two
+     departments, a lab, and three people to the demo and gives its three unmapped folders owners.
+   - Tests: the dry run's every change and no effect; apply, its audit, the access it grants, and idempotence;
+     absent and empty columns; each refusal, with nothing applied; the command's exit codes; the example files.
+   - *Done*: all of the above.
 
 ## Later waves (outlined)
 

@@ -74,7 +74,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | A2 | Storage administrators see every filesystem and folder | done (wave 1, slice 3) |
 | A3 | Labs and departments own top-level folders (one owner each), the same model as Tundra; changes audited | done (wave 1, slice 6) |
 | A4 | Demo identity; trust a single sign-on proxy's header in production | done (wave 1, slice 1; wave 2: tested behind oauth2-proxy) |
-| A5 | Import labs, people, memberships, and folder ownership in bulk | planned (wave 2) |
+| A5 | Import labs, people, memberships, and folder ownership in bulk | done (wave 2, slice 5: `pinax import`, docs/IMPORT.md) |
 | A6 | Single sign-on with roles from directory groups; membership synced from the directory | planned (wave 5) |
 | A7 | An access recertification report | planned (wave 5) |
 

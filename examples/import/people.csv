@@ -1,0 +1,4 @@
+username,display_name,email,title,is_admin,active
+vortiz,Valeria Ortiz,vortiz@example.org,Principal Investigator,false,true
+tnguyen,Thanh Nguyen,tnguyen@example.org,Research Computing Manager,false,true
+bokeke,Blessing Okeke,bokeke@example.org,IRB Data Steward,false,true

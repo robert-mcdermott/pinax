@@ -46,6 +46,7 @@ src/pinax/
   index.py         SnapshotIndex: read-only queries over one index; Stats: additive totals
   snapshots.py     running scans, ingest (one at a time, under a file lock), retention, the cache of open indexes
   watch.py         `pinax ingest --watch`: each new scan under a folder once, and a heartbeat for *Scans*
+  onboard.py       `pinax import`: labs, people, memberships, and folder ownership from CSV (docs/IMPORT.md)
   auth.py          identity (demo cookie or SSO header) and folder access
   explore.py       explore and report services: resolving places, merging results across places
   serialize.py     JSON views of catalog objects

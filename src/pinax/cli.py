@@ -48,6 +48,14 @@ def main() -> None:
 
     sub.add_parser("snapshots", help="List snapshots")
 
+    imp = sub.add_parser("import", help="Import labs, people, memberships, and folder ownership from CSV "
+                                        "(a dry run unless --apply)")
+    imp.add_argument("folder", type=Path, nargs="?",
+                     help="A folder holding any of labs.csv, people.csv, memberships.csv, and folders.csv")
+    for name in ("labs", "people", "memberships", "folders"):
+        imp.add_argument(f"--{name}", type=Path, help=f"The {name} file (instead of {name}.csv in the folder)")
+    imp.add_argument("--apply", action="store_true", help="Make the changes (all of them, or none if any row is refused)")
+
     check = sub.add_parser("check", help="Check an index against fs-inventory rollup, directory by directory")
     check.add_argument("target", help="Snapshot ID, or an fs-inventory scan directory")
     check.add_argument("--index", type=Path,
@@ -89,6 +97,8 @@ def main() -> None:
         _snapshots()
     elif args.command == "check":
         sys.exit(_check(args))
+    elif args.command == "import":
+        sys.exit(_import(args))
 
 
 def _filesystem(args: argparse.Namespace) -> int:
@@ -174,6 +184,41 @@ def _watch(args: argparse.Namespace) -> int:
     except KeyboardInterrupt:
         return 0
     return 1 if result.failed else 0
+
+
+def _import(args: argparse.Namespace) -> int:
+    from .db import init_db, session_scope
+    from .onboard import FORMATS, apply_import, plan_import
+
+    files = {}
+    for name in FORMATS:
+        given = getattr(args, name)
+        if given is None and args.folder is not None and (args.folder / f"{name}.csv").exists():
+            given = args.folder / f"{name}.csv"
+        if given is not None:
+            if not given.is_file():
+                print(f"error: {given} is not a file", file=sys.stderr)
+                return 2
+            files[name] = given
+    if not files:
+        print("error: give a folder holding labs.csv, people.csv, memberships.csv, or folders.csv, or the files "
+              "themselves (see docs/IMPORT.md)", file=sys.stderr)
+        return 2
+    init_db()
+    with session_scope() as s:
+        plan = plan_import(s, **files)
+        print(plan.text())
+        if not plan.ok:
+            return 1
+        if not plan.changes:
+            print("Nothing to change.")
+            return 0
+        if not args.apply:
+            print(f"Dry run: nothing changed. Run again with --apply to make these {len(plan.changes)} changes.")
+            return 0
+        n = apply_import(s, plan)
+        print(f"Applied {n} changes; each is in the audit log.")
+    return 0
 
 
 def _snapshots() -> None:

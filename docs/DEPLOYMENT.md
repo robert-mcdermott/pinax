@@ -31,6 +31,23 @@ example `/mnt/fast`), register that root and add `--display-root /fh/fast` so pa
 Then map each top-level folder to its lab or department under *Folders and labs*. Unmapped folders are
 visible only to administrators, and the overview counts them.
 
+## Onboarding labs and people
+
+For more than a handful, import labs, people, memberships, and folder ownership from CSV files
+([IMPORT.md](IMPORT.md)). The import lists every change before making any, refuses the whole import if a row is
+ambiguous, and audits each change:
+
+```bash
+uv run pinax import /srv/pinax/onboarding
+```
+
+```bash
+uv run pinax import /srv/pinax/onboarding --apply
+```
+
+Run it again whenever the files change; it makes only the differences. Until there is an authoritative source
+of folder ownership (wave 5), keep the files in version control and treat them as that source.
+
 ## Scheduling scans
 
 Weekly scans suit most research filesystems; nightly scans suit smaller ones or ones you watch closely.
