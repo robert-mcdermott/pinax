@@ -35,7 +35,9 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every setting, its default, and what it does |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Running in production: scan hosts, scheduling, the web server, single sign-on, sizing, operations |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Code layout, conventions, the HTTP API, the interface, themes and chart colors, tests, benchmarks |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | What is done, what is next, and open decisions |
+| [pinax-spec/roadmap.md](pinax-spec/roadmap.md) | The plan: waves (one release each) and their slices, what is done, what is next, decisions |
+| [pinax-spec/requirements.md](pinax-spec/requirements.md) | What Pinax must do, with stable IDs and each requirement's status |
+| [CHANGELOG.md](CHANGELOG.md) | What each release contains |
 
 ## Quick start
 
@@ -139,7 +141,8 @@ src/pinax/
 bench/                             synthetic scans of any size and query benchmarks
 scripts/install-fs-inventory.sh    installs the pinned fs-inventory release into bin/
 tests/                             pytest suite
-docs/                              architecture, configuration, deployment, development, roadmap
+docs/                              architecture, configuration, deployment, development
+pinax-spec/                        requirements and roadmap
 bin/  var/  scans/  demo/          fs-inventory binary and runtime data (gitignored)
 ```
 

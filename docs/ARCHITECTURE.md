@@ -205,4 +205,4 @@ uv run python bench/bench_index.py /scratch/synth-10m --index /scratch/synth-10m
 - **Access time** depends on mount options; many storage systems update it rarely or never.
 - One root per filesystem; scans with several roots are refused.
 - Whole-filesystem cold-folder reports read every directory row; for very large file systems they take
-  seconds. Precomputing cold units per threshold at build time would make them instant (see the roadmap).
+  seconds. Precomputing cold units per threshold at build time would make them instant (wave 2 in `pinax-spec/roadmap.md`).
