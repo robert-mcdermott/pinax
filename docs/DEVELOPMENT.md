@@ -44,7 +44,8 @@ src/pinax/
   ingest/build.py  fs-inventory scan -> snapshot index (DuckDB SQL)
   crosscheck.py    `pinax check`: every directory of an index against fs-inventory rollup
   index.py         SnapshotIndex: read-only queries over one index; Stats: additive totals
-  snapshots.py     running scans, ingest, retention, the cache of open indexes
+  snapshots.py     running scans, ingest (one at a time, under a file lock), retention, the cache of open indexes
+  watch.py         `pinax ingest --watch`: each new scan under a folder once, and a heartbeat for *Scans*
   auth.py          identity (demo cookie or SSO header) and folder access
   explore.py       explore and report services: resolving places, merging results across places
   serialize.py     JSON views of catalog objects

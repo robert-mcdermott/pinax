@@ -52,6 +52,31 @@ Or on the Pinax server, in one step:
 uv run pinax scan fast -- --stall-timeout 15m
 ```
 
+Or let the scan host only scan and verify, and have Pinax pick up each new scan from the shared folder:
+
+```bash
+uv run pinax ingest --watch /scans --interval 300
+```
+
+The watcher looks for scan folders (with a `manifest.json`) up to three levels below `/scans`, oldest first, and
+treats each by the status fs-inventory gave it:
+
+| Status | What the watcher does |
+|---|---|
+| `complete` | runs `fs-inventory verify`, then ingests it (skip the verify with `--no-verify`) |
+| `running`, `interrupted` | leaves it alone and looks again next time, since it may still finish or be resumed |
+| `incomplete`, `failed` | records it on *Scans* as skipped, with why (`--allow-incomplete` ingests incomplete ones) |
+
+A scan is matched to its filesystem by its root, and is handled once: ingested, skipped, or failed with the error,
+all of which show on *Scans*. A failed or skipped scan is never retried automatically; fix the cause and run
+`pinax ingest SCAN_DIR` by hand. Scans whose root matches no registered filesystem are named in the watcher's log
+and left for later. Any number of watchers and manual ingests may run at once: they share a lock in
+`PINAX_VAR_ROOT`, so one index is built at a time and no scan is ingested twice.
+
+*Scans* also shows whether the watcher is alive: it reports what it is doing at every pass, and is shown as not
+responding when it misses three. To run it from a timer instead of as a service, use `--once` with the timer's
+interval as `--interval`; it exits with code 1 when a scan in that pass failed.
+
 Notes:
 
 - `--resolve-ids` records owner names, which the Owners report and storage health use to flag deleted accounts.

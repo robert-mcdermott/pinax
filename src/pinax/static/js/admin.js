@@ -213,16 +213,18 @@ export async function viewHealth(el, query) {
 export async function viewScans(el) {
   state.place = null;
   renderSidebar();
-  const snaps = await api("admin/snapshots");
+  const [snaps, ingest] = await Promise.all([api("admin/snapshots"), api("admin/ingest")]);
   const chip = (s) => ({
     ready: html`<span class="chip chip-done">${icon("check")}Ready</span>`,
     building: html`<span class="chip chip-active"><span class="pulse"></span>Building</span>`,
     failed: html`<span class="chip chip-failed">${icon("alert")}Failed</span>`,
+    skipped: html`<span class="chip chip-muted">${icon("x")}Skipped</span>`,
     pruned: html`<span class="chip chip-muted">${icon("archive")}History only</span>`,
   })[s] || s;
   mount(el, html`
     <div class="page-head"><div><div class="eyebrow">Administration</div><h1>Scans</h1>
       <p>Each fs-inventory scan becomes a snapshot. The newest ones keep their full index; older ones keep folder totals as history.</p></div></div>
+    ${watchCard(ingest.watch)}
     <div class="card flush" style="margin-bottom:20px"><div class="table-wrap"><table class="table"><thead><tr>
       <th>Filesystem</th><th>Scan started</th><th>Status</th><th class="num">Entries</th><th class="num">Size</th><th class="num">Errors</th>
       <th class="num">Scan</th><th class="num">Index</th><th>fs-inventory</th></tr></thead><tbody>
@@ -232,10 +234,28 @@ export async function viewScans(el) {
         <td class="num nowrap">${duration(s.scan_seconds)}</td><td class="num nowrap">${duration(s.build_seconds)}<div class="sub">${bytes(s.index_bytes)}</div></td>
         <td>${s.tool_version}<div class="sub">${s.scan_status}</div></td></tr>`)}</tbody></table></div></div>
     <div class="card"><div class="card-head"><h2>Adding scans</h2></div>
-      <p>Scan a registered filesystem and ingest it in one step, or ingest a scan made elsewhere (for example by a scheduled job on a storage node):</p>
+      <p>Scan a registered filesystem and ingest it in one step, ingest a scan made elsewhere (for example by a scheduled job on a storage node), or watch a folder that scans are written to:</p>
       <pre class="json">uv run pinax scan fast
-uv run pinax ingest /scans/fast/2026-10-26 --fs fast</pre>
-      <p class="small muted" style="margin:12px 0 0">Only complete scans are accepted. See docs/DEPLOYMENT.md for scheduling, sizing, and retention.</p></div>`);
+uv run pinax ingest /scans/fast/2026-10-26 --fs fast
+uv run pinax ingest --watch /scans</pre>
+      <p class="small muted" style="margin:12px 0 0">Only complete scans are accepted, each once. A failed or skipped scan can be ingested by hand. See docs/DEPLOYMENT.md for scheduling, sizing, and retention.</p></div>`);
+}
+
+/** Automatic ingest: what `pinax ingest --watch` last reported. */
+function watchCard(w) {
+  if (!w) {
+    return html`<div class="card" style="margin-bottom:20px"><div class="card-head"><h2>Automatic ingest</h2>
+      <span class="chip chip-muted">${icon("pause")}Not running</span></div>
+      <p class="small muted" style="margin:0">Nothing is watching for new scans. Start <code>uv run pinax ingest --watch /scans</code>, or run it with <code>--once</code> from a timer.</p></div>`;
+  }
+  const last = w.last || {};
+  const state = w.stale ? html`<span class="chip chip-failed">${icon("alert")}${w.state === "stopped" ? "Stopped" : "Not responding"}</span>`
+    : w.state === "building" ? html`<span class="chip chip-active"><span class="pulse"></span>Ingesting</span>`
+    : html`<span class="chip chip-done">${icon("check")}Watching</span>`;
+  const counts = ["ingested", "skipped", "failed", "waiting", "unmatched"].filter((k) => last[k]).map((k) => `${num(last[k])} ${k}`);
+  return html`<div class="card" style="margin-bottom:20px"><div class="card-head"><h2>Automatic ingest</h2>${state}</div>
+    <p style="margin:0">Watching <span class="path">${w.folder}</span> on ${w.host} every ${w.interval % 60 ? `${w.interval} seconds` : w.interval === 60 ? "minute" : `${w.interval / 60} minutes`}${w.state === "building" ? html`; ingesting <span class="path">${w.scan}</span>` : ""}.</p>
+    <p class="small muted" style="margin:6px 0 0">Last heard from ${when(w.updated_at)}.${last.at ? html` Last check ${when(last.at)}: ${num(last.found)} scans, ${counts.length ? counts.join(", ") : "nothing new"}.` : ""}${last.unmatched ? " Scans with no registered filesystem are named in its log." : ""}</p></div>`;
 }
 
 // ---------- People and access ----------

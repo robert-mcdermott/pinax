@@ -106,6 +106,12 @@ Or ingest a scan made elsewhere, for example by a scheduled job on a storage nod
 uv run pinax ingest /scans/fast/2026-10-26
 ```
 
+Or let Pinax pick up each new scan written under a folder, checking every five minutes:
+
+```bash
+uv run pinax ingest --watch /scans
+```
+
 Check that every directory's totals equal an independent computation by `fs-inventory rollup` (the ID is from
 `pinax snapshots`):
 
@@ -127,6 +133,7 @@ sizing, retention, and single sign-on.
 | `uv run pinax filesystem list` | List filesystems and their latest scan |
 | `uv run pinax scan SLUG [--no-ingest] [-- fs-inventory options]` | Scan with fs-inventory, verify, and ingest |
 | `uv run pinax ingest SCAN_DIR [--fs SLUG] [--allow-incomplete]` | Build a snapshot index from a finished scan |
+| `uv run pinax ingest --watch [FOLDER] [--interval N] [--once] [--no-verify]` | Ingest each new verified scan under a folder (default `PINAX_SCAN_ROOT`) once |
 | `uv run pinax snapshots` | List snapshots |
 | `uv run pinax check SNAPSHOT_ID \| SCAN_DIR [--index DIR] [--age-depth N] [--json]` | Check an index against `fs-inventory rollup`, directory by directory |
 | `uv run pytest` | Tests: index correctness, the rollup cross-check, queries, authorization, and an end-to-end scan |
@@ -143,6 +150,7 @@ src/pinax/
   crosscheck.py                    an index against fs-inventory rollup, directory by directory
   index.py                         read-only queries over one snapshot index
   snapshots.py                     scanning, ingest, retention, the cache of open indexes
+  watch.py                         automatic ingest of new scans under a folder
   auth.py, explore.py              identity and folder access; explore and report services
   serialize.py, api/               JSON views; FastAPI routers (identity, explore, admin, access)
   seed.py, cli.py, main.py         demo data, command line, app

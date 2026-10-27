@@ -13,6 +13,12 @@
 - **Real-filesystem shapes (wave 2, slice 2).** `synth_scan.py --wide N --deep D` adds a folder of N files, a folder
   of N/10 subfolders, and a deep chain; `bench_index.py` reports a scan's shape and query timings without any path
   or name. `pinax check --age-depth N` bounds rollup's memory on very large scans.
+- **Automatic ingest (wave 2, slice 4).** `pinax ingest --watch [FOLDER]` checks a folder every few minutes
+  (`--interval`) and ingests each new complete scan once, after `fs-inventory verify`. Scans still running or
+  interrupted are left until finished; incomplete and failed ones are recorded as skipped, with why. Failed and
+  skipped scans show on *Scans* with the error and are never retried automatically. Watchers and manual ingests
+  share a lock, so any number can run at once without building two indexes together or ingesting a scan twice.
+  *Scans* shows whether the watcher is running; `--once` runs one pass for a timer and exits 1 if a scan failed.
 - **Build threads fit the memory limit (wave 2, slice 3).** Steps that read the scan use only as many threads as
   fit `PINAX_BUILD_MEMORY_LIMIT`, from the size of the scan's row groups, and halve them and retry if a step still
   runs out of memory. The 8 GB default builds 100 million files in about two minutes on a 10-core laptop; 17 GB

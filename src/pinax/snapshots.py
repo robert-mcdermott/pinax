@@ -1,17 +1,20 @@
 # SPDX-License-Identifier: Apache-2.0
 """Snapshots: running scans, ingesting them into indexes, retention, and the cache of open indexes."""
 
+import fcntl
 import json
 import logging
 import shutil
 import subprocess
 import threading
 from collections import OrderedDict
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .categories import AGE_BUCKETS, CATEGORY_KEYS, bucket_edges
@@ -128,12 +131,70 @@ def find_filesystem_for(session: Session, root: str, slug: str | None) -> Filesy
     return session.scalar(select(Filesystem).where(Filesystem.root == root))
 
 
+@contextmanager
+def ingest_lock(settings: Settings) -> Iterator[None]:
+    """One ingest at a time per catalog: `pinax ingest`, `pinax scan`, and any number of watchers take this lock
+    (a file lock in VAR_ROOT), so two never build at once or claim the same scan."""
+    settings.ensure_dirs()
+    with open(settings.var_root / "ingest.lock", "a+") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
+
+
+def _scan_fields(snap: Snapshot, manifest: dict, scan_dir: Path) -> None:
+    finished = manifest.get("finished_at")
+    snap.scan_dir = str(scan_dir)
+    snap.finished_at = (datetime.fromisoformat(finished).astimezone(UTC).replace(tzinfo=None)
+                        if finished else None)
+    snap.scan_seconds = manifest.get("duration_seconds")
+    snap.scan_status = manifest.get("status", "")
+    snap.tool_version = manifest.get("tool_version", "")
+    snap.host = manifest.get("host", "")
+
+
+def _started(manifest: dict) -> datetime:
+    value = manifest.get("started_at")
+    return datetime.fromisoformat(value).astimezone(UTC).replace(tzinfo=None) if value else utcnow()
+
+
+def record_scan(session: Session, scan_dir: Path, manifest: dict, fs: Filesystem, status: str, message: str,
+                settings: Settings | None = None) -> Snapshot | None:
+    """Record a scan that was found but not loaded (SKIPPED or FAILED, with why), so it shows on *Scans* and is
+    not tried again automatically. Returns None if the scan is already recorded."""
+    with ingest_lock(settings or get_settings()):
+        if session.scalar(select(Snapshot.id).where(Snapshot.scan_id == manifest["scan_id"])) is not None:
+            return None
+        snap = Snapshot(filesystem_id=fs.id, scan_id=manifest["scan_id"], started_at=_started(manifest),
+                        status=status, message=message)
+        _scan_fields(snap, manifest, Path(scan_dir).resolve())
+        session.add(snap)
+        session.add(AuditEvent(action=f"snapshot.{status}", summary=f"Did not ingest a scan of {fs.name}: {message}",
+                               detail={"scan_dir": str(scan_dir), "scan_id": manifest["scan_id"]}))
+        session.commit()
+        return snap
+
+
 def ingest_scan(session: Session, scan_dir: Path, *, fs_slug: str | None = None, allow_incomplete: bool = False,
-                settings: Settings | None = None, progress: Callable[[str], None] = print) -> Snapshot:
-    """Build an index from a finished scan and register it as the filesystem's newest snapshot."""
+                only_new: bool = False, settings: Settings | None = None,
+                progress: Callable[[str], None] = print) -> Snapshot:
+    """Build an index from a finished scan and register it as the filesystem's newest snapshot. A scan recorded
+    earlier as failed, skipped, or building (an ingest that died) is built again, unless `only_new` (automatic
+    ingest); a ready one is refused."""
     settings = settings or get_settings()
-    scan_dir = Path(scan_dir).resolve()
-    manifest = read_manifest(scan_dir)
+    with ingest_lock(settings):
+        return _ingest(session, Path(scan_dir).resolve(), fs_slug=fs_slug, allow_incomplete=allow_incomplete,
+                       only_new=only_new, settings=settings, progress=progress)
+
+
+def _ingest(session: Session, scan_dir: Path, *, fs_slug: str | None, allow_incomplete: bool, only_new: bool,
+            settings: Settings, progress: Callable[[str], None]) -> Snapshot:
+    try:
+        manifest = read_manifest(scan_dir)
+    except BuildError as e:
+        raise IngestError(str(e)) from e
     try:
         check_manifest(manifest, allow_incomplete=allow_incomplete)
     except BuildError as e:
@@ -147,21 +208,20 @@ def ingest_scan(session: Session, scan_dir: Path, *, fs_slug: str | None = None,
     existing = session.scalar(select(Snapshot).where(Snapshot.scan_id == manifest["scan_id"]))
     if existing is not None and existing.status == SnapshotStatus.READY:
         raise IngestError(f"scan {manifest['scan_id']} is already snapshot {existing.id}")
+    if existing is not None and only_new:
+        raise IngestError(f"scan {manifest['scan_id']} is already recorded as snapshot {existing.id} ({existing.status})")
 
-    started = datetime.fromisoformat(manifest["started_at"]).astimezone(UTC).replace(tzinfo=None)
-    finished = manifest.get("finished_at")
+    started = _started(manifest)
     snap = existing or Snapshot(filesystem_id=fs.id, scan_id=manifest["scan_id"], started_at=started)
-    snap.scan_dir = str(scan_dir)
     snap.status = SnapshotStatus.BUILDING
     snap.message = ""
-    snap.finished_at = (datetime.fromisoformat(finished).astimezone(UTC).replace(tzinfo=None)
-                        if finished else None)
-    snap.scan_seconds = manifest.get("duration_seconds")
-    snap.scan_status = manifest.get("status", "")
-    snap.tool_version = manifest.get("tool_version", "")
-    snap.host = manifest.get("host", "")
+    _scan_fields(snap, manifest, scan_dir)
     session.add(snap)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError as e:  # claimed by an ingest that does not take the lock (another catalog host)
+        session.rollback()
+        raise IngestError(f"scan {manifest['scan_id']} is already being ingested") from e
 
     index_dir = settings.snapshot_root / fs.slug / f"{started:%Y%m%dT%H%M%SZ}-{manifest['scan_id'][:8]}"
     try:

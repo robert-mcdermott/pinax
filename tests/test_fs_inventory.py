@@ -50,3 +50,22 @@ def test_scan_ingest_and_query(env, tmp_path):
 
     report = check(out, index_dir, tmp_path / "work", binary=fs_inventory())
     assert report.ok and report.dirs == 5, report.text()
+
+
+def test_watcher_verifies_and_ingests_a_real_scan(env, tmp_path):
+    from pinax.db import session_scope
+    from pinax.models import Filesystem
+    from pinax.watch import watch_pass
+
+    root = tmp_path / "fs"
+    (root / "lab_a").mkdir(parents=True)
+    (root / "lab_a" / "data.csv").write_bytes(b"x" * 100)
+    out = tmp_path / "scans" / "t" / "20261001T000000Z"
+    out.parent.mkdir(parents=True)
+    proc = subprocess.run([fs_inventory(), "scan", str(root), "-o", str(out), "--progress", "none"],
+                          capture_output=True, text=True, check=False)
+    assert proc.returncode == 0, proc.stderr
+    with session_scope() as s:
+        s.add(Filesystem(slug="t", name="Test", root=str(root.resolve())))
+    res = watch_pass(tmp_path / "scans", progress=lambda m: None)
+    assert len(res.ingested) == 1 and not res.failed, res

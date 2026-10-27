@@ -33,11 +33,18 @@ def main() -> None:
     scan.add_argument("--no-ingest", action="store_true", help="Only scan; ingest later with `pinax ingest`")
     scan.add_argument("extra", nargs=argparse.REMAINDER, help="Extra fs-inventory scan options, after --")
 
-    ingest = sub.add_parser("ingest", help="Build a snapshot index from a finished fs-inventory scan")
-    ingest.add_argument("scan_dir", type=Path)
+    ingest = sub.add_parser("ingest", help="Build a snapshot index from a finished fs-inventory scan, or watch a folder")
+    ingest.add_argument("scan_dir", type=Path, nargs="?",
+                        help="The scan folder; with --watch, the folder to watch (default: PINAX_SCAN_ROOT)")
     ingest.add_argument("--fs", dest="fs_slug", help="Filesystem slug (default: the one whose root matches the scan)")
     ingest.add_argument("--allow-incomplete", action="store_true",
                         help="Accept scans with status incomplete (stalled directories are missing)")
+    ingest.add_argument("--watch", action="store_true",
+                        help="Ingest each new scan under the folder once, checking every --interval seconds")
+    ingest.add_argument("--interval", type=int, default=300, help="Seconds between checks with --watch (default 300)")
+    ingest.add_argument("--once", action="store_true", help="With --watch: check once and exit (for cron or a timer)")
+    ingest.add_argument("--no-verify", dest="verify", action="store_false",
+                        help="With --watch: skip `fs-inventory verify` before ingesting")
 
     sub.add_parser("snapshots", help="List snapshots")
 
@@ -73,6 +80,10 @@ def main() -> None:
     elif args.command == "scan":
         sys.exit(_scan(args))
     elif args.command == "ingest":
+        if args.watch:
+            sys.exit(_watch(args))
+        if args.scan_dir is None:
+            parser.error("ingest needs a scan folder, or --watch")
         sys.exit(_ingest(args.scan_dir, args.fs_slug, args.allow_incomplete))
     elif args.command == "snapshots":
         _snapshots()
@@ -144,6 +155,25 @@ def _ingest(scan_dir: Path, fs_slug: str | None, allow_incomplete: bool) -> int:
         print(f"error: {e}", file=sys.stderr)
         return 1
     return 0
+
+
+def _watch(args: argparse.Namespace) -> int:
+    from .config import get_settings
+    from .db import init_db
+    from .watch import watch
+
+    settings = get_settings()
+    folder = args.scan_dir or settings.scan_root
+    if not folder.is_dir():
+        print(f"error: {folder} is not a folder", file=sys.stderr)
+        return 2
+    init_db()
+    try:
+        result = watch(folder, interval=max(10, args.interval), once=args.once, fs_slug=args.fs_slug,
+                       allow_incomplete=args.allow_incomplete, verify=args.verify, settings=settings)
+    except KeyboardInterrupt:
+        return 0
+    return 1 if result.failed else 0
 
 
 def _snapshots() -> None:

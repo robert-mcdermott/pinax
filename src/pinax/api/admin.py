@@ -9,9 +9,10 @@ from .. import explore
 from ..auth import Identity, require_admin
 from ..db import get_session
 from ..index import Stats
-from ..models import AuditEvent, Filesystem, Snapshot
+from ..models import AuditEvent, Filesystem, Heartbeat, Snapshot
 from ..serialize import fs_json, iso
 from ..snapshots import indexes, latest_snapshot, previous_snapshot, snapshot_json
+from ..watch import HEARTBEAT, heartbeat_json
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -95,6 +96,12 @@ def names(fs: str, flag: int, path: str | None = None, limit: int = Query(200, g
 def snapshots(_: Identity = Depends(require_admin), session: Session = Depends(get_session)):
     rows = session.scalars(select(Snapshot).order_by(Snapshot.started_at.desc())).all()
     return [snapshot_json(s) for s in rows]
+
+
+@router.get("/ingest")
+def ingest_status(_: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+    """Whether automatic ingest (`pinax ingest --watch`) is running, and what its last pass did."""
+    return {"watch": heartbeat_json(session.get(Heartbeat, HEARTBEAT))}
 
 
 @router.get("/filesystems")

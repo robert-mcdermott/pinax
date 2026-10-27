@@ -36,7 +36,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | S1 | Read fs-inventory Parquet scans of schema versions 2 and 3; accept only complete scans (`--allow-incomplete` for `incomplete`); refuse several roots, other formats, missing columns | done (wave 1, slice 2) |
 | S2 | Install the pinned fs-inventory release with checksum and version checks; `pinax scan` runs scan and verify, then ingests | done (wave 1, slice 2: fs-inventory 1.0.0) |
 | S3 | Build a snapshot index with subtree totals for every directory, bounded memory, at billion-file scale | partial (wave 1, slice 2: measured to 10 million files; wave 2, slice 2: a real local scan and 12 million synthetic files with wide and deep folders; wave 2, slice 3: 100 million synthetic files in 121 s within 8 GB; wave 3: production scans) |
-| S4 | Ingest new verified scans automatically, never twice, with failures visible | planned (wave 2) |
+| S4 | Ingest new verified scans automatically, never twice, with failures visible | done (wave 2, slice 4: `pinax ingest --watch`) |
 | S5 | Several filesystems, each with its own root and display root | done (wave 1, slice 2) |
 | S6 | Keep the newest snapshots' indexes; keep folder history for every snapshot | done (wave 1, slice 2: `PINAX_KEEP_SNAPSHOTS`) |
 | S7 | Say when totals are lower bounds (folders not read completely) | done (wave 1, slices 2 and 4) |
@@ -85,7 +85,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | O1 | Overview of every filesystem: totals, largest folders, biggest changes, unmapped folders, activity | done (wave 1, slice 6) |
 | O2 | Storage health: scan errors, folders not read, very large directories, small-file hotspots, problem names, deleted owners | done (wave 1, slice 6) |
 | O3 | Scans: every snapshot with its status, timings, and sizes | done (wave 1, slice 6) |
-| O4 | Alerts when a scan or ingest fails | planned (wave 2: visible on *Scans*; wave 5: alerts) |
+| O4 | Alerts when a scan or ingest fails | partial (wave 2, slice 4: failed and skipped scans, and a watcher that stopped, shown on *Scans*; `--once` exits 1 on a failure; wave 5: alerts) |
 | O5 | Metrics, structured logs, slow-query logging | planned (wave 5) |
 
 ## Quality and performance

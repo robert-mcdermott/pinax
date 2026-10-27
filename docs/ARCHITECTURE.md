@@ -133,6 +133,11 @@ retries any step that still runs out.
 Then ingest records the snapshot and one `FolderStat` row per top-level folder in the catalog: those rows are
 the durable history (growth, cold share, mean age per scan) and they survive when old indexes are pruned.
 
+Ingests run one at a time, under a file lock in `PINAX_VAR_ROOT`, and a scan ID is recorded once. `pinax ingest
+--watch` (`watch.py`) polls a folder for new scans and ingests each complete one once; scans it does not ingest
+are recorded as skipped or failed, with why, and a heartbeat row tells *Scans* whether the watcher is alive
+(`docs/DEPLOYMENT.md`).
+
 Only scans whose manifest says `complete` are accepted (`--allow-incomplete` also accepts `incomplete`, where
 stalled directories are missing). Directories the scanner could not read or did not enter (mount points,
 `--max-depth`) are counted in `incomplete`, so the interface can say when totals are lower bounds. A directory

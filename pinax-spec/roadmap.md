@@ -17,7 +17,7 @@ decisions taken are recorded here. Later waves are outlined at the end.
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
 **Where things stand:** wave 1 is released as 0.1.0 (tag `v0.1.0` on `main`). Wave 2 is in progress on `wave2`:
-slices 1 to 3 are done, and slice 4 (automatic ingest) is next. Production storage is out of reach while
+slices 1 to 4 are done, and slice 5 (bulk onboarding) is next. Production storage is out of reach while
 wave 2 is built, so testing on it, and the pilot, are wave 3.
 
 The order follows one principle:
@@ -132,8 +132,8 @@ in wave 3.
 | 1 | Independent cross-check (Q1) | For every directory of the demo scans and of a 1- and 10-million-file synthetic scan, Pinax's files, directories, bytes, allocated bytes, oldest and newest modification time, and bytes and files per age bucket equal `fs-inventory rollup`'s (run with Pinax's bucket edges); a committed check script and a test that runs it when the binary is installed | Done |
 | 2 | Real-world shapes (S3, Q1, Q3, Q4) | A real local scan (the maintainer's `~/Documents`) and a synthetic scan with a two-million-file folder, a 200,000-subfolder folder, and a chain 1,000 deep pass the slice 1 check; names that are not UTF-8 or hold control characters, mount points, nanosecond times, and leftover parts handled; laptop measurements recorded; no real scan, path, or name committed | Done |
 | 3 | Scale to 100 million (S3, R3, Q3–Q5) | A 100-million-file synthetic scan, built and queried on the development laptop, meets Q3–Q5; whole-filesystem cold folders precomputed per age threshold at build time and answered within Q3; build memory and threads tuned and documented | Done |
-| 4 | Automatic ingest (S4, O4) | `pinax ingest --watch` (or a timer) ingests each new verified scan under a folder once, skipping incomplete and already-ingested scans, safe if two run at once; failures shown on *Scans* with the error; tests for each case | Next |
-| 5 | Bulk onboarding (A5) | Labs, people, memberships, and folder ownership imported from CSV with a dry run that lists every change, refusing ambiguous rows; changes audited; example files and docs | To come |
+| 4 | Automatic ingest (S4, O4) | `pinax ingest --watch` (or a timer) ingests each new verified scan under a folder once, skipping incomplete and already-ingested scans, safe if two run at once; failures shown on *Scans* with the error; tests for each case | Done |
+| 5 | Bulk onboarding (A5) | Labs, people, memberships, and folder ownership imported from CSV with a dry run that lists every change, refusing ambiguous rows; changes audited; example files and docs | Next |
 | 6 | Deployment kit (P6, A4) | systemd units for the web app and ingest; header mode checked behind oauth2-proxy with a local test identity provider; a health endpoint; `docs/DEPLOYMENT.md` rewritten as an installation guide, confirmed by the pilot's installation in wave 3 | To come |
 | 7 | Release 0.2.0 | README demo script updated; version 0.2.0, changelog, pull request, tag, release | To come |
 
@@ -215,6 +215,22 @@ in wave 3.
      directory equal to rollup. With 17 GB and all ten threads the build was no faster (133 s), so the default
      stays 8 GB.
    - *Done*: Q3–Q5 met at 100 million synthetic files on the laptop; server hardware and production are wave 3.
+4. **Automatic ingest (S4, O4).**
+   - `watch.py` and `pinax ingest --watch [FOLDER] [--interval N] [--once] [--no-verify] [--allow-incomplete]`: each
+     pass finds scan folders up to three levels down, oldest first; complete scans are verified with
+     `fs-inventory verify` and ingested; `running` and `interrupted` ones wait; `incomplete` and `failed` ones are
+     recorded as skipped (a new snapshot status) with why. Every recorded scan is final for the watcher: failed and
+     skipped ones are built only by `pinax ingest SCAN_DIR`.
+   - Every ingest takes a file lock in `PINAX_VAR_ROOT`, and a scan ID can be recorded once, so watchers and manual
+     ingests can run together.
+   - A `heartbeat` table: *Scans* shows the watcher's folder, interval, state (watching, ingesting, not responding
+     after three missed passes, stopped) and its last pass; `/api/admin/ingest`.
+   - Tests for each case: finding scans; new scans once, oldest first; waiting scans picked up once finished;
+     incomplete and failed scans skipped once, and accepted by hand or with `--allow-incomplete`; build failures
+     recorded and not retried, and shown by the API; refusals recorded; unregistered roots left alone; two
+     watchers at once; the heartbeat; `--once` exit codes; and, with the binary, a scan failing verify and a real
+     scan verified and ingested.
+   - *Done*: all of the above, checked on the demo scans and the *Scans* page (desktop and 375 pixels).
 
 ## Later waves (outlined)
 
