@@ -99,7 +99,7 @@ Meanwhile nobody touches the Kowalski Lab's `raw/2024_tmt_plex`, which ages past
 climbs from 64% to 100% at the same size. *History* shows all of it, the *Change map* where each change is, and
 *What changed* lists them.
 
-## Demo script (about 12 minutes)
+## Demo script (about 15 minutes)
 
 1. **Home page.** Choose *Continue as Hanna Lindqvist* (a PI). *My data* shows one folder: 19 TiB, most of
    it unchanged for years.
@@ -108,9 +108,9 @@ climbs from 64% to 100% at the same size. *History* shows all of it, the *Change
    *Size by* to *Size of sequencing and genomics*.
 3. **File types.** The callout shows terabytes of uncompressed SAM files; click `.sam` to list them. (The lab
    compressed its uncompressed FASTQ files before the fifth scan.)
-4. **Switch identity** (top right) to *Aiko Fujimoto*. Drill into `projects`, then `2022_tumor_atlas`, then
-   `raw`: an active project hides `2014_legacy_reruns`, the darkest blue tile, eleven years old. Next to it,
-   `2025_immune_aging` is red: data written this year.
+4. **Switch identity** (top right) to *Aiko Fujimoto*. Drill into `projects`: `2025_immune_aging` is red, data
+   written this year, beside two blue projects. Then `2022_tumor_atlas`, then `raw`: an active project hides
+   `2014_legacy_reruns`, the darkest blue tile, nearly twelve years old.
    **Cold data** at two years lists `raw` as one cold unit; at ten years it lists `2014_legacy_reruns` alone.
    **History** for `fujimoto_a`: the lab grew from 19 to 25 TiB in six scans, and new data on top of the columns
    brought its cold share down from 77% to 60%. Hover a column for that scan; the three small charts follow.
@@ -132,7 +132,7 @@ climbs from 64% to 100% at the same size. *History* shows all of it, the *Change
    BAMs); each list downloads as CSV.
 7. **Folders and labs.** Tick *Unmapped only*, then map `shared_reference` to the Genomics Shared Resource.
    Switch to *Casey Morgan*: the folder now appears in their data.
-8. **Storage health.** An unreadable folder, a 12,000-file directory of small PNG tiles, problem file names
+8. **Storage health.** An unreadable folder, a very large directory (12,000 PNG tiles), problem file names
    (a newline, a leading dash, a Windows-reserved character, a name that is not NFC), and files owned by
    accounts that no longer exist.
 9. **Find files.** Search `*.bam`, older than five years, largest first; download the CSV.

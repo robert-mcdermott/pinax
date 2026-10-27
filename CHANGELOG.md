@@ -1,6 +1,20 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 (2026-10-27)
+
+Third release (wave 3, "change over time"): where the growth comes from and whether data is ageing. Each index
+records how every directory changed since the previous scan, checked against `fs-inventory rollup` of both scans;
+the demo has six months of scans to show it; and the interface gains history charts, a change map, a report of
+what changed, and any kept scan in every report. Age is now shown hot to cold. Built and checked on small and
+synthetic data (up to a million files); the production pilot (wave 4) measures it at scale. See
+[pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+
+Upgrading from 0.2.0: indexes are now version 4. Indexes built by 0.2.0 still answer, but have no change since the
+previous scan, so the change map and What changed for them compare by joining an older kept index, and `pinax
+check` cannot check their changes; `pinax rebuild --outdated` builds them again, oldest first. Snapshots ingested
+from now on record their filesystem's totals for History; earlier ones are summed from folder history, which is
+slower on large catalogs. `/api/history` takes `fs`, `path`, `lab`, `snapshot`, and `at`, instead of `fs` and
+`folder`. There is no catalog schema change.
 
 ### Added
 

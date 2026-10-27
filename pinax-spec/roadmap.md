@@ -17,8 +17,8 @@ decisions taken are recorded here. Later waves are outlined at the end.
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
 **Where things stand:** wave 1 is released as 0.1.0 and wave 2 as 0.2.0 (tags `v0.1.0` and `v0.2.0` on `main`).
-Wave 3, change over time, is in progress on `wave3`: slices 1 to 6 are done, and slice 7 (release 0.3.0) is next. The production pilot,
-which needs production storage, follows as wave 4.
+Wave 3, change over time, is done on `wave3` as 0.3.0, for merging to `main` and tagging `v0.3.0`. The production
+pilot, which needs production storage, is next, as wave 4.
 
 The order follows one principle:
 1. **Trust first.** Totals that agree with an independent computation on every directory, and that say when
@@ -299,7 +299,7 @@ Every change is checked against an independent computation, like every total.
 | 4 | The change map (E8) | The age map's treemap colored by growth or shrinkage since a chosen scan (the previous one by default), sized by current or earlier size, with removed folders shown; drill down and up as in the age map; within Q3 for a lab folder at 100 million files | Done |
 | 5 | What changed (R9) | For any folder and two scans: the subfolders that grew and shrank most, new and removed folders, and the largest new and removed files, with CSV; within Q4 for a lab folder at 100 million files | Done |
 | 6 | Older snapshots in the interface (S8) | A snapshot picker on every report, the scan date shown wherever a number is, and links that keep the snapshot; a pruned snapshot offers its folder history only | Done |
-| 7 | Release 0.3.0 | The demo script walked through; version 0.3.0, changelog, pull request, tag, release | Next |
+| 7 | Release 0.3.0 | The demo script walked through; version 0.3.0, changelog, pull request, tag, release | Done |
 
 ### Decisions for wave 3
 
@@ -443,6 +443,16 @@ Every change is checked against an independent computation, like every total.
      any scan, and a home leaving a pruned filesystem out. They caught File types and Owners ignoring the day.
    - *Done*: checked in the browser, in both themes and at 375 pixels: the picker, links keeping the scan, the
      change map and What changed comparing with the scans before the chosen one, History's mark, and *Scans* links.
+7. **Release 0.3.0.**
+   - The demo re-seeded with this wave's code: all 12 snapshots, and all 10 changes between consecutive scans,
+     equal to rollup. The README demo script walked through against the demo, its numbers checked through the API
+     and the pages seen in the browser; the CSV import applied and the demo seeded again. Two sentences
+     corrected: where `2025_immune_aging` sits, and the tiles folder shown as a very large directory.
+   - Version 0.3.0 in `pyproject.toml`, `pinax.__version__`, and `uv.lock`; `CHANGELOG.md` dated, with upgrade
+     notes; pull request `wave3` to `main`, then tag `v0.3.0` and the release.
+   - Not measured: anything above a million files. The change map's Q3 and What changed's Q4 at 100 million files,
+     and changed scans at that size, wait for server-class hardware (wave 4).
+   - *Done*.
 
 ## Later waves (outlined)
 
