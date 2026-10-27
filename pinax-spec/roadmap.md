@@ -17,15 +17,16 @@ decisions taken are recorded here. Later waves are outlined at the end.
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
 **Where things stand:** wave 1 is released as 0.1.0 and wave 2 as 0.2.0 (tags `v0.1.0` and `v0.2.0` on `main`).
-Wave 3, the production pilot, is next; it starts when production storage is reachable from the development
-machine or a pilot server.
+Wave 3, change over time, is planned below and in progress on `wave3`; slice 1 is next. The production pilot,
+which needs production storage, follows as wave 4.
 
 The order follows one principle:
 1. **Trust first.** Totals that agree with an independent computation on every directory, and that say when
    they are lower bounds.
 2. **Then real storage at real scale.** First everything a production deployment needs, checked on real local
-   scans and on synthetic data at scale (wave 2); then production storage itself and a pilot (wave 3).
-3. **Then change over time.** Where the growth comes from, and whether data is ageing.
+   scans and on synthetic data at scale (wave 2); then production storage itself and a pilot (wave 4).
+3. **Then change over time.** Where the growth comes from, and whether data is ageing. It comes before the pilot
+   (wave 3) because it can be built and checked without production storage, which is not yet reachable.
 4. **Then reach.** Everyone in the organization, signed in, with access kept in step with the directory.
 5. **Then action.** Cost, digests, and the decisions reports should lead to.
 
@@ -123,7 +124,7 @@ recorded below as built. Merged to `main` in pull request #1 and released as v0.
 Everything a first production deployment needs, built and checked without production storage: every number
 checked against an independent tool, the shapes of real filesystems handled, 100 million files indexed, scans
 ingested as they arrive, labs onboarded in bulk, and a deployment kit. Production storage and the pilot follow
-in wave 3.
+in wave 4.
 
 ### Wave 2 sequence
 
@@ -134,7 +135,7 @@ in wave 3.
 | 3 | Scale to 100 million (S3, R3, Q3–Q5) | A 100-million-file synthetic scan, built and queried on the development laptop, meets Q3–Q5; whole-filesystem cold folders precomputed per age threshold at build time and answered within Q3; build memory and threads tuned and documented | Done |
 | 4 | Automatic ingest (S4, O4) | `pinax ingest --watch` (or a timer) ingests each new verified scan under a folder once, skipping incomplete and already-ingested scans, safe if two run at once; failures shown on *Scans* with the error; tests for each case | Done |
 | 5 | Bulk onboarding (A5) | Labs, people, memberships, and folder ownership imported from CSV with a dry run that lists every change, refusing ambiguous rows; changes audited; example files and docs | Done |
-| 6 | Deployment kit (P6, A4) | systemd units for the web app and ingest; header mode checked behind oauth2-proxy with a local test identity provider; a health endpoint; `docs/DEPLOYMENT.md` rewritten as an installation guide, confirmed by the pilot's installation in wave 3 | Done |
+| 6 | Deployment kit (P6, A4) | systemd units for the web app and ingest; header mode checked behind oauth2-proxy with a local test identity provider; a health endpoint; `docs/DEPLOYMENT.md` rewritten as an installation guide, confirmed by the pilot's installation in wave 4 | Done |
 | 7 | Release 0.2.0 | README demo script updated; version 0.2.0, changelog, pull request, tag, release | Done |
 
 ### Decisions for wave 2
@@ -145,7 +146,7 @@ in wave 3.
   one of them until explained.
 - Production storage is out of reach while wave 2 is built (decided 2026-10-26). The real scan in slice 2 is the
   maintainer's `~/Documents`: real names and shapes, but one owner on a laptop disk. Owners and labs are covered by
-  the demo seed and synthetic scans; production scans, server hardware, and the pilot are wave 3.
+  the demo seed and synthetic scans; production scans, server hardware, and the pilot are wave 4.
 - Pinax records only counts, timings, and checksums from real scans, never paths or names, in the repository;
   the scans themselves stay outside it and are deleted after measuring.
 - Watching polls a folder on a timer instead of relying on file-change notifications, which network filesystems
@@ -196,7 +197,7 @@ in wave 3.
      video formats, macro-enabled spreadsheets, diagrams, executables, and disk images were added to their
      categories, leaving 0.8%. The scan and its indexes were deleted after measuring.
    - *Done*: the real local scan and the wide and deep synthetic scan equal to rollup on every directory, with
-     the shapes above handled. Measuring production storage moved to wave 3.
+     the shapes above handled. Measuring production storage moved to wave 4.
 3. **Scale to 100 million (S3, R3, Q3–Q5).**
    - A synthetic scan of 100 million files in 2.44 million folders under 2,000 top-level folders, generated in
      155 s (3.8 GB).
@@ -214,7 +215,7 @@ in wave 3.
      file); directory-level queries 1–50 ms; lab searches 22 ms, whole-filesystem searches 2.8 s; every
      directory equal to rollup. With 17 GB and all ten threads the build was no faster (133 s), so the default
      stays 8 GB.
-   - *Done*: Q3–Q5 met at 100 million synthetic files on the laptop; server hardware and production are wave 3.
+   - *Done*: Q3–Q5 met at 100 million synthetic files on the laptop; server hardware and production are wave 4.
 4. **Automatic ingest (S4, O4).**
    - `watch.py` and `pinax ingest --watch [FOLDER] [--interval N] [--once] [--no-verify] [--allow-incomplete]`: each
      pass finds scan folders up to three levels down, oldest first; complete scans are verified with
@@ -272,7 +273,7 @@ in wave 3.
    - Tests: the health states; the header refused from untrusted addresses and accepted from trusted networks;
      demo sign-in off in header mode; every unit's command parsed by the CLI and every setting it names real;
      rebuilds (a lost index, the cache reopening, `--outdated`, a missing scan).
-   - *Done*, except what only a real server shows: the pilot installation in wave 3 confirms the guide and units
+   - *Done*, except what only a real server shows: the pilot installation in wave 4 confirms the guide and units
      (`systemd-analyze verify` and the sandboxing options cannot be run on the development Mac).
 7. **Release 0.2.0.**
    - The demo re-seeded with this wave's code: all four snapshots equal to rollup; the README demo script walked
@@ -282,12 +283,42 @@ in wave 3.
      `wave2` to `main`, then tag `v0.2.0` and the release.
    - *Done*.
 
+## 0.3.0: change over time (wave 3)
+
+Where the growth comes from, and whether data is ageing: a PI sees how their lab's data grew and aged over the
+scans, which folders grew or shrank since a chosen scan, and what is new; IT sees the same for every filesystem.
+Every change is checked against an independent computation, like every total.
+
+### Wave 3 sequence
+
+| Slice | Scope and requirements | Acceptance before the next slice | Status |
+| --- | --- | --- | --- |
+| 1 | Comparing two scans (S9, Q1) | At ingest, every directory's change since the filesystem's previous scan (size, space on disk, files, folders, bytes per age bucket; new and removed folders) is stored with the index; equal on every directory to the difference between `fs-inventory rollup`'s totals of the two scans, joined by path; tested against brute force over two file lists; the added build time measured at 100 million files | Next |
+| 2 | A history to show (demo and benchmarks) | `pinax seed` writes six scans of each filesystem over six months: a lab that grows, a cleanup, a project moved between labs, data ageing past the cold threshold, a new lab; `synth_scan.py --evolve` derives a changed scan from another, for benchmarks and checks at scale; the README demo script updated | To come |
+| 3 | History charts (E7) | Size, files, cold share, and mean age over every scan for each top-level folder, lab or department, and filesystem (from folder history), and for any deeper folder across the retained snapshots; a table view; both themes and 375 pixels; chart colors validated | To come |
+| 4 | The change map (E8) | The age map's treemap colored by growth or shrinkage since a chosen scan (the previous one by default), sized by current or earlier size, with removed folders shown; drill down and up as in the age map; within Q3 for a lab folder at 100 million files | To come |
+| 5 | What changed (R9) | For any folder and two scans: the subfolders that grew and shrank most, new and removed folders, and the largest new and removed files, with CSV; within Q4 for a lab folder at 100 million files | To come |
+| 6 | Older snapshots in the interface (S8) | A snapshot picker on every report, the scan date shown wherever a number is, and links that keep the snapshot; a pruned snapshot offers its folder history only | To come |
+| 7 | Release 0.3.0 | The demo script walked through; version 0.3.0, changelog, pull request, tag, release | To come |
+
+### Decisions for wave 3
+
+- Folders are matched across scans by path, so a renamed or moved folder shows as one removed and one new.
+  Matching them by inode is left for later.
+- The change since the previous scan is computed once, when a scan is ingested, and kept with its index; the change
+  since any other retained scan is computed when asked, for one folder and the levels shown.
+- Below the top level, history and comparisons reach back only as far as the retained snapshots
+  (`PINAX_KEEP_SNAPSHOTS`, 6 by default); top-level folders, labs, and filesystems have history for every scan.
+- The trust check for change uses `fs-inventory rollup` of both scans, so a wrong difference cannot come from
+  Pinax's own totals agreeing with themselves.
+- Growth and shrinkage use a diverging color pair validated like the age ramp, with a neutral gray for no change;
+  red stays the color of old data.
+
 ## Later waves (outlined)
 
 | Wave | Release | Theme | Main content |
 | --- | --- | --- | --- |
-| 3 | 0.3.0 | Production pilot | The largest production scan available ingests and passes `pinax check`; build time, index size, and query times measured on production replace the extrapolations in `docs/ARCHITECTURE.md`; 100 million files on server-class hardware; installation on a pilot server from the deployment kit, scanning on a schedule; IT and a few pilot labs use it, and what they find is fixed or recorded |
-| 4 | 0.4.0 | Change over time | History charts per folder, lab, and filesystem (E6); a change map colored by growth since a chosen scan; what changed between two scans; explore older snapshots (S8) |
+| 4 | 0.4.0 | Production pilot | The largest production scan available ingests and passes `pinax check`; build time, index size, and query times measured on production replace the extrapolations in `docs/ARCHITECTURE.md`; 100 million files on server-class hardware; installation on a pilot server from the deployment kit, scanning on a schedule; IT and a few pilot labs use it, and what they find is fixed or recorded |
 | 5 | 0.5.0 | Reach | PostgreSQL and migrations (P7); single sign-on with roles from directory groups and membership synced from the directory (A6); recertification report (A7); CI, container image (P6); metrics, logs, and alerts (O4, O5); security review |
 | 6 | 0.6.0 | Action | Hard-link aware totals (R7); cost views (R8); periodic digests for PIs; saved and shared views; quotas beside folders; whole-filesystem searches as background jobs |
 | 7 | 1.0.0 | Hardening | Budgets met at a billion files in production; accessibility audit; documentation complete; pilot and early-user feedback addressed |
@@ -299,5 +330,5 @@ in wave 3.
 - Which filesystems record access time reliably enough to show it by default.
 - Scan cadence and snapshot retention for each filesystem.
 - The cost model, if cost views are wanted (wave 6).
-- When production storage becomes reachable for wave 3, and which filesystem and labs the pilot uses.
+- When production storage becomes reachable for wave 4, and which filesystem and labs the pilot uses.
 - Who may see unmapped folders besides storage administrators (for example division data managers).

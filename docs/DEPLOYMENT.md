@@ -2,7 +2,7 @@
 
 Installing Pinax on a Linux server: the services, single sign-on, scans, upgrades, sizing, and operations.
 The files this guide installs are in `deploy/`. This guide is checked against the tests and a local run; the
-pilot installation (wave 3 in `pinax-spec/roadmap.md`) will confirm it on a real server.
+pilot installation (wave 4 in `pinax-spec/roadmap.md`) will confirm it on a real server.
 
 ## Shape of a deployment
 

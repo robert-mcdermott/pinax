@@ -3,13 +3,13 @@
 ## 0.2.0 (2026-10-26)
 
 Second release (wave 2, "ready for real storage"): everything a first production deployment needs, built and
-checked without production storage, which wave 3 brings. Every directory is checked against `fs-inventory
-rollup`; real-world shapes and 100 million files are handled; new scans are ingested automatically; labs and
-people are imported from CSV; and there is an installation guide with systemd units and oauth2-proxy sign-on.
-See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+checked without production storage, which the production pilot (wave 4) brings. Every directory is checked
+against `fs-inventory rollup`; real-world shapes and 100 million files are handled; new scans are ingested
+automatically; labs and people are imported from CSV; and there is an installation guide with systemd units and
+oauth2-proxy sign-on. See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
 
-Upgrading from 0.1.0: indexes are now version 3. Indexes built by 0.1.0 still answer, without precomputed cold
-folders and with the age-bucket rounding fixed below; `pinax rebuild --outdated` builds them again from their
+Upgrading from 0.1.0: indexes are now version 3. Indexes built by 0.1.0 still answer, but they have neither the
+precomputed cold folders nor the age-bucket fix below; `pinax rebuild --outdated` builds them again from their
 scans. The catalog gains a `heartbeat` table (created at start-up) and a `skipped` snapshot status.
 
 ### Added
