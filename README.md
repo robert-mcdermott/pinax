@@ -106,6 +106,13 @@ Or ingest a scan made elsewhere, for example by a scheduled job on a storage nod
 uv run pinax ingest /scans/fast/2026-10-26
 ```
 
+Check that every directory's totals equal an independent computation by `fs-inventory rollup` (the ID is from
+`pinax snapshots`):
+
+```bash
+uv run pinax check 1
+```
+
 Every top-level folder of a filesystem is a unit of ownership: map each one to a lab or department under
 *Folders and labs*, and its members see it. [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) covers scheduling,
 sizing, retention, and single sign-on.
@@ -121,7 +128,8 @@ sizing, retention, and single sign-on.
 | `uv run pinax scan SLUG [--no-ingest] [-- fs-inventory options]` | Scan with fs-inventory, verify, and ingest |
 | `uv run pinax ingest SCAN_DIR [--fs SLUG] [--allow-incomplete]` | Build a snapshot index from a finished scan |
 | `uv run pinax snapshots` | List snapshots |
-| `uv run pytest` | Tests: index correctness, queries, authorization, and an end-to-end scan |
+| `uv run pinax check SNAPSHOT_ID \| SCAN_DIR [--index DIR] [--json]` | Check an index against `fs-inventory rollup`, directory by directory |
+| `uv run pytest` | Tests: index correctness, the rollup cross-check, queries, authorization, and an end-to-end scan |
 
 API documentation is served at `/api/docs`.
 
@@ -132,6 +140,7 @@ src/pinax/
   config.py, db.py, models.py      settings, catalog engine, catalog schema
   categories.py                    file categories, type normalization, age buckets
   ingest/build.py                  scan -> snapshot index (DuckDB + Parquet)
+  crosscheck.py                    an index against fs-inventory rollup, directory by directory
   index.py                         read-only queries over one snapshot index
   snapshots.py                     scanning, ingest, retention, the cache of open indexes
   auth.py, explore.py              identity and folder access; explore and report services

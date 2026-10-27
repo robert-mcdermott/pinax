@@ -3,8 +3,9 @@
 
 import json
 import os
+import shutil
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import duckdb
@@ -17,6 +18,14 @@ COLUMNS = [
 ]
 
 
+def fs_inventory() -> str | None:
+    """The fs-inventory binary Pinax would use, if it is installed."""
+    from pinax.config import get_settings
+
+    path = get_settings().fs_inventory_path()
+    return path if shutil.which(path) or os.path.exists(path) else None
+
+
 def _ext(name: str) -> str | None:
     if name.startswith(".") or name.endswith(".") or "." not in name:
         return None
@@ -25,16 +34,26 @@ def _ext(name: str) -> str | None:
 
 
 def write_scan(out: Path, root: str, files: list[dict], *, started: datetime | None = None, status: str = "complete",
-               errors: dict[str, str] | None = None, users: dict[int, str | None] | None = None) -> dict:
+               errors: dict[str, str] | None = None, users: dict[int, str | None] | None = None,
+               dirs_only: list[str] | None = None, mounts: set[str] | None = None,
+               revisits: set[str] | None = None) -> dict:
     """`files`: dicts with `path` (relative to root), `size`, `age_days` (since `started`), and optional
-    `atime_days`, `uid`, `name_flags`. Directories are inferred; `errors` maps relative directory paths to
-    an error string (the directory is recorded as unreadable)."""
+    `atime_days`, `uid`, `name_flags`, `kind`. Directories are inferred, plus any in `dirs_only` (which may be
+    empty); `errors` maps relative directory paths to an error string (the directory is recorded as
+    unreadable). `mounts` are mount points not entered and `revisits` directories reached twice under
+    `--detect-cycles`; neither is listed."""
     started = started or datetime(2026, 10, 1, tzinfo=UTC)
-    ref = started.timestamp()
+    # Times are whole microseconds, as fs-inventory writes them, so ages can sit exactly on a bucket edge.
+    ref = (started - datetime(1970, 1, 1, tzinfo=UTC)) // timedelta(microseconds=1)
+
+    def ago(days: float) -> int:
+        return ref - round(days * 86_400_000_000)
+
     root = root.rstrip("/")
+    mounts, revisits = mounts or set(), revisits or set()
     dirs: dict[str, int] = {"": 1}
-    for f in files:
-        parts = f["path"].split("/")[:-1]
+    for p in [f["path"] for f in files] + [d + "/" for d in dirs_only or []]:
+        parts = p.split("/")[:-1]
         for i in range(1, len(parts) + 1):
             dirs.setdefault("/".join(parts[:i]), 0)
     for d in sorted(dirs):
@@ -50,40 +69,45 @@ def write_scan(out: Path, root: str, files: list[dict], *, started: datetime | N
         parent = rel.rsplit("/", 1)[0] if "/" in rel else ""
         kids = [d for d in dirs if d and (d.rsplit("/", 1)[0] if "/" in d else "") == rel and d != rel]
         kfiles = [f for f in files if (f["path"].rsplit("/", 1)[0] if "/" in f["path"] else "") == rel]
-        err = errors.get(rel)
+        err = errors.get(rel) or ("revisit: already visited through another path" if rel in revisits else None)
+        listed = not err and rel not in mounts
         rows.append({
             "path": full(rel), "parent_path": full(parent) if rel else "", "name": rel.rsplit("/", 1)[-1] if rel else root.rsplit("/", 1)[-1],
             "extension": None, "kind": "dir", "depth": 0 if not rel else rel.count("/") + 1, "dir_id": did,
             "parent_id": dirs[parent] if rel else 0, "ino": did, "uid": 1000, "gid": 1000, "mode": 0o40755, "size": 4096,
-            "alloc_bytes": 4096, "mtime": ref - 86400, "atime": ref - 86400,
-            "dir_entries": None if err else len(kids) + len(kfiles), "error": err, "name_flags": 0,
+            "alloc_bytes": 4096, "mtime": ago(1), "atime": ago(1),
+            "dir_entries": len(kids) + len(kfiles) if listed else None, "error": err, "name_flags": 0,
+            "is_mount_point": rel in mounts,
         })
     for i, f in enumerate(files):
         rel = f["path"]
         parent = rel.rsplit("/", 1)[0] if "/" in rel else ""
         name = rel.rsplit("/", 1)[-1]
-        mtime = ref - f.get("age_days", 0) * 86400
+        mtime = ago(f.get("age_days", 0))
         rows.append({
             "path": full(rel), "parent_path": full(parent), "name": name, "extension": _ext(name), "kind": f.get("kind", "file"),
             "depth": rel.count("/") + 1, "dir_id": None, "parent_id": dirs[parent], "ino": 10_000 + i, "uid": f.get("uid", 1000),
             "gid": 1000, "mode": 0o100644, "size": f["size"], "alloc_bytes": f.get("alloc", f["size"]), "mtime": mtime,
-            "atime": ref - f.get("atime_days", f.get("age_days", 0)) * 86400, "dir_entries": None, "error": None,
-            "name_flags": f.get("name_flags", 0),
+            "atime": ago(f.get("atime_days", f.get("age_days", 0))), "dir_entries": None, "error": None,
+            "name_flags": f.get("name_flags", 0), "is_mount_point": False,
         })
     (out / "entries").mkdir(parents=True)
+    part = out / "entries" / "part-w00-000000.parquet"
     con = duckdb.connect()
+    con.execute("SET TimeZone = 'UTC'")
     con.execute("""CREATE TABLE e (path VARCHAR, parent_path VARCHAR, name VARCHAR, extension VARCHAR, kind VARCHAR,
         depth INTEGER, dir_id BIGINT, parent_id BIGINT, ino UBIGINT, uid BIGINT, gid BIGINT, mode INTEGER, size BIGINT,
-        alloc_bytes BIGINT, mtime DOUBLE, atime DOUBLE, dir_entries BIGINT, error VARCHAR, name_flags INTEGER)""")
+        alloc_bytes BIGINT, mtime BIGINT, atime BIGINT, dir_entries BIGINT, error VARCHAR, name_flags INTEGER,
+        is_mount_point BOOLEAN)""")
     keys = ["path", "parent_path", "name", "extension", "kind", "depth", "dir_id", "parent_id", "ino", "uid", "gid", "mode",
-            "size", "alloc_bytes", "mtime", "atime", "dir_entries", "error", "name_flags"]
+            "size", "alloc_bytes", "mtime", "atime", "dir_entries", "error", "name_flags", "is_mount_point"]
     con.executemany(f"INSERT INTO e VALUES ({', '.join('?' for _ in keys)})", [[r[k] for k in keys] for r in rows])
     con.execute(f"""COPY (SELECT path, parent_path, name, extension, NULL::BLOB AS path_raw, name_flags, kind, depth, dir_id,
-        parent_id, 1::UBIGINT AS dev, ino, 1::BIGINT AS nlink, uid, gid, mode, size, alloc_bytes, to_timestamp(atime) AS atime,
-        to_timestamp(mtime) AS mtime, to_timestamp(mtime) AS ctime, NULL::TIMESTAMPTZ AS btime, NULL::UBIGINT AS rdev,
+        parent_id, 1::UBIGINT AS dev, ino, 1::BIGINT AS nlink, uid, gid, mode, size, alloc_bytes, make_timestamp(atime)::TIMESTAMPTZ AS atime,
+        make_timestamp(mtime)::TIMESTAMPTZ AS mtime, make_timestamp(mtime)::TIMESTAMPTZ AS ctime, NULL::TIMESTAMPTZ AS btime, NULL::UBIGINT AS rdev,
         dir_entries, NULL::BIGINT AS dir_files, NULL::BIGINT AS dir_subdirs, NULL::BIGINT AS dir_bytes,
-        NULL::BIGINT AS dir_alloc_bytes, false AS is_mount_point, 0 AS time_flags, error, NULL::VARCHAR AS symlink_target,
-        NULL::BLOB AS symlink_target_raw FROM e) TO '{out / "entries" / "part-w00-000000.parquet"}' (FORMAT parquet)""")
+        NULL::BIGINT AS dir_alloc_bytes, is_mount_point, 0 AS time_flags, error, NULL::VARCHAR AS symlink_target,
+        NULL::BLOB AS symlink_target_raw FROM e) TO '{part}' (FORMAT parquet)""")
     if users:
         (out / "users").mkdir()
         con.execute("CREATE TABLE u (uid BIGINT, name VARCHAR)")
@@ -101,6 +125,7 @@ def write_scan(out: Path, root: str, files: list[dict], *, started: datetime | N
         "status": status, "host": os.uname().nodename, "roots": [{"path": root, "path_b64": None}], "format": "parquet",
         "columns": COLUMNS, "started_at": started.isoformat().replace("+00:00", "Z"),
         "finished_at": started.isoformat().replace("+00:00", "Z"), "duration_seconds": 1.0,
+        "parts": {"entries": [{"file": f"entries/{part.name}", "rows": len(rows), "bytes": part.stat().st_size}]},
         "totals": {"entries": len(rows), "bytes": sum(f["size"] for f in files), "errors": len(errors)},
     }
     (out / "manifest.json").write_text(json.dumps(manifest))

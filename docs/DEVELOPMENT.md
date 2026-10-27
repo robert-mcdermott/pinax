@@ -30,8 +30,8 @@ uvx ruff check src tests bench
 ```
 
 Use `uv` for everything: `uv add <package>` for dependencies and `uv run` for scripts. Tests create their own
-temporary catalog and snapshot folders and never touch the demo. The end-to-end test runs the real
-fs-inventory binary and is skipped when it is not installed.
+temporary catalog and snapshot folders and never touch the demo. The end-to-end test and the rollup
+cross-check tests run the real fs-inventory binary and are skipped when it is not installed.
 
 ## Code layout
 
@@ -42,6 +42,7 @@ src/pinax/
   models.py        catalog schema: people, labs, folder ownership, filesystems, snapshots, folder history, audit
   categories.py    file categories, type normalization, age buckets
   ingest/build.py  fs-inventory scan -> snapshot index (DuckDB SQL)
+  crosscheck.py    `pinax check`: every directory of an index against fs-inventory rollup
   index.py         SnapshotIndex: read-only queries over one index; Stats: additive totals
   snapshots.py     running scans, ingest, retention, the cache of open indexes
   auth.py          identity (demo cookie or SSO header) and folder access
@@ -65,7 +66,13 @@ tests/             pytest suite; scanfix.py writes exact fs-inventory-shaped sca
   (`METRICS`, `FILE_SORTS`). Never interpolate request input into SQL.
 - **The index is immutable.** A snapshot index is never changed after it is built; build a new one instead.
   New per-directory measures go in `ADDITIVE` or `EXTREMES` in `ingest/build.py`, which flow through the
-  roll-up, `Stats`, and the API automatically. Bump `INDEX_VERSION` when the layout changes.
+  roll-up, `Stats`, and the API automatically. Bump `INDEX_VERSION` when the layout or a measure's meaning
+  changes.
+- **The index must agree with fs-inventory.** A change to the build keeps `uv run pinax check` passing on the
+  demo scans and on a synthetic scan (see Benchmarks). A measure fs-inventory rollup also computes is added to
+  `_measures()` in `crosscheck.py`.
+- **Age buckets use whole microseconds** (`epoch_us`), never fractional days, so a file exactly on an edge is
+  in the older bucket, as in fs-inventory rollup.
 - **Times** come out of DuckDB as epoch seconds (`epoch(...)`), never as timezone-aware values.
 - **Schema changes** to the catalog: edit `models.py`, then re-seed (`uv run pinax seed`). There are no
   migrations yet; Alembic must be added before production data exists.
@@ -139,7 +146,8 @@ navy in the header, `img/pinax-logo.svg` (mark and wordmark) where there is room
 
 `bench/synth_scan.py` writes a synthetic fs-inventory scan of any size in DuckDB (ten million files in about
 twenty seconds); `bench/bench_index.py` builds an index from it and times the queries the interface makes.
-Use them to check that a change keeps directory-level queries flat as scans grow.
+Use them to check that a change keeps directory-level queries flat as scans grow. `uv run pinax check SCAN_DIR`
+builds a temporary index from the same scan and compares every directory with fs-inventory rollup.
 
 ## Demo data
 

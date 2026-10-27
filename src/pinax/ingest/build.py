@@ -31,7 +31,7 @@ import shutil
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import duckdb
@@ -40,9 +40,11 @@ from ..categories import AGE_BUCKETS, CATEGORIES, COMPRESSION_SUFFIXES, OTHER, b
 
 log = logging.getLogger("pinax.build")
 
-INDEX_VERSION = 1
+INDEX_VERSION = 2
 NB = len(AGE_BUCKETS)
 NC = len(CATEGORIES)
+US_PER_DAY = 86_400_000_000
+EPOCH = datetime(1970, 1, 1)
 
 REQUIRED_COLUMNS = {
     "path", "name", "extension", "kind", "depth", "dir_id", "parent_id", "uid", "gid", "size", "alloc_bytes",
@@ -108,10 +110,12 @@ def _sql_str(s: str) -> str:
     return "'" + s.replace("'", "''") + "'"
 
 
-def _bucket_case(age_expr: str) -> str:
-    edges = bucket_edges()
-    whens = " ".join(f"WHEN {age_expr} < {e!r} THEN {i}" for i, e in enumerate(edges))
-    return f"CASE WHEN {age_expr} IS NULL THEN NULL {whens} ELSE {len(edges)} END"
+def _bucket_case(age_us: str) -> str:
+    """Age bucket for an age in whole microseconds. Exact integer arithmetic, so a file exactly on an edge
+    is in the older bucket, as in `fs-inventory rollup`; times after the scan started are in the first."""
+    edges = [round(e * US_PER_DAY) for e in bucket_edges()]
+    whens = " ".join(f"WHEN {age_us} < {e} THEN {i}" for i, e in enumerate(edges))
+    return f"CASE WHEN {age_us} IS NULL THEN NULL {whens} ELSE {len(edges)} END"
 
 
 def _direct_aggregates() -> str:
@@ -155,7 +159,8 @@ def build_index(
     check_manifest(manifest, allow_incomplete=allow_incomplete)
     root = manifest["roots"][0]["path"]
     started_at = _parse_ts(manifest["started_at"])
-    ref_day = started_at.replace(tzinfo=UTC).timestamp() / 86400.0
+    ref_us = (started_at - EPOCH) // timedelta(microseconds=1)
+    ref_day = ref_us / US_PER_DAY
     prefix = root if root.endswith("/") else root + "/"
 
     work = index_dir.with_name(index_dir.name + ".tmp")
@@ -224,7 +229,10 @@ def build_index(
         SELECT e.dir_id, e.parent_id, e.depth::INTEGER AS depth,
                CASE WHEN e.depth = 0 THEN 0 ELSE coalesce(t.top_id, 0) END::INTEGER AS top_id,
                e.path, e.name, e.uid, e.gid, e.mtime AS self_mtime, e.error, e.is_mount_point, e.dir_entries,
-               (e.error IS NOT NULL OR e.dir_entries IS NULL)::INTEGER AS incomplete_self
+               -- Not read completely: an error, or never listed (a mount point not entered, --max-depth). A
+               -- revisit (--detect-cycles) isn't missing anything: its contents are counted where first found.
+               (NOT coalesce(starts_with(e.error, 'revisit'), false)
+                AND (e.error IS NOT NULL OR e.dir_entries IS NULL))::INTEGER AS incomplete_self
         FROM entries e
         LEFT JOIN tops t ON e.depth >= 1 AND t.name = split_part(substr(e.path, {len(prefix) + 1}), '/', 1)
         WHERE e.kind = 'dir'
@@ -268,8 +276,8 @@ def build_index(
         sorted_src = f"read_parquet({_sql_str(str(out / '*.parquet'))})"
         with_ages = f"""
             SELECT *, {mday} AS mday, {aday} AS aday,
-                   {_bucket_case(f'({ref_day!r} - {mday})')} AS mbk,
-                   {_bucket_case(f'({ref_day!r} - {aday})')} AS abk
+                   {_bucket_case(f'({ref_us} - epoch_us(mtime))')} AS mbk,
+                   {_bucket_case(f'({ref_us} - epoch_us(atime))')} AS abk
             FROM {sorted_src}
         """
         step("direct", f"INSERT INTO s.direct SELECT parent_id AS dir_id, {_direct_aggregates()} "
@@ -417,6 +425,7 @@ def build_index(
         "root": root,
         "started_at": started_at.isoformat() + "Z",
         "ref_day": ref_day,
+        "ref_us": ref_us,
         "tool_version": manifest.get("tool_version"),
         "schema_version": manifest.get("schema_version"),
         "built_at": datetime.now(UTC).isoformat(),

@@ -1,21 +1,16 @@
 # SPDX-License-Identifier: Apache-2.0
-"""End to end with the real fs-inventory binary: scan a small tree, ingest it, and query it."""
+"""End to end with the real fs-inventory binary: scan a small tree, ingest it, query it, and check it."""
 
 import os
-import shutil
 import subprocess
+from pathlib import Path
 
 import pytest
+from scanfix import fs_inventory
 
-from pinax.config import get_settings
+from pinax.crosscheck import check
 
-
-def _binary() -> str | None:
-    path = get_settings().fs_inventory_path()
-    return path if shutil.which(path) or os.path.exists(path) else None
-
-
-pytestmark = pytest.mark.skipif(_binary() is None, reason="fs-inventory is not installed (scripts/install-fs-inventory.sh)")
+pytestmark = pytest.mark.skipif(fs_inventory() is None, reason="fs-inventory is not installed (scripts/install-fs-inventory.sh)")
 
 
 def test_scan_ingest_and_query(env, tmp_path):
@@ -36,7 +31,7 @@ def test_scan_ingest_and_query(env, tmp_path):
     (root / "lab_b" / "locked").chmod(0)
     out = tmp_path / "scan"
     try:
-        proc = subprocess.run([_binary(), "scan", str(root), "-o", str(out), "--progress", "none", "--resolve-ids"],
+        proc = subprocess.run([fs_inventory(), "scan", str(root), "-o", str(out), "--progress", "none", "--resolve-ids"],
                               capture_output=True, text=True, check=False)
     finally:
         (root / "lab_b" / "locked").chmod(0o755)
@@ -51,3 +46,7 @@ def test_scan_ingest_and_query(env, tmp_path):
         st = Stats.from_row(idx.node(idx.top_path("lab_a"))).json(idx.ref_day)
         assert st["bytes"] == 12_030 and st["age_bytes"][5] == 10_000 and st["age_bytes"][0] == 2_000
         assert {r["ext"] for r in idx.types(idx.top_path("lab_a"))} == {"bam", "fastq.gz", "csv"}
+        index_dir = Path(snap.index_dir)
+
+    report = check(out, index_dir, tmp_path / "work", binary=fs_inventory())
+    assert report.ok and report.dirs == 5, report.text()

@@ -98,6 +98,8 @@ type, so compressed sequencing data is still sequencing data. There are twelve c
 genomics, imaging, tabular and array data, mass spectrometry, archives, models, code, documents, media,
 containers, logs and temporary, other) defined in `categories.py`. Seven age buckets run from under 90 days
 to ten years or more. Both lists are recorded in each snapshot, so changing them affects only new snapshots.
+Ages are whole microseconds from the scan's start, so a file exactly on an edge is in the older bucket, and
+times after the scan started count as under 90 days.
 
 ## Building the index
 
@@ -120,8 +122,31 @@ Then ingest records the snapshot and one `FolderStat` row per top-level folder i
 the durable history (growth, cold share, mean age per scan) and they survive when old indexes are pruned.
 
 Only scans whose manifest says `complete` are accepted (`--allow-incomplete` also accepts `incomplete`, where
-stalled directories are missing). Directories the scanner could not read are counted in `incomplete`, so the
-interface can say when totals are lower bounds.
+stalled directories are missing). Directories the scanner could not read or did not enter (mount points,
+`--max-depth`) are counted in `incomplete`, so the interface can say when totals are lower bounds. A directory
+reached a second time under `--detect-cycles` is not: its contents are counted where it was first found.
+
+## Checking the totals
+
+`pinax check` (`crosscheck.py`) compares an index with `fs-inventory rollup`, a separate implementation in
+Rust of the same subtree totals. Rollup runs on a shadow of the scan folder (a copy of the manifest and a
+link to the entries, so the scan itself is never written to), with Pinax's age bucket edges
+(`90d,1y,2y,3y,5y,10y`) and an age depth as deep as the scan, so every directory gets its own histogram. The
+two are then joined on `dir_id` and compared on 31 measures per directory: path, files, folders, bytes,
+allocated bytes, incomplete folders, oldest and newest modification time, newest access and change time, and
+files and bytes per age bucket by modification time and bytes per bucket by access time. Rollup's `future`
+bucket is part of Pinax's first. Any difference is a bug in one of them until explained.
+
+| Scan | Folders | Index build | Rollup | Compare | Result |
+|---|---|---|---|---|---|
+| Demo, four scans | 36 to 935 | under 1 s | 0.1 s | under 0.1 s | equal |
+| Synthetic, 1 M files | 244 K | 9.2 s | 0.5 s | 0.3 s | equal |
+| Synthetic, 10 M files | 244 K | 23 s | 1.4 s | 0.3 s | equal |
+
+The first run against 0.1.0 found two differences, both fixed in Pinax. Ages were fractional days, and
+rounding put a file exactly on a bucket edge in the younger bucket for about one scan start time in eleven
+(one in four at the ten-year edge). Directories revisited under `--detect-cycles` were counted as incomplete.
+The tests include a scan built to sit on those edges.
 
 ## Querying
 

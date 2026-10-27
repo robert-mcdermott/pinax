@@ -16,8 +16,8 @@ decisions taken are recorded here. Later waves are outlined at the end.
 **Progress** is marked here as each slice is committed: done, next or to come. Each requirement's status is
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
-**Where things stand:** wave 1 is released as 0.1.0 (tag `v0.1.0` on `main`). Wave 2 is next, on `wave2`, cut
-from `main` after the release; it starts with slice 1.
+**Where things stand:** wave 1 is released as 0.1.0 (tag `v0.1.0` on `main`). Wave 2 is in progress on `wave2`:
+slice 1 is done, and slice 2 (real scans) is next.
 
 The order follows one principle:
 1. **Trust first.** Totals that agree with an independent computation on every directory, and that say when
@@ -123,15 +123,15 @@ independent tool, and IT and a few pilot labs use it.
 
 ### Wave 2 sequence
 
-| Slice | Scope and requirements | Acceptance before the next slice |
-| --- | --- | --- |
-| 1 | Independent cross-check (Q1) | For every directory of the demo scans and of a 1- and 10-million-file synthetic scan, Pinax's files, directories, bytes, allocated bytes, oldest and newest modification time, and bytes and files per age bucket equal `fs-inventory rollup`'s (run with Pinax's bucket edges); a committed check script and a test that runs it when the binary is installed |
-| 2 | Real scans (S3, Q1, Q3, Q4, Q5) | The largest real scan available ingests and passes the slice 1 check; legacy-encoded names, mount points, directories with millions of entries, and deep trees handled; measured build time, index size, and query times replace the extrapolations in `docs/ARCHITECTURE.md`; the real scan itself is not committed |
-| 3 | Scale to 100 million (S3, R3, Q3–Q5) | A 100-million-file synthetic scan on server-class hardware meets Q3–Q5; whole-filesystem cold folders precomputed per age threshold at build time and answered within Q3; build memory and threads tuned and documented |
-| 4 | Automatic ingest (S4, O4) | `pinax ingest --watch` (or a timer) ingests each new verified scan under a folder once, skipping incomplete and already-ingested scans, safe if two run at once; failures shown on *Scans* with the error; tests for each case |
-| 5 | Bulk onboarding (A5) | Labs, people, memberships, and folder ownership imported from CSV with a dry run that lists every change, refusing ambiguous rows; changes audited; example files and docs |
-| 6 | Deployment kit (P6, A4) | systemd units for the web app and ingest; header mode checked behind oauth2-proxy; a health endpoint; `docs/DEPLOYMENT.md` rewritten from the pilot's installation |
-| 7 | Pilot feedback and release 0.2.0 | A walk through with IT and pilot labs, what it finds fixed or recorded; README demo script updated; version 0.2.0, changelog, pull request, tag, release |
+| Slice | Scope and requirements | Acceptance before the next slice | Status |
+| --- | --- | --- | --- |
+| 1 | Independent cross-check (Q1) | For every directory of the demo scans and of a 1- and 10-million-file synthetic scan, Pinax's files, directories, bytes, allocated bytes, oldest and newest modification time, and bytes and files per age bucket equal `fs-inventory rollup`'s (run with Pinax's bucket edges); a committed check script and a test that runs it when the binary is installed | Done |
+| 2 | Real scans (S3, Q1, Q3, Q4, Q5) | The largest real scan available ingests and passes the slice 1 check; legacy-encoded names, mount points, directories with millions of entries, and deep trees handled; measured build time, index size, and query times replace the extrapolations in `docs/ARCHITECTURE.md`; the real scan itself is not committed | Next |
+| 3 | Scale to 100 million (S3, R3, Q3–Q5) | A 100-million-file synthetic scan on server-class hardware meets Q3–Q5; whole-filesystem cold folders precomputed per age threshold at build time and answered within Q3; build memory and threads tuned and documented | To come |
+| 4 | Automatic ingest (S4, O4) | `pinax ingest --watch` (or a timer) ingests each new verified scan under a folder once, skipping incomplete and already-ingested scans, safe if two run at once; failures shown on *Scans* with the error; tests for each case | To come |
+| 5 | Bulk onboarding (A5) | Labs, people, memberships, and folder ownership imported from CSV with a dry run that lists every change, refusing ambiguous rows; changes audited; example files and docs | To come |
+| 6 | Deployment kit (P6, A4) | systemd units for the web app and ingest; header mode checked behind oauth2-proxy; a health endpoint; `docs/DEPLOYMENT.md` rewritten from the pilot's installation | To come |
+| 7 | Pilot feedback and release 0.2.0 | A walk through with IT and pilot labs, what it finds fixed or recorded; README demo script updated; version 0.2.0, changelog, pull request, tag, release | To come |
 
 ### Decisions for wave 2
 
@@ -147,6 +147,26 @@ independent tool, and IT and a few pilot labs use it.
   format is documented so that source can produce it.
 - No catalog migrations yet: wave 2 may still change the catalog schema, so pilot catalogs are re-created from the
   import files. Snapshot indexes are rebuilt from scans when `INDEX_VERSION` changes.
+
+### Slices as built
+
+1. **Independent cross-check (Q1).**
+   - `crosscheck.py` and `pinax check SNAPSHOT_ID | SCAN_DIR`: runs `fs-inventory rollup` on a shadow of the scan
+     (the scan folder is never written to) with Pinax's bucket edges and the scan's depth, joins rollup's rows
+     to the index on `dir_id`, and compares 31 measures per directory: path, files, directories, bytes, allocated
+     bytes, incomplete directories, oldest and newest modification time, newest access and change time, and
+     files and bytes per age bucket. Lists the differing directories; exits 1 on any difference. With a scan
+     directory and no `--index`, it builds a temporary index first.
+   - Found and fixed in the build: age buckets now use whole microseconds instead of fractional days, whose
+     rounding put files exactly on an edge in the younger bucket for about one scan start time in eleven (one
+     in four at the ten-year edge); a directory revisited under `--detect-cycles` no longer counts as
+     incomplete. `INDEX_VERSION` is 2.
+   - Tests (when fs-inventory is installed): a scan with files on every bucket edge and a second either side, a
+     future file, a symlink, empty, unreadable, unentered, and revisited directories, and a deep path; the check
+     detecting changed and missing rows; the command; and a small synthetic scan. Bucket edges and incomplete
+     counts are also tested without the binary. `tests/scanfix.py` writes whole-microsecond times and a parts list.
+   - *Done*: every directory equal on the four demo scans and on 1- and 10-million-file synthetic scans (244 K
+     directories each; rollup 0.5 s and 1.4 s, compare 0.3 s on an Apple M4 laptop).
 
 ## Later waves (outlined)
 

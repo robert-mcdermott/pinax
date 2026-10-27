@@ -41,6 +41,15 @@ def main() -> None:
 
     sub.add_parser("snapshots", help="List snapshots")
 
+    check = sub.add_parser("check", help="Check an index against fs-inventory rollup, directory by directory")
+    check.add_argument("target", help="Snapshot ID, or an fs-inventory scan directory")
+    check.add_argument("--index", type=Path,
+                       help="With a scan directory: the index built from it (default: build one, then delete it)")
+    check.add_argument("--allow-incomplete", action="store_true",
+                       help="With a scan directory: accept a scan with status incomplete")
+    check.add_argument("--examples", type=int, default=10, help="Directories to list for each difference")
+    check.add_argument("--json", action="store_true", help="Print the report as JSON")
+
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -64,6 +73,8 @@ def main() -> None:
         sys.exit(_ingest(args.scan_dir, args.fs_slug, args.allow_incomplete))
     elif args.command == "snapshots":
         _snapshots()
+    elif args.command == "check":
+        sys.exit(_check(args))
 
 
 def _filesystem(args: argparse.Namespace) -> int:
@@ -143,3 +154,47 @@ def _snapshots() -> None:
         for snap in s.scalars(select(Snapshot).order_by(Snapshot.started_at)):
             print(f"{snap.id:>4} {snap.filesystem.slug:<10} {snap.started_at:%Y-%m-%d %H:%M} {snap.status:<9} "
                   f"{snap.files:>14,} files {snap.bytes:>22,} bytes  {snap.scan_dir}")
+
+
+def _check(args: argparse.Namespace) -> int:
+    import json
+    import shutil
+    import tempfile
+
+    from .config import get_settings
+    from .crosscheck import CheckError, check
+    from .ingest.build import BuildError, build_index
+
+    settings = get_settings()
+    settings.ensure_dirs()
+    if args.target.isdigit():
+        from .db import init_db, session_scope
+        from .models import Snapshot, SnapshotStatus
+
+        init_db()
+        with session_scope() as s:
+            snap = s.get(Snapshot, int(args.target))
+            if snap is None or snap.status != SnapshotStatus.READY:
+                print(f"error: no ready snapshot {args.target} (see `pinax snapshots`)", file=sys.stderr)
+                return 2
+            scan_dir, index_dir = Path(snap.scan_dir), Path(snap.index_dir)
+    else:
+        scan_dir, index_dir = Path(args.target), args.index
+    if not (scan_dir / "manifest.json").exists():
+        print(f"error: {scan_dir} is not an fs-inventory scan directory", file=sys.stderr)
+        return 2
+
+    work = Path(tempfile.mkdtemp(prefix="check-", dir=settings.var_root))
+    try:
+        if index_dir is None:
+            index_dir = work / "index"
+            build_index(scan_dir, index_dir, memory_limit=settings.build_memory_limit, threads=settings.build_threads,
+                        allow_incomplete=args.allow_incomplete)
+        report = check(scan_dir, index_dir, work, binary=settings.fs_inventory_path(), examples=args.examples)
+    except (BuildError, CheckError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    print(json.dumps(report.json(), indent=2, default=str) if args.json else report.text())
+    return 0 if report.ok else 1
