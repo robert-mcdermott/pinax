@@ -13,6 +13,13 @@
 - **Real-filesystem shapes (wave 2, slice 2).** `synth_scan.py --wide N --deep D` adds a folder of N files, a folder
   of N/10 subfolders, and a deep chain; `bench_index.py` reports a scan's shape and query timings without any path
   or name. `pinax check --age-depth N` bounds rollup's memory on very large scans.
+- **Deployment kit (wave 2, slice 6).** `deploy/` holds systemd units for the web app, automatic ingest, and a
+  weekly scan per filesystem (run as an unprivileged user, with the scan given only `CAP_DAC_READ_SEARCH`), an
+  environment file, and an oauth2-proxy configuration. `docs/DEPLOYMENT.md` is now a step-by-step installation
+  guide. `/api/health` needs no sign-in and names nothing: `ok`, `degraded` (a missing index, or automatic ingest
+  stopped), or 503. `pinax rebuild SNAPSHOT_ID... | --outdated` builds ready snapshots' indexes again from their
+  scans, in place, after an upgrade or a lost index; the web app opens rebuilt indexes without a restart.
+  `scripts/sso-check.py` checks header mode behind a real oauth2-proxy with a stand-in identity provider.
 - **Bulk onboarding (wave 2, slice 5).** `pinax import` reads labs, people, memberships, and folder ownership from
   up to four CSV files (format in `docs/IMPORT.md`, examples in `examples/import/`). It lists every change first and
   changes nothing without `--apply`; any ambiguous or invalid row (a key listed twice, a username differing only in
@@ -40,6 +47,9 @@
 
 ### Fixed
 
+- **Sign-on headers from anyone (wave 2, slice 6).** In header mode, Pinax believed the username header on any
+  request that reached it. It now believes it only from `PINAX_TRUSTED_PROXIES` (this host by default) and
+  refuses it from anywhere else.
 - **Large scans ran out of memory (wave 2, slice 3).** Building the index of a 100-million-file scan stopped at the
   8 GB limit: fs-inventory writes row groups of about a million entries, each thread reading one decodes all of
   it, and ten threads needed more than 8 GB. See the thread budget above. Files are also staged and sorted in at

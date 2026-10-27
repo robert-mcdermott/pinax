@@ -156,6 +156,13 @@ folder of N/10 subfolders, and a chain D folders deep. `bench_index.py` prints t
 depth, widest folders, longest path, flagged names, links, mount points) and the query timings, never a path or
 a name, so a run on a real filesystem can be recorded as it is (`--json FILE` saves it).
 
+## Deployment files
+
+`deploy/` holds what `docs/DEPLOYMENT.md` installs: the systemd units, `pinax.env`, and an oauth2-proxy
+configuration. `tests/test_deploy.py` checks that each unit's command is one `pinax` accepts and that the settings
+they name exist. `scripts/sso-check.py --oauth2-proxy PATH` runs a real oauth2-proxy against a stand-in OpenID
+Connect provider on this machine and checks header mode end to end.
+
 The interface shows control characters and bidirectional overrides in names as escapes (`visible()` in
 `core.js`, applied to every value `html` puts in text). Attribute values keep the exact text, since some are
 read back.

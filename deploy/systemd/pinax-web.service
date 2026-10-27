@@ -1,0 +1,34 @@
+# The Pinax web app, behind oauth2-proxy on the same host (docs/DEPLOYMENT.md).
+[Unit]
+Description=Pinax web app
+Documentation=https://github.com/robert-mcdermott/pinax/blob/main/docs/DEPLOYMENT.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pinax
+Group=pinax
+WorkingDirectory=/opt/pinax
+EnvironmentFile=/etc/pinax/pinax.env
+# Listen on this host only: the sign-on header is trusted from oauth2-proxy, not the network.
+ExecStart=/opt/pinax/.venv/bin/pinax serve --host 127.0.0.1 --port 8001
+Restart=on-failure
+RestartSec=5
+
+# Pinax reads scans and its indexes, and writes only its catalog and indexes under PINAX_VAR_ROOT.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/lib/pinax
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

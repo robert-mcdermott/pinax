@@ -13,6 +13,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
+import duckdb
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -21,7 +22,7 @@ from .categories import AGE_BUCKETS, CATEGORY_KEYS, bucket_edges
 from .config import Settings, get_settings
 from .db import utcnow
 from .index import SnapshotIndex, Stats
-from .ingest.build import BuildError, build_index, check_manifest, read_manifest
+from .ingest.build import INDEX_VERSION, BuildError, build_index, check_manifest, read_manifest
 from .models import AuditEvent, Filesystem, FolderStat, Snapshot, SnapshotStatus
 
 log = logging.getLogger("pinax.snapshots")
@@ -42,37 +43,50 @@ def cold_bucket(settings: Settings | None = None) -> int:
 
 # ---------- Open indexes ----------
 
+def _stamp(index_dir: str) -> tuple[int, int] | None:
+    try:
+        st = (Path(index_dir) / "index.duckdb").stat()
+    except OSError:
+        return None
+    return st.st_ino, st.st_mtime_ns
+
+
 class IndexCache:
-    """Keeps recently used snapshot indexes open (each is a read-only DuckDB connection)."""
+    """Keeps recently used snapshot indexes open (each is a read-only DuckDB connection). An index rebuilt since
+    it was opened (`pinax rebuild`, in another process) is a new file, and is opened again."""
 
     def __init__(self, size: int = 8):
         self.size = size
-        self._items: OrderedDict[int, SnapshotIndex] = OrderedDict()
+        self._items: OrderedDict[int, tuple[SnapshotIndex, tuple | None]] = OrderedDict()
         self._lock = threading.Lock()
 
     def get(self, snap: Snapshot) -> SnapshotIndex:
         with self._lock:
-            idx = self._items.get(snap.id)
-            if idx is not None:
+            stamp = _stamp(snap.index_dir)
+            item = self._items.get(snap.id)
+            if item is not None and item[1] == stamp:
                 self._items.move_to_end(snap.id)
-                return idx
+                return item[0]
+            if item is not None:
+                self._items.pop(snap.id)
+                item[0].close()
             s = get_settings()
             idx = SnapshotIndex(Path(snap.index_dir), memory_limit=s.query_memory_limit, threads=s.query_threads)
-            self._items[snap.id] = idx
+            self._items[snap.id] = (idx, stamp)
             while len(self._items) > self.size:
-                _, old = self._items.popitem(last=False)
+                _, (old, _) = self._items.popitem(last=False)
                 old.close()
             return idx
 
     def drop(self, snapshot_id: int) -> None:
         with self._lock:
-            idx = self._items.pop(snapshot_id, None)
-            if idx:
-                idx.close()
+            item = self._items.pop(snapshot_id, None)
+            if item:
+                item[0].close()
 
     def clear(self) -> None:
         with self._lock:
-            for idx in self._items.values():
+            for idx, _ in self._items.values():
                 idx.close()
             self._items.clear()
 
@@ -207,7 +221,8 @@ def _ingest(session: Session, scan_dir: Path, *, fs_slug: str | None, allow_inco
         raise IngestError(f"scan root {root} does not match filesystem {fs.slug} ({fs.root})")
     existing = session.scalar(select(Snapshot).where(Snapshot.scan_id == manifest["scan_id"]))
     if existing is not None and existing.status == SnapshotStatus.READY:
-        raise IngestError(f"scan {manifest['scan_id']} is already snapshot {existing.id}")
+        raise IngestError(f"scan {manifest['scan_id']} is already snapshot {existing.id} "
+                          f"(build its index again with `pinax rebuild {existing.id}`)")
     if existing is not None and only_new:
         raise IngestError(f"scan {manifest['scan_id']} is already recorded as snapshot {existing.id} ({existing.status})")
 
@@ -233,6 +248,18 @@ def _ingest(session: Session, scan_dir: Path, *, fs_slug: str | None, allow_inco
         session.commit()
         raise
 
+    _record_build(session, snap, index_dir, result, manifest, settings)
+    snap.status = SnapshotStatus.READY
+    session.add(AuditEvent(action="snapshot.ingested",
+                           summary=f"Ingested scan of {fs.name} taken {started:%Y-%m-%d %H:%M} UTC",
+                           detail={"snapshot_id": snap.id, "scan_dir": str(scan_dir), "files": snap.files,
+                                   "bytes": snap.bytes, "build_seconds": snap.build_seconds}))
+    session.commit()
+    prune(session, fs, settings)
+    return snap
+
+
+def _record_build(session: Session, snap: Snapshot, index_dir: Path, result, manifest: dict, settings: Settings) -> None:
     t = result.totals
     snap.index_dir = str(index_dir)
     snap.ingested_at = utcnow()
@@ -242,16 +269,56 @@ def _ingest(session: Session, scan_dir: Path, *, fs_slug: str | None, allow_inco
     snap.index_bytes = sum(p.stat().st_size for p in index_dir.rglob("*") if p.is_file())
     snap.info = {"steps": result.steps, "incomplete_dirs": t["incomplete_dirs"], "tops": t["tops"],
                  "categories": list(CATEGORY_KEYS), "age_buckets": [b.short for b in AGE_BUCKETS],
-                 "errors_by_kind": manifest.get("errors_by_kind", [])}
+                 "errors_by_kind": manifest.get("errors_by_kind", []), "index_version": INDEX_VERSION}
     session.flush()
     _record_folder_stats(session, snap, index_dir, settings)
-    snap.status = SnapshotStatus.READY
-    session.add(AuditEvent(action="snapshot.ingested",
-                           summary=f"Ingested scan of {fs.name} taken {started:%Y-%m-%d %H:%M} UTC",
-                           detail={"snapshot_id": snap.id, "scan_dir": str(scan_dir), "files": snap.files,
-                                   "bytes": snap.bytes, "build_seconds": snap.build_seconds}))
-    session.commit()
-    prune(session, fs, settings)
+
+
+def index_version(snap: Snapshot) -> int | None:
+    """The format version of a snapshot's index on disk; None if it is missing or unreadable."""
+    try:
+        idx = SnapshotIndex(Path(snap.index_dir), memory_limit="256MB", threads=1)
+    except (OSError, duckdb.Error):
+        return None
+    try:
+        return int(idx.meta.get("index_version", 0))
+    finally:
+        idx.close()
+
+
+def rebuild_snapshot(session: Session, snap: Snapshot, *, settings: Settings | None = None,
+                     progress: Callable[[str], None] = print) -> Snapshot:
+    """Build a ready snapshot's index again from its scan, in place: after an upgrade changes the index format,
+    or if the index was lost. The snapshot stays ready on its old index until the new one replaces it, and keeps
+    it if the build fails."""
+    settings = settings or get_settings()
+    with ingest_lock(settings):
+        session.refresh(snap)
+        if snap.status != SnapshotStatus.READY:
+            raise IngestError(f"snapshot {snap.id} is {snap.status}; only ready snapshots are rebuilt "
+                              "(ingest its scan with `pinax ingest`)")
+        scan_dir = Path(snap.scan_dir)
+        try:
+            manifest = read_manifest(scan_dir)
+        except BuildError as e:
+            raise IngestError(f"snapshot {snap.id}'s scan is gone: {e}") from e
+        if manifest.get("scan_id") != snap.scan_id:
+            raise IngestError(f"{scan_dir} now holds a different scan than snapshot {snap.id}")
+        index_dir = Path(snap.index_dir)
+        try:
+            result = build_index(scan_dir, index_dir, memory_limit=settings.build_memory_limit,
+                                 threads=settings.build_threads, allow_incomplete=snap.scan_status != "complete",
+                                 progress=progress)
+        except Exception as e:  # record it, keep the old index, then re-raise for the caller
+            snap.message = f"Rebuild failed; the previous index is still in use: {e}"
+            session.commit()
+            raise
+        _record_build(session, snap, index_dir, result, manifest, settings)
+        snap.message = ""
+        session.add(AuditEvent(action="snapshot.rebuilt", summary=f"Rebuilt the index of snapshot {snap.id}",
+                               detail={"snapshot_id": snap.id, "index_version": INDEX_VERSION,
+                                       "build_seconds": snap.build_seconds}))
+        session.commit()
     return snap
 
 

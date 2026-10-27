@@ -33,7 +33,8 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
 |---|---|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Design, the snapshot index, how it is built and queried, security, measured performance and sizing |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every setting, its default, and what it does |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Running in production: scan hosts, scheduling, the web server, single sign-on, sizing, operations |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Installing on a server: systemd services, single sign-on, scheduled scans, upgrades, sizing, operations |
+| [docs/IMPORT.md](docs/IMPORT.md) | The CSV format for importing labs, people, memberships, and folder ownership |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Code layout, conventions, the HTTP API, the interface, themes and chart colors, tests, benchmarks |
 | [pinax-spec/roadmap.md](pinax-spec/roadmap.md) | The plan: waves (one release each) and their slices, what is done, what is next, decisions |
 | [pinax-spec/requirements.md](pinax-spec/requirements.md) | What Pinax must do, with stable IDs and each requirement's status |
@@ -130,8 +131,8 @@ Every top-level folder of a filesystem is a unit of ownership: map each one to a
 ```bash
 uv run pinax import examples/import
 ```
- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) covers scheduling,
-sizing, retention, and single sign-on.
+ [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) is the installation guide: systemd
+services (in `deploy/`), single sign-on with oauth2-proxy, scheduled scans, upgrades, sizing, and operations.
 
 ## Commands
 
@@ -145,6 +146,7 @@ sizing, retention, and single sign-on.
 | `uv run pinax ingest SCAN_DIR [--fs SLUG] [--allow-incomplete]` | Build a snapshot index from a finished scan |
 | `uv run pinax ingest --watch [FOLDER] [--interval N] [--once] [--no-verify]` | Ingest each new verified scan under a folder (default `PINAX_SCAN_ROOT`) once |
 | `uv run pinax snapshots` | List snapshots |
+| `uv run pinax rebuild SNAPSHOT_ID... \| --outdated` | Build ready snapshots' indexes again from their scans, after an upgrade or a lost index |
 | `uv run pinax import FOLDER [--apply]` | Import labs, people, memberships, and folder ownership from CSV; a dry run unless `--apply` ([docs/IMPORT.md](docs/IMPORT.md)) |
 | `uv run pinax check SNAPSHOT_ID \| SCAN_DIR [--index DIR] [--age-depth N] [--json]` | Check an index against `fs-inventory rollup`, directory by directory |
 | `uv run pytest` | Tests: index correctness, the rollup cross-check, queries, authorization, and an end-to-end scan |

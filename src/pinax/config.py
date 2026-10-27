@@ -46,9 +46,11 @@ class Settings(BaseSettings):
     # Reporting defaults. Data counts as cold when nothing in it has changed for this many days.
     cold_days: int = 730
 
-    # Identity. "demo" uses a persona cookie; "header" trusts X-Remote-User from an SSO proxy.
+    # Identity. "demo" uses a persona cookie; "header" trusts a username header (X-Remote-User by default) set
+    # by a single sign-on proxy, and only on requests from TRUSTED_PROXIES (addresses or networks; a JSON list).
     auth_mode: Literal["demo", "header"] = "demo"
     auth_header: str = "X-Remote-User"
+    trusted_proxies: list[str] = ["127.0.0.1", "::1"]
 
     @property
     def db_url(self) -> str:

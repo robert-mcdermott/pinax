@@ -48,6 +48,11 @@ def main() -> None:
 
     sub.add_parser("snapshots", help="List snapshots")
 
+    rebuild = sub.add_parser("rebuild", help="Build ready snapshots' indexes again from their scans, in place")
+    rebuild.add_argument("snapshot_ids", type=int, nargs="*", metavar="SNAPSHOT_ID")
+    rebuild.add_argument("--outdated", action="store_true",
+                         help="Every ready snapshot whose index is missing or in an older format (after an upgrade)")
+
     imp = sub.add_parser("import", help="Import labs, people, memberships, and folder ownership from CSV "
                                         "(a dry run unless --apply)")
     imp.add_argument("folder", type=Path, nargs="?",
@@ -99,6 +104,8 @@ def main() -> None:
         sys.exit(_check(args))
     elif args.command == "import":
         sys.exit(_import(args))
+    elif args.command == "rebuild":
+        sys.exit(_rebuild(args))
 
 
 def _filesystem(args: argparse.Namespace) -> int:
@@ -219,6 +226,46 @@ def _import(args: argparse.Namespace) -> int:
         n = apply_import(s, plan)
         print(f"Applied {n} changes; each is in the audit log.")
     return 0
+
+
+def _rebuild(args: argparse.Namespace) -> int:
+    from sqlalchemy import select
+
+    from .db import init_db, session_scope
+    from .ingest.build import INDEX_VERSION
+    from .models import Snapshot, SnapshotStatus
+    from .snapshots import IngestError, index_version, rebuild_snapshot
+
+    if not args.snapshot_ids and not args.outdated:
+        print("error: name the snapshots to rebuild, or use --outdated", file=sys.stderr)
+        return 2
+    init_db()
+    failed = 0
+    with session_scope() as s:
+        ready = s.scalars(select(Snapshot).where(Snapshot.status == SnapshotStatus.READY)
+                          .order_by(Snapshot.started_at)).all()
+        targets = [snap for snap in ready if snap.id in set(args.snapshot_ids)]
+        unknown = set(args.snapshot_ids) - {snap.id for snap in targets}
+        if unknown:
+            print(f"error: no ready snapshot {', '.join(map(str, sorted(unknown)))} (see `pinax snapshots`)",
+                  file=sys.stderr)
+            return 2
+        if args.outdated:
+            targets += [snap for snap in ready if snap not in targets and (index_version(snap) or 0) < INDEX_VERSION]
+        if not targets:
+            print(f"Every ready snapshot's index is current (version {INDEX_VERSION}).")
+            return 0
+        for snap in targets:
+            try:
+                rebuild_snapshot(s, snap, progress=lambda m: None)
+                print(f"Snapshot {snap.id}: rebuilt in {snap.build_seconds}s")
+            except IngestError as e:
+                print(f"Snapshot {snap.id}: {e}", file=sys.stderr)
+                failed += 1
+            except Exception as e:  # noqa: BLE001 - report it and go on to the next snapshot
+                print(f"Snapshot {snap.id}: rebuild failed: {e}", file=sys.stderr)
+                failed += 1
+    return 1 if failed else 0
 
 
 def _snapshots() -> None:

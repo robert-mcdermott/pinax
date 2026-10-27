@@ -217,7 +217,9 @@ mean ages are rebased to a common reference time.
 ## Security
 
 - **Identity**: demo mode uses a persona cookie; production trusts a username header set by a single sign-on
-  proxy (`PINAX_AUTH_MODE=header`), exactly as Tundra does.
+  proxy (`PINAX_AUTH_MODE=header`), as Tundra does, and only on requests that come straight from the proxy's
+  address (`PINAX_TRUSTED_PROXIES`); the same header from anywhere else is refused. `scripts/sso-check.py`
+  checks this behind a real oauth2-proxy.
 - **Authorization is on the server, for every request.** A request names a filesystem and path; Pinax checks
   that the path is canonical (no `.`, `..`, or empty components) and inside the filesystem root, takes its
   top-level folder, and allows it only for administrators or members of the lab that owns that folder.
@@ -279,7 +281,7 @@ uv run python bench/bench_index.py /scratch/synth-10m --index /scratch/synth-10m
 | `pinax seed` writes demo trees of sparse files and scans them with fs-inventory | Scheduled fs-inventory scans on storage nodes or scan hosts | Pinax ingests any complete Parquet scan |
 | Demo owners rewritten to fictional accounts after each demo scan | Real owners from the scan | Only `seed.py` rewrites owners, only in its own demo scans |
 | SQLite catalog | PostgreSQL | SQLAlchemy models; migrations (Alembic) still to add |
-| Demo identity switcher | Single sign-on proxy, `PINAX_AUTH_MODE=header` | |
+| Demo identity switcher | Single sign-on proxy, `PINAX_AUTH_MODE=header` | Checked behind oauth2-proxy 7.15 with a stand-in identity provider |
 | People, labs, and folder mappings managed in the app | The same, fed from the authoritative source | Same model as Tundra |
 | One server | Web and ingest can run on separate hosts sharing `var/snapshots` | Indexes are immutable once built |
 

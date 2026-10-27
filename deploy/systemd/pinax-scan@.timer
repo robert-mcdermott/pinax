@@ -1,0 +1,11 @@
+# Weekly scan of one filesystem: systemctl enable --now pinax-scan@fast.timer
+[Unit]
+Description=Weekly fs-inventory scan of the %i filesystem for Pinax
+
+[Timer]
+OnCalendar=Sun *-*-* 01:00:00
+RandomizedDelaySec=30m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

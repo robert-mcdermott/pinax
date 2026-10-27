@@ -26,7 +26,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | P3 | Read-only: never opens, moves, or changes a file on the storage it reports on; reads only fs-inventory scans | done (wave 1, slice 2) |
 | P4 | Light and dark themes, keyboard-reachable charts, WCAG AA text contrast, a table view for every chart, chart colors validated in both themes | done (wave 1, slices 1 and 4: age and share ramps pass the ordinal checks in both themes; checked at 375 px) |
 | P5 | A demo that builds in one command with real fs-inventory scans of realistic data | done (wave 1, slice 7: about 34,000 sparse files, 117 TB logical, two scans per filesystem, about ten seconds) |
-| P6 | Service files for the web app and ingest; a container image | planned (wave 2: service files; wave 5: container) |
+| P6 | Service files for the web app and ingest; a container image | partial (wave 2, slice 6: systemd units in `deploy/`; wave 5: container) |
 | P7 | PostgreSQL catalog with migrations | planned (wave 5) |
 
 ## Scans and indexes
@@ -73,7 +73,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | A1 | People see only the top-level folders their active labs own, checked on the server for every request; others' folders answer 404; paths must be canonical | done (wave 1, slice 3: tests cover prefixes, `..`, other roots) |
 | A2 | Storage administrators see every filesystem and folder | done (wave 1, slice 3) |
 | A3 | Labs and departments own top-level folders (one owner each), the same model as Tundra; changes audited | done (wave 1, slice 6) |
-| A4 | Demo identity; trust a single sign-on proxy's header in production | done (wave 1, slice 1; wave 2: tested behind oauth2-proxy) |
+| A4 | Demo identity; trust a single sign-on proxy's header in production | done (wave 1, slice 1; wave 2, slice 6: only from trusted proxies, checked behind oauth2-proxy 7.15) |
 | A5 | Import labs, people, memberships, and folder ownership in bulk | done (wave 2, slice 5: `pinax import`, docs/IMPORT.md) |
 | A6 | Single sign-on with roles from directory groups; membership synced from the directory | planned (wave 5) |
 | A7 | An access recertification report | planned (wave 5) |

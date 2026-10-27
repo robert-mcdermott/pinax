@@ -17,7 +17,7 @@ decisions taken are recorded here. Later waves are outlined at the end.
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
 **Where things stand:** wave 1 is released as 0.1.0 (tag `v0.1.0` on `main`). Wave 2 is in progress on `wave2`:
-slices 1 to 5 are done, and slice 6 (deployment kit) is next. Production storage is out of reach while
+slices 1 to 6 are done, and slice 7 (release 0.2.0) is next. Production storage is out of reach while
 wave 2 is built, so testing on it, and the pilot, are wave 3.
 
 The order follows one principle:
@@ -134,8 +134,8 @@ in wave 3.
 | 3 | Scale to 100 million (S3, R3, Q3–Q5) | A 100-million-file synthetic scan, built and queried on the development laptop, meets Q3–Q5; whole-filesystem cold folders precomputed per age threshold at build time and answered within Q3; build memory and threads tuned and documented | Done |
 | 4 | Automatic ingest (S4, O4) | `pinax ingest --watch` (or a timer) ingests each new verified scan under a folder once, skipping incomplete and already-ingested scans, safe if two run at once; failures shown on *Scans* with the error; tests for each case | Done |
 | 5 | Bulk onboarding (A5) | Labs, people, memberships, and folder ownership imported from CSV with a dry run that lists every change, refusing ambiguous rows; changes audited; example files and docs | Done |
-| 6 | Deployment kit (P6, A4) | systemd units for the web app and ingest; header mode checked behind oauth2-proxy with a local test identity provider; a health endpoint; `docs/DEPLOYMENT.md` rewritten as an installation guide, confirmed by the pilot's installation in wave 3 | Next |
-| 7 | Release 0.2.0 | README demo script updated; version 0.2.0, changelog, pull request, tag, release | To come |
+| 6 | Deployment kit (P6, A4) | systemd units for the web app and ingest; header mode checked behind oauth2-proxy with a local test identity provider; a health endpoint; `docs/DEPLOYMENT.md` rewritten as an installation guide, confirmed by the pilot's installation in wave 3 | Done |
+| 7 | Release 0.2.0 | README demo script updated; version 0.2.0, changelog, pull request, tag, release | Next |
 
 ### Decisions for wave 2
 
@@ -247,6 +247,33 @@ in wave 3.
    - Tests: the dry run's every change and no effect; apply, its audit, the access it grants, and idempotence;
      absent and empty columns; each refusal, with nothing applied; the command's exit codes; the example files.
    - *Done*: all of the above.
+6. **Deployment kit (P6, A4).**
+   - `deploy/`: `pinax-web.service` (127.0.0.1 only), `pinax-ingest.service` (the watcher, at lower priority),
+     `pinax-scan@.service` and `.timer` (a weekly scan per filesystem, `--no-ingest`), all as an unprivileged
+     `pinax` user that may write only `/var/lib/pinax`, the scan with `CAP_DAC_READ_SEARCH` alone; `pinax.env`; and
+     an oauth2-proxy configuration (option names checked against its 7.15 documentation), unit, and secrets file.
+   - Header mode believes the username header only from `PINAX_TRUSTED_PROXIES` (default this host); before, it
+     believed it from anyone who could reach Pinax.
+   - `/api/health`, open and naming nothing: `ok`, `degraded` (a ready snapshot's index missing, or automatic
+     ingest stopped or not responding), or 503 when the catalog cannot be read.
+   - Writing the guide found that `pinax ingest` refuses a ready scan, so there was no way to rebuild indexes after
+     an upgrade, though `INDEX_VERSION` changed twice in this wave: `pinax rebuild SNAPSHOT_ID... | --outdated`
+     rebuilds in place, keeping the old index if the build fails, and the index cache reopens rebuilt indexes.
+     It also found that `uv` run as root would install Python where the service user cannot run it; the guide
+     sets `UV_PYTHON_INSTALL_DIR`.
+   - `docs/DEPLOYMENT.md` rewritten as an installation guide: user and folders, Pinax and fs-inventory, settings,
+     filesystems and onboarding, services, oauth2-proxy, and checking the installation; then scans, upgrades,
+     sizing, backups, and monitoring.
+   - `scripts/sso-check.py`: a stand-in OpenID Connect provider (standard library, tokens signed with `openssl`),
+     oauth2-proxy 7.15.5 with `deploy/oauth2-proxy/pinax.cfg`, and Pinax in header mode. Passed: Pinax sees the
+     signed-in person; a username header the browser sends is not believed; without a session nothing reaches
+     Pinax; the health check needs no sign-in. The oauth2-proxy download was checked against its SHA-256 and
+     deleted after.
+   - Tests: the health states; the header refused from untrusted addresses and accepted from trusted networks;
+     demo sign-in off in header mode; every unit's command parsed by the CLI and every setting it names real;
+     rebuilds (a lost index, the cache reopening, `--outdated`, a missing scan).
+   - *Done*, except what only a real server shows: the pilot installation in wave 3 confirms the guide and units
+     (`systemd-analyze verify` and the sandboxing options cannot be run on the development Mac).
 
 ## Later waves (outlined)
 
