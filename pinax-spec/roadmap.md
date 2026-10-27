@@ -17,7 +17,7 @@ decisions taken are recorded here. Later waves are outlined at the end.
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
 **Where things stand:** wave 1 is released as 0.1.0 and wave 2 as 0.2.0 (tags `v0.1.0` and `v0.2.0` on `main`).
-Wave 3, change over time, is in progress on `wave3`: slices 1 to 3 are done, and slice 4 (the change map) is next. The production pilot,
+Wave 3, change over time, is in progress on `wave3`: slices 1 to 4 are done, and slice 5 (what changed) is next. The production pilot,
 which needs production storage, follows as wave 4.
 
 The order follows one principle:
@@ -296,8 +296,8 @@ Every change is checked against an independent computation, like every total.
 | 1 | Comparing two scans (S9, Q1) | At ingest, every directory's change since the filesystem's previous scan (size, space on disk, files, folders, bytes per age bucket; new and removed folders) is stored with the index; equal on every directory to the difference between `fs-inventory rollup`'s totals of the two scans, joined by path; tested against brute force over two file lists; the added build time measured at 100 million files | Done |
 | 2 | A history to show (demo and benchmarks) | `pinax seed` writes six scans of each filesystem over six months: a lab that grows, a cleanup, a project moved between labs, data ageing past the cold threshold, a new lab; `synth_scan.py --evolve` derives a changed scan from another, for benchmarks and checks at scale; the README demo script updated | Done |
 | 3 | History charts (E7) | Size, files, cold share, and mean age over every scan for each top-level folder, lab or department, and filesystem (from folder history), and for any deeper folder across the retained snapshots; a table view; both themes and 375 pixels; chart colors validated | Done |
-| 4 | The change map (E8) | The age map's treemap colored by growth or shrinkage since a chosen scan (the previous one by default), sized by current or earlier size, with removed folders shown; drill down and up as in the age map; within Q3 for a lab folder at 100 million files | Next |
-| 5 | What changed (R9) | For any folder and two scans: the subfolders that grew and shrank most, new and removed folders, and the largest new and removed files, with CSV; within Q4 for a lab folder at 100 million files | To come |
+| 4 | The change map (E8) | The age map's treemap colored by growth or shrinkage since a chosen scan (the previous one by default), sized by current or earlier size, with removed folders shown; drill down and up as in the age map; within Q3 for a lab folder at 100 million files | Done |
+| 5 | What changed (R9) | For any folder and two scans: the subfolders that grew and shrank most, new and removed folders, and the largest new and removed files, with CSV; within Q4 for a lab folder at 100 million files | Next |
 | 6 | Older snapshots in the interface (S8) | A snapshot picker on every report, the scan date shown wherever a number is, and links that keep the snapshot; a pruned snapshot offers its folder history only | To come |
 | 7 | Release 0.3.0 | The demo script walked through; version 0.3.0, changelog, pull request, tag, release | To come |
 
@@ -381,6 +381,31 @@ Every change is checked against an independent computation, like every total.
    - *Done*: checked in both themes and at 375 pixels on the demo (no page overflow; the table scrolls in its
      card). On the demo every history request takes 3–13 ms; with 2,000 folders and 150 weekly scans in the
      catalog, a filesystem's history takes 3 ms and a lab's 4–8 ms.
+4. **The change map (E8).**
+   - `SnapshotIndex.change_children`: a directory and its children in two scans, joined by path, with each scan's
+     files, folders, bytes, allocated bytes, and time sum, and whether it is in each; ranked by the larger of the
+     two sizes, now, or then; the rest folded with exact sums and counts of new and removed folders; and each listed
+     child's largest children. From the `changes` table for the previous scan, or by attaching an older retained
+     index read-only (`attach`, once per index) and joining its `dirs` on the same depth and path ranges.
+   - `explore.change_tree` and `/api/changes` take the same places as the age map, `since` (a day: per filesystem,
+     the newest kept scan on or before it, or the oldest kept), and `metric`; a removed folder can be opened, since
+     it is in the earlier scan. The response says which scan each filesystem was compared with, and offers the days
+     of every kept earlier scan.
+   - *Change map* (`js/changes.js`) after the age map in the sidebar and report links: the treemap colored by the
+     change in size in seven steps (gold shrinking, teal growing, gray unchanged; new and removed folders take the
+     last step and say so on the tile); sized by the larger of then and now by default, so a removed folder keeps
+     its room; a panel with the change, both sizes, new and removed subfolders, and what grew and shrank most; a
+     table view.
+   - Colors (`--chg-*`): the brand's diverging pair, gold to teal, since red is the color of old data. Each arm
+     passes the ordinal checks in both themes (on navy the arms brighten outward); matching steps of the two arms are
+     at least ΔE 17 apart, with normal vision and under color-vision deficiencies; the true gray midpoint is at least
+     ΔE 15 from both first steps with normal vision and at least 10 under deficiencies (the target is 8).
+   - Tests: every tile against brute force over the two scans' files, from the stored previous scan and from an
+     older scan joined when asked; new and removed folders, opening a removed one; folding and two levels with exact
+     sums; sizing; access.
+   - *Done*: checked in both themes and at 375 pixels on the demo. At one million synthetic files (three evolved
+     generations), the root and a lab folder take 7–21 ms from `changes` and 12–31 ms joined with an older scan,
+     against 24 ms for the age map; the 100-million-file measurement waits for server-class hardware (wave 4).
 
 ## Later waves (outlined)
 

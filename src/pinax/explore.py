@@ -9,7 +9,8 @@ which may span several filesystems. Reports over home merge the results of each 
 import heapq
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
+from pathlib import Path
 
 from fastapi import HTTPException
 from sqlalchemy import BigInteger, cast, func, select
@@ -18,7 +19,7 @@ from sqlalchemy.orm import Session, selectinload
 from .auth import Identity, folder_owners
 from .categories import AGE_BUCKETS, CATEGORIES, CATEGORY_KEYS
 from .config import get_settings
-from .index import DAY, METRICS, SnapshotIndex, Stats, iso_from_epoch, pattern_to_like
+from .index import CHANGE_METRICS, DAY, METRICS, SnapshotIndex, Stats, _add_pairs, iso_from_epoch, pattern_to_like
 from .models import Filesystem, FolderStat, Lab, LabFolder, Snapshot, SnapshotStatus
 from .serialize import folder_stat_json, iso, lab_brief
 from .snapshots import cold_bucket, indexes, latest_snapshot, previous_snapshot
@@ -268,6 +269,143 @@ def _tree_home(session: Session, ident: Identity, places: list[Place], metric: s
     return {"node": node, "tiles": tiles, "breadcrumbs": [{"label": node["name"], "fs": None, "path": None}],
             "snapshots": [_snap_brief(p.snap) for p in {p.snap.id: p for p in places}.values()],
             "as_of": iso(as_of), "metric": metric, "cold_bucket": cold_bucket()}
+
+
+# ---------- The change map ----------
+
+def _earlier(session: Session, snap: Snapshot) -> list[Snapshot]:
+    """Snapshots of the same filesystem taken before `snap` whose index is kept, newest first."""
+    rows = session.scalars(select(Snapshot).where(Snapshot.filesystem_id == snap.filesystem_id,
+                                                  Snapshot.status == SnapshotStatus.READY,
+                                                  Snapshot.started_at < snap.started_at)
+                           .order_by(Snapshot.started_at.desc()))
+    return [r for r in rows if r.index_dir and (Path(r.index_dir) / "index.duckdb").exists()]
+
+
+def _comparison(session: Session, place: Place, since: date | None) -> tuple[Snapshot, str | None] | None:
+    """The scan a place is compared with, and how: None when its index's own `changes` hold the comparison (the
+    previous scan), else the alias of the attached index. By default the previous scan; with `since`, the newest
+    one taken on or before that day, or the oldest kept if none was."""
+    earlier = _earlier(session, place.snap)
+    if not earlier:
+        return None
+    other = earlier[0] if since is None else next((s for s in earlier if s.started_at.date() <= since), earlier[-1])
+    prev = place.idx.previous
+    if prev and prev.get("scan_id") == other.scan_id:
+        return other, None
+    return other, place.idx.attach(Path(other.index_dir))
+
+
+def _ref_day(snap: Snapshot) -> float:
+    return (snap.started_at - datetime(1970, 1, 1)).total_seconds() / DAY
+
+
+def _side(r: dict, s: str, ref_day: float) -> dict | None:
+    """One scan's totals from a row of both (s is "n" for this scan, "o" for the earlier one)."""
+    b, f = r.get(f"{s}_bytes"), r.get(f"{s}_files")
+    if b is None and f is None:
+        return None
+    b, w = int(b or 0), r.get(f"{s}_m_wsum")
+    return {"bytes": b, "alloc": int(r.get(f"{s}_alloc") or 0), "files": int(f or 0), "dirs": int(r.get(f"{s}_dirs") or 0),
+            "mean_age_days": round(ref_day - w / b, 2) if b and w is not None else None}
+
+
+def _minus(a: dict, b: dict) -> dict:
+    """Totals in `a` and not in `b`, per scan (a folder's own files: the folder minus all its subfolders)."""
+    out = dict(a)
+    for k, v in b.items():
+        if k[:2] in ("o_", "n_") and a.get(k) is not None:
+            out[k] = a[k] - (v or 0)
+    return out
+
+
+def _change_tiles(fs: Filesystem, res: dict, refs: tuple[float, float], owners: dict | None) -> list[dict]:
+    def tile(r: dict, kind: str = "dir", **extra) -> dict:
+        return {"kind": kind, "fs": fs.slug, "path": r.get("path"), "name": r.get("name"), "now": _side(r, "n", refs[0]),
+                "then": _side(r, "o", refs[1]), **extra}
+
+    tiles = []
+    for r in res["rows"]:
+        lab = owners.get((fs.id, r["name"])) if owners is not None and r["depth"] == 1 else None
+        tiles.append(tile(r, in_new=r["in_new"], in_old=r["in_old"], lab=lab_brief(lab)))
+    rest = res["rest"]
+    if rest.get("n"):
+        n = int(rest["n"])
+        tiles.append(tile({**rest, "path": None, "name": f"{n:,} smaller folder{'s' if n != 1 else ''}"}, "other",
+                          count=n, new=int(rest["new"]), removed=int(rest["removed"])))
+    node = res["node"]
+    if node is not None:
+        own = _minus(node, res["all"])
+        if (own.get("n_files") or 0) + (own.get("o_files") or 0) > 0:
+            tiles.append(tile({**own, "name": "Files in this folder"}, "files",
+                              count=max(int(own.get("n_files") or 0), int(own.get("o_files") or 0))))
+    return tiles
+
+
+def change_tree(session: Session, ident: Identity, fs_slug: str | None, path: str | None, *, since: date | None = None,
+                metric: str = "max", depth: int = 1, snap_id: int | None = None, lab_slug: str | None = None) -> dict:
+    """The change map: a place and its children (and grandchildren with depth=2) in this scan and an earlier one,
+    with folders in only one of them, sized by `metric` (the larger of the two, now, or then)."""
+    if metric not in CHANGE_METRICS:
+        raise HTTPException(422, f"Unknown size {metric!r}")
+    places = resolve(session, ident, fs_slug, path, snap_id, lab_slug)
+    owners = folder_owners(session) if ident.is_admin else None
+    compared, tiles, total = {}, [], {}
+    choices = sorted({s.started_at.date() for p in places for s in _earlier(session, p.snap)}, reverse=True)
+    for p in places:
+        if p.fs.id not in compared:
+            compared[p.fs.id] = _comparison(session, p, since)
+        if compared[p.fs.id] is None:
+            continue
+        other, against = compared[p.fs.id]
+        refs = (p.idx.ref_day, _ref_day(other))
+        res = p.idx.change_children(p.path, against=against, metric=metric, limit=TILE_LIMIT if fs_slug else GRAND_LIMIT,
+                                    grand_limit=GRAND_LIMIT if fs_slug and depth > 1 else 0)
+        if res["node"] is None:
+            if fs_slug:
+                raise not_found("That folder is in neither scan, or it is not shared with you")
+            continue
+        at_root = p.path == p.idx.root
+        if fs_slug:
+            tiles = _change_tiles(p.fs, res, refs, owners if at_root else None)
+            for t in tiles:
+                g = res["grand"].get(t["path"]) if t["kind"] == "dir" else None
+                if g:
+                    t["children"] = _change_tiles(p.fs, {**g, "node": None}, refs, None)
+            total = res["node"]
+            kids = res["all"]
+        else:
+            n = res["node"]
+            t = {"kind": "fs" if at_root else "dir", "fs": p.fs.slug, "path": p.path,
+                 "name": p.fs.name if at_root else n["name"], "lab": lab_brief(p.lab), "fs_name": p.fs.name,
+                 "now": _side(n, "n", refs[0]), "then": _side(n, "o", refs[1]), "in_new": n["in_new"], "in_old": n["in_old"]}
+            if depth > 1:
+                t["children"] = _change_tiles(p.fs, res, refs, owners if at_root else None)
+            tiles.append(t)
+            total = _add_pairs(total, n) if total else _add_pairs(n)
+            kids = None
+    if not fs_slug:
+        lab = session.scalar(select(Lab).where(Lab.slug == lab_slug)) if lab_slug else None
+        name = lab.name if lab else ("All data" if ident.is_admin else "My data")
+        node = {"kind": "home", "fs": None, "path": None, "name": name, "lab": lab_brief(lab)}
+        crumbs = [{"label": name, "fs": None, "path": None}]
+    else:
+        p = places[0]
+        node = {"kind": "root" if p.path == p.idx.root else "folder" if p.idx.depth_of(p.path) == 1 else "dir",
+                "fs": p.fs.slug, "fs_name": p.fs.name, "path": p.path, "lab": lab_brief(p.lab),
+                "name": p.fs.name if p.path == p.idx.root else (total or {}).get("name") or p.path.rsplit("/", 1)[-1]}
+        if total:
+            node.update(in_new=total["in_new"], in_old=total["in_old"],
+                        subfolders={k: int(kids.get(k) or 0) for k in ("n", "new", "removed")})
+        crumbs = _breadcrumbs(ident, p)
+    first = next(iter(compared.values()), None)
+    refs = (places[0].idx.ref_day, _ref_day(first[0])) if first else (0, 0)
+    node.update(now=_side(total, "n", refs[0]) if total else None, then=_side(total, "o", refs[1]) if total else None)
+    return {"node": node, "tiles": tiles, "breadcrumbs": crumbs, "metric": metric, "since": since.isoformat() if since else None,
+            "as_of": iso(max((p.snap.started_at for p in places), default=None)),
+            "compared": [{"fs": session.get(Filesystem, fs_id).slug, "snapshot_id": c[0].id, "started_at": iso(c[0].started_at),
+                          "previous": c[1] is None} for fs_id, c in compared.items() if c],
+            "choices": [d.isoformat() for d in choices]}
 
 
 # ---------- Reports ----------

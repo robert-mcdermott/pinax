@@ -4,6 +4,7 @@ request covers the person's home (all their folders, or every filesystem for adm
 
 import csv
 import io
+from datetime import date
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
@@ -29,6 +30,16 @@ def tree(fs: str | None = None, path: str | None = None, metric: str = "bytes", 
          identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
     """A directory and its largest children (and grandchildren with depth=2), for the treemap."""
     return explore.tree(session, identity, fs, path, metric=metric, depth=depth, snap_id=snapshot, lab_slug=lab)
+
+
+@router.get("/changes")
+def changes(fs: str | None = None, path: str | None = None, since: date | None = None, metric: str = "max",
+            depth: int = Query(1, ge=1, le=2), snapshot: int | None = None, lab: str | None = None,
+            identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
+    """The change map: a directory and its children in this scan and an earlier one (the previous one, or the
+    newest kept on or before `since`), with folders in only one of them."""
+    return explore.change_tree(session, identity, fs, path, since=since, metric=metric, depth=depth,
+                               snap_id=snapshot, lab_slug=lab)
 
 
 @router.get("/types")

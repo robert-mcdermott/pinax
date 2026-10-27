@@ -226,6 +226,13 @@ values from requests are bound as parameters; the only SQL fragments built in co
   of `cold_units`. Indexes built before version 3 find them at query time by joining directories with their
   parents.
 - **Files**: the top-level folder's Parquet files, restricted to the subtree's path range, filtered and sorted.
+- **Change map** (`/api/changes`): a directory's children in this scan and an earlier one, joined by path, with
+  folders in only one of them, largest first by the larger of the two sizes (or now, or then), the rest folded, and
+  each listed child's largest children for two levels. The previous scan comes from the index's `changes` table,
+  read with the same depth-and-path-range scans as the age map; any other retained scan (`since`, a day: the newest
+  kept on or before it) has its index attached read-only, once per index, and its `dirs` joined on the same
+  ranges. At a million files, a lab folder's two levels take 18 ms from `changes` and 29 ms joined (the age map:
+  24 ms).
 - **History** (`/api/history`): size, space on disk, files, bytes per age bucket, cold share, and mean age per
   scan. A filesystem uses the totals recorded with each scan; a top-level folder, a lab, or a person's home sums
   folder history in the catalog, for every scan, pruned ones included. A folder below the top level reads its

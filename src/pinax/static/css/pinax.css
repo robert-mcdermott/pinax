@@ -109,6 +109,15 @@
   --share-3: #185c85;
   --share-4: #0f4067;
   --tile-none: #D3D8DE;           /* no files, or none of the chosen kind */
+  /* Change since an earlier scan: gold for shrinking, teal for growing, a true gray for no change (red stays the
+     color of old data). Each arm passes the ordinal checks; paired steps and the gray are apart under CVD. */
+  --chg-n3: #855E00;
+  --chg-n2: #B98807;
+  --chg-n1: #D9A93C;
+  --chg-0: #D2D2D2;
+  --chg-p1: #5FB9D4;
+  --chg-p2: #2E98BC;
+  --chg-p3: #156A90;
   --tile-frame: #EEF0F2;          /* the frame around nested tiles */
   --tile-ink: #0B1022;
 }
@@ -187,6 +196,14 @@
   --share-3: #6ac3d7;
   --share-4: #86e2f2;
   --tile-none: #2C4C77;
+  /* On navy the arms brighten outward, so more change still reads as more. */
+  --chg-n3: #FFCF56;
+  --chg-n2: #C79A24;
+  --chg-n1: #A27D1E;
+  --chg-0: #5E5E5E;
+  --chg-p1: #2E8CAB;
+  --chg-p2: #3BB2D0;
+  --chg-p3: #8FE3F2;
   --tile-frame: #18365D;
   --tile-ink: #06101F;
 }
@@ -706,6 +723,10 @@ pre.json { background: var(--surface-2); color: var(--text); border: 1px solid v
 .agebar.lg { height: 22px; }
 .agebar.empty { background: var(--surface-2); }
 
+.plain-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13.5px; }
+.plain-list li { display: flex; justify-content: space-between; gap: 10px; min-width: 0; }
+.plain-list li a { overflow-wrap: anywhere; }
+.swatch-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 8px; vertical-align: -1px; }
 .ramp-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--text-muted); margin-top: 12px; align-items: center; }
 .ramp-legend .lt { font-weight: 700; color: var(--text); margin-right: 2px; }
 .ramp-legend span { display: inline-flex; align-items: center; gap: 6px; }

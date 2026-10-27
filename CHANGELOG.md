@@ -20,6 +20,11 @@
   retained snapshots. `/api/history` takes the same places as the other reports (`fs`, `path`, `lab`,
   `snapshot`) instead of `fs` and `folder`.
 
+- **The change map (wave 3, slice 4).** *Change map*, after the age map, colors the treemap by how much each
+  folder grew (teal) or shrank (gold) since an earlier scan: the previous one by default, or any whose index is
+  kept. New and removed folders are drawn, and a removed folder can be opened. Size by the larger of then and
+  now, size now, or size then; one or two levels; a table view. `/api/changes` serves it.
+
 ### Changed
 
 - Ingest records each snapshot's whole-filesystem totals, so a filesystem's history reads one row per scan.

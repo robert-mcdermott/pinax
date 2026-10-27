@@ -52,9 +52,9 @@ validation that shows it. Requirement IDs are stable and never reused.
 | E3 | Color tiles by average age, time since last change, oldest file, time since last access, cold share, or one category's share | done (wave 1, slice 4) |
 | E4 | One or two levels; the long tail folded into one tile; a folder's own files as a tile | done (wave 1, slice 4: 60 children, 12 grandchildren each) |
 | E5 | A person's home spans every folder their labs own, on any filesystem; a lab's own scope | done (wave 1, slice 3) |
-| E6 | Change over time: history charts, a change map, what changed between two scans | partial (wave 3, slice 3: history charts; slices 4 and 5: E8 and R9) |
+| E6 | Change over time: history charts, a change map, what changed between two scans | partial (wave 3, slices 3 and 4: history charts and the change map; slice 5: R9) |
 | E7 | History charts of a folder, lab or department, and filesystem over its scans: size, files, cold share, mean age | done (wave 3, slice 3: every scan for homes, labs, filesystems, and top-level folders; the retained snapshots below the top level; a table and CSV) |
-| E8 | A change map: the treemap colored by growth or shrinkage since a chosen scan, drilling down like the age map | planned (wave 3) |
+| E8 | A change map: the treemap colored by growth or shrinkage since a chosen scan, drilling down like the age map | done (wave 3, slice 4: since any retained scan, new and removed folders drawn; 7–31 ms at a million files; wave 4: at 100 million) |
 
 ## Reports
 
