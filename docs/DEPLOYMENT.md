@@ -97,7 +97,8 @@ pinax import /srv/pinax/onboarding --apply
 ```
 
 Usernames must be what the sign-on proxy sends (step 6): with Entra ID and the default header, the user
-principal name, such as `jdoe@example.org`. Folders can also be mapped one at a time under *Folders and labs*.
+principal name, such as `jdoe@example.org`. People can also be added and changed one at a time under *People and
+access*, and folders mapped under *Folders and labs*. Someone must be added, and active, before they can sign in.
 
 ### 5. The services
 

@@ -454,6 +454,17 @@ Every change is checked against an independent computation, like every total.
      and changed scans at that size, wait for server-class hardware (wave 4).
    - *Done*.
 
+### After 0.3.0
+
+- **People in the app (A8)**, at the maintainer's request, so the pilot's people can be added without CSV. *People
+  and access* gains a People tab (filters for active, administrators, no access, and inactive; search) and a
+  person editor (profile, lab memberships, the storage administrator role, deactivate and reactivate), on
+  `people.py`, whose rules for usernames and emails `pinax import` now shares. People are never deleted; a
+  deactivated person keeps their access, unused, so reactivating restores it (as `active=false` in the import
+  does; Tundra instead removes it). Tests cover each change and its audit, the shared rules, sign-in after
+  deactivating and reactivating, and the guards that keep an administrator. Checked in both themes and at 375
+  pixels.
+
 ## Later waves (outlined)
 
 | Wave | Release | Theme | Main content |

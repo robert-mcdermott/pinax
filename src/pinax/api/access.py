@@ -1,15 +1,18 @@
 # SPDX-License-Identifier: Apache-2.0
 """People and access: labs and departments, their members, and which top-level folders they own."""
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from .. import people as people_service
 from ..auth import Identity, require_admin
 from ..db import get_session
 from ..models import AuditEvent, Filesystem, Lab, LabFolder, LabMembership, User
-from ..serialize import lab_json, user_json
+from ..serialize import iso, lab_json, user_json
 
 router = APIRouter(prefix="/admin", tags=["access"])
 
@@ -34,6 +37,80 @@ def people(_: Identity = Depends(require_admin), session: Session = Depends(get_
         .order_by(User.is_admin.desc(), User.display_name)
     ).all()
     return [user_json(u) for u in users]
+
+
+def _person(session: Session, username: str) -> User:
+    user = session.scalar(select(User).where(User.username == username)
+                          .options(selectinload(User.memberships).selectinload(LabMembership.lab).selectinload(Lab.folders)))
+    if user is None:
+        raise HTTPException(404, "No such person")
+    return user
+
+
+def _person_json(session: Session, user: User) -> dict:
+    """A person, with when they were added and the latest audited changes to them."""
+    events = session.scalars(select(AuditEvent).where(AuditEvent.detail["username"].as_string() == user.username)
+                             .options(selectinload(AuditEvent.actor)).order_by(AuditEvent.ts.desc()).limit(12))
+    return {**user_json(user), "created_at": iso(user.created_at), "is_self": False,
+            "history": [{"ts": iso(e.ts), "action": e.action, "summary": e.summary,
+                         "by": e.actor.display_name if e.actor else (e.detail or {}).get("by")} for e in events]}
+
+
+class PersonBody(BaseModel):
+    username: str | None = None
+    display_name: str = ""
+    email: str = ""
+    title: str = ""
+    is_admin: bool = False
+    memberships: list[dict[str, Any]] | None = None  # [{lab: slug, role}], the full list; absent leaves them
+
+
+def _save(session: Session, identity: Identity, user: User | None, body: PersonBody) -> dict:
+    data = body.model_dump(exclude_none=True)
+    try:
+        saved = people_service.save_person(session, identity.user, user, data)
+    except people_service.PeopleError as e:
+        session.rollback()
+        raise HTTPException(e.status, str(e)) from e
+    session.commit()
+    session.expire_all()
+    return _person_json(session, _person(session, saved.username)) | {"is_self": saved.id == identity.user.id}
+
+
+@router.get("/people/{username}")
+def person(username: str, identity: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+    user = _person(session, username)
+    return _person_json(session, user) | {"is_self": user.id == identity.user.id}
+
+
+@router.post("/people", status_code=201)
+def add_person(body: PersonBody, identity: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+    """Add a person who can sign in (their username is the name the sign-on sends), with any lab memberships."""
+    return _save(session, identity, None, body)
+
+
+@router.put("/people/{username}")
+def change_person(username: str, body: PersonBody, identity: Identity = Depends(require_admin),
+                  session: Session = Depends(get_session)):
+    """Change a person's name, email, title, administrator role, and, if given, lab memberships."""
+    return _save(session, identity, _person(session, username), body)
+
+
+@router.post("/people/{username}/{change}")
+def activate(username: str, change: str, identity: Identity = Depends(require_admin),
+             session: Session = Depends(get_session)):
+    """`deactivate` (cannot sign in; memberships and role kept, unused) or `reactivate`."""
+    if change not in ("deactivate", "reactivate"):
+        raise HTTPException(404)
+    user = _person(session, username)
+    try:
+        people_service.set_active(session, identity.user, user, change == "reactivate")
+    except people_service.PeopleError as e:
+        session.rollback()
+        raise HTTPException(e.status, str(e)) from e
+    session.commit()
+    session.expire_all()
+    return _person_json(session, _person(session, username)) | {"is_self": user.id == identity.user.id}
 
 
 class FolderMapping(BaseModel):

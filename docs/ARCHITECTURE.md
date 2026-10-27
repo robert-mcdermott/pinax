@@ -270,7 +270,10 @@ mean ages are rebased to a common reference time.
   Otherwise it answers 404, so the existence of other labs' folders is not revealed.
 - File queries read only the Parquet files of the top-level folders in scope.
 - People, labs, memberships, and folder ownership use the same model as Tundra (`Lab`, `LabFolder`,
-  `User`, `LabMembership`); changes are audited.
+  `User`, `LabMembership`); changes are audited. People are never deleted: a deactivated person cannot sign in,
+  and keeps their memberships and administrator role, unused, until reactivated. At least one active storage
+  administrator always remains, and nobody can remove their own administrator role or deactivate themselves
+  (`people.py`, shared by *People and access* and `pinax import`).
 - Pinax never reads file contents or writes to the file system it reports on; it reads scan output.
 
 ## Measured performance

@@ -10,7 +10,7 @@ import { viewChanges } from "/js/changes.js";
 import { viewExplore } from "/js/explore.js";
 import { viewHistory } from "/js/history.js";
 import { viewAges, viewCold, viewFiles, viewOwners, viewTypes } from "/js/reports.js";
-import { viewAccess, viewFolders, viewHealth, viewOverview, viewScans } from "/js/admin.js";
+import { viewAccess, viewFolders, viewHealth, viewOverview, viewPerson, viewScans } from "/js/admin.js";
 import { coldBytes, thresholdText } from "/js/viz.js";
 
 const main = $("#main");
@@ -69,6 +69,7 @@ const routes = [
   [/^#\/health(\?.*)?$/, viewHealth],
   [/^#\/scans$/, viewScans],
   [/^#\/access(\?.*)?$/, viewAccess],
+  [/^#\/access\/people\/([^?]+)$/, viewPerson],
 ];
 
 await loadIdentity();

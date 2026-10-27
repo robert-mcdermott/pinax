@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **People in the app.** *People and access* has a People tab, with views of active people, administrators,
+  people with no access, and inactive ones, and search; and a person editor to add someone, change their name,
+  email, title, lab memberships, and storage administrator role, and deactivate or reactivate them. Every change is
+  audited with its before and after, and the person's page shows their recent changes. People are never deleted; a
+  deactivated person cannot sign in and keeps their access, unused, until reactivated. At least one active
+  administrator always remains, and nobody can remove their own role or deactivate themselves. `pinax import`
+  follows the same rules for usernames and emails. API: `GET`, `POST`, and `PUT /api/admin/people[/{username}]`,
+  and `POST /api/admin/people/{username}/deactivate` and `/reactivate`.
+
 ## 0.3.0 (2026-10-27)
 
 Third release (wave 3, "change over time"): where the growth comes from and whether data is ageing. Each index

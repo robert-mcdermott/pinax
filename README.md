@@ -30,7 +30,8 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
   age profile, cold share, and change since the previous scan. People see only their own labs' folders.
 - **For IT**: an overview of every filesystem, the largest folders and biggest changes, unmapped folders,
   storage health (scan errors, very large directories, small-file hotspots, problem file names, deleted
-  owners), the scan history, and people and access.
+  owners), the scan history, and people and access: add people, change their details, lab memberships, and
+  administrator role, and deactivate and reactivate them, every change audited.
 - **Built for scale**: each scan is indexed once into directory-level totals, so a treemap of a petabyte
   draws in tens of milliseconds: at 100 million files, every directory-level query takes 50 ms or less, and the
   index builds in two minutes. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and measured
@@ -140,7 +141,11 @@ climbs from 64% to 100% at the same size. *History* shows all of it, the *Change
     keeps six), and whether automatic ingest is watching for new scans. Click a date to open that scan: the
     header says it is an older one, every report and link stays on it, and *Back to the latest* returns. Choose
     another scan beside the date on any report.
-11. **Import from CSV.** In a terminal, `uv run pinax import examples/import` lists the 14 changes the example
+11. **People and access.** *Add person*: a username, a name, an email, and a lab; the panel shows the folders
+    they will see. Grant or remove the storage administrator role. *Deactivate* them, and they cannot sign in (their
+    access is kept, unused); *Reactivate* restores it. Each change is in the person's record and the audit log.
+    The *Labs and departments* tab lists each lab's folders and members.
+12. **Import from CSV.** In a terminal, `uv run pinax import examples/import` lists the 14 changes the example
     files would make: two departments, a lab, three people, their memberships, and owners for the three unmapped
     folders. Add `--apply`, and *Folders and labs* shows no unmapped folders; every change is in the audit log.
 
