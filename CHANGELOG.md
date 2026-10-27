@@ -8,6 +8,11 @@
   filesystem's previous scan: both scans' files, folders, bytes, allocated bytes, and files and bytes per age
   bucket, and which folders are new or removed (`changes`, index version 4). `pinax check` compares it with
   `fs-inventory rollup` of both scans, and `pinax rebuild --outdated` adds it to existing snapshots, oldest first.
+- **A history to show (wave 3, slice 2).** `pinax seed` takes six scans of each filesystem, dated a month apart,
+  with six months of activity between them: a lab that grows, cleanups, a project moved between labs, a lab that
+  compresses its FASTQ files, data ageing past the cold threshold, and a lab that joins (the Quintero Lab, with a
+  new PI, Valeria Quintero). `bench/synth_scan.py --evolve SCAN --days N` writes a scan as it might look N days
+  later, for checking and timing comparisons at any size.
 
 ## 0.2.0 (2026-10-26)
 

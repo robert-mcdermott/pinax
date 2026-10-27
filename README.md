@@ -66,26 +66,48 @@ uv run pinax seed
 uv run pinax serve
 ```
 
-Then open <http://127.0.0.1:8001>. `seed` writes two demo filesystems of about 34,000 sparse files
-(117 TB of logical size on almost no disk) with realistic ages going back fifteen years, scans each one twice
-with fs-inventory (with some simulated activity in between), and ingests the scans. It takes about
-ten seconds. It resets `var/` and `demo/` each time, and refuses to run when `PINAX_ENVIRONMENT=prod`.
+Then open <http://127.0.0.1:8001>. `seed` writes two demo filesystems of about 35,000 sparse files
+(123 TB of logical size on under 10 MB of disk) with realistic ages going back fifteen years, scans each one six
+times with fs-inventory, with six months of simulated activity in between, and ingests the scans. It takes about
+fifteen seconds. It resets `var/` and `demo/` each time, and refuses to run when `PINAX_ENVIRONMENT=prod`.
+
+### The demo's six months
+
+The six scans of each filesystem are dated a month apart, the last one on the day you seed. Every month the
+Genomics Shared Resource delivers two Illumina runs and a nanopore run, the Fujimoto Lab adds a batch of samples
+(it grows from 21 to 27 TB), and a few other labs add results. Besides that:
+
+| Scan | Since the scan before |
+| --- | --- |
+| 1 | The starting point, five months ago |
+| 2 | The Fujimoto Lab's Cell Ranger results arrive; the Chen and Haddad labs delete temporary files and checkpoints |
+| 3 | A light-sheet project moves from the Bennett Lab to the Haddad Lab (`haddad_n/datasets/2024_lightsheet_bennett`) |
+| 4 | The Quintero Lab joins, mostly with data from the PI's previous institution: new here, but years old |
+| 5 | The Lindqvist Lab compresses its uncompressed FASTQ files (`wgs/2024_germline/fastq_uncompressed` becomes `fastq`) |
+| 6 | The Fujimoto Lab writes its atlas |
+
+Meanwhile nobody touches the Kowalski Lab's `raw/2024_tmt_plex`, which ages past two years: the lab's cold share
+climbs from 64% to 100% at the same size. The home pages show the change since the previous scan; the history
+charts, change map, and change report to come in this wave show the rest.
 
 ## Demo script (about 12 minutes)
 
-1. **Home page.** Choose *Continue as Hanna Lindqvist* (a PI). *My data* shows one folder: 20 TiB, most of
+1. **Home page.** Choose *Continue as Hanna Lindqvist* (a PI). *My data* shows one folder: 19 TiB, most of
    it unchanged for years.
 2. **Age map.** Open it. `wgs/2019_tumor_normal` is a large dark red tile: 17 TiB of alignments last changed
    about seven years ago. Hover for details; switch *Color by* to *Time since last access* and
    *Size by* to *Size of sequencing and genomics*.
-3. **File types.** The callout shows terabytes of uncompressed SAM and FASTQ files; click `.sam` to list them.
+3. **File types.** The callout shows terabytes of uncompressed SAM files; click `.sam` to list them. (The lab
+   compressed its uncompressed FASTQ files before the fifth scan.)
 4. **Switch identity** (top right) to *Aiko Fujimoto*. Drill into `projects`, then `2022_tumor_atlas`, then
    `raw`: an active project hides `2014_legacy_reruns`, the darkest red tile, eleven years old.
    **Cold data** at two years lists `raw` as one cold unit; at ten years it lists `2014_legacy_reruns` alone.
 5. **Switch to Jordan Okafor**, a delegate for two labs. *My data* shows both labs' folders; the age map
-   puts both side by side.
+   puts both side by side. Then **switch to Valeria Quintero**, whose lab joined three scans ago: one folder, two
+   thirds of it unchanged for more than two years, because most of it came from the PI's previous institution.
 6. **Switch to Priya Natarajan** (storage administrator). *All data* shows both filesystems, the largest
-   folders, the biggest changes since the previous scan (new sequencing runs in `gsr_illumina`), and
+   folders, the biggest changes since the previous scan (a batch of samples and an atlas in `fujimoto_a`,
+   sequencing runs in `gsr_illumina`), and
    three unmapped folders. Open the age map of *Fast*: `scratch_legacy` is a large, very old, unmapped tile.
 7. **Folders and labs.** Tick *Unmapped only*, then map `shared_reference` to the Genomics Shared Resource.
    Switch to *Casey Morgan*: the folder now appears in their data.
@@ -93,7 +115,8 @@ ten seconds. It resets `var/` and `demo/` each time, and refuses to run when `PI
    (a newline, a leading dash, a Windows-reserved character, a name that is not NFC), and files owned by
    accounts that no longer exist.
 9. **Find files.** Search `*.bam`, older than five years, largest first; download the CSV.
-10. **Scans.** The snapshots of both filesystems, and whether automatic ingest is watching for new scans.
+10. **Scans.** Six snapshots of each filesystem, a month apart, each with its full index (`PINAX_KEEP_SNAPSHOTS`
+    keeps six), and whether automatic ingest is watching for new scans.
 11. **Import from CSV.** In a terminal, `uv run pinax import examples/import` lists the 14 changes the example
     files would make: two departments, a lab, three people, their memberships, and owners for the three unmapped
     folders. Add `--apply`, and *Folders and labs* shows no unmapped folders; every change is in the audit log.

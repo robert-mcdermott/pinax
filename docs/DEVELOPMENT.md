@@ -158,6 +158,18 @@ folder of N/10 subfolders, and a chain D folders deep. `bench_index.py` prints t
 depth, widest folders, longest path, flagged names, links, mount points) and the query timings, never a path or
 a name, so a run on a real filesystem can be recorded as it is (`--json FILE` saves it).
 
+`synth_scan.py --evolve SCAN -o OUT --days 30` writes SCAN as it might look 30 days later, for checking and timing
+comparisons between scans: `--remove` (2%) of its projects deleted, `--grow` (5%) of its folders with files gaining
+about a fifth more, `--touch` (1%) of its files rewritten, and `--new-tops` (1) top-level folders copied from
+existing ones; new and rewritten files are dated within the days, and the rest is unchanged, so older. The
+manifest records what changed (`evolved`) and the scan it came from. Evolve the result again for a longer history.
+Ingest them in order, or build with `build_index(..., previous=...)`, and `pinax check` compares the change with
+fs-inventory rollup of both:
+
+```bash
+uv run python bench/synth_scan.py --evolve /scratch/synth-10m -o /scratch/synth-10m-next --days 30
+```
+
 ## Deployment files
 
 `deploy/` holds what `docs/DEPLOYMENT.md` installs: the systemd units, `pinax.env`, and an oauth2-proxy
@@ -172,5 +184,6 @@ read back.
 ## Demo data
 
 `seed.py` defines the demo filesystems (`FILESYSTEMS`), labs (`LABS`), unmapped folders, people (`PEOPLE`),
-each folder's layout (`lab_files`), problem names, the activity between the two scans, and the demo-only owner
-rewrite. Sizes and times are deterministic for a given `--scale`.
+each folder's layout (`lab_files`), problem names, the six months of activity between its scans (`month_files`,
+`REMOVED`, `MOVED`, `COMPRESSED`, `JOINS`, summed up in `MONTHS`), and the demo-only rewrite of each scan's owners
+and date (`_make_demo_scan`). Sizes and times are deterministic for a given `--scale`, relative to when it runs.

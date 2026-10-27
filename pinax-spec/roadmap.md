@@ -17,7 +17,7 @@ decisions taken are recorded here. Later waves are outlined at the end.
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
 **Where things stand:** wave 1 is released as 0.1.0 and wave 2 as 0.2.0 (tags `v0.1.0` and `v0.2.0` on `main`).
-Wave 3, change over time, is in progress on `wave3`: slice 1 is done, and slice 2 (a history to show) is next. The production pilot,
+Wave 3, change over time, is in progress on `wave3`: slices 1 and 2 are done, and slice 3 (history charts) is next. The production pilot,
 which needs production storage, follows as wave 4.
 
 The order follows one principle:
@@ -294,8 +294,8 @@ Every change is checked against an independent computation, like every total.
 | Slice | Scope and requirements | Acceptance before the next slice | Status |
 | --- | --- | --- | --- |
 | 1 | Comparing two scans (S9, Q1) | At ingest, every directory's change since the filesystem's previous scan (size, space on disk, files, folders, bytes per age bucket; new and removed folders) is stored with the index; equal on every directory to the difference between `fs-inventory rollup`'s totals of the two scans, joined by path; tested against brute force over two file lists; the added build time measured at 100 million files | Done |
-| 2 | A history to show (demo and benchmarks) | `pinax seed` writes six scans of each filesystem over six months: a lab that grows, a cleanup, a project moved between labs, data ageing past the cold threshold, a new lab; `synth_scan.py --evolve` derives a changed scan from another, for benchmarks and checks at scale; the README demo script updated | Next |
-| 3 | History charts (E7) | Size, files, cold share, and mean age over every scan for each top-level folder, lab or department, and filesystem (from folder history), and for any deeper folder across the retained snapshots; a table view; both themes and 375 pixels; chart colors validated | To come |
+| 2 | A history to show (demo and benchmarks) | `pinax seed` writes six scans of each filesystem over six months: a lab that grows, a cleanup, a project moved between labs, data ageing past the cold threshold, a new lab; `synth_scan.py --evolve` derives a changed scan from another, for benchmarks and checks at scale; the README demo script updated | Done |
+| 3 | History charts (E7) | Size, files, cold share, and mean age over every scan for each top-level folder, lab or department, and filesystem (from folder history), and for any deeper folder across the retained snapshots; a table view; both themes and 375 pixels; chart colors validated | Next |
 | 4 | The change map (E8) | The age map's treemap colored by growth or shrinkage since a chosen scan (the previous one by default), sized by current or earlier size, with removed folders shown; drill down and up as in the age map; within Q3 for a lab folder at 100 million files | To come |
 | 5 | What changed (R9) | For any folder and two scans: the subfolders that grew and shrank most, new and removed folders, and the largest new and removed files, with CSV; within Q4 for a lab folder at 100 million files | To come |
 | 6 | Older snapshots in the interface (S8) | A snapshot picker on every report, the scan date shown wherever a number is, and links that keep the snapshot; a pruned snapshot offers its folder history only | To come |
@@ -332,6 +332,31 @@ Every change is checked against an independent computation, like every total.
      a tampered change caught, and the command.
    - *Done*: the demo's changes equal to the two rollups on every directory; at 100 million files the comparison
      takes 0.9 s of the build and 228 MB of the index, and checking it 24 s (all 2.44 million directories equal).
+2. **A history to show (demo and benchmarks).**
+   - `pinax seed` takes six scans of each filesystem, dated a month apart (`SCANS`, as many as
+     `PINAX_KEEP_SNAPSHOTS` keeps by default), and changes the demo trees before each (`month_files`, `REMOVED`,
+     `MOVED`, `COMPRESSED`, `JOINS`): every month two Illumina runs, a nanopore run, and a new batch for the
+     Fujimoto Lab, which grows from 21 to 27 TB; cleanups in the Chen and Haddad labs (scan 2); a light-sheet
+     project moved from the Bennett Lab to the Haddad Lab (scan 3); the Quintero Lab joining, mostly with data from
+     the PI's previous institution (scan 4); the Lindqvist Lab compressing its FASTQ files (scan 5); and the
+     Kowalski Lab's 2024 project ageing past two years, so its cold share climbs from 64% to 100% at the same size.
+   - Demo-only, in `_make_demo_scan` beside the owner rewrite: each scan is dated a month after the one before, and
+     the times the seed cannot set (directories changing as files are written, inode changes, births, errors) are
+     brought back to that date. Files are dated within the month they are written in, and reference data is read
+     again each month, so ages and access times are as the dates say. A moved project keeps its owners, as `mv`
+     would.
+   - `synth_scan.py --evolve SCAN --days N` writes a scan as it might look N days later: a share of projects
+     deleted, of folders grown, and of files rewritten, and new top-level folders; each generation names its new
+     files apart, so scans can be evolved again and again. It works on any fs-inventory scan, real ones included.
+   - Tests: the six months (every file dated within its month and none after its scan, no file written twice, the
+     cleanups, move, compression, and cold threshold finding what they expect); a scan dated by the seed; an
+     evolved scan's changes against brute force over the two scans' files, and what it says it did; evolving twice;
+     and, with the binary, both totals and changes equal to fs-inventory rollup.
+   - *Done*: every demo snapshot and every change between consecutive demo scans equal to fs-inventory rollup (12
+     snapshots, 10 changes); evolved scans of a real demo scan and of the wide and deep shapes likewise. At one
+     million files, `--evolve` takes 1.6 s, comparing 0.2 s of a 6 s build, and checking the change 1.1 s (all
+     245,361 directories equal). Kept to small scans on the development laptop; the measurement with changed scans
+     at 100 million files waits for server-class hardware in wave 4.
 
 ## Later waves (outlined)
 

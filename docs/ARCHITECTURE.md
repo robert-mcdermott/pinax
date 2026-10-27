@@ -176,7 +176,9 @@ path. A wrong difference cannot then come from Pinax's own totals agreeing with 
 folder must still exist for this part of the check. At 100 million files (2.44 million folders), comparing takes
 0.9 seconds of the build and adds 228 MB to the index, about 2.3 bytes per file; checking it takes 24 seconds,
 nearly all of it the two rollups, and every directory was equal (between two synthetic scans with the same
-contents; changed scans at that scale come with `synth_scan.py --evolve`).
+contents). Between changed scans from `synth_scan.py --evolve` at one million files, comparing takes 0.2 seconds
+of a six-second build and checking it 1.1 seconds, every directory equal; changed scans at 100 million files wait
+for server-class hardware (wave 4).
 
 ## Real filesystems
 
@@ -292,7 +294,7 @@ uv run python bench/bench_index.py /scratch/synth-10m --index /scratch/synth-10m
 | Proof of concept | Production | Notes |
 |---|---|---|
 | `pinax seed` writes demo trees of sparse files and scans them with fs-inventory | Scheduled fs-inventory scans on storage nodes or scan hosts | Pinax ingests any complete Parquet scan |
-| Demo owners rewritten to fictional accounts after each demo scan | Real owners from the scan | Only `seed.py` rewrites owners, only in its own demo scans |
+| Demo owners rewritten to fictional accounts, and demo scans dated a month apart | Real owners and times from the scan | Only `seed.py` rewrites scans, only its own demo scans |
 | SQLite catalog | PostgreSQL | SQLAlchemy models; migrations (Alembic) still to add |
 | Demo identity switcher | Single sign-on proxy, `PINAX_AUTH_MODE=header` | Checked behind oauth2-proxy 7.15 with a stand-in identity provider |
 | People, labs, and folder mappings managed in the app | The same, fed from the authoritative source; until then imported from CSV (`pinax import`) | Same model as Tundra |

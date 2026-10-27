@@ -9,14 +9,19 @@ and sizes. It is generated entirely inside DuckDB, so ten million entries take w
 folder and `lab_wide/folders` holding N/10 subfolders; `--deep N` adds a chain of N nested folders under
 `lab_deep`, with a file at the bottom.
 
+`--evolve SCAN` writes the scan as it might look `--days` later instead (see `evolve`): some projects deleted,
+some folders grown, some files rewritten, and a new top-level folder, for checking and timing comparisons.
+
     uv run python bench/synth_scan.py --files 10000000 -o /scratch/synth-10m
+    uv run python bench/synth_scan.py --evolve /scratch/synth-10m -o /scratch/synth-10m-next --days 30
 """
 
 import argparse
 import json
+import shutil
 import time
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import duckdb
@@ -42,7 +47,18 @@ def main() -> None:
     ap.add_argument("--part-rows", type=int, default=5_000_000)
     ap.add_argument("--wide", type=int, default=0, help="Files in one folder (and a tenth as many subfolders in another)")
     ap.add_argument("--deep", type=int, default=0, help="Depth of a chain of nested folders")
+    ev = ap.add_argument_group("evolving a scan")
+    ev.add_argument("--evolve", type=Path, metavar="SCAN", help="Write SCAN as it might look later, instead")
+    ev.add_argument("--days", type=float, default=30, help="Days later")
+    ev.add_argument("--remove", type=float, default=0.02, help="Share of projects deleted")
+    ev.add_argument("--grow", type=float, default=0.05, help="Share of folders with files that gain a fifth more")
+    ev.add_argument("--touch", type=float, default=0.01, help="Share of files rewritten")
+    ev.add_argument("--new-tops", type=int, default=1, help="New top-level folders")
     args = ap.parse_args()
+    if args.evolve:
+        evolve(args.evolve, args.output, days=args.days, remove=args.remove, grow=args.grow, touch=args.touch,
+               new_tops=args.new_tops)
+        return
 
     t0 = time.monotonic()
     out = args.output
@@ -196,6 +212,134 @@ def _shapes(con: duckdb.DuckDBPyConnection, out: Path, root: str, ref: float, fi
           FROM ({src}) s(path, parent_path, name, extension, kind, depth, dir_id, parent_id, kids, size, age_days)
         ) TO '{out / 'entries' / 'part-shapes.parquet'}' (FORMAT parquet, COMPRESSION zstd)
     """)
+
+
+def evolve(src: Path, out: Path, *, days: float, remove: float, grow: float, touch: float, new_tops: int) -> dict:
+    """Write `out`, the scan `src` as it might look `days` later, and return what changed:
+    - `remove` of its projects (folders two levels below the root) deleted, with everything in them;
+    - `grow` of its folders holding files gain about a fifth more files, copies of some of theirs;
+    - `touch` of its files rewritten, with a new size and modification time;
+    - `new_tops` top-level folders added, each a copy of an existing one.
+    New and rewritten files are dated within the `days`; everything else is unchanged, and so `days` older.
+    Folder entry counts are recounted; other tables (users, groups, errors) are copied. Each generation names
+    its new files and folders apart (`g1_`, `g2_`, ...), so a scan can be evolved again and again."""
+    t0 = time.monotonic()
+    manifest = json.loads((src / "manifest.json").read_text())
+    gen = manifest.get("generation", 0) + 1
+    root = manifest["roots"][0]["path"].rstrip("/")
+    started = datetime.fromisoformat(manifest["started_at"]) + timedelta(days=days)
+    ref, span = started.timestamp(), days * 86400
+    (out / "entries").mkdir(parents=True, exist_ok=False)
+    con = duckdb.connect()
+    con.execute("SET preserve_insertion_order = false")
+    parts = ", ".join(f"'{src / p['file']}'" for p in manifest["parts"]["entries"])
+    con.execute(f"CREATE VIEW e AS SELECT * FROM read_parquet([{parts}])")
+    types = dict(con.execute("SELECT column_name, column_type FROM (DESCRIBE e)").fetchall())
+    max_id, max_ino = con.execute("SELECT max(dir_id), max(ino) FROM e").fetchone()
+    salt = f"'#{gen}'"
+
+    def chance(key: str, share: float, why: str) -> str:
+        return f"hash({key} || {salt} || '{why}') % 1000000 < {round(share * 1e6)}"
+
+    def u(path: str) -> str:  # a number in [0, 1) for each entry
+        return f"(hash({path} || {salt}) % 1000000) / 1e6"
+
+    def new_time(path: str) -> str:
+        return f"to_timestamp({ref} - {span} * {u(path)})"
+
+    nroot = len(root.split("/"))
+    con.execute(f"""CREATE TEMP TABLE removed AS SELECT path FROM e
+                    WHERE kind = 'dir' AND depth = 2 AND {chance('path', remove, 'remove')}""")
+    con.execute(f"""CREATE TEMP TABLE grown AS SELECT DISTINCT parent_id AS dir_id FROM e
+                    WHERE kind = 'file' AND {chance('parent_id::VARCHAR', grow, 'grow')}""")
+    con.execute(f"""CREATE TEMP TABLE tops AS SELECT path, name, row_number() OVER (ORDER BY hash(path || {salt})) AS j
+                    FROM e WHERE kind = 'dir' AND depth = 1 ORDER BY hash(path || {salt}) LIMIT {new_tops}""")
+    con.execute(f"""CREATE TEMP TABLE kept AS
+        SELECT * REPLACE (
+            CASE WHEN touched THEN {new_time('path')} ELSE mtime END AS mtime,
+            CASE WHEN touched THEN {new_time('path')} ELSE ctime END AS ctime,
+            CASE WHEN touched THEN {new_time('path')} ELSE atime END AS atime,
+            CASE WHEN touched THEN (size * (0.5 + {u('path')}))::BIGINT ELSE size END AS size,
+            CASE WHEN touched THEN (alloc_bytes * (0.5 + {u('path')}))::BIGINT ELSE alloc_bytes END AS alloc_bytes)
+        FROM (SELECT *, kind = 'file' AND {chance('path', touch, 'touch')} AS touched FROM e
+              WHERE depth < 2 OR array_to_string(string_split(path, '/')[1:{nroot + 2}], '/') NOT IN
+                    (SELECT path FROM removed))""")
+    prefix = f"'g{gen}_'"
+    added = f"""
+        SELECT k.* EXCLUDE (touched, nth, n) REPLACE (
+            k.parent_path || '/' || {prefix} || k.name AS path, {prefix} || k.name AS name,
+            {max_ino} + row_number() OVER () AS ino, {new_time('k.path')} AS mtime, {new_time('k.path')} AS ctime,
+            {new_time('k.path')} AS atime)
+        FROM (SELECT k.*, row_number() OVER (PARTITION BY k.parent_id ORDER BY hash(k.path || {salt})) AS nth,
+                     count(*) OVER (PARTITION BY k.parent_id) AS n
+              FROM kept k JOIN grown g ON g.dir_id = k.parent_id WHERE k.kind = 'file') k
+        WHERE k.nth <= greatest(1, k.n // 5)"""
+    # A new top-level folder: a copy of an existing one, with its own ids and inodes, written during the days.
+    top = f"'new_lab_g{gen}_' || t.j"
+    born = f"""
+        SELECT k.* EXCLUDE (touched) REPLACE (
+            '{root}/' || {top} || substr(k.path, length(t.path) + 1) AS path,
+            CASE WHEN k.path = t.path THEN k.parent_path
+                 ELSE '{root}/' || {top} || substr(k.parent_path, length(t.path) + 1) END AS parent_path,
+            CASE WHEN k.path = t.path THEN {top} ELSE k.name END AS name,
+            k.dir_id + t.j * ({max_id} + 1) AS dir_id,
+            CASE WHEN k.path = t.path THEN k.parent_id ELSE k.parent_id + t.j * ({max_id} + 1) END AS parent_id,
+            k.ino + t.j * ({max_ino} + 1) * 2 AS ino, {new_time('k.path')} AS mtime, {new_time('k.path')} AS ctime,
+            {new_time('k.path')} AS atime)
+        FROM kept k JOIN tops t ON k.path = t.path OR starts_with(k.path, t.path || '/')"""
+    con.execute(f"""CREATE TEMP TABLE result AS
+        SELECT * EXCLUDE (touched) FROM kept UNION ALL BY NAME ({added}) UNION ALL BY NAME ({born})""")
+    cols = ", ".join(
+        f'(CASE WHEN r.kind = \'dir\' AND r.dir_entries IS NOT NULL THEN coalesce(c.{c}, 0) ELSE r."{c}" END)::{types[c]} '
+        f'AS "{c}"' if c in ("dir_entries", "dir_files", "dir_subdirs") else f'r."{c}"::{types[c]} AS "{c}"'
+        for c in types)
+    con.execute(f"""
+        COPY (
+          SELECT {cols} FROM result r LEFT JOIN (
+            SELECT parent_id, count(*) AS dir_entries, count(*) FILTER (WHERE kind = 'file') AS dir_files,
+                   count(*) FILTER (WHERE kind = 'dir') AS dir_subdirs FROM result GROUP BY parent_id
+          ) c ON c.parent_id = r.dir_id
+        ) TO '{out / 'entries'}' (FORMAT parquet, COMPRESSION zstd, ROW_GROUP_SIZE 1048576, FILE_SIZE_BYTES '1GB',
+                                  FILENAME_PATTERN 'part-evolved-{{i}}')
+    """)
+    summary = {
+        "removed_projects": con.execute("SELECT count(*) FROM removed").fetchone()[0],
+        "removed_entries": con.execute("SELECT (SELECT count(*) FROM e) - (SELECT count(*) FROM kept)").fetchone()[0],
+        "grown_dirs": con.execute(f"SELECT count(DISTINCT parent_id) FROM ({added})").fetchone()[0],
+        "added_files": con.execute(f"SELECT count(*) FROM ({added})").fetchone()[0],
+        "touched_files": con.execute("SELECT count(*) FROM kept WHERE touched").fetchone()[0],
+        "new_tops": [r[0] for r in con.execute(f"SELECT DISTINCT path FROM ({born}) WHERE depth = 1").fetchall()],
+    }
+    for table, items in manifest["parts"].items():
+        if table != "entries":
+            for item in items:
+                (out / item["file"]).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(src / item["file"], out / item["file"])
+    entries = []
+    for p in sorted((out / "entries").glob("*.parquet")):
+        rows = con.execute(f"SELECT count(*) FROM read_parquet('{p}')").fetchone()[0]
+        entries.append({"file": f"entries/{p.name}", "rows": rows, "bytes": p.stat().st_size})
+    by_kind = dict(con.execute("SELECT kind, count(*) FROM result GROUP BY kind").fetchall())
+    total_bytes = con.execute("SELECT coalesce(sum(size), 0) FROM result WHERE kind = 'file'").fetchone()[0]
+
+    def iso(d: datetime) -> str:
+        return d.isoformat().replace("+00:00", "Z")
+
+    seconds = time.monotonic() - t0
+    manifest.update({
+        "scan_id": str(uuid.uuid4()), "status": "complete", "started_at": iso(started),
+        "finished_at": iso(started + timedelta(seconds=seconds)), "duration_seconds": seconds,
+        "parts": {**manifest["parts"], "entries": entries},
+        "totals": {**manifest.get("totals", {}), "entries": sum(by_kind.values()), "by_kind": by_kind,
+                   "bytes": int(total_bytes)},
+        "synthetic": True, "evolved_from": manifest["scan_id"], "generation": gen, "evolved": summary,
+    })
+    (out / "manifest.json").write_text(json.dumps(manifest, indent=2))
+    print(f"Wrote {sum(by_kind.values()):,} entries to {out}, {days:g} days after {src.name}, in {seconds:.1f}s: "
+          f"{summary['removed_projects']:,} projects deleted ({summary['removed_entries']:,} entries), "
+          f"{summary['added_files']:,} files added to {summary['grown_dirs']:,} folders, "
+          f"{summary['touched_files']:,} files rewritten, new top-level folders {', '.join(summary['new_tops']) or 'none'}")
+    return summary
 
 
 if __name__ == "__main__":

@@ -25,7 +25,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | P2 | Apache-2.0; `LICENSE` and `NOTICE`; SPDX headers in source files | done (wave 1, slice 1) |
 | P3 | Read-only: never opens, moves, or changes a file on the storage it reports on; reads only fs-inventory scans | done (wave 1, slice 2) |
 | P4 | Light and dark themes, keyboard-reachable charts, WCAG AA text contrast, a table view for every chart, chart colors validated in both themes | done (wave 1, slices 1 and 4: age and share ramps pass the ordinal checks in both themes; checked at 375 px) |
-| P5 | A demo that builds in one command with real fs-inventory scans of realistic data | done (wave 1, slice 7: about 34,000 sparse files, 117 TB logical, two scans per filesystem, about ten seconds) |
+| P5 | A demo that builds in one command with real fs-inventory scans of realistic data | done (wave 1, slice 7: about 34,000 sparse files, 117 TB logical, two scans per filesystem, about ten seconds; wave 3, slice 2: six scans per filesystem a month apart, with a story in each month, about 35,000 files and 123 TB, about fifteen seconds) |
 | P6 | Service files for the web app and ingest; a container image | partial (wave 2, slice 6: systemd units in `deploy/`; wave 5: container) |
 | P7 | PostgreSQL catalog with migrations | planned (wave 5) |
 
@@ -96,7 +96,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 
 | # | Requirement | Status |
 | --- | --- | --- |
-| Q1 | Totals agree with an independent computation | partial (wave 1, slice 7: equal to brute-force sums over every file in the tests; wave 2, slice 1: `pinax check` equal to `fs-inventory rollup` on every directory of the demo and synthetic scans; wave 2, slice 2: equal on a real local scan and on wide and deep synthetic scans; wave 3, slice 1: the changes between scans too; wave 4: production scans) |
+| Q1 | Totals agree with an independent computation | partial (wave 1, slice 7: equal to brute-force sums over every file in the tests; wave 2, slice 1: `pinax check` equal to `fs-inventory rollup` on every directory of the demo and synthetic scans; wave 2, slice 2: equal on a real local scan and on wide and deep synthetic scans; wave 3, slice 1: the changes between scans too; wave 3, slice 2: the changes between every pair of demo scans and between evolved synthetic scans; wave 4: production scans) |
 | Q2 | Every request value is bound as a query parameter; SQL fragments come only from fixed lists | done (wave 1, slice 3) |
 | Q3 | Directory-level queries (treemap, types, owners, cold folders of a lab) within 100 ms at a billion files | partial (wave 1: 23–64 ms at 10 million files; wave 2, slice 3: 1–50 ms at 100 million synthetic files; wave 4: on production) |
 | Q4 | Searches scoped to a lab folder within 1 s; whole-filesystem searches within 60 s at a billion files | partial (wave 1: 10 ms and 273 ms at 10 million files; wave 2, slice 3: 22 ms and 2.8 s at 100 million, about 30 s projected at a billion; wave 4: on production) |
