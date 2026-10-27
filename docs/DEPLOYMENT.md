@@ -218,7 +218,8 @@ computation of the same totals with `pinax check SNAPSHOT_ID`. It runs `fs-inven
 scan's manifest (the scan folder is not written to) and compares every directory, printing the ones that differ.
 Rollup keeps an age histogram of about 0.5 KB for every directory down to the depth compared, so on scans with
 tens of millions of directories bound it, for example `--age-depth 4`; the other totals are still compared at
-every depth.
+every depth. Each index also records how every directory changed since the filesystem's previous scan, and the
+check compares that too, with a rollup of the previous scan, as long as its scan folder is kept.
 
 ## Upgrading
 
@@ -235,7 +236,8 @@ pinax rebuild --outdated
 ```
 
 `CHANGELOG.md` says when a release changes the index format (`INDEX_VERSION`). Older indexes still answer, but
-without what the new format adds, so `pinax rebuild --outdated` builds them again from their scans, newest last,
+without what the new format adds, so `pinax rebuild --outdated` builds them again from their scans, oldest first
+(each one is compared with the snapshot before it),
 in place: each snapshot stays available on its old index until the new one replaces it, and keeps it if the build
 fails. The web app opens rebuilt indexes without a restart. `pinax rebuild SNAPSHOT_ID` rebuilds one, for example
 one whose index was lost.

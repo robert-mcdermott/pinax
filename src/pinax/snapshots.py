@@ -239,16 +239,18 @@ def _ingest(session: Session, scan_dir: Path, *, fs_slug: str | None, allow_inco
         raise IngestError(f"scan {manifest['scan_id']} is already being ingested") from e
 
     index_dir = settings.snapshot_root / fs.slug / f"{started:%Y%m%dT%H%M%SZ}-{manifest['scan_id'][:8]}"
+    prev = previous_with_index(session, fs.id, started)
     try:
         result = build_index(scan_dir, index_dir, memory_limit=settings.build_memory_limit,
-                             threads=settings.build_threads, allow_incomplete=allow_incomplete, progress=progress)
+                             threads=settings.build_threads, allow_incomplete=allow_incomplete,
+                             previous=Path(prev.index_dir) if prev else None, progress=progress)
     except Exception as e:  # record the failure, then re-raise for the caller
         snap.status = SnapshotStatus.FAILED
         snap.message = str(e)
         session.commit()
         raise
 
-    _record_build(session, snap, index_dir, result, manifest, settings)
+    _record_build(session, snap, index_dir, result, manifest, settings, prev)
     snap.status = SnapshotStatus.READY
     session.add(AuditEvent(action="snapshot.ingested",
                            summary=f"Ingested scan of {fs.name} taken {started:%Y-%m-%d %H:%M} UTC",
@@ -259,7 +261,20 @@ def _ingest(session: Session, scan_dir: Path, *, fs_slug: str | None, allow_inco
     return snap
 
 
-def _record_build(session: Session, snap: Snapshot, index_dir: Path, result, manifest: dict, settings: Settings) -> None:
+def previous_with_index(session: Session, filesystem_id: int, before: datetime) -> Snapshot | None:
+    """The filesystem's newest ready snapshot taken before `before` whose index is on disk: what a new index is
+    compared with."""
+    for snap in session.scalars(select(Snapshot).where(Snapshot.filesystem_id == filesystem_id,
+                                                       Snapshot.status == SnapshotStatus.READY,
+                                                       Snapshot.started_at < before)
+                                .order_by(Snapshot.started_at.desc())):
+        if snap.index_dir and (Path(snap.index_dir) / "index.duckdb").exists():
+            return snap
+    return None
+
+
+def _record_build(session: Session, snap: Snapshot, index_dir: Path, result, manifest: dict, settings: Settings,
+                  prev: Snapshot | None) -> None:
     t = result.totals
     snap.index_dir = str(index_dir)
     snap.ingested_at = utcnow()
@@ -269,7 +284,8 @@ def _record_build(session: Session, snap: Snapshot, index_dir: Path, result, man
     snap.index_bytes = sum(p.stat().st_size for p in index_dir.rglob("*") if p.is_file())
     snap.info = {"steps": result.steps, "incomplete_dirs": t["incomplete_dirs"], "tops": t["tops"],
                  "categories": list(CATEGORY_KEYS), "age_buckets": [b.short for b in AGE_BUCKETS],
-                 "errors_by_kind": manifest.get("errors_by_kind", []), "index_version": INDEX_VERSION}
+                 "errors_by_kind": manifest.get("errors_by_kind", []), "index_version": INDEX_VERSION,
+                 "compared_with": prev.id if prev and result.compared else None}
     session.flush()
     _record_folder_stats(session, snap, index_dir, settings)
 
@@ -305,15 +321,16 @@ def rebuild_snapshot(session: Session, snap: Snapshot, *, settings: Settings | N
         if manifest.get("scan_id") != snap.scan_id:
             raise IngestError(f"{scan_dir} now holds a different scan than snapshot {snap.id}")
         index_dir = Path(snap.index_dir)
+        prev = previous_with_index(session, snap.filesystem_id, snap.started_at)
         try:
             result = build_index(scan_dir, index_dir, memory_limit=settings.build_memory_limit,
                                  threads=settings.build_threads, allow_incomplete=snap.scan_status != "complete",
-                                 progress=progress)
+                                 previous=Path(prev.index_dir) if prev else None, progress=progress)
         except Exception as e:  # record it, keep the old index, then re-raise for the caller
             snap.message = f"Rebuild failed; the previous index is still in use: {e}"
             session.commit()
             raise
-        _record_build(session, snap, index_dir, result, manifest, settings)
+        _record_build(session, snap, index_dir, result, manifest, settings, prev)
         snap.message = ""
         session.add(AuditEvent(action="snapshot.rebuilt", summary=f"Rebuilt the index of snapshot {snap.id}",
                                detail={"snapshot_id": snap.id, "index_version": INDEX_VERSION,

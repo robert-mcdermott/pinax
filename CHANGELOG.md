@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Comparing two scans (wave 3, slice 1).** Each new index records how every directory changed since the
+  filesystem's previous scan: both scans' files, folders, bytes, allocated bytes, and files and bytes per age
+  bucket, and which folders are new or removed (`changes`, index version 4). `pinax check` compares it with
+  `fs-inventory rollup` of both scans, and `pinax rebuild --outdated` adds it to existing snapshots, oldest first.
+
 ## 0.2.0 (2026-10-26)
 
 Second release (wave 2, "ready for real storage"): everything a first production deployment needs, built and

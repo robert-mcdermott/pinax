@@ -70,6 +70,7 @@ The age color of a folder comes from those totals: the *average age* is weighted
 | `dir_ext` | directory and file type | Totals over the directory's *own* files of that type | `path` |
 | `dir_owner` | directory and owner (uid) | Totals over the directory's *own* files of that owner | `path` |
 | `top_ext`, `top_owner` | top-level folder and type / owner | The same, summed per top-level folder | `top_id` |
+| `changes` | directory of this scan or the filesystem's previous one | Both scans' subtree totals (files, folders, bytes, allocated bytes, size-weighted time sum, files and bytes per age bucket), each scan's own ages, and whether the directory is in each: what changed, new and removed folders included. Only when there was a previous scan | `(depth, path)` |
 | `cold_units` | age threshold and cold folder | For each threshold (90 days to 10 years), the largest folders in which every file is at least that old and whose parent has a newer one: path, depth, files, bytes | `(bucket, path)` |
 | `tops`, `file_parts` | top-level folder | Name, path, ID; file count and bytes | |
 | `users`, `groups` | uid / gid | Names from the scan (`--resolve-ids`); a missing name is a deleted account | |
@@ -129,6 +130,10 @@ retries any step that still runs out.
    groups, errors, and metadata.
 6. **Cold folders**: for each of the six age thresholds, every directory whose files are all at least that old
    (no files in younger buckets) while its parent's are not: one self-join of `dirs` per threshold.
+7. **Changes**: when the filesystem has an earlier ready snapshot whose index is on disk, its `dirs` table is
+   attached read-only and joined with the new one by path, and both scans' totals are kept in `changes`. A
+   directory in only one scan is new or removed; a renamed folder is both. The comparison is done once, and
+   survives the earlier index being pruned.
 
 Then ingest records the snapshot and one `FolderStat` row per top-level folder in the catalog: those rows are
 the durable history (growth, cold share, mean age per scan) and they survive when old indexes are pruned.
@@ -164,6 +169,14 @@ The first run against 0.1.0 found two differences, both fixed in Pinax. Ages wer
 rounding put a file exactly on a bucket edge in the younger bucket for about one scan start time in eleven
 (one in four at the ten-year edge). Directories revisited under `--detect-cycles` were counted as incomplete.
 The tests include a scan built to sit on those edges.
+
+When an index holds `changes`, `pinax check` also runs `fs-inventory rollup` on the previous scan and compares
+every directory of both scans: its totals in each and whether it is in each, against the two rollups joined by
+path. A wrong difference cannot then come from Pinax's own totals agreeing with themselves. The previous scan's
+folder must still exist for this part of the check. At 100 million files (2.44 million folders), comparing takes
+0.9 seconds of the build and adds 228 MB to the index, about 2.3 bytes per file; checking it takes 24 seconds,
+nearly all of it the two rollups, and every directory was equal (between two synthetic scans with the same
+contents; changed scans at that scale come with `synth_scan.py --evolve`).
 
 ## Real filesystems
 

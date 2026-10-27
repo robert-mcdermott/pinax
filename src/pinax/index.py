@@ -171,8 +171,11 @@ class SnapshotIndex:
             f"SELECT top_id, {'grp' if 'grp' in cols else 'NULL'} FROM file_parts WHERE files > 0").fetchall()
         self.parts = {tid: f"g{grp:06d}" if grp is not None else f"t{tid:06d}" for tid, grp in rows}
         # Indexes before version 3 have no precomputed cold folders; they are found at query time instead.
-        self.has_cold_units = bool(self._con.execute(
-            "SELECT count(*) FROM duckdb_tables() WHERE table_name = 'cold_units'").fetchone()[0])
+        tables = {r[0] for r in self._con.execute("SELECT table_name FROM duckdb_tables()").fetchall()}
+        self.has_cold_units = "cold_units" in tables
+        # The change since the filesystem's previous scan (index version 4, when there was one): what it was.
+        self.has_changes = "changes" in tables
+        self.previous: dict | None = meta.get("previous") if self.has_changes else None
 
     def close(self) -> None:
         self._con.close()

@@ -70,6 +70,8 @@ tests/             pytest suite; scanfix.py writes exact fs-inventory-shaped sca
   New per-directory measures go in `ADDITIVE` or `EXTREMES` in `ingest/build.py`, which flow through the
   roll-up, `Stats`, and the API automatically. Bump `INDEX_VERSION` when the layout or a measure's meaning
   changes.
+- **Changes between scans** are kept per directory for the measures in `CHANGE_MEASURES` (`ingest/build.py`);
+  a measure added there is compared with the previous scan's in `_change_measures()` in `crosscheck.py`.
 - **The index must agree with fs-inventory.** A change to the build keeps `uv run pinax check` passing on the
   demo scans and on a synthetic scan (see Benchmarks). A measure fs-inventory rollup also computes is added to
   `_measures()` in `crosscheck.py`.
