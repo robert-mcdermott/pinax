@@ -47,6 +47,15 @@ function changeText(t) {
   return d ? `${signed(d)}${share(t)}` : "No change";
 }
 
+/** "Compare with": the previous scan, or the scan of any day with an earlier kept scan (select#ctl-since). */
+export function sinceSelect(data, since) {
+  const latest = data.compared.find((c) => c.previous) || data.compared[0];
+  return html`<label class="ctl"><span>Compare with</span><select class="select sm" id="ctl-since">
+    <option value="" ${since ? "" : raw("selected")}>The previous scan${data.compared.length === 1 && latest?.previous ? ` (${date(latest.started_at)})` : ""}</option>
+    ${data.choices.map((d) => html`<option value="${d}" ${since === d ? raw("selected") : ""}>The scan of ${date(`${d}T12:00:00Z`)}</option>`)}
+  </select></label>`;
+}
+
 export async function viewChanges(el, query) {
   const q = { ...DEFAULTS, ...parseQuery(query) };
   const place = q.fs ? { fs: q.fs, path: q.path } : null;
@@ -64,16 +73,12 @@ export async function viewChanges(el, query) {
     return;
   }
   const when = data.compared.map((c) => c.started_at).sort()[0];
-  const latest = data.compared.find((c) => c.previous) || data.compared[0];
   const tiles = data.tiles;
 
   mount(el, html`
     ${head}
     <div class="toolbar">
-      <label class="ctl"><span>Compare with</span><select class="select sm" id="ctl-since">
-        <option value="" ${q.since ? "" : raw("selected")}>The previous scan${data.compared.length === 1 && latest.previous ? ` (${date(latest.started_at)})` : ""}</option>
-        ${data.choices.map((d) => html`<option value="${d}" ${q.since === d ? raw("selected") : ""}>The scan of ${date(`${d}T12:00:00Z`)}</option>`)}
-      </select></label>
+      ${sinceSelect(data, q.since)}
       <label class="ctl"><span>Size by</span><select class="select sm" id="ctl-size">
         ${SIZES.map((s) => html`<option value="${s.key}" ${s.key === q.size ? raw("selected") : ""}>${s.label}</option>`)}</select></label>
       <div class="ctl"><span>Levels</span><div class="pills" role="group" aria-label="Levels shown">

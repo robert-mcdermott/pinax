@@ -6,7 +6,7 @@ import csv
 import io
 from datetime import date
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -40,6 +40,41 @@ def changes(fs: str | None = None, path: str | None = None, since: date | None =
     newest kept on or before `since`), with folders in only one of them."""
     return explore.change_tree(session, identity, fs, path, since=since, metric=metric, depth=depth,
                                snap_id=snapshot, lab_slug=lab)
+
+
+@router.get("/changed")
+def changed(fs: str | None = None, path: str | None = None, since: date | None = None,
+            limit: int = Query(20, ge=1), fmt: str = "json", which: str = Query("grew", alias="list"),
+            snapshot: int | None = None,
+            lab: str | None = None, identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
+    """What changed between this scan and an earlier one: the folders that grew and shrank most, new and removed
+    folders, and the largest new and removed files. fmt=csv downloads one `list`."""
+    s = get_settings()
+    if fmt == "csv":
+        if which not in explore.CHANGE_LISTS:
+            raise HTTPException(422, f"Unknown list {which!r}")
+        res = explore.what_changed(session, identity, fs, path, since=since, limit=min(limit, s.export_max_rows),
+                                   snap_id=snapshot, lab_slug=lab)
+        return _change_csv(which, res[which])
+    return explore.what_changed(session, identity, fs, path, since=since, limit=min(limit, s.search_max_rows),
+                                snap_id=snapshot, lab_slug=lab)
+
+
+def _change_csv(name: str, rows: list[dict]) -> StreamingResponse:
+    if name.endswith("_files"):
+        header = ["fs", "path", "size", "alloc", "mtime", "atime", "category", "ext", "owner", "uid", "gid", "kind"]
+        lines = [[r.get(c) for c in header] for r in rows]
+    else:
+        header = ["fs", "path", "bytes_then", "bytes_now", "change", "files_then", "files_now", "in_earlier_scan",
+                  "in_this_scan"]
+        lines = [[r["fs"], r["path"], (r["then"] or {}).get("bytes"), (r["now"] or {}).get("bytes"), r["delta"],
+                  (r["then"] or {}).get("files"), (r["now"] or {}).get("files"), r["in_old"], r["in_new"]] for r in rows]
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(header)
+    w.writerows(lines)
+    return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv",
+                             headers={"Content-Disposition": f'attachment; filename="pinax-{name.replace("_", "-")}.csv"'})
 
 
 @router.get("/types")

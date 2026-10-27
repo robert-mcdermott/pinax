@@ -67,12 +67,12 @@ PAIR_SUMS = ", ".join(["count(*) AS n", "count(*) FILTER (WHERE in_new AND NOT i
                       + [f"sum({s}_{c}) AS {s}_{c}" for c in CHANGE_KEYS for s in ("o", "n")])
 
 
-def _no_pairs() -> dict:
+def no_pairs() -> dict:
     return {"n": 0, "new": 0, "removed": 0, **{f"{s}_{c}": None for c in CHANGE_KEYS for s in ("o", "n")}}
 
 
-def _add_pairs(*parts: dict) -> dict:
-    out = _no_pairs()
+def add_pairs(*parts: dict) -> dict:
+    out = no_pairs()
     for p in parts:
         for k in out:
             if p.get(k) is not None:
@@ -366,6 +366,12 @@ class SnapshotIndex:
                    FROM (SELECT * FROM dirs WHERE {cond}) n FULL JOIN (SELECT * FROM {against}.dirs WHERE {cond}) o
                    ON o.path = n.path"""
 
+    def change_node(self, path: str, *, against: str | None = None) -> dict | None:
+        """A directory in both scans (or the one it is in), as `_pairs` gives it; None if in neither."""
+        rows = self._rows(self._pairs(against, "depth = ? AND path = ?"),
+                          [self.depth_of(path), path] * (1 if against is None else 2))
+        return rows[0] if rows else None
+
     def change_children(self, path: str, *, against: str | None = None, metric: str = "max", limit: int = 60,
                         grand_limit: int = 0) -> dict:
         """A directory and its children in both scans (this one and the one compared with), largest first by
@@ -375,9 +381,9 @@ class SnapshotIndex:
         depth = self.depth_of(path)
         lo, hi = child_range(path)
         expr = CHANGE_METRICS[metric]
-        node = self._rows(self._pairs(against, "depth = ? AND path = ?"), [depth, path] * twice)
-        if not node:
-            return {"node": None, "rows": [], "all": _no_pairs(), "rest": _no_pairs(), "grand": {}}
+        node = self.change_node(path, against=against)
+        if node is None:
+            return {"node": None, "rows": [], "all": no_pairs(), "rest": no_pairs(), "grand": {}}
         kids = self._pairs(against, "depth = ? AND path >= ? AND path < ?")
         rows = self._rows(f"SELECT * FROM ({kids}) WHERE {expr} > 0 ORDER BY {expr} DESC, path LIMIT ?",
                           [depth + 1, lo, hi] * twice + [limit])
@@ -385,7 +391,7 @@ class SnapshotIndex:
         sums = {bool(r["listed"]): r for r in self._rows(
             f"SELECT list_contains(?::VARCHAR[], path) AS listed, {PAIR_SUMS} FROM ({kids}) GROUP BY 1",
             [listed] + [depth + 1, lo, hi] * twice)}
-        out = {"node": node[0], "rows": rows, "all": _add_pairs(*sums.values()), "rest": sums.get(False, _no_pairs()),
+        out = {"node": node, "rows": rows, "all": add_pairs(*sums.values()), "rest": sums.get(False, no_pairs()),
                "grand": {}}
         if grand_limit and rows:
             parent = "substr(path, 1, length(path) - length(name) - 1)"
@@ -394,14 +400,71 @@ class SnapshotIndex:
             params = [depth + 2, lo, hi] * twice + [listed]
             for r in self._rows(f"SELECT * EXCLUDE (rn) FROM ({g}) WHERE rn <= ? AND {expr} > 0 ORDER BY parent, rn",
                                 params + [grand_limit]):
-                out["grand"].setdefault(r["parent"], {"rows": [], "all": _no_pairs(), "rest": _no_pairs()})["rows"].append(r)
+                out["grand"].setdefault(r["parent"], {"rows": [], "all": no_pairs(), "rest": no_pairs()})["rows"].append(r)
             for r in self._rows(f"SELECT parent, rn > ? AS beyond, {PAIR_SUMS} FROM ({g}) GROUP BY parent, beyond",
                                 [grand_limit] + params):
-                e = out["grand"].setdefault(r["parent"], {"rows": [], "all": _no_pairs(), "rest": _no_pairs()})
-                e["all"] = _add_pairs(e["all"], r)
+                e = out["grand"].setdefault(r["parent"], {"rows": [], "all": no_pairs(), "rest": no_pairs()})
+                e["all"] = add_pairs(e["all"], r)
                 if r["beyond"]:
                     e["rest"] = r
         return out
+
+    def change_units(self, path: str, *, against: str | None = None, limit: int = 20) -> dict:
+        """What changed below `path` between the two scans, folder by folder:
+        - grew and shrank: the folders in both scans that grew (or shrank) most, at any depth, leaving out a folder
+          when one of its subfolders holds nine tenths or more of its change, so a chain of folders is listed once,
+          where the change is (folders in one scan only are the new and removed ones);
+        - new and removed: folders in one scan only whose parent is in both, the outermost of what appeared or went;
+        - counts: of every new and removed folder, and the bytes in the outermost ones."""
+        twice = 1 if against is None else 2
+        lo, hi = child_range(path)
+        pairs = self._pairs(against, "path >= ? AND path < ?")
+        params = [lo, hi] * twice
+        base = f"""
+            WITH d AS (SELECT *, coalesce(n_bytes, 0) - coalesce(o_bytes, 0) AS delta,
+                              substr(path, 1, length(path) - length(name) - 1) AS parent FROM ({pairs})),
+            c AS (SELECT parent, max(delta) AS up, min(delta) AS down FROM d GROUP BY parent),
+            x AS (SELECT d.*, c.up, c.down, p.in_new AS parent_new, p.in_old AS parent_old
+                  FROM d LEFT JOIN c ON c.parent = d.path LEFT JOIN d p ON p.path = d.parent)"""
+        # A parent outside the subtree is `path` itself, in both scans as far as its subfolders are concerned.
+        lists = {
+            "grew": "in_new AND in_old AND delta > 0 AND coalesce(up, 0) < 0.9 * delta ORDER BY delta DESC, path",
+            "shrank": "in_new AND in_old AND delta < 0 AND coalesce(down, 0) > 0.9 * delta ORDER BY delta, path",
+            "new": "in_new AND NOT in_old AND coalesce(parent_old, true) ORDER BY n_bytes DESC NULLS LAST, path",
+            "removed": "in_old AND NOT in_new AND coalesce(parent_new, true) ORDER BY o_bytes DESC NULLS LAST, path",
+        }
+        out = {k: self._rows(f"{base} SELECT * EXCLUDE (up, down, parent_new, parent_old) FROM x WHERE {cond} LIMIT ?",
+                             [*params, limit]) for k, cond in lists.items()}
+        counts = self._rows(f"""{base} SELECT
+                count(*) FILTER (WHERE in_new AND NOT in_old) AS new_dirs,
+                count(*) FILTER (WHERE in_old AND NOT in_new) AS removed_dirs,
+                count(*) FILTER (WHERE in_new AND NOT in_old AND coalesce(parent_old, true)) AS new_tops,
+                count(*) FILTER (WHERE in_old AND NOT in_new AND coalesce(parent_new, true)) AS removed_tops,
+                coalesce(sum(n_bytes) FILTER (WHERE in_new AND NOT in_old AND coalesce(parent_old, true)), 0) AS new_bytes,
+                coalesce(sum(o_bytes) FILTER (WHERE in_old AND NOT in_new AND coalesce(parent_new, true)), 0) AS removed_bytes
+            FROM x""", params)[0]
+        out["counts"] = {k: int(v or 0) for k, v in counts.items()}
+        return out
+
+    def file_changes(self, path: str, other: "SnapshotIndex", *, kind: str = "new", limit: int = 20) -> dict:
+        """Files below `path` in this scan and not in `other` (kind "new"), or the reverse ("removed"), largest
+        first, with how many there are and their total size. Files are matched by path."""
+        mine, theirs = self.file_sources(self.scope_tops(path)), other.file_sources(other.scope_tops(path))
+        here, there = (mine, theirs) if kind == "new" else (theirs, mine)
+        if here is None:
+            return {"rows": [], "files": 0, "bytes": 0}
+        lo, hi = child_range(path)
+        src = f"(SELECT * FROM {here} WHERE path >= ? AND path < ?)"
+        params = [lo, hi]
+        if there is not None:
+            src += f" ANTI JOIN (SELECT path FROM {there} WHERE path >= ? AND path < ?) USING (path)"
+            params += [lo, hi]
+        rows = self._rows(f"SELECT {FILE_COLUMNS}, count(*) OVER () AS _n, sum(size) OVER () AS _b FROM {src} "
+                          "ORDER BY size DESC, path LIMIT ?", [*params, limit], [*FILE_KEYS, "_n", "_b"])
+        n, b = (rows[0]["_n"], rows[0]["_b"]) if rows else (0, 0)
+        for r in rows:
+            del r["_n"], r["_b"]
+        return {"rows": rows, "files": int(n), "bytes": int(b or 0)}
 
     def cold_dirs(self, path: str, older: int, *, min_bytes: int = 0, limit: int = 200) -> dict:
         """The largest directories at or below `path` in which every file is in age bucket `older` or older, and

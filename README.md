@@ -18,6 +18,8 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
   columns, with files, cold share, and average age beside it, or as a table with CSV.
 - **Change map**: the treemap colored by how much each folder grew (teal) or shrank (gold) since an earlier
   scan, the previous one by default, with new and removed folders drawn; drill down as in the age map.
+- **What changed**: for any folder and two scans, where it grew and shrank, the new and removed folders, and the
+  largest new and removed files, each list with CSV.
 - **Reports for the same folder**: age profile by folder, file types and categories (with a callout for
   uncompressed sequencing data), cold folders that could be archived as a unit, owners (flagging accounts
   that no longer exist), and file search by name or glob, type, size, age, and owner, with CSV export.
@@ -91,8 +93,8 @@ Genomics Shared Resource delivers two Illumina runs and a nanopore run, the Fuji
 | 6 | The Fujimoto Lab writes its atlas |
 
 Meanwhile nobody touches the Kowalski Lab's `raw/2024_tmt_plex`, which ages past two years: the lab's cold share
-climbs from 64% to 100% at the same size. *History* shows all of it and the *Change map* where each change is;
-the change report to come in this wave lists them.
+climbs from 64% to 100% at the same size. *History* shows all of it, the *Change map* where each change is, and
+*What changed* lists them.
 
 ## Demo script (about 12 minutes)
 
@@ -121,6 +123,9 @@ the change report to come in this wave lists them.
    Open the *Change map* of *Fast* and compare with the scan of May 30: `fujimoto_a` and `haddad_n` grew,
    `bennett_k` shrank by 81%. In `bennett_k`, the removed `imaging/2024_lightsheet` keeps the room it had; in
    `haddad_n`, `datasets/2024_lightsheet_bennett` is new, and its tooltip says it is over a year old: it moved.
+   *What changed* for *Fast* since May 30 lists the Fujimoto project and the sequencing runs where it grew, the
+   moved project and the compressed FASTQ among new and removed folders, and the largest new files (Cell Ranger
+   BAMs); each list downloads as CSV.
 7. **Folders and labs.** Tick *Unmapped only*, then map `shared_reference` to the Genomics Shared Resource.
    Switch to *Casey Morgan*: the folder now appears in their data.
 8. **Storage health.** An unreadable folder, a 12,000-file directory of small PNG tiles, problem file names

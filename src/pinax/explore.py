@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session, selectinload
 from .auth import Identity, folder_owners
 from .categories import AGE_BUCKETS, CATEGORIES, CATEGORY_KEYS
 from .config import get_settings
-from .index import CHANGE_METRICS, DAY, METRICS, SnapshotIndex, Stats, _add_pairs, iso_from_epoch, pattern_to_like
+from .index import CHANGE_METRICS, DAY, METRICS, SnapshotIndex, Stats, add_pairs, iso_from_epoch, pattern_to_like
 from .models import Filesystem, FolderStat, Lab, LabFolder, Snapshot, SnapshotStatus
 from .serialize import folder_stat_json, iso, lab_brief
 from .snapshots import cold_bucket, indexes, latest_snapshot, previous_snapshot
@@ -382,7 +382,7 @@ def change_tree(session: Session, ident: Identity, fs_slug: str | None, path: st
             if depth > 1:
                 t["children"] = _change_tiles(p.fs, res, refs, owners if at_root else None)
             tiles.append(t)
-            total = _add_pairs(total, n) if total else _add_pairs(n)
+            total = add_pairs(total, n) if total else add_pairs(n)
             kids = None
     if not fs_slug:
         lab = session.scalar(select(Lab).where(Lab.slug == lab_slug)) if lab_slug else None
@@ -403,6 +403,76 @@ def change_tree(session: Session, ident: Identity, fs_slug: str | None, path: st
     node.update(now=_side(total, "n", refs[0]) if total else None, then=_side(total, "o", refs[1]) if total else None)
     return {"node": node, "tiles": tiles, "breadcrumbs": crumbs, "metric": metric, "since": since.isoformat() if since else None,
             "as_of": iso(max((p.snap.started_at for p in places), default=None)),
+            "compared": [{"fs": session.get(Filesystem, fs_id).slug, "snapshot_id": c[0].id, "started_at": iso(c[0].started_at),
+                          "previous": c[1] is None} for fs_id, c in compared.items() if c],
+            "choices": [d.isoformat() for d in choices]}
+
+
+# ---------- What changed ----------
+
+CHANGE_LISTS = ("grew", "shrank", "new_folders", "removed_folders", "new_files", "removed_files")
+
+
+def _unit_json(fs: Filesystem, r: dict, refs: tuple[float, float]) -> dict:
+    return {"fs": fs.slug, "path": r["path"], "name": r["name"], "depth": r["depth"], "in_new": r["in_new"],
+            "in_old": r["in_old"], "now": _side(r, "n", refs[0]), "then": _side(r, "o", refs[1]), "delta": int(r["delta"])}
+
+
+def what_changed(session: Session, ident: Identity, fs_slug: str | None, path: str | None, *, since: date | None = None,
+                 limit: int = 20, snap_id: int | None = None, lab_slug: str | None = None) -> dict:
+    """What changed in a place between this scan and an earlier one (as for the change map): the folders that
+    grew and shrank most, the new and removed folders, and the largest new and removed files."""
+    places = resolve(session, ident, fs_slug, path, snap_id, lab_slug)
+    choices = sorted({s.started_at.date() for p in places for s in _earlier(session, p.snap)}, reverse=True)
+    compared: dict[int, tuple[Snapshot, str | None] | None] = {}
+    lists: dict[str, list] = {k: [] for k in CHANGE_LISTS}
+    files = {k: {"files": 0, "bytes": 0} for k in ("new_files", "removed_files")}
+    counts: dict[str, int] = defaultdict(int)
+    total: dict = {}
+    for p in places:
+        if p.fs.id not in compared:
+            compared[p.fs.id] = _comparison(session, p, since)
+        if compared[p.fs.id] is None:
+            continue
+        other, against = compared[p.fs.id]
+        node = p.idx.change_node(p.path, against=against)
+        if node is None:
+            if fs_slug:
+                raise not_found("That folder is in neither scan, or it is not shared with you")
+            continue
+        refs = (p.idx.ref_day, _ref_day(other))
+        total = add_pairs(*([total] if total else []), node) | {k: node[k] for k in ("in_new", "in_old")}
+        units = p.idx.change_units(p.path, against=against, limit=limit)
+        for key, name in (("grew", "grew"), ("shrank", "shrank"), ("new", "new_folders"), ("removed", "removed_folders")):
+            lists[name] += [_unit_json(p.fs, r, refs) for r in units[key]]
+        for k, v in units["counts"].items():
+            counts[k] += v
+        theirs = indexes.get(other)
+        names = {**theirs.user_names(), **p.idx.user_names()}
+        for kind in ("new", "removed"):
+            res = p.idx.file_changes(p.path, theirs, kind=kind, limit=limit)
+            lists[f"{kind}_files"] += [_file_json(p.fs.slug, r) | {"owner": names.get(r["uid"])} for r in res["rows"]]
+            files[f"{kind}_files"]["files"] += res["files"]
+            files[f"{kind}_files"]["bytes"] += res["bytes"]
+    order = {"grew": lambda r: -r["delta"], "shrank": lambda r: r["delta"],
+             "new_folders": lambda r: -(r["now"] or {}).get("bytes", 0),
+             "removed_folders": lambda r: -(r["then"] or {}).get("bytes", 0),
+             "new_files": lambda r: -r["size"], "removed_files": lambda r: -r["size"]}
+    for k, v in lists.items():
+        lists[k] = sorted(v, key=order[k])[:limit]
+    first = next((c for c in compared.values() if c), None)
+    refs = (places[0].idx.ref_day, _ref_day(first[0])) if first else (0, 0)
+    if fs_slug:
+        p = places[0]
+        node = {"fs": p.fs.slug, "path": p.path, "lab": lab_brief(p.lab),
+                "name": p.fs.name if p.path == p.idx.root else p.path.rsplit("/", 1)[-1]}
+    else:
+        lab = session.scalar(select(Lab).where(Lab.slug == lab_slug)) if lab_slug else None
+        node = {"fs": None, "path": None, "lab": lab_brief(lab), "name": lab.name if lab else ("All data" if ident.is_admin else "My data")}
+    node.update(now=_side(total, "n", refs[0]) if total else None, then=_side(total, "o", refs[1]) if total else None,
+                in_new=total.get("in_new", True), in_old=total.get("in_old", True))
+    return {"node": node, **lists, "files": files, "counts": dict(counts), "limit": limit,
+            "since": since.isoformat() if since else None, "as_of": iso(max((p.snap.started_at for p in places), default=None)),
             "compared": [{"fs": session.get(Filesystem, fs_id).slug, "snapshot_id": c[0].id, "started_at": iso(c[0].started_at),
                           "previous": c[1] is None} for fs_id, c in compared.items() if c],
             "choices": [d.isoformat() for d in choices]}

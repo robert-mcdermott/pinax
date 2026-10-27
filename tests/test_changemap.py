@@ -142,3 +142,85 @@ def test_sizing_and_access(client):
     home = _get(client, "ada", depth=2)
     assert [t["name"] for t in home["tiles"]] == ["alpha_lab"] and home["choices"] == ["2026-07-31", "2026-07-01"]
     _check(home["tiles"][0]["children"], FAST_2, FAST_3, "alpha_lab")
+
+
+# ---------- What changed (R9) ----------
+
+def _tree(files: list[dict]) -> dict[str, int]:
+    """Every directory (relative path, "" for the root) and the bytes below it."""
+    out: dict[str, int] = {"": 0}
+    for f in files:
+        parts = f["path"].split("/")
+        for i in range(len(parts)):
+            d = "/".join(parts[:i])
+            out[d] = out.get(d, 0) + f["size"]
+    return out
+
+
+def _expected(old: list[dict], new: list[dict], prefix: str) -> dict:
+    """Brute force for one folder: where it grew and shrank (folders in both scans, leaving out one when a subfolder
+    holds nine tenths of its change), the outermost new and removed folders, and the new and removed files."""
+    a, b = _tree(old), _tree(new)
+    below = {d for d in set(a) | set(b) if d and (not prefix or d.startswith(prefix + "/"))}
+    delta = {d: b.get(d, 0) - a.get(d, 0) for d in below}
+    parent = {d: d.rsplit("/", 1)[0] if "/" in d else "" for d in below}
+    kids: dict[str, list[int]] = {}
+    for d in below:
+        kids.setdefault(parent[d], []).append(delta[d])
+    both = {d for d in below if d in a and d in b}
+    grew = {d for d in both if delta[d] > 0 and max(kids.get(d, [0])) < 0.9 * delta[d]}
+    shrank = {d for d in both if delta[d] < 0 and min(kids.get(d, [0])) > 0.9 * delta[d]}
+    inside = lambda d: parent[d] == prefix  # the folder asked about counts as in both scans
+    new_dirs = {d for d in below if d in b and d not in a}
+    gone_dirs = {d for d in below if d in a and d not in b}
+    paths = lambda files: {f["path"]: f["size"] for f in files if not prefix or f["path"].startswith(prefix + "/")}
+    pa, pb = paths(old), paths(new)
+    return {"grew": grew, "shrank": shrank,
+            "new_folders": {d for d in new_dirs if inside(d) or parent[d] in a},
+            "removed_folders": {d for d in gone_dirs if inside(d) or parent[d] in b},
+            "new_files": {p: s for p, s in pb.items() if p not in pa},
+            "removed_files": {p: s for p, s in pa.items() if p not in pb},
+            "new_dirs": len(new_dirs), "removed_dirs": len(gone_dirs), "delta": delta}
+
+
+@pytest.mark.parametrize("since", [None, "2026-07-01"], ids=["previous scan", "an older scan"])
+@pytest.mark.parametrize("folder", ["", "alpha_lab", "beta_lab", "gamma_lab"])
+def test_what_changed_matches_brute_force(client, since, folder):
+    old = FAST_2 if since is None else FILES
+    want = _expected(old, FAST_3, folder)
+    params = {"fs": "fast", "limit": 100, **({"path": f"{ROOT}/{folder}"} if folder else {}), **({"since": since} if since else {})}
+    got = _changed(client, "ivy", **params)
+    rel = lambda p: p[len(ROOT) + 1:]
+    for k in ("grew", "shrank", "new_folders", "removed_folders"):
+        assert {rel(r["path"]) for r in got[k]} == want[k], k
+        assert all(r["delta"] == want["delta"][rel(r["path"])] for r in got[k]), k
+    for k in ("new_files", "removed_files"):
+        assert {rel(r["path"]): r["size"] for r in got[k]} == want[k], k
+        assert got["files"][k] == {"files": len(want[k]), "bytes": sum(want[k].values())}, k
+        assert [r["size"] for r in got[k]] == sorted((r["size"] for r in got[k]), reverse=True)
+    assert (got["counts"]["new_dirs"], got["counts"]["removed_dirs"]) == (want["new_dirs"], want["removed_dirs"])
+    assert [r["delta"] for r in got["grew"]] == sorted((r["delta"] for r in got["grew"]), reverse=True)
+
+
+def _changed(client, user: str, **params) -> dict:
+    client.cookies.set("pinax_user", user)
+    r = client.get("/api/changed", params=params)
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def test_what_changed_lists_download_and_follow_access(client):
+    client.cookies.set("pinax_user", "ivy")
+    r = client.get("/api/changed", params={"fs": "fast", "since": "2026-07-01", "fmt": "csv", "list": "new_files"})
+    lines = r.text.strip().splitlines()
+    assert r.headers["content-type"].startswith("text/csv") and lines[0].startswith("fs,path,size")
+    assert len(lines) == 1 + len(_expected(FILES, FAST_3, "")["new_files"])
+    r = client.get("/api/changed", params={"fs": "fast", "fmt": "csv", "list": "removed_folders"})
+    assert r.text.splitlines()[1].startswith(f"fast,{ROOT}/beta_lab/imaging,1000,,-1000,")
+    assert client.get("/api/changed", params={"fs": "fast", "fmt": "csv", "list": "bogus"}).status_code == 422
+    small = _changed(client, "ivy", fs="fast", since="2026-07-01", limit=1)
+    assert len(small["new_files"]) == 1 and small["files"]["new_files"]["files"] > 1  # counts are not limited
+    client.cookies.set("pinax_user", "ada")
+    assert client.get("/api/changed", params={"fs": "fast", "path": f"{ROOT}/beta_lab"}).status_code == 404
+    mine = _changed(client, "ada", limit=100)
+    assert {r["path"] for r in mine["new_files"]} == {f"{ROOT}/alpha_lab/projects/2025_new/S3_R1.fastq.gz"}

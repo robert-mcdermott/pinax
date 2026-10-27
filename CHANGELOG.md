@@ -25,6 +25,10 @@
   kept. New and removed folders are drawn, and a removed folder can be opened. Size by the larger of then and
   now, size now, or size then; one or two levels; a table view. `/api/changes` serves it.
 
+- **What changed (wave 3, slice 5).** *What changed*, after the change map, lists for any folder and two scans
+  where it grew and shrank most, the new and removed folders, and the largest new and removed files, with the
+  number and size of each, and a CSV of each list. `/api/changed` serves it.
+
 ### Changed
 
 - Ingest records each snapshot's whole-filesystem totals, so a filesystem's history reads one row per scan.

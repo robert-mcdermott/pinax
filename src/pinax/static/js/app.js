@@ -5,6 +5,7 @@ import {
   setActiveNav, showPersonaPicker, startRouter, state,
 } from "/js/core.js";
 import { folderCard, renderSidebar } from "/js/shell.js";
+import { viewChanged } from "/js/changed.js";
 import { viewChanges } from "/js/changes.js";
 import { viewExplore } from "/js/explore.js";
 import { viewHistory } from "/js/history.js";
@@ -57,6 +58,7 @@ const routes = [
   [/^#\/?$/, viewHome],
   [/^#\/explore(\?.*)?$/, viewExplore],
   [/^#\/changes(\?.*)?$/, viewChanges],
+  [/^#\/changed(\?.*)?$/, viewChanged],
   [/^#\/ages(\?.*)?$/, viewAges],
   [/^#\/history(\?.*)?$/, viewHistory],
   [/^#\/types(\?.*)?$/, viewTypes],

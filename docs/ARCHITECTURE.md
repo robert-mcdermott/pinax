@@ -233,6 +233,11 @@ values from requests are bound as parameters; the only SQL fragments built in co
   kept on or before it) has its index attached read-only, once per index, and its `dirs` joined on the same
   ranges. At a million files, a lab folder's two levels take 18 ms from `changes` and 29 ms joined (the age map:
   24 ms).
+- **What changed** (`/api/changed`): for the same two scans, the folders below a place in both scans that grew or
+  shrank most, at any depth, leaving out a folder when one of its subfolders holds nine tenths or more of its
+  change (so a chain of folders is listed once, where the change is); the outermost new and removed folders; and
+  the largest new and removed files, found by anti-joining the two scans' file lists on path over the place's
+  path range. At a million files a lab folder's report takes 70–90 ms and the whole filesystem's 0.5–0.6 s.
 - **History** (`/api/history`): size, space on disk, files, bytes per age bucket, cold share, and mean age per
   scan. A filesystem uses the totals recorded with each scan; a top-level folder, a lab, or a person's home sums
   folder history in the catalog, for every scan, pruned ones included. A folder below the top level reads its

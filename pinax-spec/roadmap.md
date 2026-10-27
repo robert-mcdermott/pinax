@@ -17,7 +17,7 @@ decisions taken are recorded here. Later waves are outlined at the end.
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
 **Where things stand:** wave 1 is released as 0.1.0 and wave 2 as 0.2.0 (tags `v0.1.0` and `v0.2.0` on `main`).
-Wave 3, change over time, is in progress on `wave3`: slices 1 to 4 are done, and slice 5 (what changed) is next. The production pilot,
+Wave 3, change over time, is in progress on `wave3`: slices 1 to 5 are done, and slice 6 (older snapshots in the interface) is next. The production pilot,
 which needs production storage, follows as wave 4.
 
 The order follows one principle:
@@ -297,8 +297,8 @@ Every change is checked against an independent computation, like every total.
 | 2 | A history to show (demo and benchmarks) | `pinax seed` writes six scans of each filesystem over six months: a lab that grows, a cleanup, a project moved between labs, data ageing past the cold threshold, a new lab; `synth_scan.py --evolve` derives a changed scan from another, for benchmarks and checks at scale; the README demo script updated | Done |
 | 3 | History charts (E7) | Size, files, cold share, and mean age over every scan for each top-level folder, lab or department, and filesystem (from folder history), and for any deeper folder across the retained snapshots; a table view; both themes and 375 pixels; chart colors validated | Done |
 | 4 | The change map (E8) | The age map's treemap colored by growth or shrinkage since a chosen scan (the previous one by default), sized by current or earlier size, with removed folders shown; drill down and up as in the age map; within Q3 for a lab folder at 100 million files | Done |
-| 5 | What changed (R9) | For any folder and two scans: the subfolders that grew and shrank most, new and removed folders, and the largest new and removed files, with CSV; within Q4 for a lab folder at 100 million files | Next |
-| 6 | Older snapshots in the interface (S8) | A snapshot picker on every report, the scan date shown wherever a number is, and links that keep the snapshot; a pruned snapshot offers its folder history only | To come |
+| 5 | What changed (R9) | For any folder and two scans: the subfolders that grew and shrank most, new and removed folders, and the largest new and removed files, with CSV; within Q4 for a lab folder at 100 million files | Done |
+| 6 | Older snapshots in the interface (S8) | A snapshot picker on every report, the scan date shown wherever a number is, and links that keep the snapshot; a pruned snapshot offers its folder history only | Next |
 | 7 | Release 0.3.0 | The demo script walked through; version 0.3.0, changelog, pull request, tag, release | To come |
 
 ### Decisions for wave 3
@@ -406,6 +406,23 @@ Every change is checked against an independent computation, like every total.
    - *Done*: checked in both themes and at 375 pixels on the demo. At one million synthetic files (three evolved
      generations), the root and a lab folder take 7–21 ms from `changes` and 12–31 ms joined with an older scan,
      against 24 ms for the age map; the 100-million-file measurement waits for server-class hardware (wave 4).
+5. **What changed (R9).**
+   - `SnapshotIndex.change_units`: over a place's subtree in both scans (the stored changes, or an attached older
+     index), the folders in both scans that grew and shrank most, leaving out a folder when one of its subfolders
+     holds nine tenths or more of its change, so a chain of folders is listed once, where the change is; the
+     outermost new and removed folders (whose parent is in both scans); and counts of every new and removed folder.
+     New folders are not listed as growth, nor removed ones as shrinkage: each change is listed once.
+   - `SnapshotIndex.file_changes`: files in one scan and not the other, matched by path, by anti-joining the two
+     scans' file lists over the place's path range; the largest, with their number and total size.
+   - `explore.what_changed` and `/api/changed`, with the places, `since`, and comparison of the change map;
+     `fmt=csv&list=` downloads any of the six lists up to `PINAX_EXPORT_MAX_ROWS`.
+   - *What changed* (`js/changed.js`) after the change map: the change in size, new and removed files and folders,
+     then the six lists, each linking to the change map at that folder, with CSV.
+   - Tests: every list against brute force over the two scans' files, for the root and three folders (one new, one
+     with a removed subfolder), from the stored previous scan and from an older scan; CSV, limits, and access.
+   - *Done*: checked in both themes and at 375 pixels on the demo. At one million synthetic files (three evolved
+     generations), a lab folder's report takes 70–90 ms and the whole filesystem's 0.5–0.6 s; the 100-million-file
+     measurement waits for server-class hardware (wave 4).
 
 ## Later waves (outlined)
 
