@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 (unreleased)
+## 0.1.0 (2026-10-26)
 
 First release (wave 1, "see the data"): a working proof of concept. See
 [pinax-spec/roadmap.md](pinax-spec/roadmap.md) for what wave 1 contains and what comes next.

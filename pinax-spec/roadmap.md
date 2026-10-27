@@ -16,8 +16,8 @@ decisions taken are recorded here. Later waves are outlined at the end.
 **Progress** is marked here as each slice is committed: done, next or to come. Each requirement's status is
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
-**Where things stand:** wave 1 is complete on `initial-pinax` and pushed; its pull request to `main` and the
-v0.1.0 tag are still to do. Wave 2 is planned below and starts on `wave2`, cut from `main` after the merge.
+**Where things stand:** wave 1 is released as 0.1.0 (tag `v0.1.0` on `main`). Wave 2 is next, on `wave2`, cut
+from `main` after the release; it starts with slice 1.
 
 The order follows one principle:
 1. **Trust first.** Totals that agree with an independent computation on every directory, and that say when
@@ -65,7 +65,7 @@ IT gets every filesystem at once, storage health, scans, and people and access.
 ### Wave 1
 
 **Done** on the branch `initial-pinax`, built in one pass rather than one commit per slice; its slices are
-recorded below as built. **Still to do:** merge to `main` and tag v0.1.0.
+recorded below as built. Merged to `main` in pull request #1 and released as v0.1.0.
 
 | Slice | Status |
 | --- | --- |
@@ -75,13 +75,13 @@ recorded below as built. **Still to do:** merge to `main` and tag v0.1.0.
 | 4. The age map | Done |
 | 5. Reports | Done |
 | 6. Home pages and IT views | Done |
-| 7. Demo, tests, benchmarks, documentation; release 0.1.0 | Done, but for the release |
+| 7. Demo, tests, benchmarks, documentation; release 0.1.0 | Done |
 
 1. **The program and its shell (P1, P2, P4, A4).** Ported from Tundra with renames:
    - `config.py`, `db.py`, `auth.py`, `main.py`, `cli.py`; settings as `PINAX_*`; SQLite catalog in WAL mode.
    - The interface: `css/pinax.css` (Tundra's tokens, light and dark themes), `js/core.js` (templating, API
      client, router, header, theme toggle, persona switcher), one app at `/app/` with a sidebar, and a landing page.
-   - The Pinax mark, wordmark, and favicon; `LICENSE`, `NOTICE`, `.gitignore`, `.claude/launch.json`.
+   - The Pinax mark, wordmark, and favicon; `LICENSE`, `NOTICE`, `.gitignore`.
 2. **Reading scans and building the index (S1, S2, S3, S5, S6, S7, P3).**
    - `scripts/install-fs-inventory.sh` installs fs-inventory 1.0.0 into `bin/`, checking SHA-256 and version.
    - `categories.py`: type normalization (`fastq.gz`, `nii.gz`), twelve categories, seven age buckets.
@@ -114,7 +114,7 @@ recorded below as built. **Still to do:** merge to `main` and tag v0.1.0.
      scans, folding, cold-folder maximality, `LIKE` escaping, authorization, reports, and an end-to-end scan with the
      real binary. `bench/synth_scan.py` and `bench/bench_index.py`.
    - README, `docs/ARCHITECTURE.md`, `CONFIGURATION.md`, `DEPLOYMENT.md`, `DEVELOPMENT.md`, `CHANGELOG.md`.
-   - *Done*, but for the release: 0.1.0 is released when v0.1.0 is tagged after the merge.
+   - *Done*: released as 0.1.0 on 2026-10-26.
 
 ## 0.2.0: real storage (wave 2)
 
