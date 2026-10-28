@@ -6,6 +6,7 @@ import {
 } from "/js/core.js";
 import { folderCard, renderSidebar } from "/js/shell.js";
 import { viewChanged } from "/js/changed.js";
+import { viewCosts } from "/js/costs.js";
 import { viewChanges } from "/js/changes.js";
 import { viewExplore } from "/js/explore.js";
 import { viewHistory } from "/js/history.js";
@@ -68,6 +69,7 @@ const routes = [
   [/^#\/folders(\?.*)?$/, viewFolders],
   [/^#\/health(\?.*)?$/, viewHealth],
   [/^#\/scans$/, viewScans],
+  [/^#\/costs$/, viewCosts],
   [/^#\/access(\?.*)?$/, viewAccess],
   [/^#\/access\/people\/([^?]+)$/, viewPerson],
 ];

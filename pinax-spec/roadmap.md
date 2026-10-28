@@ -508,8 +508,8 @@ needs no production storage, and the demo's six months of scans make six months 
 
 | Slice | Scope and requirements | Acceptance before the next slice | Status |
 | --- | --- | --- | --- |
-| 1 | Prices and free tiers (R8) | For each filesystem, a price per month per GB, GiB, TB, or TiB, from a date on (earlier prices kept); a free tier per filesystem for labs, and one for departments (none allowed), with exceptions for particular labs; one currency (`PINAX_CURRENCY`); set by administrators on a *Costs* page, every change audited; tested | Next |
-| 2 | Monthly charges (R8, Q1) | For each lab or department and filesystem, each month: the time-weighted average size from folder history (each scan's size holds until the next), less the free tier, times the price in effect, worked out day by day; the current month estimated to its end; tested against brute force over scan dates, price changes, free tiers, and folders changing owner | To come |
+| 1 | Prices and free tiers (R8) | For each filesystem, a price per month per GB, GiB, TB, or TiB, from a date on (earlier prices kept); a free tier per filesystem for labs, and one for departments (none allowed), with exceptions for particular labs; one currency (`PINAX_CURRENCY`); set by administrators on a *Costs* page, every change audited; tested | Done |
+| 2 | Monthly charges (R8, Q1) | For each lab or department and filesystem, each month: the time-weighted average size from folder history (each scan's size holds until the next), less the free tier, times the price in effect, worked out day by day; the current month estimated to its end; tested against brute force over scan dates, price changes, free tiers, and folders changing owner | Next |
 | 3 | What labs pay (R8) | For lab owners and members: this month's estimate and past months, by filesystem and top-level folder, with how each charge is worked out; a figure on the home page; both themes and 375 pixels | To come |
 | 4 | Chargeback for finance (R8) | For administrators: every lab's and department's charges for a month, storage no one owns (unbilled), totals by filesystem, and a CSV statement; within Q3 for a year of weekly scans of 2,000 folders | To come |
 | 5 | Demo and release 0.5.0 | Prices and free tiers in the demo seed; the README demo script; version 0.5.0, changelog, pull request, tag, release | To come |
@@ -527,6 +527,21 @@ Taken with the maintainer:
 
 Open within the wave: whether statements need a billing account (cost center) for each lab, and how charges are
 rounded (to the cent, per lab and filesystem, unless finance wants otherwise).
+
+### Slices as built
+
+1. **Prices and free tiers (R8).**
+   - `price` and `free_tier` tables: schedules per filesystem, each row from a day on. Prices in millionths of the
+     currency (exact, up to six decimal places); free tiers in bytes with the unit they were given in. A lab's own
+     free tier takes the place of its kind's until it ends (a row with no amount); a kind's cannot end, only be 0.
+   - `costs.py`: what applies on a day (`price_on`, `free_on`), and changes that are validated (units, numbers, one
+     price or tier per day, nothing absurd) and audited with what they replaced. `PINAX_CURRENCY` (ISO 4217).
+   - `/api/admin/costs` and *Costs* (`js/costs.js`), for administrators: each filesystem's price now and its
+     schedule (scheduled ones marked), its free tiers for labs and departments, and exceptions, each with a "from"
+     day; removing one already in effect warns that it changes the charges since then.
+   - Tests: exact money and units; prices and free tiers on days before, during, and after each, scheduled ones,
+     ended exceptions, and departments with none; refusals; removals; the audit; the currency setting.
+   - *Done*: checked in the browser in both themes and at 375 pixels.
 
 ## Later waves (outlined)
 

@@ -31,7 +31,8 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
 - **For IT**: an overview of every filesystem, the largest folders and biggest changes, unmapped folders,
   storage health (scan errors, very large directories, small-file hotspots, problem file names, deleted
   owners), the scan history, and people and access: add people, change their details, lab memberships, and
-  administrator role, and deactivate and reactivate them, every change audited.
+  administrator role, and deactivate and reactivate them, every change audited; and costs: each filesystem's price
+  per month and the free tiers for labs and departments, from a day on.
 - **Sign-in three ways**: the demo's persona switcher, to show Pinax with the seeded people (no setup; refused in
   production); usernames and passwords Pinax keeps, for sites without single sign-on; or single sign-on, such as
   Entra ID behind oauth2-proxy. People, labs, and access are managed the same way in all three.

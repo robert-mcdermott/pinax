@@ -31,6 +31,7 @@ export function renderSidebar() {
     ${admin ? html`<h4>ADMINISTRATION</h4>
       ${link("health", "heart", "Storage health", false)}
       ${link("scans", "database", "Scans", false)}
+      ${link("costs", "tag", "Costs", false)}
       ${link("access", "lock", "People and access", false)}` : ""}`);
   setActiveNav((location.hash || "#/").split("?")[0], ".side-link");
 }

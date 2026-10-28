@@ -748,6 +748,11 @@ pre.json { background: var(--surface-2); color: var(--text); border: 1px solid v
 .plain-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13.5px; }
 .plain-list li { display: flex; justify-content: space-between; gap: 10px; min-width: 0; }
 .plain-list li a { overflow-wrap: anywhere; }
+.cost-card h3 { margin: 18px 0 8px; }
+.cost-card .card-head { flex-wrap: wrap; gap: 6px 16px; }
+.cost-form { margin: 12px 0 0; padding-top: 12px; border-top: 1px solid var(--border); }
+.tier-list { font-size: 13px; color: var(--text-muted); gap: 2px; }
+.tier-list li { align-items: center; }
 .swatch-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 8px; vertical-align: -1px; }
 .ramp-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--text-muted); margin-top: 12px; align-items: center; }
 .ramp-legend .lt { font-weight: 700; color: var(--text); margin-right: 2px; }

@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Prices and free tiers (wave 5, slice 1).** *Costs*, for administrators, sets what each filesystem's storage
+  costs per month, per GB, GiB, TB, or TiB, from a day on (earlier prices are kept, and future ones scheduled), and
+  how much is free: one free tier for every lab and one for every department (which may be none), with exceptions
+  for particular labs. Every change is audited. `PINAX_CURRENCY` sets the currency (USD by default). Monthly
+  charges follow in the next slices.
+
 ## 0.4.0 (2026-10-27)
 
 Fourth release (wave 4, "people and sign-in"): Pinax can be run by a site without single sign-on, and without CSV

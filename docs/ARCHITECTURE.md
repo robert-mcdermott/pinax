@@ -258,6 +258,22 @@ A request without a filesystem and path covers the person's *home*: each of thei
 on several filesystems), or every filesystem root for an administrator. Results from each place are merged;
 mean ages are rebased to a common reference time.
 
+## Costs
+
+What storage costs is kept in the catalog as two schedules per filesystem (`costs.py`):
+
+- **Prices** (`price`): an amount per month per GB, GiB, TB, or TiB, from a day on, until the next price. Amounts
+  are integers in millionths of the currency (`PINAX_CURRENCY`), so money is exact; a filesystem has no price
+  until its first, and its storage is then not charged.
+- **Free tiers** (`free_tier`): storage free of charge, from a day on: one for every lab and one for every
+  department, and exceptions for particular labs, which take the place of their kind's tier until they end (an
+  exception row with no amount). Amounts are bytes, kept with the unit they were given in, so they show as entered.
+
+Earlier prices and free tiers are kept, so past months keep what they had; a change to a day already past changes
+the charges since then, and *Costs* says so before removing one. Every change is audited with what it replaced.
+Charges are for the files' size (logical bytes, not space on disk) and are worked out from folder history, which
+keeps every scan (wave 5, slices 2 to 4).
+
 ## Security
 
 - **Identity**, three ways (`PINAX_AUTH_MODE`):

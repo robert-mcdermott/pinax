@@ -108,6 +108,7 @@ The interface is plain HTML, CSS, and JavaScript modules with no framework or bu
 - `js/treemap.js`: the squarified treemap, drawn as positioned links so tiles are real navigation targets.
 - `js/timechart.js`: charts over time (stacked columns and lines on a shared date axis, with a hover and keyboard
   readout that several charts share); `js/history.js` draws the history view with it.
+- `js/costs.js`: *Costs*, each filesystem's prices and free tiers (`costs.py`, `api/costs.py`).
 - `js/changes.js`: the change map, on `js/treemap.js`, with its seven-step gold-to-teal scale (`--chg-*`);
   `js/changed.js`: what changed, the same comparison as lists.
 - `js/shell.js`: the sidebar and the scope header (breadcrumbs, the scan date and its picker, links to every report
