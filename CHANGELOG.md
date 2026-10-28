@@ -1,6 +1,20 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 (2026-10-28)
+
+Sixth release (wave 6, "where storage is heading"): forecasts. Every history carries a forecast of its size for
+the next twelve months, the trend of its last six months of scans with a range and a backtest; administrators see
+how much each filesystem holds and the month it fills at its trend; and lab members see what their labs will pay
+over the next twelve months. Also in this release: labs and departments managed in the app, guidance for operating
+Pinax, and time limits and new and removed files recorded at ingest, for filesystems of two billion files. Next
+are cleanup plans (0.7.0). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+
+Upgrading from 0.5.0: indexes are now version 5; older ones still answer, comparing files when asked, and
+`pinax rebuild --outdated` adds the new and removed files to them. The catalog gains a `capacity` table, created at
+start-up. `pinax scan` writes `pinax.json` (what the storage reports) beside each new scan's manifest; scans made
+before, or with fs-inventory directly, have none, so set capacities on *Capacity*. New settings:
+`PINAX_QUERY_TIMEOUT` (180), `PINAX_WIDE_QUERIES` (2), and `PINAX_FILL_WARNING_MONTHS` (12). Behind oauth2-proxy,
+set `upstream_timeout` above the query timeout (`deploy/oauth2-proxy/pinax.cfg` has 5 minutes).
 
 ### Added
 

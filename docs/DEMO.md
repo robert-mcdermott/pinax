@@ -83,6 +83,12 @@ Storage has prices, so the six months make six months of charges. *Fast* costs $
 the 16th of last month; every lab has a terabyte of it free and departments none, and the Lindqvist Lab has its own
 5 TB from the 10th of last month (a grant's allocation). *Secure* costs $40 per TiB, with nothing free.
 
+## Capacity
+
+*Fast* holds 125 TiB, so at its trend it fills within the year, and an expansion to 250 TiB is scheduled for eleven
+months after the seed, too late. *Secure* holds a tebibyte. The demo's scans record nothing about the storage (its
+files are sparse, on a laptop's disk), so the capacities are set, and use is measured by the files' size.
+
 
 ## The walk-through (about 20 minutes)
 
@@ -131,6 +137,9 @@ the 16th of last month; every lab has a terabyte of it free and departments none
    storage no one owns, most of it `scratch_legacy`; *Download CSV* is the statement for finance. This month,
    `shared_reference` is charged to the Genomics Shared Resource from the moment it was mapped. *The next 12
    months* adds up what every lab will pay at its trend.
+   *Capacity*: *Fast* is 89% used and fills in about nine months at its trend, a month or two before the expansion
+   scheduled for eleven months on, so *All data* flags it under *Needs attention*. Its *History* draws the capacity
+   above the columns.
 10. **Storage health.** An unreadable folder, a very large directory (12,000 PNG tiles), problem file names
     (a newline, a leading dash, a Windows-reserved character, a name that is not NFC), and files owned by
     accounts that no longer exist.

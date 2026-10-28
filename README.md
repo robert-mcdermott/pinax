@@ -58,7 +58,7 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
 
 | Document | Covers |
 |---|---|
-| [docs/DEMO.md](docs/DEMO.md) | Running the demo, who is who, its six months and prices, and a 20-minute walk-through |
+| [docs/DEMO.md](docs/DEMO.md) | Running the demo, who is who, its six months, prices, and capacities, and a 20-minute walk-through |
 | [docs/SETUP.md](docs/SETUP.md) | Running Pinax on your own data: settings, the first administrator, scans, labs and people, prices |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Design; what Pinax keeps (catalog, indexes, scans) and what to back up; the snapshot index, how it is built and queried, security, measured performance and sizing |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every setting, its default, and what it does |

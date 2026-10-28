@@ -205,3 +205,18 @@ def test_a_filesystems_history_carries_its_capacity(client):
     assert h["capacity"]["capacity"]["bytes"] == 10**9
     assert h["capacity"]["steps"] == [{"from": "2026-01-01T00:00:00Z", "bytes": 10**9}]
     assert client.get("/api/history", params={"fs": "fast", "path": f"{ROOT}/alpha_lab"}).json()["capacity"] is None
+
+
+def test_the_demo_capacities(env):
+    """Dated from the day of the seed: Fast's expansion is scheduled ahead, the others before the first scan."""
+    from datetime import UTC
+
+    from pinax import capacity, seed
+
+    now = datetime(2026, 10, 28, 12, tzinfo=UTC).timestamp()
+    rows = seed.demo_capacity(now)
+    first_scan = datetime.fromtimestamp(now - (seed.SCANS - 1) * seed.MONTH, UTC).date()
+    assert [(fs, starts.isoformat()) for fs, starts, *_ in rows] == [
+        ("fast", "2026-01-01"), ("fast", "2027-09-01"), ("secure", "2026-01-01")]
+    assert all(starts <= first_scan for fs, starts, *_ in rows if starts.year == 2026)
+    assert all(capacity.capacity_bytes(amount, unit) for *_, amount, unit in rows)
