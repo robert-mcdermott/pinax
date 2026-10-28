@@ -8,8 +8,8 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from .. import ownership, signin
 from .. import people as people_service
-from .. import signin
 from ..auth import Identity, require_admin
 from ..config import get_settings
 from ..db import get_session
@@ -154,9 +154,11 @@ def map_folder(body: FolderMapping, identity: Identity = Depends(require_admin),
         raise HTTPException(422, "Give a single top-level folder name")
     current = session.scalar(select(LabFolder).where(LabFolder.filesystem_id == fs.id, LabFolder.path == body.folder))
     before = current.lab.slug if current else None
+    before_id = current.lab_id if current else None
     if body.lab is None:
         if current:
             session.delete(current)
+        after_id = None
     else:
         lab = session.scalar(select(Lab).where(Lab.slug == body.lab))
         if lab is None:
@@ -165,6 +167,8 @@ def map_folder(body: FolderMapping, identity: Identity = Depends(require_admin),
             current.lab_id = lab.id
         else:
             session.add(LabFolder(lab_id=lab.id, filesystem_id=fs.id, path=body.folder))
+        after_id = lab.id
+    ownership.record_change(session, fs.id, body.folder, before_id, after_id)
     session.add(AuditEvent(actor_id=identity.user.id, action="folder.mapped",
                            summary=f"{fs.name}: {body.folder} mapped to {body.lab or 'no one'} (was {before or 'unmapped'})",
                            detail={"fs": fs.slug, "folder": body.folder, "before": before, "after": body.lab}))

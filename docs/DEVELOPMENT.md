@@ -47,10 +47,15 @@ src/pinax/
   snapshots.py     running scans, ingest (one at a time, under a file lock), retention, the cache of open indexes
   watch.py         `pinax ingest --watch`: each new scan under a folder once, and a heartbeat for *Scans*
   onboard.py       `pinax import`: labs, people, memberships, and folder ownership from CSV (docs/IMPORT.md)
+  people.py        people: adding, editing, roles, deactivation (shared by the app and the CLI)
+  signin.py        local sign-in: password hashes, sessions, lockout
+  ownership.py     who owned each top-level folder when, for charging past months
+  costs.py         prices and free tiers per filesystem, from a day on
+  charges.py       monthly charges: time-weighted, per lab or department and filesystem
   auth.py          identity (demo cookie or SSO header) and folder access
   explore.py       explore and report services: resolving places, merging results across places
   serialize.py     JSON views of catalog objects
-  api/             routers: identity, explore, admin, access
+  api/             routers: identity, sign-in, explore, admin, access, costs, health
   seed.py          demo filesystems, people, and scans
   cli.py, main.py  command line and FastAPI app
   static/          index.html, app/, css/pinax.css, js/, img/

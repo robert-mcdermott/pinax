@@ -271,8 +271,26 @@ What storage costs is kept in the catalog as two schedules per filesystem (`cost
 
 Earlier prices and free tiers are kept, so past months keep what they had; a change to a day already past changes
 the charges since then, and *Costs* says so before removing one. Every change is audited with what it replaced.
-Charges are for the files' size (logical bytes, not space on disk) and are worked out from folder history, which
-keeps every scan (wave 5, slices 2 to 4).
+Charges are for the files' size (logical bytes, not space on disk).
+
+**Monthly charges** (`charges.py`) are worked out from folder history, which keeps every scan's size for each
+top-level folder. A month (a calendar month in UTC) is charged on its time-weighted average, like a utility bill:
+each scan's sizes hold from that scan until the next. The month is cut wherever something changes (a scan, a
+folder's owner, a price, a free tier), and in each stretch a lab's charge is
+
+    max(0, size of the folders it owned then - its free tier then) x the price then x (stretch / month)
+
+Everything is worked out exactly, as fractions, and rounded half up to the currency's minor unit (cents, or whole
+units for currencies such as JPY) once per lab and filesystem, so a lab's total is the sum of its lines. Before a
+filesystem's first scan there is nothing to charge; storage on a filesystem with no price yet is shown, not charged.
+Folders no lab owns, and the files directly in the root, are unbilled. The month in progress is an estimate: the
+latest scan holds until the month's end.
+
+So that a past month is charged to the owners it had, the catalog keeps **ownership history** (`folder_owner`,
+`ownership.py`): a row each time a top-level folder changes owner, in the app or by `pinax import`. The first change
+of a folder also records who had it until then, from the beginning; a folder that has never changed is its current
+owner's throughout. `/api/admin/costs/charges?month=YYYY-MM` returns every lab's and department's charges for a
+month, by filesystem and folder, with the prices that applied and what is unbilled (wave 5, slices 3 and 4 show it).
 
 ## Security
 

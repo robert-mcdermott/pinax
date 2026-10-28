@@ -7,8 +7,15 @@
 - **Prices and free tiers (wave 5, slice 1).** *Costs*, for administrators, sets what each filesystem's storage
   costs per month, per GB, GiB, TB, or TiB, from a day on (earlier prices are kept, and future ones scheduled), and
   how much is free: one free tier for every lab and one for every department (which may be none), with exceptions
-  for particular labs. Every change is audited. `PINAX_CURRENCY` sets the currency (USD by default). Monthly
-  charges follow in the next slices.
+  for particular labs. Every change is audited. `PINAX_CURRENCY` sets the currency (USD by default).
+- **Monthly charges (wave 5, slice 2).** Each lab's and department's charge on each filesystem for a month, from
+  folder history: the time-weighted average of its folders' sizes (each scan holds until the next), less its free
+  tier, at the price in effect, worked out exactly and rounded to the cent once per lab and filesystem. The month in
+  progress is an estimate to its end. Storage no one owns is unbilled. For administrators at
+  `/api/admin/costs/charges?month=YYYY-MM`; the pages follow in the next slices.
+- **Ownership history.** Pinax now records each change of a top-level folder's owner (in the app or by
+  `pinax import`), so past months are charged to the owners they had. The new `folder_owner` table is created at
+  start-up; folders that have never changed need no history.
 
 ## 0.4.0 (2026-10-27)
 

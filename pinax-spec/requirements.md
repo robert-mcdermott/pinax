@@ -67,7 +67,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | R5 | Find files by name or glob, type, category, size, age, and owner; CSV export | done (wave 1, slice 5) |
 | R6 | Call out uncompressed sequencing data | done (wave 1, slice 5) |
 | R7 | Totals that count hard-linked files once | planned (wave 8) |
-| R8 | Cost by lab, department, and filesystem | partial (wave 5, slice 1: prices and free tiers per filesystem, from a day on; slices 2 to 4: monthly charges and chargeback) |
+| R8 | Cost by lab, department, and filesystem | partial (wave 5, slice 1: prices and free tiers per filesystem, from a day on; slice 2: monthly charges per lab or department and filesystem, time-weighted, with ownership history; slices 3 and 4: what labs pay and chargeback) |
 | R9 | What changed in a folder between two scans: the subfolders that grew and shrank most, new and removed folders, and the largest new and removed files; CSV | done (wave 3, slice 5: 70–90 ms for a lab folder at a million files; wave 6: at 100 million) |
 
 ## Access
@@ -98,7 +98,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 
 | # | Requirement | Status |
 | --- | --- | --- |
-| Q1 | Totals agree with an independent computation | partial (wave 1, slice 7: equal to brute-force sums over every file in the tests; wave 2, slice 1: `pinax check` equal to `fs-inventory rollup` on every directory of the demo and synthetic scans; wave 2, slice 2: equal on a real local scan and on wide and deep synthetic scans; wave 3, slice 1: the changes between scans too; wave 3, slice 2: the changes between every pair of demo scans and between evolved synthetic scans; wave 6: production scans) |
+| Q1 | Totals agree with an independent computation | partial (wave 1, slice 7: equal to brute-force sums over every file in the tests; wave 2, slice 1: `pinax check` equal to `fs-inventory rollup` on every directory of the demo and synthetic scans; wave 2, slice 2: equal on a real local scan and on wide and deep synthetic scans; wave 3, slice 1: the changes between scans too; wave 3, slice 2: the changes between every pair of demo scans and between evolved synthetic scans; wave 5, slice 2: monthly charges equal to an hour-by-hour sum; wave 6: production scans) |
 | Q2 | Every request value is bound as a query parameter; SQL fragments come only from fixed lists | done (wave 1, slice 3) |
 | Q3 | Directory-level queries (treemap, types, owners, cold folders of a lab) within 100 ms at a billion files | partial (wave 1: 23–64 ms at 10 million files; wave 2, slice 3: 1–50 ms at 100 million synthetic files; wave 6: on production) |
 | Q4 | Searches scoped to a lab folder within 1 s; whole-filesystem searches within 60 s at a billion files | partial (wave 1: 10 ms and 273 ms at 10 million files; wave 2, slice 3: 22 ms and 2.8 s at 100 million, about 30 s projected at a billion; wave 6: on production) |

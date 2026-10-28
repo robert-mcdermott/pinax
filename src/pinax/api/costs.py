@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .. import costs
+from .. import charges, costs
 from ..auth import Identity, require_admin
 from ..config import get_settings
 from ..db import get_session, utcnow
@@ -100,3 +100,16 @@ def remove_free_tier(fs: str, tier_id: int, identity: Identity = Depends(require
     if tier is None or tier.filesystem_id != f.id:
         raise HTTPException(404, "No such free tier")
     return _apply(session, f, lambda: costs.remove_free_tier(session, identity.user, tier))
+
+
+@router.get("/charges")
+def monthly_charges(month: str | None = None, _: Identity = Depends(require_admin),
+                    session: Session = Depends(get_session)):
+    """Every lab's and department's charges for a month (YYYY-MM; this month by default, estimated to its end), by
+    filesystem, with the storage no one owns, and the months there are scans for."""
+    month = month or utcnow().strftime("%Y-%m")
+    try:
+        out = charges.monthly_charges(session, month)
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    return {**out, "months": charges.months(session)}

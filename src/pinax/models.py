@@ -133,6 +133,20 @@ class LabFolder(Base):
     filesystem: Mapped[Filesystem] = relationship()
 
 
+class FolderOwner(Base):
+    """Who owned a top-level folder from a moment on (`lab_id` None: no one), so charges for past months follow the
+    owners they had (ownership.py). Written when a folder's owner changes; a folder never changed has no rows and
+    belongs to its current owner (LabFolder) all along."""
+
+    __tablename__ = "folder_owner"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    filesystem_id: Mapped[int] = mapped_column(ForeignKey("filesystem.id", ondelete="CASCADE"), index=True)
+    folder: Mapped[str] = mapped_column(String(1024))
+    lab_id: Mapped[int | None] = mapped_column(ForeignKey("lab.id", ondelete="SET NULL"), nullable=True)
+    starts: Mapped[datetime] = mapped_column(DateTime)
+
+
 class User(Base):
     __tablename__ = "user"
 

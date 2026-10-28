@@ -16,8 +16,8 @@ decisions taken are recorded here. Later waves are outlined at the end.
 **Progress** is marked here as each slice is committed: done, next or to come. Each requirement's status is
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
-**Where things stand:** waves 1 to 3 are released as 0.1.0 to 0.3.0 (tags on `main`). Wave 4, people and sign-in,
-is done as 0.4.0, for merging to `main` and tagging `v0.4.0`. Wave 5, costs and chargeback, is next. The production
+**Where things stand:** waves 1 to 4 are released as 0.1.0 to 0.4.0 (tags on `main`). Wave 5, costs and chargeback,
+is under way on `wave5`: prices and free tiers, and monthly charges, are done; what labs pay is next. The production
 pilot needs production storage, which will not be reachable for some time, so it waits as wave 6; work that needs
 no production storage comes first.
 
@@ -509,8 +509,8 @@ needs no production storage, and the demo's six months of scans make six months 
 | Slice | Scope and requirements | Acceptance before the next slice | Status |
 | --- | --- | --- | --- |
 | 1 | Prices and free tiers (R8) | For each filesystem, a price per month per GB, GiB, TB, or TiB, from a date on (earlier prices kept); a free tier per filesystem for labs, and one for departments (none allowed), with exceptions for particular labs; one currency (`PINAX_CURRENCY`); set by administrators on a *Costs* page, every change audited; tested | Done |
-| 2 | Monthly charges (R8, Q1) | For each lab or department and filesystem, each month: the time-weighted average size from folder history (each scan's size holds until the next), less the free tier, times the price in effect, worked out day by day; the current month estimated to its end; tested against brute force over scan dates, price changes, free tiers, and folders changing owner | Next |
-| 3 | What labs pay (R8) | For lab owners and members: this month's estimate and past months, by filesystem and top-level folder, with how each charge is worked out; a figure on the home page; both themes and 375 pixels | To come |
+| 2 | Monthly charges (R8, Q1) | For each lab or department and filesystem, each month: the time-weighted average size from folder history (each scan's size holds until the next), less the free tier, times the price in effect, worked out day by day; the current month estimated to its end; tested against brute force over scan dates, price changes, free tiers, and folders changing owner | Done |
+| 3 | What labs pay (R8) | For lab owners and members: this month's estimate and past months, by filesystem and top-level folder, with how each charge is worked out; a figure on the home page; both themes and 375 pixels | Next |
 | 4 | Chargeback for finance (R8) | For administrators: every lab's and department's charges for a month, storage no one owns (unbilled), totals by filesystem, and a CSV statement; within Q3 for a year of weekly scans of 2,000 folders | To come |
 | 5 | Demo and release 0.5.0 | Prices and free tiers in the demo seed; the README demo script; version 0.5.0, changelog, pull request, tag, release | To come |
 
@@ -526,7 +526,7 @@ Taken with the maintainer:
 - Folders that no lab or department owns are charged to no one; administrators see them as unbilled.
 
 Open within the wave: whether statements need a billing account (cost center) for each lab, and how charges are
-rounded (to the cent, per lab and filesystem, unless finance wants otherwise).
+rounded (for now, half up to the cent, once per lab and filesystem, unless finance wants otherwise).
 
 ### Slices as built
 
@@ -542,6 +542,25 @@ rounded (to the cent, per lab and filesystem, unless finance wants otherwise).
    - Tests: exact money and units; prices and free tiers on days before, during, and after each, scheduled ones,
      ended exceptions, and departments with none; refusals; removals; the audit; the currency setting.
    - *Done*: checked in the browser in both themes and at 375 pixels.
+2. **Monthly charges (R8, Q1).**
+   - `folder_owner` table and `ownership.py`: who owned each top-level folder when. A row each time a folder
+     changes owner, on *Folders and labs* or by `pinax import`; a folder's first change also records who had it
+     until then. A folder that has never changed is its current owner's throughout, so existing catalogs need no
+     backfill.
+   - `charges.py`: each lab's and department's charge on each filesystem for a month, from folder history (ready
+     and pruned scans; failed ones never count). The month is cut at every scan, change of owner, price, and free
+     tier, rather than day by day, so a change at 15:00 counts from 15:00. Exact fractions, rounded half up to the
+     currency's minor unit once per lab and filesystem; totals add up to their lines. The month in progress is an
+     estimate to its end; storage before the first scan is not charged, storage with no price is shown and marked
+     unpriced, and unowned folders and the files in the root are unbilled.
+   - `/api/admin/costs/charges?month=YYYY-MM`, for administrators: every lab's charges by filesystem and folder,
+     the prices that applied and over which days, the free tiers, the unbilled storage, totals by filesystem, and
+     the months there are (from the first scan's to now). The pages come in slices 3 and 4.
+   - Tests: every lab's exact size, billable size, and charge equal to an independent hour-by-hour sum over a month
+     with five scans (one pruned, one failed), a folder changing owner mid-month, a price change, a lab's own free
+     tier starting and ending, a department with none, unowned folders, and files in the root; the month after; the
+     estimate for the month in progress; months before the first scan and price; rounding (cents and whole units);
+     ownership recorded by the app; administrators only.
 
 ## Later waves (outlined)
 
