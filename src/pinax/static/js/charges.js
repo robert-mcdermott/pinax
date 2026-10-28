@@ -15,8 +15,14 @@ const price = (amount, currency) => new Intl.NumberFormat(undefined, {
   style: "currency", currency, minimumFractionDigits: 2,
   maximumFractionDigits: Math.min(6, Math.max(2, (String(amount).split(".")[1] || "").length)),
 }).format(Number(amount));
-/** Storage in the unit it is priced in, so the arithmetic reads straight (to three places in a worked charge). */
-const sized = (n, unit, places = 2) => (unit ? `${new Intl.NumberFormat(undefined, { maximumFractionDigits: places }).format(n / UNIT[unit])} ${unit}` : bytes(n));
+const SMALLER = { TB: "GB", TiB: "GiB" };
+/** Storage in the unit it is priced in, so the arithmetic reads straight (to three places in a worked charge); a
+ * sliver of a terabyte in gigabytes. */
+function sized(n, unit, places = 2) {
+  if (!unit) return bytes(n);
+  if (n && n < UNIT[unit] / 100 && SMALLER[unit]) unit = SMALLER[unit];
+  return `${new Intl.NumberFormat(undefined, { maximumFractionDigits: places }).format(n / UNIT[unit])} ${unit}`;
+}
 const monthName = (m) => new Date(`${m}-01T12:00:00Z`).toLocaleDateString(undefined, { month: "long", year: "numeric", timeZone: "UTC" });
 const dayCount = (d) => new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(d);
 // Months and their days are in UTC, as charges are worked out.

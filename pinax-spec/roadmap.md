@@ -17,10 +17,8 @@ decisions taken are recorded here. Later waves are outlined at the end.
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
 **Where things stand:** waves 1 to 4 are released as 0.1.0 to 0.4.0 (tags on `main`). Wave 5, costs and chargeback,
-is under way on `wave5`: prices and free tiers, monthly charges, what labs pay, and chargeback for finance are
-done; the demo and release 0.5.0 are next. The production
-pilot needs production storage, which will not be reachable for some time, so it waits as wave 6; work that needs
-no production storage comes first.
+is done as 0.5.0, for merging to `main` and tagging `v0.5.0`. The production pilot needs production storage, which
+will not be reachable for some time, so it waits as wave 6; work that needs no production storage comes first.
 
 The order follows one principle:
 1. **Trust first.** Totals that agree with an independent computation on every directory, and that say when
@@ -513,7 +511,7 @@ needs no production storage, and the demo's six months of scans make six months 
 | 2 | Monthly charges (R8, Q1) | For each lab or department and filesystem, each month: the time-weighted average size from folder history (each scan's size holds until the next), less the free tier, times the price in effect, worked out day by day; the current month estimated to its end; tested against brute force over scan dates, price changes, free tiers, and folders changing owner | Done |
 | 3 | What labs pay (R8) | For lab owners and members: this month's estimate and past months, by filesystem and top-level folder, with how each charge is worked out; a figure on the home page; both themes and 375 pixels | Done |
 | 4 | Chargeback for finance (R8) | For administrators: every lab's and department's charges for a month, storage no one owns (unbilled), totals by filesystem, and a CSV statement; within Q3 for a year of weekly scans of 2,000 folders | Done |
-| 5 | Demo and release 0.5.0 | Prices and free tiers in the demo seed; the README demo script; version 0.5.0, changelog, pull request, tag, release | Next |
+| 5 | Demo and release 0.5.0 | Prices and free tiers in the demo seed; the README demo script; version 0.5.0, changelog, pull request, tag, release | Done |
 
 ### Decisions for wave 5
 
@@ -596,6 +594,16 @@ rounded (for now, half up to the cent, once per lab and filesystem, unless finan
      the month's total, its sizes are exact in the price's unit, unbilled and unpriced rows, a month in progress
      marked as an estimate; administrators only.
    - *Done*: checked in the browser in both themes and at 375 pixels.
+5. **Demo and release 0.5.0.**
+   - `pinax seed` sets prices and free tiers (`seed.demo_costs`), dated from the day of the seed so every demo has
+     the same shape: *Fast*'s price falls on the 16th of last month and the Lindqvist Lab's own free tier starts on
+     the 10th, so last month's statement is worked out in parts; departments have nothing free; *Secure* is priced
+     per TiB with nothing free. Set as the first storage administrator, so the audit log shows them.
+   - The README describes the demo's prices and walks through *Storage charges* as a PI, then *Costs* and
+     *Chargeback* as an administrator, including a folder mapped during the demo charged from that moment.
+   - Version 0.5.0 in `pyproject.toml`, `pinax.__version__`, and `uv.lock`; `CHANGELOG.md` dated, with notes on
+     upgrading from 0.4.0 (new tables created at start-up; ownership history starts with the upgrade).
+   - Pull request to `main`, then tag `v0.5.0` and the release.
 
 ## Later waves (outlined)
 

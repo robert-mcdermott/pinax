@@ -1,6 +1,18 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 (2026-10-27)
+
+Fifth release (wave 5, "costs and chargeback"): what storage costs each lab and department. Administrators set a
+price per month for each filesystem and free tiers for labs and departments, from a day on; each month is charged
+on the time-weighted average of its scans, like a utility bill. Lab members see what their labs pay and how each
+charge is worked out, and finance gets a monthly statement as CSV. The demo has prices, so its six months make six
+months of charges. Next is the production pilot (0.6.0), when production storage is reachable. See
+[pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+
+Upgrading from 0.4.0: the catalog gains `price`, `free_tier`, and `folder_owner` tables, created at start-up, so an
+existing catalog keeps working; nothing is charged until a price is set. Ownership history starts with the upgrade:
+a folder that changed owner before it is charged to its current owner for past months. `PINAX_CURRENCY` sets the
+currency (USD by default). Indexes are unchanged (version 4).
 
 ### Added
 
@@ -24,6 +36,9 @@
 - **Ownership history.** Pinax now records each change of a top-level folder's owner (in the app or by
   `pinax import`), so past months are charged to the owners they had. The new `folder_owner` table is created at
   start-up; folders that have never changed need no history.
+- **Demo prices.** `pinax seed` sets prices and free tiers: *Fast* at $25 per TB a month and $22 from the 16th of
+  last month, a terabyte free for every lab and none for departments, the Lindqvist Lab's own 5 TB from the 10th of
+  last month, and *Secure* at $40 per TiB with nothing free. The README demo script walks through the charges.
 
 ## 0.4.0 (2026-10-27)
 

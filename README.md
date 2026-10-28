@@ -107,7 +107,11 @@ Meanwhile nobody touches the Kowalski Lab's `raw/2024_tmt_plex`, which ages past
 climbs from 64% to 100% at the same size. *History* shows all of it, the *Change map* where each change is, and
 *What changed* lists them.
 
-## Demo script (about 15 minutes)
+Storage has prices, so the six months make six months of charges. *Fast* costs $25 per TB a month, and $22 from
+the 16th of last month; every lab has a terabyte of it free and departments none, and the Lindqvist Lab has its own
+5 TB from the 10th of last month (a grant's allocation). *Secure* costs $40 per TiB, with nothing free.
+
+## Demo script (about 20 minutes)
 
 1. **Home page.** Choose *Continue as Hanna Lindqvist* (a PI). *My data* shows one folder: 19 TiB, most of
    it unchanged for years.
@@ -126,7 +130,12 @@ climbs from 64% to 100% at the same size. *History* shows all of it, the *Change
    puts both side by side. Then **switch to Valeria Quintero**, whose lab joined three scans ago: one folder, two
    thirds of it unchanged for more than two years, because most of it came from the PI's previous institution.
    Its *History* starts at the fourth scan.
-6. **Switch to Priya Natarajan** (storage administrator). *All data* shows both filesystems, the largest
+6. **Storage charges.** Switch back to *Hanna Lindqvist*. *My data* shows this month's storage charge, an
+   estimate to the month's end. Open *Storage charges* and choose last month: the price of *Fast* fell on the
+   16th, and the lab's own 5 TB free tier started on the 10th, so the month is worked out in three parts, each its
+   average size less what was free, at its price, for its days. *Past months* lists the months since the first
+   scan.
+7. **Switch to Priya Natarajan** (storage administrator). *All data* shows both filesystems, the largest
    folders, the biggest changes since the previous scan (a batch of samples and an atlas in `fujimoto_a`,
    sequencing runs in `gsr_illumina`), and
    three unmapped folders. Open the age map of *Fast*: `scratch_legacy` is a large, very old, unmapped tile.
@@ -138,21 +147,26 @@ climbs from 64% to 100% at the same size. *History* shows all of it, the *Change
    *What changed* for *Fast* since May 30 lists the Fujimoto project and the sequencing runs where it grew, the
    moved project and the compressed FASTQ among new and removed folders, and the largest new files (Cell Ranger
    BAMs); each list downloads as CSV.
-7. **Folders and labs.** Tick *Unmapped only*, then map `shared_reference` to the Genomics Shared Resource.
+8. **Folders and labs.** Tick *Unmapped only*, then map `shared_reference` to the Genomics Shared Resource.
    Switch to *Casey Morgan*: the folder now appears in their data.
-8. **Storage health.** An unreadable folder, a very large directory (12,000 PNG tiles), problem file names
-   (a newline, a leading dash, a Windows-reserved character, a name that is not NFC), and files owned by
-   accounts that no longer exist.
-9. **Find files.** Search `*.bam`, older than five years, largest first; download the CSV.
-10. **Scans.** Six snapshots of each filesystem, a month apart, each with its full index (`PINAX_KEEP_SNAPSHOTS`
+9. **Costs and Chargeback.** Back as Priya, *Costs* shows each filesystem's prices and free tiers, with the
+   Lindqvist Lab's exception. *Chargeback* for last month lists every lab's and department's charge, the most
+   first (the Genomics Shared Resource, a department, has nothing free), the totals by filesystem, and the
+   storage no one owns, most of it `scratch_legacy`; *Download CSV* is the statement for finance. This month,
+   `shared_reference` is charged to the Genomics Shared Resource from the moment it was mapped.
+10. **Storage health.** An unreadable folder, a very large directory (12,000 PNG tiles), problem file names
+    (a newline, a leading dash, a Windows-reserved character, a name that is not NFC), and files owned by
+    accounts that no longer exist.
+11. **Find files.** Search `*.bam`, older than five years, largest first; download the CSV.
+12. **Scans.** Six snapshots of each filesystem, a month apart, each with its full index (`PINAX_KEEP_SNAPSHOTS`
     keeps six), and whether automatic ingest is watching for new scans. Click a date to open that scan: the
     header says it is an older one, every report and link stays on it, and *Back to the latest* returns. Choose
     another scan beside the date on any report.
-11. **People and access.** *Add person*: a username, a name, an email, and a lab; the panel shows the folders
+13. **People and access.** *Add person*: a username, a name, an email, and a lab; the panel shows the folders
     they will see. Grant or remove the storage administrator role. *Deactivate* them, and they cannot sign in (their
     access is kept, unused); *Reactivate* restores it. Each change is in the person's record and the audit log.
     The *Labs and departments* tab lists each lab's folders and members.
-12. **Import from CSV.** In a terminal, `uv run pinax import examples/import` lists the 14 changes the example
+14. **Import from CSV.** In a terminal, `uv run pinax import examples/import` lists the 14 changes the example
     files would make: two departments, a lab, three people, their memberships, and owners for the three unmapped
     folders. Add `--apply`, and *Folders and labs* shows no unmapped folders; every change is in the audit log.
 

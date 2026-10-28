@@ -372,3 +372,22 @@ def test_the_statement_for_finance(members):
     assert {row["status"] for row in csv.DictReader(io.StringIO(oct_.text))} == {"estimate"}
     login(members, "ada")
     assert members.get("/api/admin/costs/charges", params={"fmt": "csv"}).status_code == 403
+
+
+@pytest.mark.parametrize("today", [datetime(2026, 10, 27, 12), datetime(2027, 1, 5)], ids=["October", "January"])
+def test_the_demo_prices(today):
+    """Dated from the day of the seed: a price change and an exception last month, all before the first scan."""
+    from datetime import UTC, date
+
+    from pinax import costs, seed
+
+    now = today.replace(tzinfo=UTC).timestamp()
+    prices, free = seed.demo_costs(now)
+    first_scan = datetime.fromtimestamp(now - (seed.SCANS - 1) * seed.MONTH, UTC).date()
+    last_month = date(today.year - (today.month == 1), (today.month - 2) % 12 + 1, 1)
+    assert [p[1] for p in prices if p[0] == "fast"][1] == last_month.replace(day=16)
+    assert [f[1] for f in free if "lab" in f[4]] == [last_month.replace(day=10)]
+    assert all(starts <= first_scan for fs, starts, *_ in prices if (fs, starts) != ("fast", last_month.replace(day=16)))
+    for _, _, amount, unit in prices:
+        assert costs.price_micros(amount) and unit in costs.UNITS
+    assert {f[4].get("kind") for f in free} == {"lab", "department", None}

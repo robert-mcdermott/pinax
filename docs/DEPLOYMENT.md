@@ -56,7 +56,7 @@ sudo git clone https://github.com/robert-mcdermott/pinax.git /opt/pinax
 ```
 
 ```bash
-cd /opt/pinax && sudo git checkout v0.4.0 && sudo env UV_PYTHON_INSTALL_DIR=/opt/pinax/.python uv sync --frozen --no-dev
+cd /opt/pinax && sudo git checkout v0.5.0 && sudo env UV_PYTHON_INSTALL_DIR=/opt/pinax/.python uv sync --frozen --no-dev
 ```
 
 ```bash
