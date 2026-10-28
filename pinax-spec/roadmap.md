@@ -16,19 +16,22 @@ decisions taken are recorded here. Later waves are outlined at the end.
 **Progress** is marked here as each slice is committed: done, next or to come. Each requirement's status is
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
-**Where things stand:** wave 1 is released as 0.1.0 and wave 2 as 0.2.0 (tags `v0.1.0` and `v0.2.0` on `main`).
-Wave 3, change over time, is done on `wave3` as 0.3.0, for merging to `main` and tagging `v0.3.0`. The production
-pilot, which needs production storage, is next, as wave 4.
+**Where things stand:** waves 1 to 3 are released as 0.1.0 to 0.3.0 (tags on `main`). Wave 4, people and sign-in,
+is done as 0.4.0, for merging to `main` and tagging `v0.4.0`. Wave 5, costs and chargeback, is next. The production
+pilot needs production storage, which will not be reachable for some time, so it waits as wave 6; work that needs
+no production storage comes first.
 
 The order follows one principle:
 1. **Trust first.** Totals that agree with an independent computation on every directory, and that say when
    they are lower bounds.
 2. **Then real storage at real scale.** First everything a production deployment needs, checked on real local
-   scans and on synthetic data at scale (wave 2); then production storage itself and a pilot (wave 4).
+   scans and on synthetic data at scale (wave 2); then production storage itself and a pilot (wave 6).
 3. **Then change over time.** Where the growth comes from, and whether data is ageing. It comes before the pilot
    (wave 3) because it can be built and checked without production storage, which is not yet reachable.
-4. **Then reach.** Everyone in the organization, signed in, with access kept in step with the directory.
-5. **Then action.** Cost, digests, and the decisions reports should lead to.
+4. **Then what a site needs to run Pinax, and to charge for storage.** People managed in the app, and sign-in
+   without single sign-on (wave 4); costs and chargeback (wave 5). Both come before the pilot for the same reason.
+5. **Then reach.** Everyone in the organization, signed in, with access kept in step with the directory.
+6. **Then action.** Digests, and the decisions reports should lead to.
 
 ## Decisions taken in this plan
 
@@ -124,7 +127,7 @@ recorded below as built. Merged to `main` in pull request #1 and released as v0.
 Everything a first production deployment needs, built and checked without production storage: every number
 checked against an independent tool, the shapes of real filesystems handled, 100 million files indexed, scans
 ingested as they arrive, labs onboarded in bulk, and a deployment kit. Production storage and the pilot follow
-in wave 4.
+in wave 6.
 
 ### Wave 2 sequence
 
@@ -135,7 +138,7 @@ in wave 4.
 | 3 | Scale to 100 million (S3, R3, Q3–Q5) | A 100-million-file synthetic scan, built and queried on the development laptop, meets Q3–Q5; whole-filesystem cold folders precomputed per age threshold at build time and answered within Q3; build memory and threads tuned and documented | Done |
 | 4 | Automatic ingest (S4, O4) | `pinax ingest --watch` (or a timer) ingests each new verified scan under a folder once, skipping incomplete and already-ingested scans, safe if two run at once; failures shown on *Scans* with the error; tests for each case | Done |
 | 5 | Bulk onboarding (A5) | Labs, people, memberships, and folder ownership imported from CSV with a dry run that lists every change, refusing ambiguous rows; changes audited; example files and docs | Done |
-| 6 | Deployment kit (P6, A4) | systemd units for the web app and ingest; header mode checked behind oauth2-proxy with a local test identity provider; a health endpoint; `docs/DEPLOYMENT.md` rewritten as an installation guide, confirmed by the pilot's installation in wave 4 | Done |
+| 6 | Deployment kit (P6, A4) | systemd units for the web app and ingest; header mode checked behind oauth2-proxy with a local test identity provider; a health endpoint; `docs/DEPLOYMENT.md` rewritten as an installation guide, confirmed by the pilot's installation in wave 6 | Done |
 | 7 | Release 0.2.0 | README demo script updated; version 0.2.0, changelog, pull request, tag, release | Done |
 
 ### Decisions for wave 2
@@ -146,12 +149,12 @@ in wave 4.
   one of them until explained.
 - Production storage is out of reach while wave 2 is built (decided 2026-10-26). The real scan in slice 2 is the
   maintainer's `~/Documents`: real names and shapes, but one owner on a laptop disk. Owners and labs are covered by
-  the demo seed and synthetic scans; production scans, server hardware, and the pilot are wave 4.
+  the demo seed and synthetic scans; production scans, server hardware, and the pilot are wave 6.
 - Pinax records only counts, timings, and checksums from real scans, never paths or names, in the repository;
   the scans themselves stay outside it and are deleted after measuring.
 - Watching polls a folder on a timer instead of relying on file-change notifications, which network filesystems
   do not deliver reliably.
-- Bulk onboarding is a stop-gap until the authoritative source of folder ownership is decided (wave 5); the import
+- Bulk onboarding is a stop-gap until the authoritative source of folder ownership is decided (wave 7); the import
   format is documented so that source can produce it.
 - No catalog migrations yet: waves 2 and 3 may still change the catalog schema, so pilot catalogs are re-created
   from the import files. Snapshot indexes are rebuilt from scans when `INDEX_VERSION` changes.
@@ -197,7 +200,7 @@ in wave 4.
      video formats, macro-enabled spreadsheets, diagrams, executables, and disk images were added to their
      categories, leaving 0.8%. The scan and its indexes were deleted after measuring.
    - *Done*: the real local scan and the wide and deep synthetic scan equal to rollup on every directory, with
-     the shapes above handled. Measuring production storage moved to wave 4.
+     the shapes above handled. Measuring production storage moved to wave 6.
 3. **Scale to 100 million (S3, R3, Q3–Q5).**
    - A synthetic scan of 100 million files in 2.44 million folders under 2,000 top-level folders, generated in
      155 s (3.8 GB).
@@ -215,7 +218,7 @@ in wave 4.
      file); directory-level queries 1–50 ms; lab searches 22 ms, whole-filesystem searches 2.8 s; every
      directory equal to rollup. With 17 GB and all ten threads the build was no faster (133 s), so the default
      stays 8 GB.
-   - *Done*: Q3–Q5 met at 100 million synthetic files on the laptop; server hardware and production are wave 4.
+   - *Done*: Q3–Q5 met at 100 million synthetic files on the laptop; server hardware and production are wave 6.
 4. **Automatic ingest (S4, O4).**
    - `watch.py` and `pinax ingest --watch [FOLDER] [--interval N] [--once] [--no-verify] [--allow-incomplete]`: each
      pass finds scan folders up to three levels down, oldest first; complete scans are verified with
@@ -273,7 +276,7 @@ in wave 4.
    - Tests: the health states; the header refused from untrusted addresses and accepted from trusted networks;
      demo sign-in off in header mode; every unit's command parsed by the CLI and every setting it names real;
      rebuilds (a lost index, the cache reopening, `--outdated`, a missing scan).
-   - *Done*, except what only a real server shows: the pilot installation in wave 4 confirms the guide and units
+   - *Done*, except what only a real server shows: the pilot installation in wave 6 confirms the guide and units
      (`systemd-analyze verify` and the sandboxing options cannot be run on the development Mac).
 7. **Release 0.2.0.**
    - The demo re-seeded with this wave's code: all four snapshots equal to rollup; the README demo script walked
@@ -358,7 +361,7 @@ Every change is checked against an independent computation, like every total.
      snapshots, 10 changes); evolved scans of a real demo scan and of the wide and deep shapes likewise. At one
      million files, `--evolve` takes 1.6 s, comparing 0.2 s of a 6 s build, and checking the change 1.1 s (all
      245,361 directories equal). Kept to small scans on the development laptop; the measurement with changed scans
-     at 100 million files waits for server-class hardware in wave 4.
+     at 100 million files waits for server-class hardware in wave 6.
 3. **History charts (E7).**
    - `explore.history` and `/api/history` take any place: a person's home, a lab or department, a filesystem, a
      top-level folder (every scan, from folder history), or a deeper folder (the retained snapshots, from their
@@ -407,7 +410,7 @@ Every change is checked against an independent computation, like every total.
      sums; sizing; access.
    - *Done*: checked in both themes and at 375 pixels on the demo. At one million synthetic files (three evolved
      generations), the root and a lab folder take 7–21 ms from `changes` and 12–31 ms joined with an older scan,
-     against 24 ms for the age map; the 100-million-file measurement waits for server-class hardware (wave 4).
+     against 24 ms for the age map; the 100-million-file measurement waits for server-class hardware (wave 6).
 5. **What changed (R9).**
    - `SnapshotIndex.change_units`: over a place's subtree in both scans (the stored changes, or an attached older
      index), the folders in both scans that grew and shrank most, leaving out a folder when one of its subfolders
@@ -424,7 +427,7 @@ Every change is checked against an independent computation, like every total.
      with a removed subfolder), from the stored previous scan and from an older scan; CSV, limits, and access.
    - *Done*: checked in both themes and at 375 pixels on the demo. At one million synthetic files (three evolved
      generations), a lab folder's report takes 70–90 ms and the whole filesystem's 0.5–0.6 s; the 100-million-file
-     measurement waits for server-class hardware (wave 4).
+     measurement waits for server-class hardware (wave 6).
    - Before slice 6, at the maintainer's request: the age scale changed from orange-to-red to hot-to-cold (red for
      data changed within two years, blue from then on), so cold data looks cold and a map of mostly old data no
      longer reads as alarming throughout. Each arm passes the ordinal checks in both themes.
@@ -451,45 +454,97 @@ Every change is checked against an independent computation, like every total.
    - Version 0.3.0 in `pyproject.toml`, `pinax.__version__`, and `uv.lock`; `CHANGELOG.md` dated, with upgrade
      notes; pull request `wave3` to `main`, then tag `v0.3.0` and the release.
    - Not measured: anything above a million files. The change map's Q3 and What changed's Q4 at 100 million files,
-     and changed scans at that size, wait for server-class hardware (wave 4).
+     and changed scans at that size, wait for server-class hardware (wave 6).
    - *Done*.
 
-### After 0.3.0
+## 0.4.0: people and sign-in (wave 4)
 
-- **People in the app (A8)**, at the maintainer's request, so the pilot's people can be added without CSV. *People
-  and access* gains a People tab (filters for active, administrators, no access, and inactive; search) and a
-  person editor (profile, lab memberships, the storage administrator role, deactivate and reactivate), on
-  `people.py`, whose rules for usernames and emails `pinax import` now shares. People are never deleted; a
-  deactivated person keeps their access, unused, so reactivating restores it (as `active=false` in the import
-  does; Tundra instead removes it). Tests cover each change and its audit, the shared rules, sign-in after
-  deactivating and reactivating, and the guards that keep an administrator. Checked in both themes and at 375
-  pixels.
+Running Pinax without single sign-on and without CSV files: people managed in the app, as in Tundra, and
+passwords for sites without an identity provider, with the demo kept as it was. Built after 0.3.0 at the
+maintainer's request, while production storage is out of reach, and merged in pull request #4.
 
-- **Signing in without single sign-on (A9)**, at the maintainer's request, so a site without an identity provider can
-  run Pinax, and move to single sign-on later. `PINAX_AUTH_MODE=local` (`signin.py`, `api/signin.py`): scrypt
-  password hashes; server-side sessions; temporary passwords made up by Pinax and shown once, which must be changed
-  before anything else; lockout after repeated failures; requests that change something must come from a page of
-  Pinax; every sign-in, failure, lock, and password change audited, never a password. `pinax user add | password |
-  list` makes the first administrator. Demo mode is kept as it was, for showing Pinax, and refused when
-  `PINAX_ENVIRONMENT=prod`. New catalog columns are added at start-up (`db.add_missing_columns`), so a 0.3.0 catalog
-  keeps working. Tests: each of these, the demo unchanged, and an older catalog upgraded; checked in the browser in
-  both themes and at 375 pixels, in local and demo modes.
+### Wave 4
+
+| Slice | Status |
+| --- | --- |
+| 1. People in the app (A8) | Done |
+| 2. Signing in without single sign-on (A9, A4) | Done |
+| 3. Release 0.4.0 | Done |
+
+### Slices as built
+
+1. **People in the app (A8).** At the maintainer's request, so a pilot's people can be added without CSV. *People
+   and access* gains a People tab (filters for active, administrators, no access, and inactive; search) and a
+   person editor (profile, lab memberships, the storage administrator role, deactivate and reactivate), on
+   `people.py`, whose rules for usernames and emails `pinax import` now shares. People are never deleted; a
+   deactivated person keeps their access, unused, so reactivating restores it (as `active=false` in the import
+   does; Tundra instead removes it). Tests cover each change and its audit, the shared rules, sign-in after
+   deactivating and reactivating, and the guards that keep an administrator. Checked in both themes and at 375
+   pixels.
+2. **Signing in without single sign-on (A9).** At the maintainer's request, so a site without an identity provider
+   can run Pinax, and move to single sign-on later. `PINAX_AUTH_MODE=local` (`signin.py`, `api/signin.py`): scrypt
+   password hashes; server-side sessions; temporary passwords made up by Pinax and shown once, which must be changed
+   before anything else; lockout after repeated failures; requests that change something must come from a page of
+   Pinax; every sign-in, failure, lock, and password change audited, never a password. `pinax user add | password |
+   list` makes the first administrator. Demo mode is kept as it was, for showing Pinax, and refused when
+   `PINAX_ENVIRONMENT=prod`. New catalog columns are added at start-up (`db.add_missing_columns`), so a 0.3.0 catalog
+   keeps working. Tests: each of these, the demo unchanged, and an older catalog upgraded; checked in the browser in
+   both themes and at 375 pixels, in local and demo modes.
+3. **Release 0.4.0.**
+   - Version 0.4.0 in `pyproject.toml`, `pinax.__version__`, and `uv.lock`; `CHANGELOG.md` dated, with notes on
+     upgrading from 0.3.0 (new catalog columns added at start-up; the demo refused in production).
+   - The roadmap re-planned: costs and chargeback, wanted by the maintainer and needing no production storage, move
+     up from the action wave to wave 5; the production pilot moves to wave 6, and the later waves follow.
+   - Pull request to `main`, then tag `v0.4.0` and the release.
+   - *Done*.
+
+## 0.5.0: costs and chargeback (wave 5)
+
+What storage costs each lab and department: a price for each filesystem, a free tier, and each month's charge, for
+lab owners to see and for finance to bill. It is worked out from folder history, which keeps every scan, so it
+needs no production storage, and the demo's six months of scans make six months of bills.
+
+### Wave 5 sequence
+
+| Slice | Scope and requirements | Acceptance before the next slice | Status |
+| --- | --- | --- | --- |
+| 1 | Prices and free tiers (R8) | For each filesystem, a price per month per GB, GiB, TB, or TiB, from a date on (earlier prices kept); a free tier per filesystem for labs, and one for departments (none allowed), with exceptions for particular labs; one currency (`PINAX_CURRENCY`); set by administrators on a *Costs* page, every change audited; tested | Next |
+| 2 | Monthly charges (R8, Q1) | For each lab or department and filesystem, each month: the time-weighted average size from folder history (each scan's size holds until the next), less the free tier, times the price in effect, worked out day by day; the current month estimated to its end; tested against brute force over scan dates, price changes, free tiers, and folders changing owner | To come |
+| 3 | What labs pay (R8) | For lab owners and members: this month's estimate and past months, by filesystem and top-level folder, with how each charge is worked out; a figure on the home page; both themes and 375 pixels | To come |
+| 4 | Chargeback for finance (R8) | For administrators: every lab's and department's charges for a month, storage no one owns (unbilled), totals by filesystem, and a CSV statement; within Q3 for a year of weekly scans of 2,000 folders | To come |
+| 5 | Demo and release 0.5.0 | Prices and free tiers in the demo seed; the README demo script; version 0.5.0, changelog, pull request, tag, release | To come |
+
+### Decisions for wave 5
+
+Taken with the maintainer:
+- Charges are for the files' size, what people see in Pinax, not their space on disk.
+- A month is charged on the time-weighted average of its scans, like a utility bill: data that comes and goes
+  mid-month is charged for the days it was there.
+- The free tier is storage per filesystem: one default for labs and one for departments (which may be none), with
+  exceptions for particular labs. It comes off each day's size before the price.
+- Prices change from a date on; past months keep the prices they had.
+- Folders that no lab or department owns are charged to no one; administrators see them as unbilled.
+
+Open within the wave: whether statements need a billing account (cost center) for each lab, and how charges are
+rounded (to the cent, per lab and filesystem, unless finance wants otherwise).
 
 ## Later waves (outlined)
 
 | Wave | Release | Theme | Main content |
 | --- | --- | --- | --- |
-| 4 | 0.4.0 | Production pilot | The largest production scan available ingests and passes `pinax check`; build time, index size, and query times measured on production replace the extrapolations in `docs/ARCHITECTURE.md`; 100 million files on server-class hardware; installation on a pilot server from the deployment kit, scanning on a schedule; IT and a few pilot labs use it, and what they find is fixed or recorded |
-| 5 | 0.5.0 | Reach | PostgreSQL and migrations (P7); single sign-on with roles from directory groups and membership synced from the directory (A6); recertification report (A7); CI, container image (P6); metrics, logs, and alerts (O4, O5); security review |
-| 6 | 0.6.0 | Action | Hard-link aware totals (R7); cost views (R8); periodic digests for PIs; saved and shared views; quotas beside folders; whole-filesystem searches as background jobs |
-| 7 | 1.0.0 | Hardening | Budgets met at a billion files in production; accessibility audit; documentation complete; pilot and early-user feedback addressed |
+| 6 | 0.6.0 | Production pilot | The largest production scan available ingests and passes `pinax check`; build time, index size, and query times measured on production replace the extrapolations in `docs/ARCHITECTURE.md`; 100 million files on server-class hardware, including the change map, what changed, and changed scans at that size; installation on a pilot server from the deployment kit, scanning on a schedule; IT and a few pilot labs use it, and what they find is fixed or recorded |
+| 7 | 0.7.0 | Reach | PostgreSQL and migrations (P7), replacing the columns added at start-up; single sign-on with roles from directory groups and membership synced from the directory (A6); recertification report (A7); CI, container image (P6); metrics, logs, and alerts (O4, O5); for local sign-in, two-factor codes, limits per network address, and the person's own address behind a proxy; security review |
+| 8 | 0.8.0 | Action | Hard-link aware totals (R7); periodic digests for PIs, with their charges; saved and shared views; quotas beside folders; whole-filesystem searches as background jobs |
+| 9 | 1.0.0 | Hardening | Budgets met at a billion files in production; accessibility audit; documentation complete; pilot and early-user feedback addressed |
+
+Waves 7 and 8 need no production storage either: if the pilot is still out of reach after wave 5, parts of them
+can come first.
 
 ## Decisions still open
 
 - The authoritative source of folder ownership (which lab owns each top-level folder), and how Pinax stays in step
-  with it (wave 5).
+  with it (wave 7).
 - Which filesystems record access time reliably enough to show it by default.
 - Scan cadence and snapshot retention for each filesystem.
-- The cost model, if cost views are wanted (wave 6).
-- When production storage becomes reachable for wave 4, and which filesystem and labs the pilot uses.
+- When production storage becomes reachable for wave 6, and which filesystem and labs the pilot uses.
 - Who may see unmapped folders besides storage administrators (for example division data managers).
