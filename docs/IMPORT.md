@@ -12,8 +12,8 @@ uv run pinax import examples/import
 uv run pinax import examples/import --apply
 ```
 
-For one person at a time, use *People and access* in the app: it follows the same rules for usernames and emails,
-and audits each change the same way (with `"source": "app"` instead of `"import"`).
+For one person or lab at a time, use *People and access* in the app: it follows the same rules for usernames,
+emails, and slugs, and audits each change the same way (with `"source": "app"` instead of `"import"`).
 
 The folder holds any of `labs.csv`, `people.csv`, `memberships.csv`, and `folders.csv`; or name the files with
 `--labs`, `--people`, `--memberships`, and `--folders`. The examples in `examples/import/` fit the demo: they add

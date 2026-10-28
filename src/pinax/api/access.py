@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from .. import labs as labs_service
 from .. import ownership, signin
 from .. import people as people_service
 from ..auth import Identity, require_admin
@@ -30,6 +31,76 @@ def _labs(session: Session) -> list[Lab]:
 @router.get("/labs")
 def labs(_: Identity = Depends(require_admin), session: Session = Depends(get_session)):
     return [lab_json(lab) for lab in _labs(session)]
+
+
+def _lab(session: Session, slug: str) -> Lab:
+    lab = session.scalar(select(Lab).where(Lab.slug == slug)
+                         .options(selectinload(Lab.folders).selectinload(LabFolder.filesystem),
+                                  selectinload(Lab.memberships).selectinload(LabMembership.user)))
+    if lab is None:
+        raise HTTPException(404, "No such lab or department")
+    return lab
+
+
+def _lab_json(session: Session, lab: Lab) -> dict:
+    """A lab, with when it was added and the latest audited changes to it (by the app or an import)."""
+    events = session.scalars(select(AuditEvent).where(AuditEvent.detail["lab"].as_string() == lab.slug)
+                             .options(selectinload(AuditEvent.actor)).order_by(AuditEvent.ts.desc()).limit(12))
+    return {**lab_json(lab), "created_at": iso(lab.created_at),
+            "history": [{"ts": iso(e.ts), "action": e.action, "summary": e.summary,
+                         "by": e.actor.display_name if e.actor else (e.detail or {}).get("by")} for e in events]}
+
+
+class LabBody(BaseModel):
+    slug: str | None = None  # when adding; it cannot be changed
+    name: str = ""
+    kind: str = "lab"
+    division: str = ""
+    research_area: str = ""
+
+
+def _lab_change(session: Session, slug: str, change) -> dict:
+    try:
+        lab = change()
+    except labs_service.LabError as e:
+        session.rollback()
+        raise HTTPException(e.status, str(e)) from e
+    session.commit()
+    session.expire_all()
+    return _lab_json(session, _lab(session, lab.slug if lab else slug))
+
+
+@router.get("/labs/{slug}")
+def lab(slug: str, _: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+    return _lab_json(session, _lab(session, slug))
+
+
+@router.post("/labs", status_code=201)
+def add_lab(body: LabBody, identity: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+    """Add a lab or department; its members and folders are added on *People and access* and *Folders and labs*."""
+    data = body.model_dump(exclude_none=True)
+    return _lab_change(session, body.slug or "", lambda: labs_service.save_lab(session, identity.user, None, data))
+
+
+@router.put("/labs/{slug}")
+def change_lab(slug: str, body: LabBody, identity: Identity = Depends(require_admin),
+               session: Session = Depends(get_session)):
+    """Change a lab's name, kind, division, or research area."""
+    data, existing = body.model_dump(exclude_none=True), _lab(session, slug)
+    return _lab_change(session, slug, lambda: labs_service.save_lab(session, identity.user, existing, data))
+
+
+@router.post("/labs/{slug}/deactivate")
+def deactivate_lab(slug: str, identity: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+    """Its members no longer see its folders; its members and folders are kept, and its folders still charged to it."""
+    existing = _lab(session, slug)
+    return _lab_change(session, slug, lambda: labs_service.set_active(session, identity.user, existing, False))
+
+
+@router.post("/labs/{slug}/reactivate")
+def reactivate_lab(slug: str, identity: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+    existing = _lab(session, slug)
+    return _lab_change(session, slug, lambda: labs_service.set_active(session, identity.user, existing, True))
 
 
 @router.get("/people")

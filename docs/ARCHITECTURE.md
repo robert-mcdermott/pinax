@@ -408,3 +408,5 @@ uv run python bench/bench_charges.py --folders 2000 --weeks 52
   still looks old. That is usually what people want, and the interface says which time each view uses.
 - **Access time** depends on mount options; many storage systems update it rarely or never.
 - One root per filesystem; scans with several roots are refused.
+- **A lab's kind** (lab or department) has no history: charges use the kind it has now, so changing it changes
+  which free tier its past months had too. *People and access* says so before the change.

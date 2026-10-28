@@ -12,7 +12,7 @@ import { viewChanges } from "/js/changes.js";
 import { viewExplore } from "/js/explore.js";
 import { viewHistory } from "/js/history.js";
 import { viewAges, viewCold, viewFiles, viewOwners, viewTypes } from "/js/reports.js";
-import { viewAccess, viewFolders, viewHealth, viewOverview, viewPerson, viewScans } from "/js/admin.js";
+import { viewAccess, viewFolders, viewHealth, viewLab, viewOverview, viewPerson, viewScans } from "/js/admin.js";
 import { coldBytes, thresholdText } from "/js/viz.js";
 
 const main = $("#main");
@@ -79,6 +79,7 @@ const routes = [
   [/^#\/chargeback(\?.*)?$/, viewChargeback],
   [/^#\/access(\?.*)?$/, viewAccess],
   [/^#\/access\/people\/([^?]+)$/, viewPerson],
+  [/^#\/access\/labs\/([^?]+)$/, viewLab],
 ];
 
 await loadIdentity();

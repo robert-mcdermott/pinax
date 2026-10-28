@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Administrator views: the organization overview, folders and labs, storage health, scans, and people and access.
 import {
-  $, $$, ageText, api, bytes, date, displayPath, duration, emptyState, html, icon, modal, mount, num, parseQuery, pct,
-  placeHash, raw, state, toast, when,
+  $, $$, ageText, api, bytes, date, displayPath, duration, emptyState, html, icon, kindLabel, modal, mount, num,
+  parseQuery, pct, placeHash, raw, state, toast, when,
 } from "/js/core.js";
 import { renderSidebar } from "/js/shell.js";
 import { ageBar, ageHistogram, bars, categories, coldBytes, thresholdText } from "/js/viz.js";
@@ -280,7 +280,8 @@ export async function viewAccess(el, query = "") {
     <div class="page-head"><div><div class="eyebrow">Administration</div><h1>People and access</h1>
       <p>Who can sign in, what each person sees, and who administers Pinax. People see the top-level folders their labs and
         departments own; storage administrators see everything. For many changes at once, use <code>pinax import</code> (docs/IMPORT.md).</p></div>
-      <div class="actions">${tab === "people" ? html`<a class="btn btn-primary" href="#/access/people/new">${icon("plus")}Add person</a>` : ""}</div></div>
+      <div class="actions">${tab === "people" ? html`<a class="btn btn-primary" href="#/access/people/new">${icon("plus")}Add person</a>`
+        : html`<a class="btn btn-primary" href="#/access/labs/new">${icon("plus")}Add lab or department</a>`}</div></div>
     <div class="tabs" role="tablist">${TABS.map(([k, l]) => html`<button class="tab ${tab === k ? "active" : ""}" role="tab" aria-selected="${tab === k}" data-tab="${k}">${l}</button>`)}</div>
     <div id="access-body"></div>`);
   $$(".tab", el).forEach((b) => b.addEventListener("click", () => { location.hash = `#/access?tab=${b.dataset.tab}`; }));
@@ -497,17 +498,20 @@ async function labsTab(el) {
   const [labs, people] = await Promise.all([api("admin/labs"), api("admin/people")]);
   const render = () => mount(el, html`
     <p class="small muted" style="margin-top:-6px">Each lab or department sees the top-level folders it owns. Map folders on <a href="#/folders">Folders and labs</a>.</p>
-    <div class="grid cols-2">${labs.map((l) => html`<div class="card"><div class="card-head"><h2>${l.name}</h2><span class="tag">${l.kind === "department" ? "Department" : "Lab"}</span></div>
-      <p class="small muted" style="margin-top:-8px">${l.division} · ${l.research_area}</p>
+    <div class="grid cols-2">${[...labs].sort((a, b) => b.active - a.active).map((l) => html`<div class="card"><div class="card-head">
+      <h2><a class="title-cell" href="#/access/labs/${encodeURIComponent(l.slug)}">${l.name}</a></h2>
+      <span class="row" style="gap:6px">${l.active ? "" : statusChip(false)}<span class="tag">${kindLabel(l.kind)}</span></span></div>
+      <p class="small muted" style="margin-top:-8px">${[l.division, l.research_area].filter(Boolean).join(" · ") || "No division or research area"}</p>
       <h3 style="margin:10px 0 6px">Folders</h3>
       ${l.folders.length ? html`<ul class="feed">${l.folders.map((f) => html`<li><span class="path">${displayPath(f.filesystem, f.path)}</span></li>`)}</ul>` : html`<p class="small muted">None mapped.</p>`}
       <h3 style="margin:10px 0 6px">Members</h3>
-      <ul class="feed">${l.members.map((m) => html`<li><span class="avatar sm">${m.initials}</span><span style="flex:1">${m.display_name}<span class="muted small"> · ${m.role === "pi" ? (l.kind === "department" ? "Owner" : "PI") : "Delegate"}${m.active ? "" : " · inactive"}</span></span>
-        <button class="icon-btn" title="Remove ${m.display_name}" data-remove="${l.slug}|${m.username}">${icon("x")}</button></li>`)}</ul>
-      <div class="row" style="margin-top:10px"><select class="select sm" data-add-user="${l.slug}">${opt("", "Add a person…", "")}
+      ${l.members.length ? html`<ul class="feed">${l.members.map((m) => html`<li><span class="avatar sm">${m.initials}</span><span style="flex:1">${m.display_name}<span class="muted small"> · ${m.role === "pi" ? (l.kind === "department" ? "Owner" : "PI") : "Delegate"}${m.active ? "" : " · inactive"}</span></span>
+        ${l.active ? html`<button class="icon-btn" title="Remove ${m.display_name}" data-remove="${l.slug}|${m.username}">${icon("x")}</button>` : ""}</li>`)}</ul>` : html`<p class="small muted">None yet.</p>`}
+      ${l.active ? html`<div class="row" style="margin-top:10px"><select class="select sm" data-add-user="${l.slug}" aria-label="Person to add to ${l.name}">${opt("", "Add a person…", "")}
         ${people.filter((p) => p.active && !p.is_admin && !l.members.some((m) => m.username === p.username)).map((p) => opt(p.username, p.display_name, ""))}</select>
-        <select class="select sm" data-add-role="${l.slug}">${opt("delegate", "Delegate", "delegate")}${opt("pi", l.kind === "department" ? "Owner" : "PI", "")}</select>
-        <button class="btn btn-ghost btn-sm" data-add="${l.slug}">${icon("plus")}Add</button></div>
+        <select class="select sm" data-add-role="${l.slug}" aria-label="Role">${opt("delegate", "Delegate", "delegate")}${opt("pi", l.kind === "department" ? "Owner" : "PI", "")}</select>
+        <button class="btn btn-ghost btn-sm" data-add="${l.slug}">${icon("plus")}Add</button></div>`
+        : html`<p class="small muted" style="margin-top:10px">Inactive: its members do not see its folders. <a href="#/access/labs/${encodeURIComponent(l.slug)}">Reactivate it</a> to change it.</p>`}
     </div>`)}</div>`);
   const refresh = async () => { labs.splice(0, labs.length, ...(await api("admin/labs"))); render(); bind(); };
   const bind = () => {
@@ -526,4 +530,112 @@ async function labsTab(el) {
   };
   render();
   bind();
+}
+
+// ---------- A lab or department ----------
+export async function viewLab(el, slug) {
+  state.place = null;
+  renderSidebar();
+  const creating = slug === "new";
+  const lab = creating ? null : await api(`admin/labs/${encodeURIComponent(slug)}`);
+  const form = lab ? { name: lab.name, kind: lab.kind, division: lab.division, research_area: lab.research_area }
+    : { slug: "", name: "", kind: "lab", division: "", research_area: "" };
+  const inactive = lab && !lab.active;
+  const off = (cond) => (cond ? raw("disabled") : "");
+  const role = (m) => (m.role === "pi" ? (form.kind === "department" ? "Owner" : "PI") : "Delegate");
+
+  const render = () => {
+    mount(el, html`
+      <div class="page-head"><div><div class="eyebrow"><a href="#/access?tab=labs">${icon("arrowLeft")} People and access</a></div>
+        <h1>${creating ? "Add lab or department" : lab.name}</h1>
+        ${lab ? html`<p>${kindLabel(lab.kind)} · <span class="mono">${lab.slug}</span></p>`
+          : html`<p>A lab or department owns top-level folders: its PI or owner and its delegates see them, and it is charged for them.</p>`}</div>
+        ${lab ? statusChip(lab.active) : ""}</div>
+      ${inactive ? html`<div class="alert alert-warn">${icon("alert")}<div><b>The ${lab.name} is deactivated.</b>
+        <p>Its members do not see its folders. Its members and folders are kept, and its folders are still charged to it until they are moved or unmapped on <a href="#/folders">Folders and labs</a>. Reactivate it to restore its members' access, or to make changes.</p>
+        <button class="btn btn-primary btn-sm" id="reactivate" style="margin-top:8px">${icon("refresh")}Reactivate</button></div></div>` : ""}
+      <div class="grid split">
+        <div class="stack">
+          <div class="card"><div class="card-head"><h2>Details</h2></div>
+            <div class="grid cols-2">
+              <div class="field"><label for="l-slug">Slug</label>
+                ${creating ? html`<input class="input mono" id="l-slug" data-field="slug" value="${form.slug}" placeholder="e.g. ortiz_v" autocomplete="off" spellcheck="false">
+                  <span class="hint">Lowercase letters, digits, - and _. Links and import files use it, so it cannot be changed later.</span>`
+                  : html`<div class="input mono readonly">${lab.slug}</div><span class="hint">Links and import files use it; it cannot be changed.</span>`}</div>
+              <div class="field"><label for="l-name">Name</label><input class="input" id="l-name" data-field="name" value="${form.name}" placeholder="e.g. Ortiz Lab" ${off(inactive)}></div>
+              <div class="field"><label for="l-kind">Kind</label><select class="select" id="l-kind" data-field="kind" ${off(inactive)}>
+                ${opt("lab", "Lab", form.kind)}${opt("department", "Department", form.kind)}</select>
+                <span class="hint">Labs and departments can have different free tiers on <a href="#/costs">Costs</a>.</span></div>
+              <div class="field"><label for="l-division">Division</label><input class="input" id="l-division" data-field="division" value="${form.division}" placeholder="e.g. Public Health Sciences" ${off(inactive)}></div>
+              <div class="field"><label for="l-area">Research area</label><input class="input" id="l-area" data-field="research_area" value="${form.research_area}" placeholder="e.g. Biostatistics" ${off(inactive)}></div>
+            </div></div>
+          ${inactive ? "" : html`<div class="row between"><a class="btn btn-ghost" href="#/access?tab=labs">Cancel</a>
+            <button class="btn btn-primary" id="save">${icon("check")}${creating ? "Add" : "Save changes"}</button></div>`}
+        </div>
+        <aside class="stack">
+          ${lab ? html`<div class="card"><h3>Members</h3>
+            ${lab.members.length ? html`<ul class="feed" style="margin-top:6px">${lab.members.map((m) => html`<li style="padding:8px 0"><span class="avatar sm">${m.initials}</span>
+              <span style="flex:1"><a href="#/access/people/${encodeURIComponent(m.username)}">${m.display_name}</a><span class="muted small"> · ${role(m)}${m.active ? "" : " · inactive"}</span></span></li>`)}</ul>`
+              : html`<p class="small muted" style="margin-top:8px">None yet. Add members on <a href="#/access?tab=labs">Labs and departments</a> or on a person's page.</p>`}</div>
+          <div class="card"><h3>Folders</h3>
+            ${lab.folders.length ? html`<ul class="feed" style="margin-top:6px">${lab.folders.map((f) => html`<li style="padding:8px 0">${icon("folder")}<span class="mono">${displayPath(f.filesystem, f.path)}</span></li>`)}</ul>`
+              : html`<p class="small muted" style="margin-top:8px">None mapped.</p>`}
+            <a class="small" href="#/folders?lab=${encodeURIComponent(lab.slug)}">${lab.folders.length ? "Change" : "Map folders"} on Folders and labs</a></div>
+          <div class="card"><h3>Record</h3><dl class="kv" style="margin-top:10px"><dt>Added</dt><dd>${date(lab.created_at)}</dd></dl>
+            ${lab.history.length ? html`<h3 style="margin-top:14px">Recent changes</h3><ul class="feed">${lab.history.map((h) => html`<li style="padding:6px 0"><span><span class="small">${h.summary}</span><br>
+              <span class="tiny muted">${date(h.ts, true)}${h.by ? ` · ${h.by}` : ""}</span></span></li>`)}</ul>` : ""}</div>
+          ${lab.active ? html`<div class="card"><h3>Deactivate</h3>
+            <p class="small muted" style="margin-top:8px">Its members will no longer see its folders. Its members and folders are kept, unused, and come back if you reactivate it; its folders are still charged to it until you move or unmap them. Nothing is deleted.</p>
+            <button class="btn btn-warn btn-sm" id="deactivate">${icon("lock")}Deactivate</button></div>` : ""}`
+          : html`<div class="card"><h3>Next</h3><p class="small muted" style="margin-top:8px">Once it is added, give it members (a PI or owner, and delegates) on its card in
+            <i>Labs and departments</i> or on each person's page, and its top-level folders on <i>Folders and labs</i>.</p></div>`}
+        </aside>
+      </div>`);
+    bind();
+  };
+
+  const bind = () => {
+    $$("[data-field]", el).forEach((inp) => inp.addEventListener(inp.tagName === "SELECT" ? "change" : "input", () => { form[inp.dataset.field] = inp.value; }));
+    $("#save", el)?.addEventListener("click", save);
+    $("#deactivate", el)?.addEventListener("click", () => change("deactivate"));
+    $("#reactivate", el)?.addEventListener("click", () => change("reactivate"));
+  };
+
+  const save = async () => {
+    if (lab && form.kind !== lab.kind) {
+      const ok = await modal({
+        title: `Make the ${lab.name} a ${form.kind}?`,
+        body: html`<p>It will have the free tier for ${form.kind === "department" ? "departments" : "labs"} on each filesystem, unless it has its own.</p>
+          <p class="small muted">Charges are worked out from the kind a lab has now, so its past months' charges change too.</p>`,
+        confirm: `Make it a ${form.kind}`, tone: "navy",
+      });
+      if (!ok) return;
+    }
+    try {
+      const saved = await api(creating ? "admin/labs" : `admin/labs/${encodeURIComponent(slug)}`, { method: creating ? "POST" : "PUT", body: form });
+      toast(creating ? `${saved.name} added` : "Changes saved");
+      if (creating) location.hash = `#/access/labs/${encodeURIComponent(saved.slug)}`;
+      else viewLab(el, slug);
+    } catch (e) { toast(e.message, "error"); }
+  };
+
+  const change = async (what) => {
+    const n = lab.members.length;
+    const ok = await modal({
+      title: `${what === "deactivate" ? "Deactivate" : "Reactivate"} the ${lab.name}?`,
+      body: what === "deactivate"
+        ? html`<p>Its ${n ? `${num(n)} member${n === 1 ? "" : "s"}` : "members"} will no longer see its folders through it.</p>
+          <p class="small muted">Its members and folders are kept. Its folders are still charged to it until you move or unmap them on Folders and labs.</p>`
+        : html`<p>Its ${n ? `${num(n)} member${n === 1 ? "" : "s"}` : "members"} will see its folders again.</p>`,
+      confirm: what === "deactivate" ? "Deactivate" : "Reactivate", tone: "navy",
+    });
+    if (!ok) return;
+    try {
+      await api(`admin/labs/${encodeURIComponent(slug)}/${what}`, { method: "POST" });
+      toast(`${lab.name} ${what}d`);
+      viewLab(el, slug);
+    } catch (e) { toast(e.message, "error"); }
+  };
+
+  render();
 }

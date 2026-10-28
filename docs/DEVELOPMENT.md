@@ -48,6 +48,7 @@ src/pinax/
   watch.py         `pinax ingest --watch`: each new scan under a folder once, and a heartbeat for *Scans*
   onboard.py       `pinax import`: labs, people, memberships, and folder ownership from CSV (docs/IMPORT.md)
   people.py        people: adding, editing, roles, deactivation (shared by the app and the CLI)
+  labs.py          labs and departments: adding, editing, deactivation; slug rules shared with the import
   signin.py        local sign-in: password hashes, sessions, lockout
   ownership.py     who owned each top-level folder when, for charging past months
   costs.py         prices and free tiers per filesystem, from a day on
@@ -103,6 +104,7 @@ them, the person's home), and `lab` to limit home to one lab:
 | `GET /api/home`, `GET /api/history?fs=&folder=` | Folder cards and lab totals; one folder's history |
 | `GET /api/admin/overview`, `/health`, `/names`, `/snapshots`, `/labs`, `/people` | Administrator views |
 | `POST /api/admin/folders`, `POST /api/admin/labs/{slug}/members` | Folder ownership and membership changes |
+| `GET`, `PUT /api/admin/labs/{slug}`, `POST /api/admin/labs`, `POST /api/admin/labs/{slug}/deactivate` and `/reactivate` | A lab or department, with its record; adding, changing, and deactivating one |
 | `GET /api/charges?month=&lab=&history=` | A person's labs' charges for a month, with their past months |
 | `GET /api/admin/costs`, `/api/admin/costs/charges?month=&fmt=csv` | Prices and free tiers; every lab's charges for a month, or its CSV statement |
 

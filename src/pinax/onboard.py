@@ -22,20 +22,18 @@ source can write these files.
 import csv
 import getpass
 import hashlib
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from .labs import NONE, slug_problem
 from .models import AuditEvent, Filesystem, Lab, LabFolder, LabKind, LabMembership, User
 from .ownership import record_change as record_owner_change
 from .people import email_problem, username_problem
 
 ROLES = ("pi", "delegate")
-NONE = "none"  # removes a membership or unmaps a folder; no lab may use it as a slug
-SLUG = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}")
 TRUE, FALSE = {"true", "yes", "1"}, {"false", "no", "0"}
 
 # file -> (required columns, optional columns)
@@ -170,8 +168,8 @@ def plan_import(session: Session, *, labs: Path | None = None, people: Path | No
         rows = _once(_read(plan.files["labs"], "labs", P), lambda r: r["slug"], P, "lab")
         for where, r in rows:
             slug = r["slug"]
-            if slug == NONE or not SLUG.fullmatch(slug):
-                P.append(f"{where}: {slug!r} is not a usable slug (lowercase letters, digits, - and _; not 'none')")
+            if problem := slug_problem(slug):
+                P.append(f"{where}: {problem}")
                 continue
             want = {"name": r["name"]}
             if "kind" in r:
