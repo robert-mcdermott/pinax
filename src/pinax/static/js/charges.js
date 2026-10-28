@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Storage charges: what each of the person's labs and departments is charged for a month, by filesystem and
-// top-level folder, with how each charge is worked out, and their past months. Administrators pick any lab, and
-// have Chargeback: every lab's charges for a month, for finance.
+// top-level folder, with how each charge is worked out, their past months, and the next twelve at their trend.
+// Administrators pick any lab, and have Chargeback: every lab's charges for a month, for finance.
 import { api, bytes, date, emptyState, fsInfo, html, icon, kindLabel, mount, num, parseQuery, pct, placeHash, raw, roleLabel, state } from "/js/core.js";
 import { renderSidebar } from "/js/shell.js";
 
@@ -80,7 +80,29 @@ function labCard(l, data) {
       ${l.history.map((h) => html`<tr class="${h.month === data.month ? "current" : ""}"><td>${h.month === data.month ? html`<b aria-current="page">${monthName(h.month)}</b>`
         : html`<a class="rowlink" href="${link(h.month)}">${monthName(h.month)}</a>`}${h.estimated ? html` <span class="chip chip-queued">estimate</span>` : ""}</td>
         <td class="num">${sized(h.size, unit)}</td><td class="num nowrap">${charge(h.total, cur)}</td></tr>`)}</tbody></table></div>` : ""}
+    ${l.ahead ? ahead(l.ahead, cur) : ""}
   </section>`;
+}
+
+const between = (r, cur) => `${charge(r.low, cur)} – ${charge(r.high, cur)}`;
+
+/** Why a filesystem's charges ahead are at its latest size rather than a trend. */
+function noTrend(f) {
+  return f.why === "step" ? `its size changed more than usual by ${date(f.step.at)}, so its trend starts again then`
+    : `a trend needs 6 scans over 8 weeks, and there ${f.scans === 1 ? "is 1" : `are ${num(f.scans)}`}`;
+}
+
+/** A lab's charges for the next twelve months, at its trend on each filesystem. */
+function ahead(a, cur) {
+  const flat = a.filesystems.filter((f) => !f.trend);
+  return html`<h3>The next 12 months</h3>
+    <p class="small muted" style="margin-top:0">At the trend of the folders it owns now (from the last six months of scans), with the prices and free
+      tiers as scheduled: about <b>${charge(a.total.charge, cur)}</b> in all, likely ${between(a.total, cur)}.
+      ${flat.map((f) => `On ${f.fs_name}, at its size in the latest scan: ${noTrend(f)}.`).join(" ")}
+      ${a.filesystems.some((f) => !f.priced) ? "Storage on a filesystem with no price is not charged." : ""}</p>
+    <div class="table-wrap"><table class="table compact"><thead><tr><th>Month</th><th class="num">Estimate</th><th class="num">Likely between</th></tr></thead><tbody>
+    ${a.months.map((m) => html`<tr><td>${monthName(m.month)}</td><td class="num nowrap">${charge(m.charge, cur)}</td><td class="num nowrap">${between(m, cur)}</td></tr>`)}
+    </tbody></table></div>`;
 }
 
 function fsLine(f, data) {
@@ -163,6 +185,7 @@ export async function viewChargeback(el, query) {
           <td class="hide-narrow">${kindLabel(l.lab.kind)}</td><td class="num hide-narrow">${sized(size(l), unit)}</td><td class="num hide-narrow">${sized(billable(l), unit)}</td>
           <td class="num nowrap">${charge(l.total, cur)}</td></tr>`)}</tbody></table></div>`
           : emptyState("tag", "No charges", `No lab or department had storage on a scanned filesystem in ${monthName(data.month)}.`)}</div>
+      <div id="c-ahead"></div>
       ${data.unbilled.length ? html`<div class="card flush"><div class="card-head"><h2>Unbilled</h2><a class="small" href="#/folders?unmapped=1">Assign owners</a></div>
         <div class="table-wrap"><table class="table"><thead><tr><th>Folder</th><th class="hide-narrow">Filesystem</th><th class="num">Average size</th></tr></thead><tbody>
         ${data.unbilled.flatMap((u) => u.folders.map((f) => html`<tr><td>${f.folder ? html`${icon("folder")} ${f.folder}` : html`<span class="muted">(files in the root)</span>`}
@@ -170,4 +193,18 @@ export async function viewChargeback(el, query) {
     </div>`);
 
   el.querySelector("#c-month")?.addEventListener("change", (e) => { location.hash = `#/chargeback?month=${e.target.value}`; });
+  // The next twelve months take longer to work out, so they follow the month's charges.
+  const box = el.querySelector("#c-ahead");
+  mount(box, html`<div class="card"><div class="card-head"><h2>The next 12 months</h2><span class="small muted">Working out…</span></div></div>`);
+  api("admin/costs/ahead", { quiet: true }).then((a) => mount(box, a.labs ? aheadTotals(a, cur) : ""))
+    .catch((e) => { if (e.name !== "AbortError") mount(box, ""); });
+}
+
+/** Every lab's charges for the next twelve months, added up. */
+function aheadTotals(a, cur) {
+  return html`<div class="card flush"><div class="card-head"><h2>The next 12 months</h2><span class="small muted">About ${charge(a.total.charge, cur)}, likely ${between(a.total, cur)}</span></div>
+    <p class="small muted" style="margin:0;padding:0 22px 12px">Every lab's and department's charges at the trend of the folders it owns now, with the prices and free tiers as scheduled, added up.${a.without_trend
+      ? ` ${num(a.without_trend)} of the ${num(a.labs)} have no trend yet on some filesystem and are counted there at their size in the latest scan.` : ""} Storage no one owns is not counted.</p>
+    <div class="table-wrap"><table class="table"><thead><tr><th>Month</th><th class="num">Estimate</th><th class="num">Likely between</th></tr></thead><tbody>
+    ${a.months.map((m) => html`<tr><td>${monthName(m.month)}</td><td class="num nowrap">${charge(m.charge, cur)}</td><td class="num nowrap">${between(m, cur)}</td></tr>`)}</tbody></table></div></div>`;
 }

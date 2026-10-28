@@ -76,14 +76,16 @@ def fit(points: list[Point]) -> dict:
     out = {"since": iso(used[0][0]), "scans": len(used), "step": step}
     if not _enough(used):
         return {"ok": False, "why": "step" if step and _enough(recent) else "scans", **out}
-    slopes = sorted((y2 - y1) / _days(t1, t2) for i, (t1, y1) in enumerate(used) for t2, y2 in used[i + 1:] if t2 > t1)
+    xs = [_days(end, t) for t, _ in used]  # days from the latest scan (zero or less)
+    ys = [y for _, y in used]
+    slopes = sorted((ys[j] - ys[i]) / (xs[j] - xs[i]) for i in range(len(xs)) for j in range(i + 1, len(xs)) if xs[j] > xs[i])
     n, total = len(used), len(slopes)
     slope = median(slopes)
     reach = Z * sqrt(n * (n - 1) * (2 * n + 5) / 18)
     low = slopes[max(0, min(total - 1, int((total - reach) / 2) - 1))]
     high = slopes[max(0, min(total - 1, ceil((total + reach) / 2)))]
-    level = median(y - slope * _days(end, t) for t, y in used)
-    scatter = 1.4826 * median(abs(y - (level + slope * _days(end, t))) for t, y in used)
+    level = median(y - slope * x for x, y in zip(xs, ys, strict=True))
+    scatter = 1.4826 * median(abs(y - (level + slope * x)) for x, y in zip(xs, ys, strict=True))
     return {"ok": True, **out, "slope": slope, "low": min(low, slope), "high": max(high, slope), "scatter": scatter}
 
 

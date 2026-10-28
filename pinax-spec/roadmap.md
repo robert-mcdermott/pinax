@@ -632,7 +632,7 @@ when the wave starts.
 | 1 | Forecasts of size (R10, Q1) | For a filesystem, a lab or department, a person's home, and all data: the size each month for the next 12 months from the trend of the last six months of scans, with a range; at least six scans over eight weeks, or no forecast and the reason; after a large step (a cleanup, a transfer), the trend starts after it and says so; backtested: the forecast the same method gave three months earlier, against the size now; tested on synthetic histories with known growth, noise, steps, and gaps; within Q3 for a year of weekly scans of 2,000 folders | Done |
 | 2 | Forecasts in History (R10) | The forecast drawn after the last scan, set apart from the measured columns (a dashed line and a lighter range), labeled as a projection; its growth per month and its backtest beside it; in the table view and CSV; both themes and 375 pixels; colors validated | Done |
 | 3 | Capacity, and when a filesystem fills (R11) | Each filesystem's capacity, from a date on (storage is expanded): recorded by `pinax scan` from the mounted filesystem with each scan, or set by administrators; the overview shows each filesystem's size, capacity, share used, growth per month, and the month it fills, with its range, and flags one that fills soon; History draws the capacity; audited | Done |
-| 4 | What labs will pay (R12) | Each lab's and department's charges for each of the next 12 months at its trend, per filesystem, with the prices and free tiers as scheduled (a price change already set applies from its date), and the range; on *Storage charges* for lab owners, and totals for all labs on *Chargeback*; tested against the charges worked out on the forecast sizes | To come |
+| 4 | What labs will pay (R12) | Each lab's and department's charges for each of the next 12 months at its trend, per filesystem, with the prices and free tiers as scheduled (a price change already set applies from its date), and the range; on *Storage charges* for lab owners, and totals for all labs on *Chargeback*; tested against the charges worked out on the forecast sizes | Done |
 | 5 | Demo and release 0.6.0 | Capacities for the demo's filesystems, one filling within the year; the README demo script; version 0.6.0, changelog (with what was merged since 0.5.0), pull request, tag, release | To come |
 
 ### Decisions for wave 6 (proposed)
@@ -711,6 +711,25 @@ Open within the wave: the horizon and the window (12 months ahead, from six mont
      carrying its capacity.
    - *Done*: checked in the browser with a capacity set on the demo's *Fast* (69% of 160 TiB used, filling about
      July 2029): *Capacity*, the overview, and *History*.
+4. **What labs will pay (R12).**
+   - `charges.charges_ahead`: for each lab or department on each filesystem, the size of the folders it owns now
+     at their trend, less the free tier, at the price, for each stretch of the twelve calendar months after this
+     one in which neither changes; the trend and its range are straight lines, so each stretch is the exact part of
+     a line above the free tier. A day-by-day version gave the same charges to the cent and took four times as long.
+     With no trend, at the latest size, saying why. Floating point, rounded to the currency's unit: estimates, not
+     bills.
+   - `/api/charges` returns each lab's (`ahead`), shown on *Storage charges* as *The next 12 months*: the total,
+     its range, and each month's estimate and range; `/api/admin/costs/ahead` the totals for every lab
+     (`ahead_totals`), shown on *Chargeback* once the month's charges are, so the statement does not wait for it.
+   - With `bench/bench_charges.py` (2,000 folders, 200 labs, a year of weekly scans), on a laptop busy with other
+     work (the month's charges for every lab took 103 ms, against 25 ms when it is idle): 15 ms for one lab's
+     twelve months and 407 ms for every lab's, so about 100 ms when idle.
+   - Tests (`tests/test_charges_ahead.py`): every month equal, to the cent, to a charge worked out hour by hour on
+     the forecast sizes, with a price change scheduled ahead, and for a lab growing past its free tier during a
+     month; a lab without a trend at its latest size; members see their own labs', administrators every lab's,
+     the totals adding up.
+   - *Done*: checked on the demo's *Storage charges* (`fujimoto_a`: about $8,239 over the next twelve months) and
+     *Chargeback*.
 
 ## 0.7.0: cleanup plans (wave 7)
 

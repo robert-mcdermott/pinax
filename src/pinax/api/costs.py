@@ -130,12 +130,19 @@ def monthly_charges(month: str | None = None, fmt: str = "json", _: Identity = D
     return {**out, "months": charges.months(session)}
 
 
+@admin.get("/ahead")
+def charges_ahead(_: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+    """Every lab's and department's charges for the next twelve months at its trend, added up; asked for apart
+    from the month's charges, so Chargeback shows the month without waiting for it."""
+    return charges.ahead_totals(charges.charges_ahead(session), get_settings().currency)
+
+
 @router.get("/charges")
 def lab_charges(month: str | None = None, lab: str | None = None, history: bool = True,
                 identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
     """What the person's labs and departments are charged for a month (YYYY-MM; this month by default, estimated
-    to its end), by filesystem, period, and folder, with each lab's past months. Administrators may ask for any
-    lab; anyone else, for their own."""
+    to its end), by filesystem, period, and folder, with each lab's past months and its next twelve at its trend.
+    Administrators may ask for any lab; anyone else, for their own."""
     month = month or utcnow().strftime("%Y-%m")
     if identity.is_admin:
         choices = session.scalars(select(Lab).order_by(Lab.name)).all()
@@ -154,6 +161,7 @@ def lab_charges(month: str | None = None, lab: str | None = None, history: bool 
         raise HTTPException(422, str(e)) from e
     fs_ids = {f.slug: f.id for f in session.scalars(select(Filesystem))}
     past = charges.lab_history(session, ids) if history else {}
+    ahead = charges.charges_ahead(session, ids) if history else {}
     found = {r["lab"]["slug"]: r for r in out["labs"]}
     labs = []
     for c in shown:
@@ -163,7 +171,7 @@ def lab_charges(month: str | None = None, lab: str | None = None, history: bool 
         for line in row["filesystems"]:
             for f in line["folders"]:
                 f["open"] = identity.can_view_folder(fs_ids[line["fs"]], f["folder"])  # owned then, maybe not now
-        labs.append({**row, "role": identity.lab_roles.get(c.id), "history": past.get(c.slug, [])})
+        labs.append({**row, "role": identity.lab_roles.get(c.id), "history": past.get(c.slug, []), "ahead": ahead.get(c.id)})
     return {**{k: v for k, v in out.items() if k not in ("labs", "unbilled", "by_filesystem")}, "labs": labs,
             "months": charges.months(session),
             "priced": session.scalar(select(Price.id).limit(1)) is not None,

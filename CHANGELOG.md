@@ -19,6 +19,11 @@
   including an expansion scheduled ahead (audited). Use is measured by the storage's own figure where scans have
   it, else space on disk. The overview shows each filesystem's share used and when it fills, and flags one that
   fills within `PINAX_FILL_WARNING_MONTHS` (12); a filesystem's *History* draws its capacity and shows *Fills*.
+- **What labs will pay.** *Storage charges* shows each lab's charges for the next twelve months, at the trend of
+  the folders it owns now on each filesystem, with the prices and free tiers as scheduled (a price change already
+  set applies from its day), and a range; a filesystem with no trend yet is counted at the lab's latest size, and
+  says why. *Chargeback* adds them up for every lab, after showing the month. `/api/charges` returns them as
+  `ahead`, and `/api/admin/costs/ahead` the totals.
 - **Labs and departments in the app.** *People and access* adds a lab or department (*Add lab or department*: a
   slug, a name, its kind, division, and research area), and each one's page changes its details, deactivates it
   (its members stop seeing its folders; its members and folders are kept, and its folders are still charged to

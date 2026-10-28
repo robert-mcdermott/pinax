@@ -110,7 +110,7 @@ the 16th of last month; every lab has a terabyte of it free and departments none
    estimate to the month's end. Open *Storage charges* and choose last month: the price of *Fast* fell on the
    16th, and the lab's own 5 TB free tier started on the 10th, so the month is worked out in three parts, each its
    average size less what was free, at its price, for its days. *Past months* lists the months since the first
-   scan.
+   scan, and *The next 12 months* what the lab will pay if it keeps growing as it has, with a range.
 7. **Switch to Priya Natarajan** (storage administrator). *All data* shows both filesystems, the largest
    folders, the biggest changes since the previous scan (a batch of samples and an atlas in `fujimoto_a`,
    sequencing runs in `gsr_illumina`), and
@@ -129,7 +129,8 @@ the 16th of last month; every lab has a terabyte of it free and departments none
    Lindqvist Lab's exception. *Chargeback* for last month lists every lab's and department's charge, the most
    first (the Genomics Shared Resource, a department, has nothing free), the totals by filesystem, and the
    storage no one owns, most of it `scratch_legacy`; *Download CSV* is the statement for finance. This month,
-   `shared_reference` is charged to the Genomics Shared Resource from the moment it was mapped.
+   `shared_reference` is charged to the Genomics Shared Resource from the moment it was mapped. *The next 12
+   months* adds up what every lab will pay at its trend.
 10. **Storage health.** An unreadable folder, a very large directory (12,000 PNG tiles), problem file names
     (a newline, a leading dash, a Windows-reserved character, a name that is not NFC), and files owned by
     accounts that no longer exist.

@@ -104,13 +104,17 @@ def main() -> None:
             ident = identity_for(admin)
             t_lab_ahead, lab_ahead = timed(lambda: explore.history(s, ident, None, None, lab_slug="lab0001"))
             t_all_ahead, _ = timed(lambda: explore.history(s, ident, None, None))
+            t_lab_charges_ahead, _ = timed(lambda: charges.charges_ahead(s, {lab}, now=now))
+            t_all_charges_ahead, _ = timed(lambda: charges.charges_ahead(s, now=now), repeat=3)
         print(json.dumps({
             "folders": args.folders, "weekly_scans": args.weeks, "labs": args.labs, "catalog_built_s": round(built, 1),
             "month": month, "lines": sum(len(r["filesystems"]) for r in out["labs"]), "unbilled": len(out["unbilled"]),
             "ms": {"every_lab_for_a_month": round(t_month, 1), "every_lab_this_month": round(t_current, 1),
                    "one_lab_for_a_month": round(t_lab, 1), "one_lab_twelve_months": round(t_history, 1),
                    "one_lab_history_and_forecast": round(t_lab_ahead, 1),
-                   "all_data_history_and_forecast": round(t_all_ahead, 1)},
+                   "all_data_history_and_forecast": round(t_all_ahead, 1),
+                   "one_lab_next_twelve_months": round(t_lab_charges_ahead, 1),
+                   "every_lab_next_twelve_months": round(t_all_charges_ahead, 1)},
             "lab_forecast_ok": lab_ahead["forecast"]["ok"],
         }, indent=2))
 

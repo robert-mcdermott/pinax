@@ -418,6 +418,17 @@ shown worked out: a period's charge is its average billable size times its price
 its members see it whatever their role, and administrators may ask for any lab. A lab is shown the folders it was
 charged for, including ones it owned earlier in the month and has since given up, which it can no longer open.
 
+**Charges ahead** (`charges.charges_ahead`) are each lab's and department's charges for the twelve calendar months
+after this one, per filesystem: the size of the folders it owns now, at their trend (as History forecasts it), less
+the free tier scheduled, at the price scheduled, for each stretch of each month in which neither changes. The
+trend, and the low and high ends of its range, are straight lines, so each stretch is worked out exactly (the part
+of the line above the free tier), with the low and high ends giving the range. A lab with no trend on a filesystem
+(too few scans, or soon after a step) is counted there at its size in the latest scan, and says why. These are
+estimates, in floating point, rounded to the currency's unit; they are not bills. *Storage charges* shows a lab's
+next twelve months, and *Chargeback* every lab's added up (`/api/admin/costs/ahead`, asked for after the month, so
+the month shows at once; adding up the ranges overstates the range); storage no one owns is not counted. With
+2,000 folders and 200 labs, one lab's twelve months take about 15 ms, and every lab's about 100 ms.
+
 ## Security
 
 - **Identity**, three ways (`PINAX_AUTH_MODE`):
