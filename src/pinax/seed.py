@@ -402,7 +402,7 @@ REMOVED = {2: [("fast", "chen_l/tmp"), ("fast", "haddad_n/models/checkpoints")]}
 MOVED = {3: [("fast", "bennett_k/imaging/2024_lightsheet", "haddad_n/datasets/2024_lightsheet_bennett")]}
 COMPRESSED = {5: [("fast", "lindqvist_h/wgs/2024_germline/fastq_uncompressed", "lindqvist_h/wgs/2024_germline/fastq")]}
 
-# The six months in a sentence each, printed by the seed (and listed in the README).
+# The six months in a sentence each, printed by the seed (and listed in docs/DEMO.md).
 MONTHS = {
     2: "the Fujimoto Lab's Cell Ranger results arrive; the Chen and Haddad labs delete temporary files and checkpoints",
     3: "a light-sheet project moves from the Bennett Lab to the Haddad Lab",

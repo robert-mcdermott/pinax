@@ -108,8 +108,10 @@ def main() -> None:
         from .config import get_settings
         from .seed import run_seed
 
-        if get_settings().environment == "prod":
-            print("error: refusing to seed when PINAX_ENVIRONMENT=prod", file=sys.stderr)
+        env = get_settings().environment
+        if env != "demo":  # a dev or prod catalog holds real data, which seeding would delete
+            print(f"error: pinax seed deletes the catalog and indexes in PINAX_VAR_ROOT, so it runs only when "
+                  f"PINAX_ENVIRONMENT=demo, not {env}", file=sys.stderr)
             sys.exit(2)
         run_seed(scale=args.scale)
     elif args.command == "filesystem":

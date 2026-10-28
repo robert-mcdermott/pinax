@@ -12,7 +12,8 @@ __pycache__/
 # fs-inventory binary (scripts/install-fs-inventory.sh)
 /bin/
 
-# Pinax runtime data: catalog, snapshot indexes, scans, demo filesystems
+# Pinax runtime data: catalog, snapshot indexes, scans, demo filesystems, and real data (docs/SETUP.md)
 /var/
 /scans/
 /demo/
+/data/
