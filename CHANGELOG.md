@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Labs and departments in the app.** *People and access* adds a lab or department (*Add lab or department*: a
+  slug, a name, its kind, division, and research area), and each one's page changes its details, deactivates it
+  (its members stop seeing its folders; its members and folders are kept, and its folders are still charged to
+  it), and reactivates it, with its members, folders, and recent changes. Every change is audited as the import's
+  are (`lab.created`, `lab.updated`, and `lab.deactivated`, `lab.reactivated`), and slugs follow the import's
+  rules. Changing a lab's kind asks first, since its free tier for past months changes too.
+
 ## 0.5.0 (2026-10-27)
 
 Fifth release (wave 5, "costs and chargeback"): what storage costs each lab and department. Administrators set a

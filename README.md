@@ -33,7 +33,8 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
 - **For IT**: an overview of every filesystem, the largest folders and biggest changes, unmapped folders,
   storage health (scan errors, very large directories, small-file hotspots, problem file names, deleted
   owners), the scan history, and people and access: add people, change their details, lab memberships, and
-  administrator role, and deactivate and reactivate them, every change audited; costs: each filesystem's price
+  administrator role, and deactivate and reactivate them; add labs and departments, change their details, and
+  deactivate and reactivate them; every change audited; costs: each filesystem's price
   per month and the free tiers for labs and departments, from a day on; and chargeback: every lab's and
   department's charges for a month, totals by filesystem, the storage no one owns, and a CSV statement for finance.
 - **Sign-in three ways**: the demo's persona switcher, to show Pinax with the seeded people (no setup; refused in
@@ -165,7 +166,10 @@ the 16th of last month; every lab has a terabyte of it free and departments none
 13. **People and access.** *Add person*: a username, a name, an email, and a lab; the panel shows the folders
     they will see. Grant or remove the storage administrator role. *Deactivate* them, and they cannot sign in (their
     access is kept, unused); *Reactivate* restores it. Each change is in the person's record and the audit log.
-    The *Labs and departments* tab lists each lab's folders and members.
+    On the *Labs and departments* tab, each lab's folders and members; *Add lab or department* adds one (a slug, a
+    name, and whether it is a lab or a department, which decides its free tier), and its page changes its details
+    or deactivates it: its members stop seeing its folders, which stay its own (and charged to it) until they are
+    moved.
 14. **Import from CSV.** In a terminal, `uv run pinax import examples/import` lists the 14 changes the example
     files would make: two departments, a lab, three people, their memberships, and owners for the three unmapped
     folders. Add `--apply`, and *Folders and labs* shows no unmapped folders; every change is in the audit log.

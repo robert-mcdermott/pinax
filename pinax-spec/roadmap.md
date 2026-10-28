@@ -16,9 +16,10 @@ decisions taken are recorded here. Later waves are outlined at the end.
 **Progress** is marked here as each slice is committed: done, next or to come. Each requirement's status is
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
-**Where things stand:** waves 1 to 4 are released as 0.1.0 to 0.4.0 (tags on `main`). Wave 5, costs and chargeback,
-is done as 0.5.0, for merging to `main` and tagging `v0.5.0`. The production pilot needs production storage, which
-will not be reachable for some time, so it waits as wave 6; work that needs no production storage comes first.
+**Where things stand:** waves 1 to 5 are released as 0.1.0 to 0.5.0 (tags on `main`). Since 0.5.0, labs and
+departments can be added, changed, and deactivated in the app (branch `labs`), so a site needs no CSV files at
+all. The production pilot needs production storage, which will not be reachable for some time, so it waits as
+wave 6; work that needs no production storage comes first.
 
 The order follows one principle:
 1. **Trust first.** Totals that agree with an independent computation on every directory, and that say when

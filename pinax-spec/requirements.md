@@ -76,7 +76,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | --- | --- | --- |
 | A1 | People see only the top-level folders their active labs own, checked on the server for every request; others' folders answer 404; paths must be canonical | done (wave 1, slice 3: tests cover prefixes, `..`, other roots) |
 | A2 | Storage administrators see every filesystem and folder | done (wave 1, slice 3) |
-| A3 | Labs and departments own top-level folders (one owner each), the same model as Tundra; changes audited | done (wave 1, slice 6) |
+| A3 | Labs and departments own top-level folders (one owner each), the same model as Tundra; changes audited | done (wave 1, slice 6; after 0.5.0: added, changed, deactivated, and reactivated in the app, as well as by import) |
 | A4 | Demo identity; trust a single sign-on proxy's header in production | done (wave 1, slice 1; wave 2, slice 6: only from trusted proxies, checked behind oauth2-proxy 7.15) |
 | A5 | Import labs, people, memberships, and folder ownership in bulk | done (wave 2, slice 5: `pinax import`, docs/IMPORT.md) |
 | A6 | Single sign-on with roles from directory groups; membership synced from the directory | planned (wave 7) |
