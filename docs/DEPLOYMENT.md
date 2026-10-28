@@ -1,6 +1,7 @@
 # Deployment
 
-Installing Pinax on a Linux server: the services, single sign-on, scans, upgrades, sizing, and operations.
+Installing Pinax on a Linux server: the services, single sign-on, scans and keeping them, upgrades, sizing, backups,
+charges and statements, and operations.
 The files this guide installs are in `deploy/`. This guide is checked against the tests and a local run; the
 pilot installation (wave 6 in `pinax-spec/roadmap.md`) will confirm it on a real server.
 
@@ -103,8 +104,9 @@ pinax import /srv/pinax/onboarding --apply
 ```
 
 Usernames must be what the sign-on proxy sends (step 6): with Entra ID and the default header, the user
-principal name, such as `jdoe@example.org`. People can also be added and changed one at a time under *People and
-access*, and folders mapped under *Folders and labs*. Someone must be added, and active, before they can sign in.
+principal name, such as `jdoe@example.org`. People, labs, and departments can also be added and changed one at a
+time under *People and access*, and folders mapped under *Folders and labs*. Someone must be added, and active,
+before they can sign in.
 
 ### 5. The services
 
@@ -238,8 +240,11 @@ Notes:
 - `fs-inventory probe /fh/fast --threads 16,32,64,128` finds a good thread count without writing anything;
   `PINAX_SCAN_THREADS` sets it for `pinax scan`.
 - An interrupted scan can be continued with `fs-inventory resume`; the watcher waits for it.
-- Keep scan folders as long as you may want to rebuild their indexes ([Upgrading](#upgrading)). Pinax reads only
-  the parts a scan's manifest lists, so leftovers of an interrupted run in the folder are ignored.
+- Pinax never deletes scan folders. Keep the scan of every snapshot that still has its index (the newest
+  `PINAX_KEEP_SNAPSHOTS` of each filesystem), so it can be rebuilt after an upgrade and checked; once a snapshot
+  is pruned, its scan is of no further use to Pinax and can be deleted. `pinax snapshots` lists each snapshot's
+  status (`ready` or `pruned`) and scan folder. See [What Pinax keeps](ARCHITECTURE.md#what-pinax-keeps).
+- Pinax reads only the parts a scan's manifest lists, so leftovers of an interrupted run in the folder are ignored.
 - fs-inventory does not enter other filesystems mounted below the root unless asked. If labs' folders are their
   own filesystems (filesets, exports, automounts), scan with `--cross-mounts` (add it to `PINAX_SCAN_EXTRA_ARGS`);
   otherwise each is counted as a folder not read, with nothing in it, and Pinax says its totals are lower bounds.
@@ -274,7 +279,8 @@ without what the new format adds, so `pinax rebuild --outdated` builds them agai
 (each one is compared with the snapshot before it),
 in place: each snapshot stays available on its old index until the new one replaces it, and keeps it if the build
 fails. The web app opens rebuilt indexes without a restart. `pinax rebuild SNAPSHOT_ID` rebuilds one, for example
-one whose index was lost.
+one whose index was lost. Rebuilding needs the snapshot's scan: a snapshot whose scan folder was deleted keeps its
+old index, without what the new format adds, and the rebuild says so.
 
 The catalog has no migrations yet (they come with PostgreSQL, in wave 7): new tables are created at start-up,
 and so are new columns of existing tables (each new column is nullable or has a default); a release that changes
@@ -284,25 +290,71 @@ anything else says so, and pilot catalogs are then re-created from the import fi
 
 | Item | Rule of thumb |
 |---|---|
-| fs-inventory scan output | about 40 bytes per entry (40 GB per billion) |
+| fs-inventory scan output | about 40 bytes per entry (40 GB per billion), for each scan kept; Pinax never deletes them ([Scans](#scans)) |
 | Snapshot index | about 56 bytes per file (56 GB per billion), times `PINAX_KEEP_SNAPSHOTS` (6) |
 | Index build | about 1.2 seconds per million files on 10 cores (100 million in two minutes, a billion in about 20 minutes, measured on synthetic data); 8 GB of memory is enough, spilling beside the index beyond it, and more is no faster |
 | Query memory | `PINAX_QUERY_MEMORY_LIMIT` per open index (4 GB at most), up to 8 open |
-| Catalog | tiny: one row per top-level folder per scan for history |
+| Catalog | small: about one row per top-level folder per scan for history (2,000 folders scanned weekly add about 100,000 rows a year) |
 
-Put `/var/lib/pinax/snapshots` on fast local SSD or NVMe: indexes are read with many small range requests.
+Put `/var/lib/pinax/snapshots` on fast local SSD or NVMe: indexes are read with many small range requests. Scans
+are read in one pass, at ingest and rebuild, so they can live on slower, cheaper disk: point `PINAX_SCAN_ROOT` there,
+and add it to the units' `ReadWritePaths`. For a billion-file filesystem with the defaults, six indexes take about
+340 GB and six scans about 240 GB, plus any older scans not yet deleted.
 
 ## Catalog database
 
-SQLite in WAL mode, in `/var/lib/pinax`, suits a single server. PostgreSQL (`PINAX_DATABASE_URL`, with the
-`psycopg` driver added) works for a fresh catalog; it and migrations are planned for wave 7.
+The catalog is SQLite in WAL mode, `/var/lib/pinax/pinax.db`: a file the Pinax processes open themselves, with no
+database server to run, which suits one server running the web app and the watcher. It holds everything that
+cannot be made again (see [What Pinax keeps](ARCHITECTURE.md#what-pinax-keeps)), so back it up.
+
+Wave 7 moves it to PostgreSQL with migrations, so that any schema change can upgrade a production catalog in
+place, more than one machine can run Pinax against one catalog, and IT's usual database backups and replication
+apply ([The catalog database](ARCHITECTURE.md#the-catalog-database)). Until then production uses SQLite;
+`PINAX_DATABASE_URL` can point at PostgreSQL for a fresh catalog (with the `psycopg` driver added), untested and
+without migrations.
 
 ## Backups
 
-- **Catalog**: back up `/var/lib/pinax/pinax.db` (people, labs, folder ownership, snapshot records, folder
-  history), and keep the import files. It is small.
-- **Indexes**: optional; `pinax rebuild` makes them again from the scans.
-- **Scans**: keep the ones you may rebuild from, or want to compare later.
+- **Catalog**: back up `/var/lib/pinax/pinax.db`, daily. It is the only part that cannot be made again: people,
+  labs, memberships, folder ownership and its history, snapshot records, folder history for every scan, prices
+  and free tiers, password hashes, and the audit log. It is small. Copying the file while Pinax runs can catch it
+  half-written, so use SQLite's online backup (the `sqlite3` package), which is safe at any time:
+
+  ```bash
+  sudo install -d -o pinax -g pinax -m 0750 /var/lib/pinax/backup
+  ```
+
+  ```bash
+  sudo -u pinax sqlite3 /var/lib/pinax/pinax.db ".backup '/var/lib/pinax/backup/pinax-$(date +%F).db'"
+  ```
+
+  Then copy the backup off the server. To restore, stop `pinax-web` and `pinax-ingest`, put the backup in place
+  of `pinax.db`, delete `pinax.db-wal` and `pinax.db-shm`, and start them again. Keep the import files too.
+- **Indexes**: optional; `pinax rebuild` makes each again from its snapshot's scan, if that is kept.
+- **Scans**: keep those of snapshots that still have their index ([Scans](#scans)); the rest can be deleted.
+- A catalog backup holds top-level folder names and people's names and emails; copies of indexes or scans hold
+  every file and folder name and owner names. Protect them as you would the filesystem's own metadata.
+
+## Charges and statements
+
+Administrators set prices and free tiers on *Costs*; labs see their charges under *Storage charges*, and
+*Chargeback* has every lab's for a month, with a CSV statement for finance. Things to know when supporting them:
+
+- **Statements are worked out when asked, not stored.** A month is final once it has ended, but some changes
+  reach back into it: a price or free tier added or removed from a day in that month or before, and a scan dated
+  in that month that is ingested late. Moving a folder to another lab takes effect from that moment, so it does not
+  change past months. Download the CSV when you send it to finance, and keep it.
+- **A lab's kind has no history.** Charges use whether a lab is a lab or a department now, so changing it changes
+  which free tier its past months had. *People and access* asks before the change.
+- **Ownership history starts with 0.5.0.** A folder that changed owner before the upgrade to 0.5.0 is charged to
+  its current owner for earlier months.
+- **Deactivating a lab does not stop its charges.** Its folders stay mapped to it, so they are charged to it until
+  they are moved or unmapped on *Folders and labs*.
+- **Folders no one owns are not charged.** *Chargeback* lists them as unbilled; map them to a lab or department.
+- **The month in progress is an estimate**, as if the latest scan held until the month's end; statements for it
+  are marked `estimate`.
+
+How a charge is worked out is in [ARCHITECTURE.md](ARCHITECTURE.md#costs).
 
 ## Monitoring and operations
 
@@ -316,7 +368,19 @@ to the journal (`journalctl -u pinax-web -u pinax-ingest`).
 | A failed or skipped scan | *Scans* shows the error; fix the cause and run `pinax ingest` on the scan |
 | Automatic ingest *not responding* | `systemctl status pinax-ingest` and its journal |
 | Too little disk for indexes | Lower `PINAX_KEEP_SNAPSHOTS`; pruning runs after every ingest |
+| Scan folders filling the disk | Pinax never deletes them: delete the folders of pruned snapshots (`pinax snapshots` lists each one's status and folder) |
+| An index was lost or damaged | `pinax rebuild SNAPSHOT_ID`, from its scan; `/api/health` is `degraded` and counts `indexes_missing` while one is missing |
+| Someone forgot their password, or is locked out (local sign-in) | Their page under *People and access*, *Set a new temporary password*; or `pinax user password USERNAME` |
+| Read the audit log | Each person's and lab's page shows its recent changes, and *All data* the latest under *Recent activity*; the whole log is the catalog's `audit_event` table (below) |
+| A lab asks why a past month's charge changed | See [Charges and statements](#charges-and-statements) |
 | Someone cannot see their lab's data | Check *People and access* (membership) and *Folders and labs* (the folder is mapped to their lab) |
 | Someone gets *401* after signing in | Their username (the header named by `PINAX_AUTH_HEADER`) is not an active person in the catalog |
 | A folder shows "could not be read completely" | The scanner lacked permission somewhere below it; see *Storage health* |
 | Move to a new fs-inventory release | `scripts/install-fs-inventory.sh --version vX.Y.Z`; Pinax reads schema versions 2 and 3 |
+
+The whole audit log, newest first (every change in the app, by import, and from the command line, and every
+sign-in with local sign-in; never a password):
+
+```bash
+sudo -u pinax sqlite3 /var/lib/pinax/pinax.db "SELECT ts, action, summary FROM audit_event ORDER BY ts DESC LIMIT 100"
+```
