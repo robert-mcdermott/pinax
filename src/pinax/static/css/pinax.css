@@ -767,6 +767,7 @@ pre.json { background: var(--surface-2); color: var(--text); border: 1px solid v
 .charge-folders li > :first-child { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
 .charge-folders svg { width: 14px; height: 14px; flex: none; color: var(--text-muted); }
 .table tr.current td { background: var(--accent-tint); }
+.table tr.total td { border-top: 2px solid var(--border-strong); }
 .swatch-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 8px; vertical-align: -1px; }
 .ramp-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--text-muted); margin-top: 12px; align-items: center; }
 .ramp-legend .lt { font-weight: 700; color: var(--text); margin-right: 2px; }
@@ -837,6 +838,7 @@ pre.json { background: var(--surface-2); color: var(--text); border: 1px solid v
   .topbar { gap: 10px; padding: 0 12px 0 4px; }
 }
 /* Columns a narrow screen can do without, because the page shows the same elsewhere. */
+@media (min-width: 601px) { .hide-wide { display: none; } }  /* what a hidden column showed, on narrow screens */
 @media (max-width: 600px) {
   .hide-narrow { display: none; }
   .charge-total { align-items: flex-start; }

@@ -6,7 +6,7 @@ import {
 } from "/js/core.js";
 import { folderCard, renderSidebar } from "/js/shell.js";
 import { viewChanged } from "/js/changed.js";
-import { charge, viewCharges } from "/js/charges.js";
+import { charge, viewChargeback, viewCharges } from "/js/charges.js";
 import { viewCosts } from "/js/costs.js";
 import { viewChanges } from "/js/changes.js";
 import { viewExplore } from "/js/explore.js";
@@ -76,6 +76,7 @@ const routes = [
   [/^#\/scans$/, viewScans],
   [/^#\/costs$/, viewCosts],
   [/^#\/charges(\?.*)?$/, viewCharges],
+  [/^#\/chargeback(\?.*)?$/, viewChargeback],
   [/^#\/access(\?.*)?$/, viewAccess],
   [/^#\/access\/people\/([^?]+)$/, viewPerson],
 ];

@@ -17,8 +17,8 @@ decisions taken are recorded here. Later waves are outlined at the end.
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
 **Where things stand:** waves 1 to 4 are released as 0.1.0 to 0.4.0 (tags on `main`). Wave 5, costs and chargeback,
-is under way on `wave5`: prices and free tiers, monthly charges, and what labs pay are done; chargeback for
-finance is next. The production
+is under way on `wave5`: prices and free tiers, monthly charges, what labs pay, and chargeback for finance are
+done; the demo and release 0.5.0 are next. The production
 pilot needs production storage, which will not be reachable for some time, so it waits as wave 6; work that needs
 no production storage comes first.
 
@@ -512,8 +512,8 @@ needs no production storage, and the demo's six months of scans make six months 
 | 1 | Prices and free tiers (R8) | For each filesystem, a price per month per GB, GiB, TB, or TiB, from a date on (earlier prices kept); a free tier per filesystem for labs, and one for departments (none allowed), with exceptions for particular labs; one currency (`PINAX_CURRENCY`); set by administrators on a *Costs* page, every change audited; tested | Done |
 | 2 | Monthly charges (R8, Q1) | For each lab or department and filesystem, each month: the time-weighted average size from folder history (each scan's size holds until the next), less the free tier, times the price in effect, worked out day by day; the current month estimated to its end; tested against brute force over scan dates, price changes, free tiers, and folders changing owner | Done |
 | 3 | What labs pay (R8) | For lab owners and members: this month's estimate and past months, by filesystem and top-level folder, with how each charge is worked out; a figure on the home page; both themes and 375 pixels | Done |
-| 4 | Chargeback for finance (R8) | For administrators: every lab's and department's charges for a month, storage no one owns (unbilled), totals by filesystem, and a CSV statement; within Q3 for a year of weekly scans of 2,000 folders | Next |
-| 5 | Demo and release 0.5.0 | Prices and free tiers in the demo seed; the README demo script; version 0.5.0, changelog, pull request, tag, release | To come |
+| 4 | Chargeback for finance (R8) | For administrators: every lab's and department's charges for a month, storage no one owns (unbilled), totals by filesystem, and a CSV statement; within Q3 for a year of weekly scans of 2,000 folders | Done |
+| 5 | Demo and release 0.5.0 | Prices and free tiers in the demo seed; the README demo script; version 0.5.0, changelog, pull request, tag, release | Next |
 
 ### Decisions for wave 5
 
@@ -578,6 +578,24 @@ rounded (for now, half up to the cent, once per lab and filesystem, unless finan
      of the month, and the periods add up to the line; departments with none free; the month in progress, its
      history, and the months before.
    - *Done*: checked in the browser in both themes and at 375 pixels, with prices set on the demo and without.
+4. **Chargeback for finance (R8).**
+   - *Chargeback* (`js/charges.js`, under Administration): for a month, the total, how many labs and departments
+     are charged, and the storage no one owns; totals by filesystem with the prices that applied; every lab and
+     department, the most first, each leading to its own *Storage charges*; and the unbilled folders, leading to
+     *Folders and labs*. Notes for a month in progress and for storage with no price.
+   - The statement: `/api/admin/costs/charges?month=&fmt=csv`, a row for each lab or department on each filesystem
+     and one for each filesystem's unbilled storage: average and charged size in bytes and in the price's unit
+     (exact), the prices that applied, the charge, the currency, and whether the month is final or an estimate. The
+     file is named for the month (`pinax-charges-2026-09.csv`, or `-estimate`).
+   - Speed: sizes are summed in whole byte-microseconds and divided once, ownership is read as rows, and one lab's
+     months read only the folders it ever had. On a year of weekly scans of 2,000 folders and 200 labs
+     (`bench/bench_charges.py`), every lab for a month takes about 25 ms (49 ms before) and one lab's twelve
+     months about 50 ms (566 ms before), within Q3's 100 ms; ten times as many folders take ten times as long
+     (`docs/ARCHITECTURE.md`).
+   - Tests: totals by filesystem equal their lines; the statement has a row for each line, its charges add up to
+     the month's total, its sizes are exact in the price's unit, unbilled and unpriced rows, a month in progress
+     marked as an estimate; administrators only.
+   - *Done*: checked in the browser in both themes and at 375 pixels.
 
 ## Later waves (outlined)
 

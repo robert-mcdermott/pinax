@@ -2,9 +2,11 @@
 """Costs: each filesystem's prices and free tiers, for administrators, from a day on, every change audited; and
 what each lab or department is charged, for its members (and administrators)."""
 
+import csv
+import io
 from fractions import Fraction
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -107,15 +109,24 @@ def remove_free_tier(fs: str, tier_id: int, identity: Identity = Depends(require
 
 
 @admin.get("/charges")
-def monthly_charges(month: str | None = None, _: Identity = Depends(require_admin),
+def monthly_charges(month: str | None = None, fmt: str = "json", _: Identity = Depends(require_admin),
                     session: Session = Depends(get_session)):
     """Every lab's and department's charges for a month (YYYY-MM; this month by default, estimated to its end), by
-    filesystem, with the storage no one owns, and the months there are scans for."""
+    filesystem, with the storage no one owns, and the months there are scans for. fmt=csv downloads the month's
+    statement."""
     month = month or utcnow().strftime("%Y-%m")
     try:
         out = charges.monthly_charges(session, month)
     except ValueError as e:
         raise HTTPException(422, str(e)) from e
+    if fmt == "csv":
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        w.writerow(charges.STATEMENT_COLUMNS)
+        w.writerows(charges.statement_rows(out))
+        name = f"pinax-charges-{month}{'-estimate' if out['estimated'] else ''}.csv"
+        return Response(buf.getvalue(), media_type="text/csv",
+                        headers={"Content-Disposition": f'attachment; filename="{name}"'})
     return {**out, "months": charges.months(session)}
 
 

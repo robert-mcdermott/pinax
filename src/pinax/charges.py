@@ -58,6 +58,10 @@ def money(value: Fraction, currency: str) -> Decimal:
         return d.quantize(Decimal(1) if currency in WHOLE else Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
+# While a month is worked out, sizes are summed as whole byte-microseconds (and lengths as microseconds), which
+# is fast and exact; `Line.finish` divides them by the month's length once, into fractions.
+
+
 @dataclass
 class Period:
     """A run of a line's month with one price and one free tier: how its charge is worked out. Sizes and the
@@ -68,9 +72,9 @@ class Period:
     price: Price | None
     free: int
     free_unit: str | None  # as the free tier was given; None: no free tier
-    share: Fraction = Fraction(0)
-    size: Fraction = Fraction(0)
-    billable: Fraction = Fraction(0)
+    share: Fraction | int = 0
+    size: Fraction | int = 0
+    billable: Fraction | int = 0
     charge: Fraction = Fraction(0)
 
 
@@ -78,13 +82,22 @@ class Period:
 class Line:
     """One lab's storage and charge on one filesystem for one month. Sizes are averages over the month, in bytes."""
 
-    size: Fraction = Fraction(0)
-    billable: Fraction = Fraction(0)  # after the free tier
+    size: Fraction | int = 0
+    billable: Fraction | int = 0  # after the free tier
     charge: Fraction = Fraction(0)  # in the currency, exact
-    folders: dict[str, Fraction] = field(default_factory=lambda: defaultdict(Fraction))
+    folders: dict[str, Fraction | int] = field(default_factory=lambda: defaultdict(int))
     free: set[int] = field(default_factory=set)  # free tiers (bytes) that applied
-    unpriced: Fraction = Fraction(0)  # share of the month with storage but no price
+    unpriced: Fraction | int = 0  # share of the month with storage but no price
     periods: list[Period] = field(default_factory=list)
+
+    def finish(self, month: int, per_byte: dict[int, Fraction]) -> None:
+        """From sums over a month `month` microseconds long to averages over it, and the charge."""
+        self.size, self.billable, self.unpriced = (Fraction(v, month) for v in (self.size, self.billable, self.unpriced))
+        self.folders = {k: Fraction(v, month) for k, v in self.folders.items()}
+        for p in self.periods:
+            p.share, p.size, p.billable = (Fraction(v, month) for v in (p.share, p.size, p.billable))
+            p.charge = p.billable * per_byte[p.price.id] if p.price else Fraction(0)
+        self.charge = sum((p.charge for p in self.periods), Fraction(0))
 
     def period(self, start: datetime, end: datetime, price: Price | None, free: int, unit: str | None) -> Period:
         """The period [start, end) belongs to: the last one, when it runs on with the same price and free tier."""
@@ -129,21 +142,25 @@ class _FreeTiers:
         return {t for s in [*self.kinds.values(), *self.own.values()] for t in s.starts}
 
 
-def filesystem_lines(session: Session, fs: Filesystem, start: datetime, end: datetime,
-                     labs: dict[int, Lab]) -> tuple[dict[int, Line], Line, list[dict]]:
-    """Each lab's line on `fs` for [start, end), the unbilled line (lab None), and the prices that applied."""
+def filesystem_lines(session: Session, fs: Filesystem, start: datetime, end: datetime, labs: dict[int, Lab],
+                     only: set[int] | None = None) -> tuple[dict[int, Line], Line, list[dict]]:
+    """Each lab's line on `fs` for [start, end), the unbilled line (lab None), and the prices that applied. With
+    `only`, those labs' lines alone, and nothing unbilled."""
     snaps = session.execute(select(Snapshot.id, Snapshot.started_at).where(
         Snapshot.filesystem_id == fs.id, Snapshot.status.in_(SCANNED), Snapshot.started_at < end)
         .order_by(Snapshot.started_at)).all()
     first = max((i for i, s in enumerate(snaps) if s.started_at <= start), default=0)
     snaps = snaps[first:]
+    owners = Owners(session, fs.id)
     sizes: dict[int, dict[str, int]] = defaultdict(dict)
     if snaps:
-        for sid, folder, b in session.execute(select(FolderStat.snapshot_id, FolderStat.folder, FolderStat.bytes)
-                                              .where(FolderStat.snapshot_id.in_([s.id for s in snaps]))):
+        stats = select(FolderStat.snapshot_id, FolderStat.folder, FolderStat.bytes).where(
+            FolderStat.snapshot_id.in_([s.id for s in snaps]))
+        if only is not None:  # just the folders those labs ever had
+            stats = stats.where(FolderStat.folder.in_(owners.ever_owned_by(only)))
+        for sid, folder, b in session.execute(stats):
             sizes[sid][folder] = b
     scan_times = [s.started_at for s in snaps]
-    owners = Owners(session, fs.id)
     price_rows = session.scalars(select(Price).where(Price.filesystem_id == fs.id)).all()
     prices = _Schedule([(p.starts, p) for p in price_rows])
     per_byte = {p.id: Fraction(p.micros, 10**6 * UNITS[p.unit]) for p in price_rows}  # per month
@@ -158,32 +175,32 @@ def filesystem_lines(session: Session, fs: Filesystem, start: datetime, end: dat
         i = bisect_right(scan_times, a) - 1
         if i < 0:
             continue  # before the filesystem's first scan
-        share = Fraction((b - a) // US, month)
+        span = (b - a) // US
         price = prices.at(a)
         held: dict[int, int] = defaultdict(int)
         for folder, size in sizes[snaps[i].id].items():
             lab_id = owners.at(folder, a) if folder else None
-            line = lines[lab_id] if lab_id in labs else unbilled
-            line.folders[folder] += size * share
-            if line is unbilled:
-                unbilled.size += size * share
-            else:
-                held[lab_id] += size
+            if lab_id in labs:
+                if only is None or lab_id in only:
+                    lines[lab_id].folders[folder] += size * span
+                    held[lab_id] += size
+            elif only is None:
+                unbilled.folders[folder] += size * span
+                unbilled.size += size * span
         for lab_id, size in held.items():
             line, (free, unit) = lines[lab_id], tiers.at(labs[lab_id], a)
             billable = max(0, size - free)
-            charge = 0 if price is None else billable * per_byte[price.id] * share
-            line.size += size * share
-            line.billable += billable * share
-            line.charge += charge
+            line.size += size * span
+            line.billable += billable * span
             line.free.add(free)
             if price is None and size:
-                line.unpriced += share
+                line.unpriced += span
             period = line.period(a, b, price, free, unit)
-            period.share += share
-            period.size += size * share
-            period.billable += billable * share
-            period.charge += charge
+            period.share += span
+            period.size += size * span
+            period.billable += billable * span
+    for line in [*lines.values(), unbilled]:
+        line.finish(month, per_byte)
     applied = []  # the prices in effect during the month, each for the part of it it covered
     ordered = sorted(price_rows, key=lambda r: r.starts)
     for p, nxt in pairwise([*ordered, None]):
@@ -234,19 +251,21 @@ def monthly_charges(session: Session, month: str, *, now: datetime | None = None
     totals: dict[int, Decimal] = defaultdict(lambda: zero)
     unbilled, by_fs = [], []
     for fs in session.scalars(select(Filesystem).where(Filesystem.active.is_(True)).order_by(Filesystem.name)):
-        lines, nobody, prices = filesystem_lines(session, fs, start, end, labs)
-        fs_total = zero
+        lines, nobody, prices = filesystem_lines(session, fs, start, end, labs, labs_only)
+        fs_total, held, billable = zero, Fraction(0), Fraction(0)
         for lab_id, line in lines.items():
-            if labs_only is not None and lab_id not in labs_only:
-                continue
             j = _line_json(line, fs, prices, currency)
             by_lab[lab_id].append(j)
             totals[lab_id] += Decimal(j["charge"])
             fs_total += Decimal(j["charge"])
+            held += line.size
+            billable += line.billable
         if labs_only is None:
             if nobody.size:
                 unbilled.append(_line_json(nobody, fs, prices, currency))
-            by_fs.append({"fs": fs.slug, "fs_name": fs.name, "charge": str(fs_total), "prices": prices})
+            by_fs.append({"fs": fs.slug, "fs_name": fs.name, "charge": str(fs_total), "prices": prices,
+                          "size": _bytes(held), "billable": _bytes(billable), "unbilled": _bytes(nobody.size),
+                          "unpriced": any(line.unpriced for line in lines.values())})
     rows = [{"lab": {"slug": labs[i].slug, "name": labs[i].name, "kind": labs[i].kind, "active": labs[i].active},
              "total": str(totals[i]), "filesystems": by_lab[i]} for i in by_lab]
     rows.sort(key=lambda r: (-Decimal(r["total"]), r["lab"]["name"]))
@@ -281,3 +300,26 @@ def lab_history(session: Session, lab_ids: set[int], *, now: datetime | None = N
             out[row["lab"]["slug"]].append({"month": month, "total": row["total"], "estimated": m["estimated"],
                                             "size": sum(f["size"] for f in row["filesystems"])})
     return dict(out)
+
+
+STATEMENT_COLUMNS = ["month", "status", "lab", "lab_name", "kind", "filesystem", "average_bytes", "charged_bytes",
+                     "unit", "average", "charged", "prices", "charge", "currency"]
+
+
+def statement_rows(out: dict) -> list[list]:
+    """A month's charges (from `monthly_charges`) as a statement: a row for each lab or department on each
+    filesystem, and one for each filesystem's unbilled storage. Sizes are averages over the month, in bytes and in
+    the unit the price is in; `prices` are the prices that applied, from their day on."""
+    status = "estimate" if out["estimated"] else "final"
+
+    def row(lab: dict | None, line: dict) -> list:
+        unit = next((p["unit"] for p in reversed(line["periods"]) if p["unit"]),
+                    line["prices"][-1]["unit"] if line["prices"] else None)
+        prices = "; ".join(f"{p['price']} per {p['unit']} from {p['from']}" for p in line["prices"])
+        return [out["month"], status, lab["slug"] if lab else "", lab["name"] if lab else "(no one)",
+                lab["kind"] if lab else "unbilled", line["fs"], line["size"], line["billable"], unit or "",
+                shown(line["size"], unit) if unit else "", shown(line["billable"], unit) if unit else "", prices,
+                line["charge"], out["currency"]]
+
+    rows = [row(r["lab"], line) for r in out["labs"] for line in r["filesystems"]]
+    return rows + [row(None, line) for line in out["unbilled"]]

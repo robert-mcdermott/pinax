@@ -17,6 +17,10 @@
   for a month, by filesystem and folder, with each charge worked out in words (average size, less the free tier,
   at the price, for the days it applied), and each lab's past months. This month's charge is an estimate to the
   month's end and shows on *My data*. Administrators may look at any lab's.
+- **Chargeback (wave 5, slice 4).** For administrators: every lab's and department's charges for a month, totals
+  by filesystem with the prices that applied, and the storage no one owns, with a CSV statement for finance (a row
+  for each lab or department on each filesystem, marked final or estimate). Monthly charges are faster: about
+  25 ms for every lab for a month on a year of weekly scans of 2,000 folders (`bench/bench_charges.py`).
 - **Ownership history.** Pinax now records each change of a top-level folder's owner (in the app or by
   `pinax import`), so past months are charged to the owners they had. The new `folder_owner` table is created at
   start-up; folders that have never changed need no history.

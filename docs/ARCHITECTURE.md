@@ -290,7 +290,9 @@ So that a past month is charged to the owners it had, the catalog keeps **owners
 `ownership.py`): a row each time a top-level folder changes owner, in the app or by `pinax import`. The first change
 of a folder also records who had it until then, from the beginning; a folder that has never changed is its current
 owner's throughout. `/api/admin/costs/charges?month=YYYY-MM` returns every lab's and department's charges for a
-month, by filesystem and folder, with the prices that applied and what is unbilled (wave 5, slice 4 shows it).
+month, by filesystem and folder, with the prices that applied, what is unbilled, and totals by filesystem; with
+`fmt=csv`, the month's statement for finance, a row for each lab or department on each filesystem and one for each
+filesystem's unbilled storage, marked final or estimate. *Chargeback* shows it.
 
 Each line is also split into **periods**, runs of the month with one price and one free tier, so the charge can be
 shown worked out: a period's charge is its average billable size times its price times its share of the month.
@@ -366,6 +368,25 @@ uv run python bench/synth_scan.py --files 10000000 -o /scratch/synth-10m
 
 ```bash
 uv run python bench/bench_index.py /scratch/synth-10m --index /scratch/synth-10m-index
+```
+
+### Charges
+
+Monthly charges come from the catalog, not the indexes, so they depend on the number of top-level folders and
+scans. On the same laptop, with a synthetic year of weekly scans (`bench/bench_charges.py`: a tenth of the
+folders unowned, one in a hundred changing owner, a price change, and free tiers with exceptions):
+
+| Folders, labs | Every lab, a past month | Every lab, this month | One lab, a month | One lab, twelve months |
+|---|---|---|---|---|
+| 2,000, 200 | 25 ms | 24 ms | 4 ms | 49 ms |
+| 20,000, 2,000 | 488 ms | 521 ms | 42 ms | 566 ms |
+
+*Chargeback* and its statement are the first column; a lab's *Storage charges* is the last, and *My data* the one
+before. Time grows with folders times the scans in a month; one lab reads only the folders it ever had, but still
+every folder's owner.
+
+```bash
+uv run python bench/bench_charges.py --folders 2000 --weeks 52
 ```
 
 ## Proof of concept and production

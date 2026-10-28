@@ -322,3 +322,53 @@ def test_this_month_and_the_months_before(members):
     sept = _mine(members, "ada", month="2026-09").json()["labs"][0]
     assert history[1]["total"] == sept["total"] and history[1]["size"] == sum(f["size"] for f in sept["filesystems"])
     assert _mine(members, "ada", history="false").json()["labs"][0]["history"] == []  # for the home page
+
+
+def test_totals_by_filesystem(billing):
+    from pinax.charges import monthly_charges
+    from pinax.db import session_scope
+
+    with session_scope() as s:
+        sept = monthly_charges(s, "2026-09", now=datetime(2026, 10, 10, 12))
+    by_fs = {f["fs"]: f for f in sept["by_filesystem"]}
+    lines = [(f["fs"], f) for r in sept["labs"] for f in r["filesystems"]]
+    for fs, total in by_fs.items():
+        mine = [f for name, f in lines if name == fs]
+        assert Decimal(total["charge"]) == sum((Decimal(f["charge"]) for f in mine), Decimal(0))
+        assert abs(total["size"] - sum(f["size"] for f in mine)) <= len(mine)  # each rounded to the byte
+    assert sum(Decimal(f["charge"]) for f in by_fs.values()) == Decimal(sept["total"])
+    unbilled = _brute(SEPT)[None]["size"]
+    assert by_fs["fast"]["unbilled"] == round(unbilled) and by_fs["secure"]["unbilled"] == 0
+    assert by_fs["secure"]["unpriced"] and not by_fs["fast"]["unpriced"]
+
+
+def test_the_statement_for_finance(members):
+    import csv
+    import io
+
+    login(members, "ivy")
+    sept = members.get("/api/admin/costs/charges", params={"month": "2026-09"}).json()
+    r = members.get("/api/admin/costs/charges", params={"month": "2026-09", "fmt": "csv"})
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/csv")
+    assert r.headers["content-disposition"] == 'attachment; filename="pinax-charges-2026-09.csv"'
+    rows = list(csv.DictReader(io.StringIO(r.text)))
+    lines = {(x["lab"]["slug"], f["fs"]): f for x in sept["labs"] for f in x["filesystems"]}
+    billed = [row for row in rows if row["lab"]]
+    assert {(row["lab"], row["filesystem"]) for row in billed} == set(lines)  # a row for each lab on each filesystem
+    for row in billed:
+        line = lines[row["lab"], row["filesystem"]]
+        assert row["charge"] == line["charge"] and int(row["average_bytes"]) == line["size"]
+        assert row["status"] == "final" and row["currency"] == "USD"
+    assert sum(Decimal(row["charge"]) for row in rows) == Decimal(sept["total"])
+    alpha = next(row for row in billed if row["lab"] == "alpha" and row["filesystem"] == "fast")
+    assert alpha["unit"] == "TB" and Decimal(alpha["average"]) * TB == int(alpha["average_bytes"])
+    assert alpha["prices"] == "30 per TB from 2026-09-01; 24 per TB from 2026-09-16"
+    secure = next(row for row in billed if row["filesystem"] == "secure")
+    assert (secure["unit"], secure["prices"], secure["charge"]) == ("", "", "0.00")
+    nobody = [row for row in rows if not row["lab"]]
+    assert [(row["kind"], row["filesystem"], row["charge"]) for row in nobody] == [("unbilled", "fast", "0.00")]
+    oct_ = members.get("/api/admin/costs/charges", params={"fmt": "csv"})
+    assert oct_.headers["content-disposition"].endswith('-2026-10-estimate.csv"')
+    assert {row["status"] for row in csv.DictReader(io.StringIO(oct_.text))} == {"estimate"}
+    login(members, "ada")
+    assert members.get("/api/admin/costs/charges", params={"fmt": "csv"}).status_code == 403

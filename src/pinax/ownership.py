@@ -36,14 +36,15 @@ class Owners:
     """Who owned each folder of a filesystem at any moment."""
 
     def __init__(self, session: Session, filesystem_id: int):
-        rows = session.scalars(select(FolderOwner).where(FolderOwner.filesystem_id == filesystem_id)
-                               .order_by(FolderOwner.starts, FolderOwner.id)).all()
         history: dict[str, list[tuple[datetime, int | None]]] = defaultdict(list)
-        for r in rows:
-            history[r.folder].append((r.starts, r.lab_id))
-        for f in session.scalars(select(LabFolder).where(LabFolder.filesystem_id == filesystem_id)):
-            if f.path not in history:
-                history[f.path].append((SINCE_ALWAYS, f.lab_id))
+        for folder, starts, lab_id in session.execute(
+                select(FolderOwner.folder, FolderOwner.starts, FolderOwner.lab_id)
+                .where(FolderOwner.filesystem_id == filesystem_id).order_by(FolderOwner.starts, FolderOwner.id)):
+            history[folder].append((starts, lab_id))
+        for path, lab_id in session.execute(select(LabFolder.path, LabFolder.lab_id)
+                                            .where(LabFolder.filesystem_id == filesystem_id)):
+            if path not in history:
+                history[path].append((SINCE_ALWAYS, lab_id))
         self._starts = {k: [t for t, _ in v] for k, v in history.items()}
         self._labs = {k: [lab for _, lab in v] for k, v in history.items()}
 
@@ -53,6 +54,10 @@ class Owners:
             return None
         i = bisect_right(starts, when) - 1
         return self._labs[folder][i] if i >= 0 else None
+
+    def ever_owned_by(self, lab_ids: set[int]) -> set[str]:
+        """The folders any of `lab_ids` owned at some time."""
+        return {f for f, labs in self._labs.items() if not lab_ids.isdisjoint(labs)}
 
     def changes(self) -> set[datetime]:
         """Every moment some folder changed owner."""
