@@ -180,7 +180,7 @@ folder must still exist for this part of the check. At 100 million files (2.44 m
 nearly all of it the two rollups, and every directory was equal (between two synthetic scans with the same
 contents). Between changed scans from `synth_scan.py --evolve` at one million files, comparing takes 0.2 seconds
 of a six-second build and checking it 1.1 seconds, every directory equal; changed scans at 100 million files wait
-for server-class hardware (wave 4).
+for server-class hardware (wave 6).
 
 ## Real filesystems
 
@@ -208,7 +208,7 @@ A real scan was checked the same way: the maintainer's documents folder on a lap
 builds in 0.8 s and every query takes under 25 ms. It also showed common types that were counted as *other*:
 camera photo and video formats, macro-enabled spreadsheets, diagrams, executables, and disk images, 35% of its
 bytes. With those added, *other* is 0.8% of its bytes, nearly all of it files without an extension. Production
-storage, with many owners and a billion files, is measured in wave 4.
+storage, with many owners and a billion files, is measured in wave 6.
 
 ## Querying
 
@@ -312,7 +312,7 @@ laptop, and less on a server with more cores and faster disks; that is small nex
 Directory-level queries depend on the number of directories in the range they read, not on file counts, so
 they stay in the tens of milliseconds. Searches across a whole file system scan its files' name column, so they
 grow linearly: 2.8 seconds at 100 million files, about 30 seconds at a billion. Scoped to a lab folder they stay
-fast. These are projections from synthetic data; wave 4 measures production storage.
+fast. These are projections from synthetic data; wave 6 measures production storage.
 
 Index size is about 56 bytes per file, mostly the per-file Parquet (which is kept sorted and compressed). A
 billion-file snapshot needs about 56 GB; keeping six snapshots per file system (the default) needs about

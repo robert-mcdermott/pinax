@@ -2,7 +2,7 @@
 
 Installing Pinax on a Linux server: the services, single sign-on, scans, upgrades, sizing, and operations.
 The files this guide installs are in `deploy/`. This guide is checked against the tests and a local run; the
-pilot installation (wave 4 in `pinax-spec/roadmap.md`) will confirm it on a real server.
+pilot installation (wave 6 in `pinax-spec/roadmap.md`) will confirm it on a real server.
 
 ## Shape of a deployment
 
@@ -56,7 +56,7 @@ sudo git clone https://github.com/robert-mcdermott/pinax.git /opt/pinax
 ```
 
 ```bash
-cd /opt/pinax && sudo git checkout v0.3.0 && sudo env UV_PYTHON_INSTALL_DIR=/opt/pinax/.python uv sync --frozen --no-dev
+cd /opt/pinax && sudo git checkout v0.4.0 && sudo env UV_PYTHON_INSTALL_DIR=/opt/pinax/.python uv sync --frozen --no-dev
 ```
 
 ```bash
@@ -276,7 +276,7 @@ in place: each snapshot stays available on its old index until the new one repla
 fails. The web app opens rebuilt indexes without a restart. `pinax rebuild SNAPSHOT_ID` rebuilds one, for example
 one whose index was lost.
 
-The catalog has no migrations yet (they come with PostgreSQL, in wave 5): new tables are created at start-up,
+The catalog has no migrations yet (they come with PostgreSQL, in wave 7): new tables are created at start-up,
 and so are new columns of existing tables (each new column is nullable or has a default); a release that changes
 anything else says so, and pilot catalogs are then re-created from the import files.
 
@@ -295,7 +295,7 @@ Put `/var/lib/pinax/snapshots` on fast local SSD or NVMe: indexes are read with 
 ## Catalog database
 
 SQLite in WAL mode, in `/var/lib/pinax`, suits a single server. PostgreSQL (`PINAX_DATABASE_URL`, with the
-`psycopg` driver added) works for a fresh catalog; it and migrations are planned for wave 5.
+`psycopg` driver added) works for a fresh catalog; it and migrations are planned for wave 7.
 
 ## Backups
 

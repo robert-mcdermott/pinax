@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 (2026-10-27)
+
+Fourth release (wave 4, "people and sign-in"): Pinax can be run by a site without single sign-on, and without CSV
+files. People are managed in the app, as in Tundra; a site without an identity provider signs people in with
+passwords Pinax keeps, and can move to single sign-on later with one setting. The demo is kept as it was. Next are
+costs and chargeback (0.5.0); the production pilot follows when production storage is reachable. See
+[pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+
+Upgrading from 0.3.0: the catalog gains sign-in columns on `user` and a `login_session` table, both added at
+start-up, so an existing catalog keeps working. Pinax now refuses to start with `PINAX_AUTH_MODE=demo` when
+`PINAX_ENVIRONMENT=prod`; a production install uses `local` or `header`. Indexes are unchanged (version 4).
 
 ### Added
 
