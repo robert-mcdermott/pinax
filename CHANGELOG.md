@@ -38,10 +38,14 @@
   The default environment is `demo`, so the demo is unchanged.
 - **Guidance for operating Pinax.** `docs/ARCHITECTURE.md` says what Pinax keeps (the catalog, the indexes, and
   the scans), what each is for, what can be made again, and which to back up, and why the catalog moves to
-  PostgreSQL in wave 7 (it said PostgreSQL was the production database; production uses SQLite until then).
+  PostgreSQL in wave 10 (it said PostgreSQL was the production database; production uses SQLite until then).
   `docs/DEPLOYMENT.md` adds which scans to keep (Pinax never deletes them), disk totals, a safe online backup and
   restore of the catalog, reading the whole audit log, and what support staff need to know about charges and
   statements. The scan-size figure is the measured one, about 40 bytes per entry, everywhere.
+- **The roadmap.** Forecasts (0.6.0), cleanup plans (0.7.0), and folder tags (0.8.0) come next, since they need
+  no production storage; the production pilot is now wave 9 (0.9.0), and reach, action, and hardening follow it.
+  Ideas that need a system Pinax has no access to, such as digests by email, Slack or Teams messages, and quotas
+  from the storage system, are kept in a parking lot rather than planned.
 
 ## 0.5.0 (2026-10-27)
 

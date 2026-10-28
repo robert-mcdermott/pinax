@@ -16,22 +16,32 @@ decisions taken are recorded here. Later waves are outlined at the end.
 **Progress** is marked here as each slice is committed: done, next or to come. Each requirement's status is
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
-**Where things stand:** waves 1 to 5 are released as 0.1.0 to 0.5.0 (tags on `main`). Since 0.5.0, labs and
-departments can be added, changed, and deactivated in the app (branch `labs`), so a site needs no CSV files at
-all. The production pilot needs production storage, which will not be reachable for some time, so it waits as
-wave 6; work that needs no production storage comes first.
+**Where things stand:** waves 1 to 5 are released as 0.1.0 to 0.5.0 (tags on `main`). Merged since 0.5.0, and
+released with 0.6.0:
+- labs and departments can be added, changed, and deactivated in the app, so a site needs no CSV files at all;
+- guidance for operating Pinax;
+- time limits for requests, and new and removed files recorded at ingest, for filesystems of two billion files.
+
+Next come forecasts (wave 6), cleanup plans (wave 7), and folder tags (wave 8). The production pilot needs
+production storage, which will not be reachable for some time, so it waits as wave 9. If production storage
+becomes reachable sooner, the pilot becomes the next wave and the waves after it are renumbered. Ideas kept for
+later but not planned are in the [parking lot](#parking-lot).
 
 The order follows one principle:
 1. **Trust first.** Totals that agree with an independent computation on every directory, and that say when
    they are lower bounds.
 2. **Then real storage at real scale.** First everything a production deployment needs, checked on real local
-   scans and on synthetic data at scale (wave 2); then production storage itself and a pilot (wave 6).
+   scans and on synthetic data at scale (wave 2); then production storage itself and a pilot (wave 9).
 3. **Then change over time.** Where the growth comes from, and whether data is ageing. It comes before the pilot
    (wave 3) because it can be built and checked without production storage, which is not yet reachable.
 4. **Then what a site needs to run Pinax, and to charge for storage.** People managed in the app, and sign-in
    without single sign-on (wave 4); costs and chargeback (wave 5). Both come before the pilot for the same reason.
-5. **Then reach.** Everyone in the organization, signed in, with access kept in step with the directory.
-6. **Then action.** Digests, and the decisions reports should lead to.
+5. **Then action.** Where storage is heading, what a lab could free and what that would save, and folders
+   described in terms a lab and IT share (waves 6 to 8). These come before the pilot for the same reason.
+6. **Then reach.** Everyone in the organization, signed in, with access kept in step with the directory (wave 10).
+
+Work that needs a system Pinax has no access to, such as a mail service, a chat workspace, or a storage system's
+own interface, is kept in the [parking lot](#parking-lot) rather than planned.
 
 ## Decisions taken in this plan
 
@@ -128,7 +138,7 @@ recorded below as built. Merged to `main` in pull request #1 and released as v0.
 Everything a first production deployment needs, built and checked without production storage: every number
 checked against an independent tool, the shapes of real filesystems handled, 100 million files indexed, scans
 ingested as they arrive, labs onboarded in bulk, and a deployment kit. Production storage and the pilot follow
-in wave 6.
+in wave 9.
 
 ### Wave 2 sequence
 
@@ -139,7 +149,7 @@ in wave 6.
 | 3 | Scale to 100 million (S3, R3, Q3–Q5) | A 100-million-file synthetic scan, built and queried on the development laptop, meets Q3–Q5; whole-filesystem cold folders precomputed per age threshold at build time and answered within Q3; build memory and threads tuned and documented | Done |
 | 4 | Automatic ingest (S4, O4) | `pinax ingest --watch` (or a timer) ingests each new verified scan under a folder once, skipping incomplete and already-ingested scans, safe if two run at once; failures shown on *Scans* with the error; tests for each case | Done |
 | 5 | Bulk onboarding (A5) | Labs, people, memberships, and folder ownership imported from CSV with a dry run that lists every change, refusing ambiguous rows; changes audited; example files and docs | Done |
-| 6 | Deployment kit (P6, A4) | systemd units for the web app and ingest; header mode checked behind oauth2-proxy with a local test identity provider; a health endpoint; `docs/DEPLOYMENT.md` rewritten as an installation guide, confirmed by the pilot's installation in wave 6 | Done |
+| 6 | Deployment kit (P6, A4) | systemd units for the web app and ingest; header mode checked behind oauth2-proxy with a local test identity provider; a health endpoint; `docs/DEPLOYMENT.md` rewritten as an installation guide, confirmed by the pilot's installation in wave 9 | Done |
 | 7 | Release 0.2.0 | README demo script updated; version 0.2.0, changelog, pull request, tag, release | Done |
 
 ### Decisions for wave 2
@@ -150,12 +160,12 @@ in wave 6.
   one of them until explained.
 - Production storage is out of reach while wave 2 is built (decided 2026-10-26). The real scan in slice 2 is the
   maintainer's `~/Documents`: real names and shapes, but one owner on a laptop disk. Owners and labs are covered by
-  the demo seed and synthetic scans; production scans, server hardware, and the pilot are wave 6.
+  the demo seed and synthetic scans; production scans, server hardware, and the pilot are wave 9.
 - Pinax records only counts, timings, and checksums from real scans, never paths or names, in the repository;
   the scans themselves stay outside it and are deleted after measuring.
 - Watching polls a folder on a timer instead of relying on file-change notifications, which network filesystems
   do not deliver reliably.
-- Bulk onboarding is a stop-gap until the authoritative source of folder ownership is decided (wave 7); the import
+- Bulk onboarding is a stop-gap until the authoritative source of folder ownership is decided (wave 10); the import
   format is documented so that source can produce it.
 - No catalog migrations yet: waves 2 and 3 may still change the catalog schema, so pilot catalogs are re-created
   from the import files. Snapshot indexes are rebuilt from scans when `INDEX_VERSION` changes.
@@ -201,7 +211,7 @@ in wave 6.
      video formats, macro-enabled spreadsheets, diagrams, executables, and disk images were added to their
      categories, leaving 0.8%. The scan and its indexes were deleted after measuring.
    - *Done*: the real local scan and the wide and deep synthetic scan equal to rollup on every directory, with
-     the shapes above handled. Measuring production storage moved to wave 6.
+     the shapes above handled. Measuring production storage moved to wave 9.
 3. **Scale to 100 million (S3, R3, Q3–Q5).**
    - A synthetic scan of 100 million files in 2.44 million folders under 2,000 top-level folders, generated in
      155 s (3.8 GB).
@@ -219,7 +229,7 @@ in wave 6.
      file); directory-level queries 1–50 ms; lab searches 22 ms, whole-filesystem searches 2.8 s; every
      directory equal to rollup. With 17 GB and all ten threads the build was no faster (133 s), so the default
      stays 8 GB.
-   - *Done*: Q3–Q5 met at 100 million synthetic files on the laptop; server hardware and production are wave 6.
+   - *Done*: Q3–Q5 met at 100 million synthetic files on the laptop; server hardware and production are wave 9.
 4. **Automatic ingest (S4, O4).**
    - `watch.py` and `pinax ingest --watch [FOLDER] [--interval N] [--once] [--no-verify] [--allow-incomplete]`: each
      pass finds scan folders up to three levels down, oldest first; complete scans are verified with
@@ -277,7 +287,7 @@ in wave 6.
    - Tests: the health states; the header refused from untrusted addresses and accepted from trusted networks;
      demo sign-in off in header mode; every unit's command parsed by the CLI and every setting it names real;
      rebuilds (a lost index, the cache reopening, `--outdated`, a missing scan).
-   - *Done*, except what only a real server shows: the pilot installation in wave 6 confirms the guide and units
+   - *Done*, except what only a real server shows: the pilot installation in wave 9 confirms the guide and units
      (`systemd-analyze verify` and the sandboxing options cannot be run on the development Mac).
 7. **Release 0.2.0.**
    - The demo re-seeded with this wave's code: all four snapshots equal to rollup; the README demo script walked
@@ -362,7 +372,7 @@ Every change is checked against an independent computation, like every total.
      snapshots, 10 changes); evolved scans of a real demo scan and of the wide and deep shapes likewise. At one
      million files, `--evolve` takes 1.6 s, comparing 0.2 s of a 6 s build, and checking the change 1.1 s (all
      245,361 directories equal). Kept to small scans on the development laptop; the measurement with changed scans
-     at 100 million files waits for server-class hardware in wave 6.
+     at 100 million files waits for server-class hardware in wave 9.
 3. **History charts (E7).**
    - `explore.history` and `/api/history` take any place: a person's home, a lab or department, a filesystem, a
      top-level folder (every scan, from folder history), or a deeper folder (the retained snapshots, from their
@@ -411,7 +421,7 @@ Every change is checked against an independent computation, like every total.
      sums; sizing; access.
    - *Done*: checked in both themes and at 375 pixels on the demo. At one million synthetic files (three evolved
      generations), the root and a lab folder take 7–21 ms from `changes` and 12–31 ms joined with an older scan,
-     against 24 ms for the age map; the 100-million-file measurement waits for server-class hardware (wave 6).
+     against 24 ms for the age map; the 100-million-file measurement waits for server-class hardware (wave 9).
 5. **What changed (R9).**
    - `SnapshotIndex.change_units`: over a place's subtree in both scans (the stored changes, or an attached older
      index), the folders in both scans that grew and shrank most, leaving out a folder when one of its subfolders
@@ -428,7 +438,7 @@ Every change is checked against an independent computation, like every total.
      with a removed subfolder), from the stored previous scan and from an older scan; CSV, limits, and access.
    - *Done*: checked in both themes and at 375 pixels on the demo. At one million synthetic files (three evolved
      generations), a lab folder's report takes 70–90 ms and the whole filesystem's 0.5–0.6 s; the 100-million-file
-     measurement waits for server-class hardware (wave 6).
+     measurement waits for server-class hardware (wave 9).
    - Before slice 6, at the maintainer's request: the age scale changed from orange-to-red to hot-to-cold (red for
      data changed within two years, blue from then on), so cold data looks cold and a map of mostly old data no
      longer reads as alarming throughout. Each arm passes the ordinal checks in both themes.
@@ -455,7 +465,7 @@ Every change is checked against an independent computation, like every total.
    - Version 0.3.0 in `pyproject.toml`, `pinax.__version__`, and `uv.lock`; `CHANGELOG.md` dated, with upgrade
      notes; pull request `wave3` to `main`, then tag `v0.3.0` and the release.
    - Not measured: anything above a million files. The change map's Q3 and What changed's Q4 at 100 million files,
-     and changed scans at that size, wait for server-class hardware (wave 6).
+     and changed scans at that size, wait for server-class hardware (wave 9).
    - *Done*.
 
 ## 0.4.0: people and sign-in (wave 4)
@@ -495,7 +505,8 @@ maintainer's request, while production storage is out of reach, and merged in pu
    - Version 0.4.0 in `pyproject.toml`, `pinax.__version__`, and `uv.lock`; `CHANGELOG.md` dated, with notes on
      upgrading from 0.3.0 (new catalog columns added at start-up; the demo refused in production).
    - The roadmap re-planned: costs and chargeback, wanted by the maintainer and needing no production storage, move
-     up from the action wave to wave 5; the production pilot moves to wave 6, and the later waves follow.
+     up from the action wave to wave 5; the production pilot moves to wave 6 (since moved to wave 9), and the
+     later waves follow.
    - Pull request to `main`, then tag `v0.4.0` and the release.
    - *Done*.
 
@@ -607,23 +618,173 @@ rounded (for now, half up to the cent, once per lab and filesystem, unless finan
      upgrading from 0.4.0 (new tables created at start-up; ownership history starts with the upgrade).
    - Pull request to `main`, then tag `v0.5.0` and the release.
 
+## 0.6.0: where storage is heading (wave 6)
+
+How fast each filesystem, lab, and department is growing, how large it will be in a year, when each filesystem
+fills, and what each lab will pay. It is worked out from folder history, which keeps every scan, so it needs no
+production storage, and the demo's six months of scans give six months of trend. Planned; the slices are confirmed
+when the wave starts.
+
+### Wave 6 sequence
+
+| Slice | Scope and requirements | Acceptance before the next slice | Status |
+| --- | --- | --- | --- |
+| 1 | Forecasts of size (R10, Q1) | For a filesystem, a lab or department, a person's home, and all data: the size each month for the next 12 months from the trend of the last six months of scans, with a range; at least six scans over eight weeks, or no forecast and the reason; after a large step (a cleanup, a transfer), the trend starts after it and says so; backtested: the forecast the same method gave three months earlier, against the size now; tested on synthetic histories with known growth, noise, steps, and gaps; within Q3 for a year of weekly scans of 2,000 folders | To come |
+| 2 | Forecasts in History (R10) | The forecast drawn after the last scan, set apart from the measured columns (a dashed line and a lighter range), labeled as a projection; its growth per month and its backtest beside it; in the table view and CSV; both themes and 375 pixels; colors validated | To come |
+| 3 | Capacity, and when a filesystem fills (R11) | Each filesystem's capacity, from a date on (storage is expanded): recorded by `pinax scan` from the mounted filesystem with each scan, or set by administrators; the overview shows each filesystem's size, capacity, share used, growth per month, and the month it fills, with its range, and flags one that fills soon; History draws the capacity; audited | To come |
+| 4 | What labs will pay (R12) | Each lab's and department's charges for each of the next 12 months at its trend, per filesystem, with the prices and free tiers as scheduled (a price change already set applies from its date), and the range; on *Storage charges* for lab owners, and totals for all labs on *Chargeback*; tested against the charges worked out on the forecast sizes | To come |
+| 5 | Demo and release 0.6.0 | Capacities for the demo's filesystems, one filling within the year; the README demo script; version 0.6.0, changelog (with what was merged since 0.5.0), pull request, tag, release | To come |
+
+### Decisions for wave 6 (proposed)
+
+- **A straight-line trend.** Weekly or monthly scans give too few points to tell growth curves apart, and a
+  straight line is easy to explain to a PI. The trend is robust: the median of the slopes between pairs of scans,
+  so one odd scan barely moves it, and the range comes from the spread of those slopes. A curve can be reconsidered
+  once the pilot has a year of production scans.
+- **Labs and departments are forecast from the folders they own now**, as History shows them, so a folder moving
+  between labs does not look like growth.
+- **A forecast says how good it is.** Its backtest is shown beside it, in keeping with trust first: the same method,
+  run three months earlier, was off by a given share.
+- **Capacity has two sources.** fs-inventory does not record a filesystem's size, but `pinax scan` runs where the
+  filesystem is mounted and can record what the storage reports for it (`statvfs`, which reads no file). Scans
+  written by fs-inventory directly need the capacity set by an administrator. Where the storage's own figure for
+  space used is known, it is shown beside the scans' space on disk; the difference is what scans cannot see, such
+  as the storage's own snapshots.
+- **Only capacities are stored.** Forecasts are worked out from folder history when asked.
+
+Open within the wave: the horizon and the window (12 months ahead, from six months of scans) as settings; how soon
+"fills soon" is; whether divisions (which group labs and departments) get totals and forecasts of their own; where
+`pinax scan` keeps what it records, since a scan's directory belongs to fs-inventory.
+
+## 0.7.0: cleanup plans (wave 7)
+
+What a lab could free, and what it would save. While exploring the age map, a PI or delegate marks folders to
+delete, move to cheaper storage, or compress, and sees the space it would free and how much the lab's monthly
+charge would fall. Later scans show what was done and what it saved. Pinax still changes nothing on the storage it
+reports on (P3): a plan records what a lab means to do, and the scans show what happened. Planned; the slices are
+confirmed when the wave starts.
+
+### Wave 7 sequence
+
+| Slice | Scope and requirements | Acceptance before the next slice | Status |
+| --- | --- | --- | --- |
+| 1 | Marked folders, followed across scans (S10) | The catalog records a marked folder by filesystem and path; index version 6 keeps each directory's inode from the scan; at each ingest, every marked folder is found at its path, found at another path with the same inode (proposed as a move, not applied, since inodes are reused), or gone; its totals are recorded for that scan, so a marked folder's history outlasts its snapshot; tested with renames, moves, deletions, and a reused inode; the added build time and index size measured at 100 million files | To come |
+| 2 | Marking folders for cleanup (C1) | From the age map (a folder's own panel and each tile's actions, reachable by keyboard), *Cold folders*, and *What changed*: add a folder to its lab's cleanup plan to delete, move to another filesystem, or compress, with a note; by the lab's PI and delegates, and by administrators; a folder inside one already planned counts once; the plan's total shown while exploring; audited; both themes and 375 pixels | To come |
+| 3 | What a plan saves (C2) | For each folder and the whole plan: the space freed, and the lab's monthly charge now and after, per filesystem, with free tiers (data within a free tier saves nothing, and the page says so) and the destination's price for a move; compression estimated from typical ratios for each type, and labeled as an estimate; tested against the charges worked out on the reduced sizes | To come |
+| 4 | Progress from scans (C3) | With each new scan, each folder is done (gone, and not moved), partly done (smaller), moved (no saving), or still to do; the space freed and the fall in the charge since the plan began; a *Cleanup plan* page for each lab with what is to do and what was done, and when; CSV for the lab or the storage team | To come |
+| 5 | Suggestions (C4) | Folders worth adding, each with its saving, added in one click: cold folders (R3), uncompressed sequencing data (R6) to compress, and workflow working folders (Nextflow `work/`, Snakemake `.snakemake/`, Cromwell `cromwell-executions/`, conda and container caches), found when the index is built; within Q3 for a lab folder at 100 million files | To come |
+| 6 | Plans across labs (C5) | For administrators: every lab's plan, planned and freed per filesystem, the largest folders planned, and a CSV | To come |
+| 7 | Demo and release 0.7.0 | A demo lab with a plan made before the demo's last scan, partly done by it, with one folder renamed rather than removed; the README demo script; version 0.7.0, changelog, pull request, tag, release | To come |
+
+### Decisions for wave 7 (proposed)
+
+- **A plan is not made of tags.** A planned folder has an action, an estimate, and a state that changes as scans
+  arrive; tags (wave 8) describe what a folder is, and last. Both rest on the same marked folders.
+- **Folders, not files.** The space is in folders, and at two billion files a plan of single files would make
+  every plan page a file-level query.
+- **A saving is the fall in the lab's charge**, not size times price: a lab within its free tier saves nothing by
+  deleting.
+- **Done means the scans show it gone.** A folder that was renamed or moved, its inode found at another path, saved
+  nothing. Wave 3 matched folders by path and left inodes for later; every fs-inventory scan records them, and
+  Pinax starts reading them here.
+- **What a plan page warns about.** Storage snapshots keep deleted data on disk until they expire, so capacity
+  comes back later than the charge falls; and a hard-linked file (R7) frees nothing until its last link is gone.
+
+Open within the wave: whether a delegate's additions need the PI's approval; the compression ratios for each type
+(FASTQ, SAM, BAM to CRAM), from published figures and the site's own, and whether compression is in the first
+version; whether a move names its destination folder or only its filesystem.
+
+## 0.8.0: folder tags (wave 8)
+
+Folders described in terms a lab and IT share: the project, the grant, the instrument, the stage of the data, how
+sensitive it is, and how long it must be kept. Administrators keep a list of standard tags; data owners tag their
+folders with them, or with tags of their own; people find data by tag across filesystems, see what it costs, and
+split their charges by grant. Planned; the slices are confirmed when the wave starts.
+
+### Wave 8 sequence
+
+| Slice | Scope and requirements | Acceptance before the next slice | Status |
+| --- | --- | --- | --- |
+| 1 | The tag list (T1) | Standard tags kept by administrators on a *Tags* page: added, changed, and retired (a tag in use is retired, not deleted); each with a type (a flag, text, a date, or a choice from a list), who may apply it (owners, or administrators only), and whether it protects a folder from cleanup; the default list below at start-up, for a site to change; audited | To come |
+| 2 | Tagging folders (T2) | From the age map's folder panel and tile actions: a folder's own tags, and those it inherits from the folders above it; a lab's PI and delegates tag its folders, administrators any folder; a lab makes custom tags of its own, seen by its members and administrators; administrators merge a custom tag into a standard one; `pinax import` takes tags in bulk; tiles that are or hold tagged folders are marked, with their tags in tooltips and the table view; audited; both themes and 375 pixels | To come |
+| 3 | Finding data by tag (T3) | A *Collections* page: folders by tag and value, combined (Source is cryo-EM and Data stage is raw), across filesystems, within what the person may see; each folder's size, files, cold share, average age, monthly cost, owner, and tags; nested folders counted once in the total; the collection's history and forecast from the recorded totals (waves 6 and 7); CSV; within Q3, reading only the catalog | To come |
+| 4 | Cost by tag (T4) | Charges split by a tag's values, such as by grant or project: each tagged folder's share of its lab's charge on its filesystem, time-weighted from the recorded totals, and what is untagged; on *Storage charges* and in the statement CSV; tested against brute force | To come |
+| 5 | Protection (T5) | A folder with a protecting tag (*Keep until*, before its date; *Legal hold*), and everything below it, cannot be added to a cleanup plan; folders already planned are flagged; suggestions leave them out | To come |
+| 6 | Demo and release 0.8.0 | Demo folders with standard and custom tags, charges split by grant, and a folder on legal hold; the README demo script; version 0.8.0, changelog, pull request, tag, release | To come |
+
+The default tags, which a site changes on the *Tags* page:
+
+| Tag | Type | Applied by | Why |
+| --- | --- | --- | --- |
+| Project | Text, more than one | Owners | Finding a project's data wherever it is |
+| Grant or award | Text, more than one | Owners | Splitting charges by grant (T4) |
+| Data stage | Raw, processed, results, reference, or scratch | Owners | Raw data is often the copy that must be kept; scratch is the first to clean up |
+| Source | Sequencing, mass spectrometry, cryo-EM, light microscopy, medical imaging, flow cytometry, simulation, or downloaded | Owners | Where growth comes from; a site adds its own instruments |
+| Data classification | The site's levels | Administrators, or owners if the site allows | Where sensitive data is, and whether it is on the right filesystem |
+| IRB protocol | Text | Owners | Data from human subjects research |
+| Shared in a repository | Text: an accession (GEO, SRA, PRIDE, EMPIAR, …) | Owners | A public copy exists |
+| Keep until | Date | Owners | Protects from cleanup until the date |
+| Legal hold | Flag | Administrators | Protects from cleanup |
+
+### Decisions for wave 8 (proposed)
+
+- **Tags are on folders and apply to everything below them**, not on files (see wave 7).
+- **Standard tags have types**, so their values compare: a date is a date, and a choice comes from its list, which
+  is the site's own. Custom tags exist because each lab has its own words; merging them into standard tags keeps
+  the list from multiplying.
+- **A tag is seen by whoever can see its folder**; a custom tag's name is seen only by its lab and administrators.
+  People find only data they may see, so a search across the whole organization is for administrators.
+- **Collections read only the catalog**, from the totals recorded for marked folders at each ingest (wave 7), so
+  finding data by tag takes milliseconds however many filesystems it spans.
+
+Open within the wave: who sets *Data classification*; whether new top-level folders must have some tags; whether a
+folder can drop a tag it inherits.
+
 ## Later waves (outlined)
 
 | Wave | Release | Theme | Main content |
 | --- | --- | --- | --- |
-| 6 | 0.6.0 | Production pilot | The largest production scan available ingests and passes `pinax check`; build time, index size, and query times measured on production replace the extrapolations in `docs/ARCHITECTURE.md`; 100 million files on server-class hardware, including the change map, what changed, and changed scans at that size, and the folder counts of production (two billion files may mean 50 to 200 million folders, which every report that reads all folders grows with); the time limits and whole-filesystem query turns set for production; installation on a pilot server from the deployment kit, scanning on a schedule; IT and a few pilot labs use it, and what they find is fixed or recorded |
-| 7 | 0.7.0 | Reach | PostgreSQL and migrations (P7), replacing the columns added at start-up; single sign-on with roles from directory groups and membership synced from the directory (A6); recertification report (A7); CI, container image (P6); metrics, logs, and alerts (O4, O5); for local sign-in, two-factor codes, limits per network address, and the person's own address behind a proxy; security review |
-| 8 | 0.8.0 | Action | Hard-link aware totals (R7); periodic digests for PIs, with their charges; saved and shared views; quotas beside folders; whole-filesystem searches as background jobs |
-| 9 | 1.0.0 | Hardening | Budgets met at a billion files in production; accessibility audit; documentation complete; pilot and early-user feedback addressed |
+| 9 | 0.9.0 | Production pilot | The largest production scan available ingests and passes `pinax check`; build time, index size, and query times measured on production replace the extrapolations in `docs/ARCHITECTURE.md`; 100 million files on server-class hardware, including the change map, what changed, and changed scans at that size, and the folder counts of production (two billion files may mean 50 to 200 million folders, which every report that reads all folders grows with); the time limits and whole-filesystem query turns set for production; installation on a pilot server from the deployment kit, scanning on a schedule; IT and a few pilot labs use it, and what they find is fixed or recorded |
+| 10 | 0.10.0 | Reach | PostgreSQL and migrations (P7), replacing the columns added at start-up; single sign-on with roles from directory groups and membership synced from the directory (A6); recertification report (A7); CI, container image (P6); metrics and structured logs, including a metric that the site's monitoring can alert on when a scan or ingest fails (O4, O5); for local sign-in, two-factor codes, limits per network address, and the person's own address behind a proxy; security review |
+| 11 | 0.11.0 | Action | Hard-link aware totals (R7); saved and shared views; whole-filesystem searches as background jobs |
+| 12 | 1.0.0 | Hardening | Budgets met at a billion files in production; accessibility audit; documentation complete; pilot and early-user feedback addressed |
 
-Waves 7 and 8 need no production storage either: if the pilot is still out of reach after wave 5, parts of them
+Waves 10 and 11 need no production storage either: if the pilot is still out of reach after wave 8, parts of them
 can come first.
+
+## Parking lot
+
+Ideas kept for later, and not on a path to be built. An idea leaves the parking lot when it is given a wave.
+
+**Needs a system Pinax has no access to:**
+
+| Idea | What it needs |
+| --- | --- |
+| Monthly digests for PIs: their storage, what changed, their charges, and their cleanup plan (was in wave 8) | A mail service |
+| Alerts by email, Slack, or Teams when a scan or ingest fails (wave 10 keeps a metric that the site's monitoring can alert on) | A mail service or a chat workspace |
+| Slack or Teams messages, such as a plan's progress or a filesystem filling | A chat workspace and an app registered in it |
+| Cleanup plans sent as tickets to the storage team | The ticketing system's interface (ServiceNow, Jira) |
+| Quotas beside folders (was in wave 8) | The storage system's quota interface |
+| Cloud buckets and archives beside filesystems, priced by storage class | The cloud accounts' inventory reports (S3 Inventory, Azure Blob inventory) or the archive's catalog |
+| The data of people who have left, by lab, for their PI to decide on | Who has left, from HR or the directory; the owners report already flags accounts that no longer exist |
+
+**Not yet chosen:**
+
+| Idea | Notes |
+| --- | --- |
+| Likely duplicates: files of the same name and size in several places | Grouping two billion files by name and size at every build is a large job; limited to large files (say 1 GiB and up) it is small. fs-inventory records no checksums, so these would be candidates, not proof |
+| Recognizing data by its folder names: sequencing runs, cryo-EM sessions, imaging plates | Partly covered by the *Source* tag (wave 8) |
+| Searching files within a collection | Within a lab, as fast as Find in a folder; across the organization, a whole-filesystem search under the time limits |
+| Tags on single files | At two billion files, every tagged view would become a file-level query; tags stay on folders (wave 8) |
+| API tokens for scripts | |
+| Folder history exported as Parquet, for Tableau or Power BI | |
+| An MCP server, so an AI assistant can answer storage questions with the person's own access | |
 
 ## Decisions still open
 
 - The authoritative source of folder ownership (which lab owns each top-level folder), and how Pinax stays in step
-  with it (wave 7).
+  with it (wave 10).
 - Which filesystems record access time reliably enough to show it by default.
 - Scan cadence and snapshot retention for each filesystem.
-- When production storage becomes reachable for wave 6, and which filesystem and labs the pilot uses.
+- When production storage becomes reachable for wave 9, and which filesystem and labs the pilot uses.
 - Who may see unmapped folders besides storage administrators (for example division data managers).
