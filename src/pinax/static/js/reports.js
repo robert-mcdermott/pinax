@@ -200,6 +200,7 @@ export async function viewOwners(el, query) {
 }
 
 // ---------- Find files ----------
+const totalText = (n, size) => `${num(n)} file${n === 1 ? "" : "s"} · ${bytes(size)}`;
 const MIN_SIZES = [["", "Any size"], [1e6, "1 MB or more"], [1e8, "100 MB or more"], [1e9, "1 GB or more"], [1e10, "10 GB or more"], [1e11, "100 GB or more"]];
 const SORTS = [["size", "Largest first"], ["oldest", "Oldest change first"], ["newest", "Newest change first"], ["accessed", "Least recently read"], ["path", "Path"]];
 
@@ -209,7 +210,11 @@ export async function viewFiles(el, query) {
   const sort = q.sort || "size";
   const params = { ...placeQuery(place), ...labOf(q), q: q.q, in_path: q.in_path, category: q.category, ext: q.ext,
     min_size: q.min_size, older: q.older, newer: q.newer, uid: q.uid, direct: q.direct, sort };
-  const data = await api("files", { query: { ...params, limit: state.config.search_max_rows } });
+  // Counting every match is a second pass over the files, so it is asked for separately, and only when there are more
+  // than the page shows.
+  const limit = state.config.search_max_rows;
+  const data = await api("files", { query: { ...params, limit, total: false } });
+  const more = data.files.length >= limit;
   const age = q.older ? `older:${q.older}` : q.newer ? `newer:${q.newer}` : "";
   const csv = `/api/files?${new URLSearchParams(Object.entries({ ...params, fmt: "csv", limit: state.config.export_max_rows })
     .filter(([, v]) => v !== undefined && v !== null && v !== ""))}`;
@@ -233,15 +238,22 @@ export async function viewFiles(el, query) {
           <button class="btn btn-primary btn-sm" type="submit">${icon("search")}Search</button></div>
       </div>
     </form>
-    <div class="card flush"><div class="card-head"><h2>${num(data.total.files)} file${data.total.files === 1 ? "" : "s"} · ${bytes(data.total.bytes)}</h2>
+    <div class="card flush"><div class="card-head"><h2 id="files-total">${more ? html`<span class="muted">${num(limit)}+ files · counting…</span>`
+        : totalText(data.files.length, data.files.reduce((t, f) => t + f.size, 0))}</h2>
       <a class="btn btn-ghost btn-sm" href="${csv}">${icon("download")}Download CSV</a></div>
       ${data.files.length ? html`<div class="table-wrap"><table class="table compact"><thead><tr><th>File</th><th class="num">Size</th><th>Last change</th><th>Last access</th><th>Type</th><th>Owner</th></tr></thead><tbody>
         ${data.files.map((f) => html`<tr><td><span class="title-cell">${f.name}</span><div class="sub path">${displayPath(f.fs, f.path)}</div></td>
           <td class="num nowrap">${bytes(f.size)}</td><td class="nowrap">${f.mtime ? date(f.mtime) : "—"}</td><td class="nowrap">${f.atime ? date(f.atime) : "—"}</td>
           <td class="nowrap">${f.ext ? `.${f.ext}` : "—"}<div class="sub">${catLabel(f.category)}</div></td>
           <td class="nowrap">${f.owner || html`uid ${f.uid}`}</td></tr>`)}</tbody></table></div>
-        ${data.total.files > data.files.length ? html`<div class="card-foot">Showing the first ${num(data.files.length)}. Download the CSV for up to ${num(state.config.export_max_rows)}.</div>` : ""}`
+        ${more ? html`<div class="card-foot">Showing the first ${num(data.files.length)}. Download the CSV for up to ${num(state.config.export_max_rows)}.</div>` : ""}`
         : emptyState("search", "No files match", "Try a shorter name, a wider age range, or another folder.")}</div>`);
+  if (more) {
+    const box = $("#files-total", el);
+    api("files/count", { query: params }).then((t) => mount(box, totalText(t.files, t.bytes)), (e) => {
+      if (e.name !== "AbortError") mount(box, html`${num(limit)}+ files <span class="small muted" title="${e.message}">· not counted</span>`);
+    });
+  }
   $("#search", el).addEventListener("submit", (e) => {
     e.preventDefault();
     const f = new FormData(e.target);

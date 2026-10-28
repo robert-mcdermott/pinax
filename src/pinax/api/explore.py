@@ -100,22 +100,35 @@ def cold(fs: str | None = None, path: str | None = None, older: int = Query(...,
                         scan=snapshot or at, lab_slug=lab)
 
 
+def _file_filter(q: str = "", in_path: bool = False, category: str = "", ext: str = "", min_size: int | None = None,
+                 max_size: int | None = None, older: int | None = None, newer: int | None = None, uid: int | None = None,
+                 direct: bool = False) -> explore.FileFilter:
+    return explore.FileFilter(q=q.strip(), in_path=in_path, category=category, ext=ext.strip(), min_size=min_size,
+                              max_size=max_size, older=older, newer=newer, uid=uid, direct=direct)
+
+
 @router.get("/files")
-def files(fs: str | None = None, path: str | None = None, q: str = "", in_path: bool = False, category: str = "",
-          ext: str = "", min_size: int | None = None, max_size: int | None = None, older: int | None = None,
-          newer: int | None = None, uid: int | None = None, direct: bool = False, sort: str = "size",
-          limit: int = Query(100, ge=1), fmt: str = "json", snapshot: int | None = None, at: date | None = None, lab: str | None = None,
+def files(fs: str | None = None, path: str | None = None, flt: explore.FileFilter = Depends(_file_filter),
+          sort: str = "size", limit: int = Query(100, ge=1), total: bool = True, fmt: str = "json",
+          snapshot: int | None = None, at: date | None = None, lab: str | None = None,
           identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
-    """Find files: by name or glob, type, size, age, and owner, largest or oldest first. fmt=csv downloads."""
+    """Find files: by name or glob, type, size, age, and owner, largest or oldest first. fmt=csv downloads.
+    total=false leaves out how many match in all, which takes a second pass (/files/count gives it)."""
     s = get_settings()
-    flt = explore.FileFilter(q=q.strip(), in_path=in_path, category=category, ext=ext.strip(), min_size=min_size,
-                             max_size=max_size, older=older, newer=newer, uid=uid, direct=direct)
     if fmt == "csv":
         res = explore.files(session, identity, fs, path, flt=flt, sort=sort, limit=min(limit, s.export_max_rows),
                             scan=snapshot or at, lab_slug=lab, with_summary=False)
         return _csv(res["files"])
     return explore.files(session, identity, fs, path, flt=flt, sort=sort, limit=min(limit, s.search_max_rows),
-                         scan=snapshot or at, lab_slug=lab)
+                         scan=snapshot or at, lab_slug=lab, with_summary=total)
+
+
+@router.get("/files/count")
+def files_count(fs: str | None = None, path: str | None = None, flt: explore.FileFilter = Depends(_file_filter),
+                snapshot: int | None = None, at: date | None = None, lab: str | None = None,
+                identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
+    """How many files match a search, and their size."""
+    return explore.files_count(session, identity, fs, path, flt=flt, scan=snapshot or at, lab_slug=lab)
 
 
 @router.get("/scan-days")

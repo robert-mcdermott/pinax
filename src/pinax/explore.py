@@ -625,17 +625,12 @@ def files(session: Session, ident: Identity, fs_slug, path, *, flt: FileFilter, 
         raise HTTPException(422, "Unknown sort")
     places = resolve(session, ident, fs_slug, path, scan, lab_slug)
     limit = max(1, min(limit, get_settings().export_max_rows))
-    streams, total_files, total_bytes = [], 0, 0
+    streams = []
     for p in places:
         where, args = flt.sql(p.idx.ref_epoch)
         rows = p.idx.files(p.path, where=where, params=args, order=FILE_SORTS[sort], limit=limit,
                            direct_only=flt.direct)
         streams.append([_file_json(p.fs.slug, r) | {"_r": r} for r in rows])
-        if with_summary:
-            w = (where + " AND " if where else "") + ("depth = ?" if flt.direct else "true")
-            s = p.idx.files_summary(p.path, where=w, params=[*args, *([p.idx.depth_of(p.path) + 1] if flt.direct else [])])
-            total_files += s["files"]
-            total_bytes += s["bytes"]
     key = _merge_key(sort)
     merged = list(heapq.merge(*streams, key=lambda x: key(x["_r"])))[:limit]
     for m in merged:
@@ -647,8 +642,26 @@ def files(session: Session, ident: Identity, fs_slug, path, *, flt: FileFilter, 
         m["owner"] = names.get(m["uid"])
     out = {"files": merged, **_scope_meta(places)}
     if with_summary:
-        out["total"] = {"files": total_files, "bytes": total_bytes, "shown": len(merged)}
+        out["total"] = _count(places, flt) | {"shown": len(merged)}
     return out
+
+
+def _count(places: list[Place], flt: FileFilter) -> dict:
+    files = size = 0
+    for p in places:
+        where, args = flt.sql(p.idx.ref_epoch)
+        if flt.direct:
+            where, args = (where + " AND " if where else "") + "depth = ?", [*args, p.idx.depth_of(p.path) + 1]
+        s = p.idx.files_summary(p.path, where=where, params=args)
+        files += s["files"]
+        size += s["bytes"]
+    return {"files": files, "bytes": size}
+
+
+def files_count(session: Session, ident: Identity, fs_slug, path, *, flt: FileFilter, scan=None, lab_slug=None) -> dict:
+    """How many files match `flt`, and their total size: a second pass over what `files` searched."""
+    places = resolve(session, ident, fs_slug, path, scan, lab_slug)
+    return _count(places, flt) | _scope_meta(places)
 
 
 def cold(session: Session, ident: Identity, fs_slug, path, *, older: int, min_bytes: int = 0, limit: int = 200,
