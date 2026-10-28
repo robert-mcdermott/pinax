@@ -42,7 +42,9 @@ Settings are `PINAX_*` environment variables, or a `.env` file in the folder you
 | Setting | Default | What it does |
 |---|---|---|
 | `PINAX_QUERY_MEMORY_LIMIT` | `4GB` | DuckDB memory limit for each open snapshot index |
-| `PINAX_QUERY_THREADS` | `0` | DuckDB threads per open index; 0 means one per CPU |
+| `PINAX_QUERY_THREADS` | `0` | DuckDB threads per open index; 0 means one per CPU. On a busy server, fewer than the CPUs keeps one long search from slowing every other page |
+| `PINAX_QUERY_TIMEOUT` | `180` | Seconds a request may run before Pinax stops its queries and says why; 0 for no limit. A request is also stopped when the browser leaves the page. Keep it below the proxy's timeout (oauth2-proxy's `upstream_timeout`, 5 minutes in `deploy/oauth2-proxy/pinax.cfg`) |
+| `PINAX_WIDE_QUERIES` | `2` | How many file-level queries of a whole filesystem (a search at its root, the new and removed files of *What changed* against an older scan, problem file names) run at once; others wait their turn within their time limit. 0 for no limit |
 | `PINAX_SEARCH_MAX_ROWS` | `500` | Most files a search shows on screen |
 | `PINAX_EXPORT_MAX_ROWS` | `100000` | Most files a CSV download contains |
 | `PINAX_COLD_DAYS` | `730` | When data counts as cold, in days since its last change. Rounded to the age bucket that starts nearest (two years by default) |

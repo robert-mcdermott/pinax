@@ -11,6 +11,7 @@ import hashlib
 import json
 import threading
 from collections.abc import Iterable
+from contextlib import nullcontext
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -18,6 +19,7 @@ from typing import Any
 
 import duckdb
 
+from . import limits
 from .categories import AGE_BUCKETS, CATEGORIES, CATEGORY_KEYS
 from .ingest.build import ADDITIVE, EXTREMES, NB, NC
 
@@ -209,19 +211,22 @@ class SnapshotIndex:
         with self._lock:
             return self._con.cursor()
 
+    # Every query runs on its own cursor, within the time limit of the request it serves (limits.py).
     def _rows(self, sql: str, params: list | None = None, keys: list[str] | None = None) -> list[dict]:
         cur = self._cursor()
         try:
-            res = cur.execute(sql, params or [])
-            names = keys or [d[0] for d in res.description]
-            return [dict(zip(names, r)) for r in res.fetchall()]
+            with limits.guard(cur):
+                res = cur.execute(sql, params or [])
+                names = keys or [d[0] for d in res.description]
+                return [dict(zip(names, r)) for r in res.fetchall()]
         finally:
             cur.close()
 
     def _one(self, sql: str, params: list | None = None) -> tuple | None:
         cur = self._cursor()
         try:
-            return cur.execute(sql, params or []).fetchone()
+            with limits.guard(cur):
+                return cur.execute(sql, params or []).fetchone()
         finally:
             cur.close()
 
@@ -249,6 +254,10 @@ class SnapshotIndex:
         if not globs:
             return None
         return "read_parquet([" + ", ".join("'" + g.replace("'", "''") + "'" for g in globs) + "])"
+
+    def _turn(self, path: str):
+        """File-level queries of a whole filesystem take turns (`limits.wide`); narrower ones never wait."""
+        return limits.wide() if path == self.root else nullcontext()
 
     def scope_tops(self, path: str) -> list[int]:
         top = self.top_of(path)
@@ -298,7 +307,8 @@ class SnapshotIndex:
     def _raw(self, sql: str, params: list) -> list[tuple]:
         cur = self._cursor()
         try:
-            return cur.execute(sql, params).fetchall()
+            with limits.guard(cur):
+                return cur.execute(sql, params).fetchall()
         finally:
             cur.close()
 
@@ -459,8 +469,9 @@ class SnapshotIndex:
         if there is not None:
             src += f" ANTI JOIN (SELECT path FROM {there} WHERE path >= ? AND path < ?) USING (path)"
             params += [lo, hi]
-        rows = self._rows(f"SELECT {FILE_COLUMNS}, count(*) OVER () AS _n, sum(size) OVER () AS _b FROM {src} "
-                          "ORDER BY size DESC, path LIMIT ?", [*params, limit], [*FILE_KEYS, "_n", "_b"])
+        with self._turn(path):
+            rows = self._rows(f"SELECT {FILE_COLUMNS}, count(*) OVER () AS _n, sum(size) OVER () AS _b FROM {src} "
+                              "ORDER BY size DESC, path LIMIT ?", [*params, limit], [*FILE_KEYS, "_n", "_b"])
         n, b = (rows[0]["_n"], rows[0]["_b"]) if rows else (0, 0)
         for r in rows:
             del r["_n"], r["_b"]
@@ -559,8 +570,9 @@ class SnapshotIndex:
         if where:
             cond.append(where)
             args.extend(params or [])
-        return self._rows(f"SELECT {FILE_COLUMNS} FROM {src} WHERE {' AND '.join(cond)} ORDER BY {order} LIMIT ?",
-                          [*args, limit], FILE_KEYS)
+        with self._turn(path):
+            return self._rows(f"SELECT {FILE_COLUMNS} FROM {src} WHERE {' AND '.join(cond)} ORDER BY {order} LIMIT ?",
+                              [*args, limit], FILE_KEYS)
 
     def files_summary(self, path: str, *, where: str = "", params: list | None = None) -> dict:
         src = self.file_sources(self.scope_tops(path))
@@ -568,8 +580,9 @@ class SnapshotIndex:
             return {"files": 0, "bytes": 0}
         lo, hi = child_range(path)
         cond = "path >= ? AND path < ?" + (f" AND {where}" if where else "")
-        n, b = self._one(f"SELECT count(*), coalesce(sum(size), 0) FROM {src} WHERE {cond}",
-                         [lo, hi, *(params or [])])
+        with self._turn(path):
+            n, b = self._one(f"SELECT count(*), coalesce(sum(size), 0) FROM {src} WHERE {cond}",
+                             [lo, hi, *(params or [])])
         return {"files": int(n), "bytes": int(b)}
 
     # ---- Storage health ----

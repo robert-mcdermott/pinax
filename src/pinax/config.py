@@ -38,9 +38,13 @@ class Settings(BaseSettings):
     # Snapshots kept per filesystem; older indexes are deleted, their folder history is kept.
     keep_snapshots: int = 6
 
-    # Query side.
+    # Query side. A request's queries stop after QUERY_TIMEOUT seconds (0: no limit), or when the browser leaves;
+    # keep it below the proxy's timeout, so people see why. At most WIDE_QUERIES file-level queries of a whole
+    # filesystem (searches and comparisons that read every file) run at once (0: no limit).
     query_memory_limit: str = "4GB"
     query_threads: int = 0
+    query_timeout: int = 180
+    wide_queries: int = 2
     search_max_rows: int = 500
     export_max_rows: int = 100_000
 
