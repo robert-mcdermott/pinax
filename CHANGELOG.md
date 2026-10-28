@@ -8,7 +8,10 @@
   straight-line trend through the last six months of scans (the median of the slopes between pairs of scans, so
   one odd scan barely moves it), carried forward from the latest scan, with a range and a backtest (what the same
   method forecast three months earlier, against the size now). A step, such as a cleanup, starts the trend again;
-  a forecast needs six scans over eight weeks. `/api/history` returns it as `forecast`.
+  a forecast needs six scans over eight weeks. *History* draws it after the last scan, as a dashed line over
+  the shaded range, with *In a year* beside the other figures, a table of the months ahead, and the reason when
+  there is none; the history CSV adds the months ahead (`kind` is `scan` or `forecast`). `/api/history` returns it
+  as `forecast`.
 - **Labs and departments in the app.** *People and access* adds a lab or department (*Add lab or department*: a
   slug, a name, its kind, division, and research area), and each one's page changes its details, deactivates it
   (its members stop seeing its folders; its members and folders are kept, and its folders are still charged to

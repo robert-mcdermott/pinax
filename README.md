@@ -16,7 +16,9 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
   change, age of the oldest file, time since the last access, the share that is cold, or the share of one kind
   of data. Show one or two levels, or switch to a table.
 - **History**: how any folder, lab, or filesystem grew and aged over its scans: size by age as stacked
-  columns, with files, cold share, and average age beside it, or as a table with CSV.
+  columns, with files, cold share, and average age beside it, or as a table with CSV. A forecast carries the
+  trend of the last six months of scans a year ahead, with a range and a check of how far off it was three
+  months ago.
 - **Change map**: the treemap colored by how much each folder grew (teal) or shrank (gold) since an earlier
   scan, the previous one by default, with new and removed folders drawn; drill down as in the age map.
 - **What changed**: for any folder and two scans, where it grew and shrank, the new and removed folders, and the

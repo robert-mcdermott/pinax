@@ -32,19 +32,23 @@ export function niceTicks(max, { target = 4, unit = 1 } = {}) {
  *   series: [{ token, label, values }] (values null where nothing is drawn; a stack lists its bottom first);
  *   ticks(max) -> y tick values; tick(v) -> tick text; value(i) -> the label at the last point (or null);
  *   tip(i) -> trusted HTML for the readout; label: the chart's accessible summary;
- *   onHover(i | null): called as the pointer or keyboard moves; mark: a point to mark for good (a chosen scan).
+ *   onHover(i | null): called as the pointer or keyboard moves; mark: a point to mark for good (a chosen scan);
+ *   ahead: a forecast after the last point, { from, anchor, values, low, high, label }: `times` goes on past the
+ *     scans with one time per value, drawn as a dashed line from `anchor` (the total at point `from`) over a
+ *     shaded range, with hit targets of their own.
  */
 export function renderTimeChart(el, opts) {
-  const { times, kind, series, ticks, tick, value, tip, label, onHover = () => {}, mark = null } = opts;
+  const { times, kind, series, ticks, tick, value, tip, label, onHover = () => {}, mark = null, ahead = null } = opts;
   el.innerHTML = "";
   const W = el.clientWidth, H = el.clientHeight, n = times.length;
   const body = getComputedStyle(document.body).fontFamily;
   const axisFont = `400 11.5px ${body}`, labelFont = `700 12.5px ${body}`;
   const totals = times.map((_, i) => (kind === "stack"
     ? series.reduce((t, s) => t + (s.values[i] || 0), 0) : Math.max(...series.map((s) => s.values[i] ?? 0))));
-  const ys = ticks(Math.max(0, ...totals));
+  const ys = ticks(Math.max(0, ...totals, ...(ahead ? ahead.high : [])));
   const top = ys[ys.length - 1] || 1;
   const last = [...Array(n).keys()].reverse().find((i) => series.some((s) => s.values[i] != null));
+  const start = ahead ? n - ahead.values.length : n; // the first forecast point
   const endText = last != null && value ? value(last) : null;
   const left = Math.ceil(Math.max(...ys.map((v) => measure(tick(v), axisFont)))) + 10;
   const right = kind === "line" && endText ? Math.ceil(measure(endText, labelFont)) + 14 : 10;
@@ -81,6 +85,18 @@ export function renderTimeChart(el, opts) {
   for (let i = n - 1; i >= 0; i -= every) {
     parts.push(`<text class="tc-axis" x="${xs[i]}" y="${T + ph + 18}" text-anchor="middle">${esc(fmt(times[i]))}</text>`);
   }
+  if (ahead) {
+    // The range under everything: from the anchor out to each month's low and high.
+    const at = (k) => xs[start + k];
+    const hi = ahead.high.map((v, k) => `L${at(k)},${y(v)}`).join("");
+    const lo = ahead.low.map((v, k) => `L${at(k)},${y(v)}`).reverse().join("");
+    parts.push(`<path class="tc-range" d="M${xs[ahead.from]},${y(ahead.anchor)}${hi}${lo}Z"/>`,
+      `<path class="tc-ahead" d="M${xs[ahead.from]},${y(ahead.anchor)}${ahead.values.map((v, k) => `L${at(k)},${y(v)}`).join("")}"/>`);
+    if (ahead.label) {
+      const k = ahead.values.length - 1;
+      parts.push(`<text class="tc-label" x="${at(k)}" y="${y(ahead.values[k]) - 9}" text-anchor="end">${esc(ahead.label)}</text>`);
+    }
+  }
   if (kind === "stack") {
     for (let i = 0; i < n; i++) {
       if (!totals[i]) continue;
@@ -101,6 +117,7 @@ export function renderTimeChart(el, opts) {
       parts.push(`<g clip-path="url(#tc-c${el.id}${i})">${segs.join("")}</g>`);
     }
     if (endText) parts.push(`<text class="tc-label" x="${xs[last]}" y="${y(totals[last]) - 7}" text-anchor="middle">${esc(endText)}</text>`);
+    if (ahead) parts.push(`<line class="tc-cross" x1="0" x2="0" y1="${T}" y2="${T + ph}" hidden/>`);
   } else {
     for (const s of series) {
       let d = "";
@@ -133,10 +150,11 @@ export function renderTimeChart(el, opts) {
   const band = svg.querySelector(".tc-band"), cross = svg.querySelector(".tc-cross");
   const highlight = (i) => {
     const on = i != null;
-    band.toggleAttribute("hidden", !on || kind !== "stack");
-    cross?.toggleAttribute("hidden", !on);
+    const later = on && i >= start; // a forecast month: a crosshair, since it has no column
+    band.toggleAttribute("hidden", !on || kind !== "stack" || later);
+    cross?.toggleAttribute("hidden", !on || (kind === "stack" && !later));
     if (!on) return;
-    if (kind === "stack") {
+    if (kind === "stack" && !later) {
       band.setAttribute("x", xs[i] - colW / 2 - 6);
       band.setAttribute("width", colW + 12);
     } else {

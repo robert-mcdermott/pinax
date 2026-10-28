@@ -99,6 +99,9 @@ the 16th of last month; every lab has a terabyte of it free and departments none
    **Cold data** at two years lists `raw` as one cold unit; at ten years it lists `2014_legacy_reruns` alone.
    **History** for `fujimoto_a`: the lab grew from 19 to 25 TiB in six scans, and new data on top of the columns
    brought its cold share down from 77% to 60%. Hover a column for that scan; the three small charts follow.
+   The dashed line is the forecast: at its trend, about 34 TiB in a year (*In a year*), within the shaded range.
+   The `bennett_k` lab has none: the project it handed to `haddad_n` is a step, and the trend starts again after
+   it, so it needs six scans after the step.
 5. **Switch to Jordan Okafor**, a delegate for two labs. *My data* shows both labs' folders; the age map
    puts both side by side. Then **switch to Valeria Quintero**, whose lab joined three scans ago: one folder, two
    thirds of it unchanged for more than two years, because most of it came from the PI's previous institution.

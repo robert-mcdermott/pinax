@@ -117,7 +117,8 @@ The interface is plain HTML, CSS, and JavaScript modules with no framework or bu
 - `js/viz.js`: age buckets, color modes, size metrics, legends, and small charts (age bars, histograms, bars).
 - `js/treemap.js`: the squarified treemap, drawn as positioned links so tiles are real navigation targets.
 - `js/timechart.js`: charts over time (stacked columns and lines on a shared date axis, with a hover and keyboard
-  readout that several charts share); `js/history.js` draws the history view with it.
+  readout that several charts share, and a forecast drawn after the last scan, `ahead`); `js/history.js` draws the
+  history view with it.
 - `js/costs.js`: *Costs*, each filesystem's prices and free tiers (`costs.py`, `api/costs.py`).
 - `js/charges.js`: *Storage charges*, what a person's labs pay each month and how, and *Chargeback*, every lab's
   charges for a month, for administrators (`charges.py`, `api/costs.py`).
