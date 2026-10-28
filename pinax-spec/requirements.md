@@ -78,7 +78,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 
 | # | Requirement | Status |
 | --- | --- | --- |
-| C1 | A lab's PI and delegates, and administrators, mark folders to delete, move to another filesystem, or compress, while exploring; Pinax changes nothing on storage (P3) | planned (wave 7) |
+| C1 | A lab's PI and delegates, and administrators, mark folders to delete, move to another filesystem, or compress, while exploring; Pinax changes nothing on storage (P3) | done (wave 7, slice 2: from the age map's panel; *Cleanup plans*; nested folders counted once; audited) |
 | C2 | What a plan saves: the space freed and the fall in the lab's monthly charge, with free tiers and the destination's price | planned (wave 7) |
 | C3 | Progress from later scans: done, partly done, moved (no saving), or still to do, and what was actually freed | planned (wave 7) |
 | C4 | Suggested folders, each with its saving: cold folders, uncompressed sequencing data, workflow working folders | planned (wave 7) |

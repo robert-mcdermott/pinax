@@ -764,7 +764,7 @@ confirmed when the wave starts.
 | Slice | Scope and requirements | Acceptance before the next slice | Status |
 | --- | --- | --- | --- |
 | 1 | Marked folders, followed across scans (S10) | The catalog records a marked folder by filesystem and path; index version 6 keeps each directory's inode from the scan; at each ingest, every marked folder is found at its path, found at another path with the same inode (proposed as a move, not applied, since inodes are reused), or gone; its totals are recorded for that scan, so a marked folder's history outlasts its snapshot; tested with renames, moves, deletions, and a reused inode; the added build time and index size measured at 100 million files | Done |
-| 2 | Marking folders for cleanup (C1) | From the age map (a folder's own panel and each tile's actions, reachable by keyboard), *Cold folders*, and *What changed*: add a folder to its lab's cleanup plan to delete, move to another filesystem, or compress, with a note; by the lab's PI and delegates, and by administrators; a folder inside one already planned counts once; the plan's total shown while exploring; audited; both themes and 375 pixels | To come |
+| 2 | Marking folders for cleanup (C1) | From the age map (a folder's own panel and each tile's actions, reachable by keyboard), *Cold folders*, and *What changed*: add a folder to its lab's cleanup plan to delete, move to another filesystem, or compress, with a note; by the lab's PI and delegates, and by administrators; a folder inside one already planned counts once; the plan's total shown while exploring; audited; both themes and 375 pixels | Done |
 | 3 | What a plan saves (C2) | For each folder and the whole plan: the space freed, and the lab's monthly charge now and after, per filesystem, with free tiers (data within a free tier saves nothing, and the page says so) and the destination's price for a move; compression estimated from typical ratios for each type, and labeled as an estimate; tested against the charges worked out on the reduced sizes | To come |
 | 4 | Progress from scans (C3) | With each new scan, each folder is done (gone, and not moved), partly done (smaller), moved (no saving), or still to do; the space freed and the fall in the charge since the plan began; a *Cleanup plan* page for each lab with what is to do and what was done, and when; CSV for the lab or the storage team | To come |
 | 5 | Suggestions (C4) | Folders worth adding, each with its saving, added in one click: cold folders (R3), uncompressed sequencing data (R6) to compress, and workflow working folders (Nextflow `work/`, Snakemake `.snakemake/`, Cromwell `cromwell-executions/`, conda and container caches), found when the index is built; within Q3 for a lab folder at 100 million files | To come |
@@ -818,6 +818,25 @@ the site's own.
      reading the directories with their inodes 0.17 s and writing the directory table 0.6 s; the inodes take
      at most four 256 KiB blocks of the 126 MB index (the index file is the same size as at version 5); finding
      1,000 marked folders by path takes 25 ms, and 100 by inode 4 ms.
+2. **Marking folders for cleanup (C1).**
+   - `cleanup_item` table and `plans.py`: a folder in the plan of the lab that owns its top-level folder, to
+     delete, move to another (active) filesystem, or compress, with a note, who added it, and its size then (from
+     its mark); added by the lab's PI and delegates directly, or by administrators; others' folders answer 404, and
+     a folder no lab owns has no plan; a folder inside another planned one is counted once, in the outermost; every
+     addition, change, and removal audited.
+   - `/api/plans` (a person's labs' plans; any lab's for administrators), `/api/plans/here` (a folder's place in its
+     lab's plan, for the age map), adding, changing, and taking out, and confirming or dismissing a move.
+   - The age map's panel has a *Cleanup plan* box: the folder's action and who added it, the folder it is inside
+     if that is planned, or *Add to cleanup plan* (a dialog: delete, move to a filesystem, or compress, and a
+     note), with the lab's plan so far. *Cleanup plans* (`js/plans.js`, in the sidebar) lists each lab's folders:
+     what to do, size when added and now, who added them, a moved folder to confirm or dismiss, and changing or
+     taking one out. Adding from a tile is a click into it and its panel; adding straight from *Cold folders*
+     comes with the suggestions (slice 5).
+   - Tests (`tests/test_plans.py`): a PI adds a folder, once; a delegate adds directly; no one plans others'
+     folders, the root, a path with `..`, a folder not in the scan, or a folder no lab owns; moves name another
+     filesystem; nested folders counted once, and the age map's view of it; changing and removing, by whom, and
+     audited; a folder that has not moved cannot be confirmed moved.
+   - *Done*: checked in the browser as a PI on the demo (adding from the panel, the panel after, *Cleanup plans*).
 
 ## 0.8.0: folder tags (wave 8)
 

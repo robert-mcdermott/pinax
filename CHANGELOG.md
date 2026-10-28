@@ -8,6 +8,10 @@
   path with their directory's inode. Each scan finds them at their path, or at another path with the same inode
   (a rename or a move, offered to a person to confirm, since inodes are reused), or gone, and records their
   totals, so their history outlasts the snapshots' indexes.
+- **Cleanup plans.** From a folder's panel on the age map, a lab's PI or delegate (or an administrator) adds it to
+  the lab's cleanup plan: to delete it, move it to another filesystem, or compress it, with a note. *Cleanup plans*
+  lists each lab's folders with what to do, their size when added and now, and who added them; a folder that moved
+  is offered to confirm. Pinax deletes, moves, and compresses nothing: a plan records what the lab means to do.
 
 ### Changed
 

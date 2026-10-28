@@ -9,6 +9,7 @@ import { viewChanged } from "/js/changed.js";
 import { charge, viewChargeback, viewCharges } from "/js/charges.js";
 import { viewCapacity } from "/js/capacity.js";
 import { viewCosts } from "/js/costs.js";
+import { viewPlans } from "/js/plans.js";
 import { viewChanges } from "/js/changes.js";
 import { viewExplore } from "/js/explore.js";
 import { viewHistory } from "/js/history.js";
@@ -77,6 +78,7 @@ const routes = [
   [/^#\/scans$/, viewScans],
   [/^#\/costs$/, viewCosts],
   [/^#\/capacity$/, viewCapacity],
+  [/^#\/plans(\?.*)?$/, viewPlans],
   [/^#\/charges(\?.*)?$/, viewCharges],
   [/^#\/chargeback(\?.*)?$/, viewChargeback],
   [/^#\/access(\?.*)?$/, viewAccess],

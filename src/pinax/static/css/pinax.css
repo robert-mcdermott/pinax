@@ -753,6 +753,9 @@ pre.json { background: var(--surface-2); color: var(--text); border: 1px solid v
 .plain-list li { display: flex; justify-content: space-between; gap: 10px; min-width: 0; }
 .plain-list li a { overflow-wrap: anywhere; }
 .cost-card h3 { margin: 18px 0 8px; }
+.plan-box:not(:empty) { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+.plan-box h3 { margin: 0 0 8px; }
+.plan-form .radio { display: flex; align-items: center; gap: 8px; }
 .cost-card .card-head { flex-wrap: wrap; gap: 6px 16px; }
 .cost-form { margin: 12px 0 0; padding-top: 12px; border-top: 1px solid var(--border); }
 .tier-list { font-size: 13px; color: var(--text-muted); gap: 2px; }

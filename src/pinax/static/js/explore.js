@@ -5,6 +5,7 @@ import {
   $, $$, ageText, api, bytes, date, displayPath, html, icon, mount, num, parseQuery, pct, placeHash, placeQuery,
   raw, state, when,
 } from "/js/core.js";
+import { planBox } from "/js/plans.js";
 import { scopeHeader } from "/js/shell.js";
 import { renderTreemap } from "/js/treemap.js";
 import {
@@ -78,6 +79,9 @@ export async function viewExplore(el, query) {
     window.addEventListener("pinax:theme", redraw);
     window.addEventListener("hashchange", () => { window.removeEventListener("resize", redraw); window.removeEventListener("pinax:theme", redraw); }, { once: true });
   }
+
+  const planEl = $("#plan-box", el);
+  if (planEl && node.fs && node.path) planBox(planEl, node.fs, node.path);
 
   const go = (changes) => { location.hash = placeHash("explore", place, { ...keep, ...changes }); };
   $("#ctl-size", el).addEventListener("change", (e) => go({ size: e.target.value }));
@@ -161,6 +165,7 @@ function detailPanel(node, data, q, cb) {
       <a href="${placeHash("owners", place, extra)}">Owners</a></p>
     ${node.direct && node.direct.files ? html`<p class="small muted" style="margin:10px 0 0">${num(node.direct.files)} files (${bytes(node.direct.bytes)}) sit directly in this folder.
       <a href="${placeHash("files", place, { direct: 1 })}">List them</a></p>` : ""}
+    <div id="plan-box" class="plan-box"></div>
   </aside>`;
 }
 

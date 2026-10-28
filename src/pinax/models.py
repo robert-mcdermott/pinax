@@ -329,6 +329,32 @@ class MarkedFolderStat(Base):
     age_bytes: Mapped[list[int]] = mapped_column(JSON, default=list)
 
 
+class CleanupItem(Base):
+    """A folder in a lab's cleanup plan (plans.py): what the lab means to do with it (`action`: delete, move to
+    another filesystem, or compress), with a note, who added it, and its size then. Pinax does none of it; later
+    scans show what happened."""
+
+    __tablename__ = "cleanup_item"
+    __table_args__ = (UniqueConstraint("lab_id", "mark_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    lab_id: Mapped[int] = mapped_column(ForeignKey("lab.id", ondelete="CASCADE"), index=True)
+    mark_id: Mapped[int] = mapped_column(ForeignKey("marked_folder.id", ondelete="CASCADE"), index=True)
+    action: Mapped[str] = mapped_column(String(16))
+    target_filesystem_id: Mapped[int | None] = mapped_column(ForeignKey("filesystem.id", ondelete="SET NULL"),
+                                                             nullable=True)  # where a move goes
+    note: Mapped[str] = mapped_column(Text, default="")
+    added_by: Mapped[int | None] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    added_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    baseline_snapshot_id: Mapped[int | None] = mapped_column(ForeignKey("snapshot.id", ondelete="SET NULL"),
+                                                             nullable=True)
+    baseline_bytes: Mapped[int] = mapped_column(BigInteger, default=0)  # its size when it was added
+    baseline_files: Mapped[int] = mapped_column(BigInteger, default=0)
+
+    lab: Mapped["Lab"] = relationship()
+    mark: Mapped[MarkedFolder] = relationship()
+
+
 class Heartbeat(Base):
     """The latest word from a long-running process, such as `pinax ingest --watch`, so the interface can say
     whether it is running."""

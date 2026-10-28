@@ -396,6 +396,16 @@ indexes, as folder history does for top-level folders. An index before version 6
 folders are found by path only. At a million files (244,000 folders), finding 1,000 marked folders by path takes
 25 ms, and 100 by inode 4 ms (a pass over every folder's inode); the inodes take under 1 MB of the 126 MB index.
 
+### Cleanup plans
+
+A lab's **cleanup plan** (`plans.py`, `cleanup_item`) lists folders it means to free space from, and how: delete
+it, move it to another filesystem (whose price sets the saving), or compress it, with a note. Pinax does none of
+it, and reads and changes nothing on the storage: a plan records what a lab means to do, the lab's people (or the
+storage team, with the plan's CSV) do it, and later scans show what happened. A planned folder is a marked folder,
+so it is followed across scans, and its size when it was added is kept. A lab's PI and delegates add to its plan
+directly, as do administrators; the folder must be in a top-level folder the lab owns; every change is audited. A
+folder inside another planned folder of the same lab is listed, but counted once, as part of the outermost.
+
 ## Costs
 
 What storage costs is kept in the catalog as two schedules per filesystem (`costs.py`):

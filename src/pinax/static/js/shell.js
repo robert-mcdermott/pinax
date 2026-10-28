@@ -19,6 +19,7 @@ export function renderSidebar() {
     <a class="side-link" href="#/" data-route="#/">${icon("home")}${admin ? "All data" : "My data"}</a>
     ${link("folders", "folder", admin ? "Folders and labs" : "My folders", false)}
     ${link("charges", "tag", "Storage charges", false)}
+    ${link("plans", "archive", "Cleanup plans", false)}
     <h4 class="scope-label">EXPLORE${p && p.fs ? html` <span class="tiny" title="${p.name || ""}">· ${p.name || ""}</span>` : ""}</h4>
     ${link("explore", "treemap", "Age map")}
     ${link("changes", "activity", "Change map")}
