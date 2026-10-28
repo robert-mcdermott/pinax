@@ -19,6 +19,9 @@ directory level is precomputed once per scan, so no page ever reads per-file row
                                            younger, ordered by (threshold, path)
                                changes     every directory of this scan or the previous one, joined by
                                            path, with both scans' totals; ordered by (depth, path)
+                               file_changes
+                                           every file new since the previous scan or removed since,
+                                           ordered by (change, path)
                                tops, users, groups, errors, name_flags, meta
     <index>/files/gNNNNNN/*.parquet        every non-directory entry, in at most 64 groups of
                                            top-level folders, each sorted by path (so any folder,
@@ -36,7 +39,7 @@ import os
 import re
 import shutil
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -47,7 +50,7 @@ from ..categories import AGE_BUCKETS, CATEGORIES, COMPRESSION_SUFFIXES, OTHER, b
 
 log = logging.getLogger("pinax.build")
 
-INDEX_VERSION = 4
+INDEX_VERSION = 5
 # Files are staged and sorted in at most this many groups of top-level folders. A partitioned write keeps a
 # file open and buffered for each partition, so one per top-level folder does not scale to thousands of them.
 FILE_GROUPS = 64
@@ -226,10 +229,11 @@ CHANGE_MEASURES = (["files", "dirs", "bytes", "alloc", "m_wsum"] + [f"mf{i}" for
                    + [f"mb{i}" for i in range(NB)])
 
 
-def _compare(con: duckdb.DuckDBPyConnection, previous: Path, root: str, step: Callable) -> dict | None:
+def _compare(con: duckdb.DuckDBPyConnection, previous: Path, root: str, files_dir: Path, step: Callable) -> dict | None:
     """Join this scan's directories with the previous scan's by path, keeping both scans' totals (`o_` for the
     previous, `n_` for this one): a directory in only one of them is new or removed. Ages are each scan's own,
-    measured from its start. Returns what the comparison was with, for `meta`."""
+    measured from its start. Then the files new and removed since (`_compare_files`). Returns what the comparison
+    was with, for `meta`."""
     con.execute(f"ATTACH {_sql_str(str(previous / 'index.duckdb'))} AS prev (READ_ONLY)")
     try:
         meta = {k: json.loads(v) for k, v in con.execute("SELECT key, value FROM prev.meta").fetchall()}
@@ -247,10 +251,73 @@ def _compare(con: duckdb.DuckDBPyConnection, previous: Path, root: str, step: Ca
         """)
         new, removed = con.execute("SELECT count(*) FILTER (WHERE NOT in_old), count(*) FILTER (WHERE NOT in_new) "
                                    "FROM changes").fetchone()
+        files = _compare_files(con, previous / "files", files_dir, step)
         return {"scan_id": meta.get("scan_id"), "started_at": meta.get("started_at"), "ref_day": meta.get("ref_day"),
-                "index_version": meta.get("index_version"), "new_dirs": int(new), "removed_dirs": int(removed)}
+                "index_version": meta.get("index_version"), "new_dirs": int(new), "removed_dirs": int(removed),
+                **files}
     finally:
         con.execute("DETACH prev")
+
+
+# A file in `file_changes`: the fields *What changed* lists (index.py's FILE_COLUMNS), typed as in the file Parquet.
+FILE_FIELDS = {"path": "VARCHAR", "name": "VARCHAR", "ext": "VARCHAR", "cat": "UTINYINT", "kind": "VARCHAR",
+               "size": "BIGINT", "alloc_bytes": "BIGINT", "uid": "BIGINT", "gid": "BIGINT", "mtime": "TIMESTAMPTZ",
+               "atime": "TIMESTAMPTZ", "nlink": "BIGINT", "name_flags": "INTEGER"}
+
+
+def file_folders(con: duckdb.DuckDBPyConnection, file_parts: str) -> dict[int, str]:
+    """Where each top-level folder's files are, from an index's `file_parts`: a group folder (gNNNNNN, index
+    version 3 on), or in older indexes a folder of its own (tNNNNNN)."""
+    cols = {r[0] for r in con.execute(f"DESCRIBE {file_parts}").fetchall()}
+    rows = con.execute(f"SELECT top_id, {'grp' if 'grp' in cols else 'NULL'} FROM {file_parts} WHERE files > 0").fetchall()
+    return {tid: f"g{grp:06d}" if grp is not None else f"t{tid:06d}" for tid, grp in rows}
+
+
+def _compare_files(con: duckdb.DuckDBPyConnection, old_files: Path, new_files: Path, step: Callable) -> dict:
+    """Every file new since the previous scan and every file removed since, matched by path, into `file_changes`
+    (`change` is 'new' or 'removed'; ordered by change and path), so *What changed* reads a range of it instead of
+    comparing two scans' files. A top-level folder is compared with the previous scan's folder of the same name, one
+    group of them at a time, so memory is bounded by a group's files rather than the filesystem's; files directly in
+    the root (top 0) are compared with the root's."""
+    def by_name(tops: str, file_parts: str) -> dict[str, tuple[int, str]]:
+        names = dict(con.execute(f"SELECT top_id, name FROM {tops}").fetchall())
+        return {(names[t] if t else ""): (t, folder) for t, folder in file_folders(con, file_parts).items()}
+
+    new, old = by_name("tops", "file_parts"), by_name("prev.tops", "prev.file_parts")
+    groups: dict[str, list[int]] = {}  # this scan's group folders, and the previous scan's tops they hold
+    for name, (_, folder) in new.items():
+        groups.setdefault(folder, [])
+        if name in old:
+            groups[folder].append(old[name][0])
+    gone: dict[str, list[int]] = {}  # the previous scan's group folders, and its tops with no folder of that name now
+    for name, (t, folder) in old.items():
+        if name not in new:
+            gone.setdefault(folder, []).append(t)
+
+    def files(base: Path, folders: Iterable[str]) -> str:
+        return parquet_source([base / f / "*.parquet" for f in sorted(set(folders))])
+
+    fields = ", ".join(FILE_FIELDS)
+    con.execute(f"CREATE TABLE s.file_changes (change VARCHAR, {', '.join(f'{k} {t}' for k, t in FILE_FIELDS.items())})")
+    for folder, tops in sorted(groups.items()):
+        mine = files(new_files, [folder])
+        if not tops:
+            step("file_changes", f"INSERT INTO s.file_changes SELECT 'new', {fields} FROM {mine}")
+            continue
+        theirs = f"(SELECT * FROM {files(old_files, [old[n][1] for n in new if new[n][1] == folder and n in old])} " \
+                 f"WHERE top_id IN ({', '.join(str(int(t)) for t in tops)}))"
+        step("file_changes", f"INSERT INTO s.file_changes SELECT 'new', {fields} FROM {mine} "
+                             f"ANTI JOIN (SELECT path FROM {theirs}) USING (path)")
+        step("file_changes", f"INSERT INTO s.file_changes SELECT 'removed', {fields} FROM {theirs} "
+                             f"ANTI JOIN (SELECT path FROM {mine}) USING (path)")
+    for folder, tops in sorted(gone.items()):
+        step("file_changes", f"INSERT INTO s.file_changes SELECT 'removed', {fields} FROM {files(old_files, [folder])} "
+                             f"WHERE top_id IN ({', '.join(str(int(t)) for t in tops)})")
+    step("file_changes", "CREATE TABLE file_changes AS SELECT * FROM s.file_changes ORDER BY change, path")
+    counts = con.execute("SELECT count(*) FILTER (WHERE change = 'new'), coalesce(sum(size) FILTER (WHERE change = 'new'), 0), "
+                         "count(*) FILTER (WHERE change = 'removed'), "
+                         "coalesce(sum(size) FILTER (WHERE change = 'removed'), 0) FROM file_changes").fetchone()
+    return dict(zip(("new_files", "new_bytes", "removed_files", "removed_bytes"), map(int, counts)))
 
 
 def build_index(
@@ -521,7 +588,7 @@ def build_index(
     compared = None
     if previous is not None:
         say("Comparing with the previous scan")
-        compared = _compare(con, Path(previous), root, step)
+        compared = _compare(con, Path(previous), root, work / "files", step)
 
     say("Writing type and owner tables")
     step("dir_ext", """

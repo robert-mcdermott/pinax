@@ -89,6 +89,65 @@ def test_an_index_says_what_it_was_compared_with(scans, tmp_path):
         first.close()
 
 
+def _paths(files: list[dict]) -> set[str]:
+    return {f"{ROOT}/{f['path']}" for f in files}
+
+
+def test_the_index_records_every_new_and_removed_file(scans):
+    _, _, index, result = scans
+    old, new = _paths(FILES), _paths(_new_files())
+    with duckdb.connect(str(index / "index.duckdb"), read_only=True) as con:
+        rows = con.execute("SELECT change, path, size FROM file_changes").fetchall()
+    assert sorted(p for c, p, _ in rows if c == "new") == sorted(new - old)
+    assert sorted(p for c, p, _ in rows if c == "removed") == sorted(old - new)
+    sizes = {f"{ROOT}/{f['path']}": f["size"] for f in FILES + _new_files()}
+    assert all(size == sizes[p] for _, p, size in rows)
+    assert result.compared | {"new_files": 2, "new_bytes": 11000, "removed_files": 4, "removed_bytes": 8450} \
+        == result.compared
+
+
+@pytest.mark.parametrize("batch", [1, 10_000_000])
+@pytest.mark.parametrize("folder", ["", "alpha_lab", "alpha_lab/projects", "beta_lab/imaging", "gamma_lab", "orphans"])
+def test_recorded_changes_equal_comparing_the_two_scans(scans, tmp_path, monkeypatch, folder, batch):
+    """What the build recorded is what comparing the files gives (as for a scan older than the previous one, or an
+    index built before file changes were recorded), one group of top-level folders at a time or all together."""
+    from pinax import index
+    from pinax.index import SnapshotIndex
+
+    monkeypatch.setattr(index, "COMPARE_FILES", batch)
+    new, old = SnapshotIndex(scans[2]), SnapshotIndex(tmp_path / "old-index")
+    path = f"{ROOT}/{folder}" if folder else ROOT
+    try:
+        for kind in ("new", "removed"):
+            recorded = new.file_changes(path, old, kind=kind, limit=3)
+            new.has_file_changes = False
+            compared = new.file_changes(path, old, kind=kind, limit=3)
+            new.has_file_changes = True
+            assert recorded == compared, (folder, kind)
+        assert new.file_changes(ROOT, old, kind="removed")["files"] == 4
+    finally:
+        new.close()
+        old.close()
+
+
+def test_a_removed_top_level_folder_is_removed_files(scans, tmp_path):
+    from pinax.index import SnapshotIndex
+
+    later = [f for f in _new_files() if not f["path"].startswith("orphans/")]
+    write_scan(tmp_path / "later", ROOT, later, started=NEW_START + timedelta(days=30))
+    build_index(tmp_path / "later", tmp_path / "later-index", previous=scans[2], progress=lambda m: None)
+    new, old = SnapshotIndex(tmp_path / "later-index"), SnapshotIndex(scans[2])
+    try:
+        removed = new.file_changes(ROOT, old, kind="removed")
+        assert [r["path"] for r in removed["rows"]] == [f"{ROOT}/orphans/old/thing.dat"]
+        assert new.file_changes(ROOT, old, kind="new")["files"] == 0
+        new.has_file_changes = False
+        assert new.file_changes(ROOT, old, kind="removed") == removed
+    finally:
+        new.close()
+        old.close()
+
+
 def test_ingest_compares_with_the_previous_snapshot(env, tmp_path):
     from pinax.db import session_scope
     from pinax.models import Filesystem
