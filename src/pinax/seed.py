@@ -9,7 +9,8 @@ belongs to you, so after each scan the seed rewrites the owner and group columns
 and the six scans are taken a few seconds apart, so each is dated a month after the one before, with the
 files written for it dated within that month. Between scans the seed simulates six months of activity
 (`MONTHS`): a lab that grows, cleanups, a project moved between labs, data ageing past the cold
-threshold, and a lab that joins.
+threshold, and a lab that joins. Storage has prices and free tiers (`demo_costs`), so the six months make six
+months of charges.
 
 All names are fictional. Lab folders follow the lastname_f convention used on research storage, and
 the labs and people match Tundra's demo, plus a lab that joins during the six months.
@@ -24,11 +25,13 @@ import subprocess
 import time
 import unicodedata
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import duckdb
+from sqlalchemy import select
 
+from . import costs
 from .config import Settings, get_settings
 from .db import Base, get_engine, reset_engine, session_scope
 from .models import AuditEvent, Filesystem, Lab, LabFolder, LabMembership, User
@@ -72,6 +75,23 @@ JOINS = {"quintero_v": 4}
 
 # Top-level folders that exist but belong to no lab: only administrators see them.
 UNMAPPED = [("fast", "shared_reference"), ("fast", "scratch_legacy"), ("secure", "irb_archive")]
+
+
+
+def demo_costs(now: float) -> tuple[list[tuple], list[tuple]]:
+    """What storage costs in the demo, from the day of the seed: prices (filesystem, from, price, unit) and free
+    tiers (filesystem, from, amount, unit, for). Fast costs 25 per TB a month, 22 from the 16th of last month; every
+    lab has a terabyte of it free and departments none, and the Lindqvist Lab its own 5 TB from the 10th of last
+    month (a grant's allocation). Secure costs 40 per TiB, with nothing free."""
+    today = datetime.fromtimestamp(now, UTC).date()
+    last_month = (today.replace(day=1) - timedelta(days=1)).replace(day=1)
+    since = date(datetime.fromtimestamp(now - (SCANS - 1) * MONTH, UTC).year, 1, 1)  # before the first scan
+    prices = [("fast", since, "25", "TB"), ("fast", last_month.replace(day=16), "22", "TB"),
+              ("secure", since, "40", "TiB")]
+    free = [("fast", since, "1", "TB", {"kind": "lab"}), ("fast", since, "0", "TB", {"kind": "department"}),
+            ("fast", last_month.replace(day=10), "5", "TB", {"lab": "lindqvist_h"})]
+    return prices, free
+
 
 # username, display name, title, admin, [(lab slug, role)]
 PEOPLE = [
@@ -621,6 +641,14 @@ def run_seed(scale: float = 1.0) -> None:
             for slug, role in memberships:
                 s.add(LabMembership(user_id=u.id, lab_id=labs[slug].id, role=role))
         s.add(AuditEvent(action="demo.seeded", summary="Demo data created by pinax seed"))
+        s.flush()
+        admin = s.scalar(select(User).where(User.is_admin.is_(True)).order_by(User.id).limit(1))
+        prices, free = demo_costs(now)
+        for fs, starts, amount, unit in prices:
+            costs.add_price(s, admin, fss[fs], starts, amount, unit)
+        for fs, starts, amount, unit, who in free:
+            costs.set_free_tier(s, admin, fss[fs], starts, amount, unit, kind=who.get("kind"),
+                                lab=labs[who["lab"]] if "lab" in who else None)
 
     owners, groups = demo_accounts(rng)
     scan_root = settings.demo_root / "scans"

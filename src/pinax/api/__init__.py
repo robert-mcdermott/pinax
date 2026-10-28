@@ -3,8 +3,8 @@
 
 from fastapi import APIRouter
 
-from . import access, admin, explore, health, identity, signin
+from . import access, admin, costs, explore, health, identity, signin
 
 router = APIRouter(prefix="/api")
-for module in (health, identity, signin, explore, admin, access):
+for module in (health, identity, signin, explore, admin, access, costs):
     router.include_router(module.router)

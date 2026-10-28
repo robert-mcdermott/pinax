@@ -18,6 +18,7 @@ export function renderSidebar() {
     <h4>OVERVIEW</h4>
     <a class="side-link" href="#/" data-route="#/">${icon("home")}${admin ? "All data" : "My data"}</a>
     ${link("folders", "folder", admin ? "Folders and labs" : "My folders", false)}
+    ${link("charges", "tag", "Storage charges", false)}
     <h4 class="scope-label">EXPLORE${p && p.fs ? html` <span class="tiny" title="${p.name || ""}">· ${p.name || ""}</span>` : ""}</h4>
     ${link("explore", "treemap", "Age map")}
     ${link("changes", "activity", "Change map")}
@@ -31,6 +32,8 @@ export function renderSidebar() {
     ${admin ? html`<h4>ADMINISTRATION</h4>
       ${link("health", "heart", "Storage health", false)}
       ${link("scans", "database", "Scans", false)}
+      ${link("costs", "tag", "Costs", false)}
+      ${link("chargeback", "table", "Chargeback", false)}
       ${link("access", "lock", "People and access", false)}` : ""}`);
   setActiveNav((location.hash || "#/").split("?")[0], ".side-link");
 }

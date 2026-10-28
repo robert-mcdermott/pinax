@@ -6,13 +6,14 @@ share one directory of who owns what. Per-file data never lives here; it lives i
 index (see ingest/build.py and index.py).
 """
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import (
     JSON,
     BigInteger,
     Boolean,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -79,6 +80,44 @@ class Filesystem(Base):
     snapshots: Mapped[list["Snapshot"]] = relationship(back_populates="filesystem", order_by="Snapshot.started_at")
 
 
+class Price(Base):
+    """What a filesystem's storage costs per month, from a day on, until the next price (costs.py). Kept, so past
+    months keep the prices they had. The amount is in millionths of the currency, so money is exact."""
+
+    __tablename__ = "price"
+    __table_args__ = (UniqueConstraint("filesystem_id", "starts"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    filesystem_id: Mapped[int] = mapped_column(ForeignKey("filesystem.id", ondelete="CASCADE"), index=True)
+    starts: Mapped[date] = mapped_column(Date)
+    micros: Mapped[int] = mapped_column(BigInteger)  # per `unit` per month, in millionths of the currency
+    unit: Mapped[str] = mapped_column(String(8))  # GB, GiB, TB, or TiB
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    filesystem: Mapped[Filesystem] = relationship()
+
+
+class FreeTier(Base):
+    """How much storage on a filesystem is free of charge, from a day on: for every lab, or every department (`kind`),
+    or for one lab or department (`lab_id`), whose own tier takes the place of its kind's until it ends (`bytes`
+    None). Kept, like prices."""
+
+    __tablename__ = "free_tier"
+    __table_args__ = (UniqueConstraint("filesystem_id", "kind", "lab_id", "starts"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    filesystem_id: Mapped[int] = mapped_column(ForeignKey("filesystem.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str | None] = mapped_column(String(32), nullable=True)  # LabKind, for a default
+    lab_id: Mapped[int | None] = mapped_column(ForeignKey("lab.id", ondelete="CASCADE"), nullable=True)  # an exception
+    starts: Mapped[date] = mapped_column(Date)
+    bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)  # None: an exception ends
+    unit: Mapped[str] = mapped_column(String(8), default="TB")  # how the amount was given, to show it the same way
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    filesystem: Mapped[Filesystem] = relationship()
+    lab: Mapped["Lab | None"] = relationship()
+
+
 class LabFolder(Base):
     """A top-level folder of a filesystem, owned by exactly one lab or department."""
 
@@ -92,6 +131,20 @@ class LabFolder(Base):
 
     lab: Mapped[Lab] = relationship(back_populates="folders")
     filesystem: Mapped[Filesystem] = relationship()
+
+
+class FolderOwner(Base):
+    """Who owned a top-level folder from a moment on (`lab_id` None: no one), so charges for past months follow the
+    owners they had (ownership.py). Written when a folder's owner changes; a folder never changed has no rows and
+    belongs to its current owner (LabFolder) all along."""
+
+    __tablename__ = "folder_owner"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    filesystem_id: Mapped[int] = mapped_column(ForeignKey("filesystem.id", ondelete="CASCADE"), index=True)
+    folder: Mapped[str] = mapped_column(String(1024))
+    lab_id: Mapped[int | None] = mapped_column(ForeignKey("lab.id", ondelete="SET NULL"), nullable=True)
+    starts: Mapped[datetime] = mapped_column(DateTime)
 
 
 class User(Base):

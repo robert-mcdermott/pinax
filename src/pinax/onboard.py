@@ -30,6 +30,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from .models import AuditEvent, Filesystem, Lab, LabFolder, LabKind, LabMembership, User
+from .ownership import record_change as record_owner_change
 from .people import email_problem, username_problem
 
 ROLES = ("pi", "delegate")
@@ -334,12 +335,14 @@ def apply_import(session: Session, plan: Plan) -> int:
             current = session.scalar(select(LabFolder).where(LabFolder.filesystem_id == fs.id,
                                                              LabFolder.path == folder))
             before, after = c.fields["owner"]
+            before_id = current.lab_id if current else None
             if after is None:
                 session.delete(current)
             elif current:
                 current.lab_id = labs[after].id
             else:
                 session.add(LabFolder(lab_id=labs[after].id, filesystem_id=fs.id, path=folder))
+            record_owner_change(session, fs.id, folder, before_id, labs[after].id if after else None)
             audit("folder.mapped", f"{fs.name}: {folder} mapped to {after or 'no one'} (was {before or 'unmapped'}) "
                   "by import", {"fs": fs_slug, "folder": folder, "before": before, "after": after})
         session.flush()

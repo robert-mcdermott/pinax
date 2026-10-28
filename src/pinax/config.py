@@ -6,6 +6,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -45,6 +46,8 @@ class Settings(BaseSettings):
 
     # Reporting defaults. Data counts as cold when nothing in it has changed for this many days.
     cold_days: int = 730
+    # Costs: the currency prices are in (an ISO 4217 code), shown in the viewer's own number format.
+    currency: str = Field("USD", pattern=r"^[A-Z]{3}$")
 
     # Identity. "demo" uses a persona cookie: anyone picks anyone, for showing Pinax with the seeded people (refused
     # when ENVIRONMENT=prod). "local": people sign in with a password Pinax keeps, for sites without single sign-on.
