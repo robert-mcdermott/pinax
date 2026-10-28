@@ -46,6 +46,9 @@ export const mount = (el, content) => { el.innerHTML = String(html`${content}`);
 export class ApiError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
+// A page's reads are cancelled when another page opens (startRouter), and Pinax stops their queries; changes are
+// never cancelled.
+let pageReads = null;
 export async function api(path, { method = "GET", body, query, quiet = false } = {}) {
   let url = path.startsWith("/") ? path : `/api/${path}`;
   if (query) {
@@ -57,6 +60,7 @@ export async function api(path, { method = "GET", body, query, quiet = false } =
     headers: body ? { "Content-Type": "application/json" } : {},
     body: body ? JSON.stringify(body) : undefined,
     credentials: "same-origin",
+    signal: method === "GET" ? pageReads?.signal : undefined,
   });
   if (!res.ok) {
     let detail = res.statusText;
@@ -471,6 +475,8 @@ export function startRouter(routes, outlet, { onRoute } = {}) {
   const go = async () => {
     timers.forEach((t) => t.stop());
     timers = [];
+    pageReads?.abort();
+    const reads = pageReads = new AbortController();
     const hash = location.hash || "#/";
     const at = new URLSearchParams(hash.split("?")[1] || "").get("at");
     state.at = at && /^\d{4}-\d{2}-\d{2}$/.test(at) ? at : null;
@@ -482,7 +488,7 @@ export function startRouter(routes, outlet, { onRoute } = {}) {
         try {
           await view(outlet, ...m.slice(1).map((g) => (g === undefined ? "" : decodeURIComponent(g))));
         } catch (e) {
-          if (e.status === 401) return;
+          if (e.status === 401 || reads.signal.aborted) return;  // signed out, or another page opened
           console.error(e);
           mount(outlet, html`<div class="card empty">${icon("alert")}<h3>Something went wrong</h3><p>${e.message}</p><a class="btn btn-secondary" href="#/">Go back</a></div>`);
         }

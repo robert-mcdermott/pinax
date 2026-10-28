@@ -11,6 +11,7 @@ import hashlib
 import json
 import threading
 from collections.abc import Iterable
+from contextlib import nullcontext
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -18,10 +19,14 @@ from typing import Any
 
 import duckdb
 
+from . import limits
 from .categories import AGE_BUCKETS, CATEGORIES, CATEGORY_KEYS
-from .ingest.build import ADDITIVE, EXTREMES, NB, NC
+from .ingest.build import ADDITIVE, EXTREMES, NB, NC, file_folders
 
 DAY = 86400.0
+# Comparing two scans' files, groups of top-level folders are compared together up to this many files, and a larger
+# group alone: few queries for a small filesystem, and memory bounded by a group's files for a large one.
+COMPARE_FILES = 10_000_000
 
 # Columns selected for every directory row. Times come back as epoch seconds (DOUBLE) so no
 # timezone conversion happens in the database driver.
@@ -189,18 +194,16 @@ class SnapshotIndex:
         tops = self._con.execute("SELECT top_id, name, path FROM tops ORDER BY top_id").fetchall()
         self.top_ids = {name: tid for tid, name, _ in tops}
         self.top_names = {tid: name for tid, name, _ in tops}
-        # Where each top-level folder's files are: a group folder (gNNNNNN, index version 3), or, in older
-        # indexes, a folder of its own (tNNNNNN).
-        cols = {r[0] for r in self._con.execute("DESCRIBE file_parts").fetchall()}
-        rows = self._con.execute(
-            f"SELECT top_id, {'grp' if 'grp' in cols else 'NULL'} FROM file_parts WHERE files > 0").fetchall()
-        self.parts = {tid: f"g{grp:06d}" if grp is not None else f"t{tid:06d}" for tid, grp in rows}
+        self.parts = file_folders(self._con, "file_parts")
+        self.top_files = dict(self._con.execute("SELECT top_id, files FROM file_parts WHERE files > 0").fetchall())
         # Indexes before version 3 have no precomputed cold folders; they are found at query time instead.
         tables = {r[0] for r in self._con.execute("SELECT table_name FROM duckdb_tables()").fetchall()}
         self.has_cold_units = "cold_units" in tables
         # The change since the filesystem's previous scan (index version 4, when there was one): what it was.
         self.has_changes = "changes" in tables
         self.previous: dict | None = meta.get("previous") if self.has_changes else None
+        # And the files new and removed since then (index version 5).
+        self.has_file_changes = "file_changes" in tables
 
     def close(self) -> None:
         self._con.close()
@@ -209,19 +212,22 @@ class SnapshotIndex:
         with self._lock:
             return self._con.cursor()
 
+    # Every query runs on its own cursor, within the time limit of the request it serves (limits.py).
     def _rows(self, sql: str, params: list | None = None, keys: list[str] | None = None) -> list[dict]:
         cur = self._cursor()
         try:
-            res = cur.execute(sql, params or [])
-            names = keys or [d[0] for d in res.description]
-            return [dict(zip(names, r)) for r in res.fetchall()]
+            with limits.guard(cur):
+                res = cur.execute(sql, params or [])
+                names = keys or [d[0] for d in res.description]
+                return [dict(zip(names, r)) for r in res.fetchall()]
         finally:
             cur.close()
 
     def _one(self, sql: str, params: list | None = None) -> tuple | None:
         cur = self._cursor()
         try:
-            return cur.execute(sql, params or []).fetchone()
+            with limits.guard(cur):
+                return cur.execute(sql, params or []).fetchone()
         finally:
             cur.close()
 
@@ -249,6 +255,10 @@ class SnapshotIndex:
         if not globs:
             return None
         return "read_parquet([" + ", ".join("'" + g.replace("'", "''") + "'" for g in globs) + "])"
+
+    def _turn(self, path: str):
+        """File-level queries of a whole filesystem take turns (`limits.wide`); narrower ones never wait."""
+        return limits.wide() if path == self.root else nullcontext()
 
     def scope_tops(self, path: str) -> list[int]:
         top = self.top_of(path)
@@ -298,7 +308,8 @@ class SnapshotIndex:
     def _raw(self, sql: str, params: list) -> list[tuple]:
         cur = self._cursor()
         try:
-            return cur.execute(sql, params).fetchall()
+            with limits.guard(cur):
+                return cur.execute(sql, params).fetchall()
         finally:
             cur.close()
 
@@ -448,23 +459,57 @@ class SnapshotIndex:
 
     def file_changes(self, path: str, other: "SnapshotIndex", *, kind: str = "new", limit: int = 20) -> dict:
         """Files below `path` in this scan and not in `other` (kind "new"), or the reverse ("removed"), largest
-        first, with how many there are and their total size. Files are matched by path."""
-        mine, theirs = self.file_sources(self.scope_tops(path)), other.file_sources(other.scope_tops(path))
-        here, there = (mine, theirs) if kind == "new" else (theirs, mine)
-        if here is None:
-            return {"rows": [], "files": 0, "bytes": 0}
+        first, with how many there are and their total size. Files are matched by path. Against the previous scan,
+        they were found when this index was built (`file_changes`); against an older one, they are found here."""
         lo, hi = child_range(path)
-        src = f"(SELECT * FROM {here} WHERE path >= ? AND path < ?)"
-        params = [lo, hi]
-        if there is not None:
-            src += f" ANTI JOIN (SELECT path FROM {there} WHERE path >= ? AND path < ?) USING (path)"
-            params += [lo, hi]
-        rows = self._rows(f"SELECT {FILE_COLUMNS}, count(*) OVER () AS _n, sum(size) OVER () AS _b FROM {src} "
-                          "ORDER BY size DESC, path LIMIT ?", [*params, limit], [*FILE_KEYS, "_n", "_b"])
-        n, b = (rows[0]["_n"], rows[0]["_b"]) if rows else (0, 0)
+        if self.has_file_changes and self.previous and other.meta.get("scan_id") == self.previous.get("scan_id"):
+            cond, params = "change = ? AND path >= ? AND path < ?", [kind, lo, hi]
+            rows = self._rows(f"SELECT {FILE_COLUMNS} FROM file_changes WHERE {cond} ORDER BY size DESC, path LIMIT ?",
+                              [*params, limit], FILE_KEYS)
+            n, b = self._one(f"SELECT count(*), coalesce(sum(size), 0) FROM file_changes WHERE {cond}", params)
+            return {"rows": rows, "files": int(n), "bytes": int(b)}
+        here, there = (self, other) if kind == "new" else (other, self)
+        with self._turn(path):
+            return here._missing(path, there, limit)
+
+    def _missing(self, path: str, other: "SnapshotIndex", limit: int) -> dict:
+        """Files below `path` here and not in `other`, as `file_changes` gives them, against the top-level folders of
+        the same names in `other`: groups of top-level folders at a time, up to COMPARE_FILES files (a larger group
+        alone), so memory is bounded by a group's files rather than the filesystem's."""
+        lo, hi = child_range(path)
+        groups: dict[str, list[int]] = {}
+        for t in self.scope_tops(path):
+            if t in self.parts:
+                groups.setdefault(self.parts[t], []).append(t)
+        batches: list[list[int]] = []
+        size = 0
+        for _, tops in sorted(groups.items()):
+            n = sum(self.top_files.get(t, 0) for t in tops)
+            if not batches or size + n > COMPARE_FILES:
+                batches.append([])
+                size = 0
+            batches[-1] += tops
+            size += n
+        rows, n, b = [], 0, 0
+        for tops in batches:
+            src = f"(SELECT * FROM {self.file_sources(tops)} WHERE path >= ? AND path < ?)"
+            params = [lo, hi]
+            theirs = [0 if t == 0 else other.top_ids.get(self.top_names[t]) for t in tops]
+            theirs = [t for t in theirs if t is not None and t in other.parts]
+            if theirs:
+                src += (f" ANTI JOIN (SELECT path FROM {other.file_sources(theirs)} WHERE path >= ? AND path < ? "
+                        f"AND top_id IN ({', '.join(str(int(t)) for t in theirs)})) USING (path)")
+                params += [lo, hi]
+            got = self._rows(f"SELECT {FILE_COLUMNS}, count(*) OVER () AS _n, sum(size) OVER () AS _b FROM {src} "
+                             "ORDER BY size DESC, path LIMIT ?", [*params, limit], [*FILE_KEYS, "_n", "_b"])
+            if got:
+                n += got[0]["_n"]
+                b += got[0]["_b"] or 0
+            rows += got
+        rows = sorted(rows, key=lambda r: (-(r["size"] or 0), r["path"]))[:limit]
         for r in rows:
             del r["_n"], r["_b"]
-        return {"rows": rows, "files": int(n), "bytes": int(b or 0)}
+        return {"rows": rows, "files": int(n), "bytes": int(b)}
 
     def cold_dirs(self, path: str, older: int, *, min_bytes: int = 0, limit: int = 200) -> dict:
         """The largest directories at or below `path` in which every file is in age bucket `older` or older, and
@@ -559,8 +604,9 @@ class SnapshotIndex:
         if where:
             cond.append(where)
             args.extend(params or [])
-        return self._rows(f"SELECT {FILE_COLUMNS} FROM {src} WHERE {' AND '.join(cond)} ORDER BY {order} LIMIT ?",
-                          [*args, limit], FILE_KEYS)
+        with self._turn(path):
+            return self._rows(f"SELECT {FILE_COLUMNS} FROM {src} WHERE {' AND '.join(cond)} ORDER BY {order} LIMIT ?",
+                              [*args, limit], FILE_KEYS)
 
     def files_summary(self, path: str, *, where: str = "", params: list | None = None) -> dict:
         src = self.file_sources(self.scope_tops(path))
@@ -568,8 +614,9 @@ class SnapshotIndex:
             return {"files": 0, "bytes": 0}
         lo, hi = child_range(path)
         cond = "path >= ? AND path < ?" + (f" AND {where}" if where else "")
-        n, b = self._one(f"SELECT count(*), coalesce(sum(size), 0) FROM {src} WHERE {cond}",
-                         [lo, hi, *(params or [])])
+        with self._turn(path):
+            n, b = self._one(f"SELECT count(*), coalesce(sum(size), 0) FROM {src} WHERE {cond}",
+                             [lo, hi, *(params or [])])
         return {"files": int(n), "bytes": int(b)}
 
     # ---- Storage health ----

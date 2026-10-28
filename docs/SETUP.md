@@ -13,7 +13,8 @@ scheduled scans, and single sign-on, follow [DEPLOYMENT.md](DEPLOYMENT.md); ever
   Folders you cannot read are recorded as scan errors and shown under *Storage health*; the rest is scanned.
 - Disk for the snapshot indexes, about 56 bytes per file (0.6 GB for ten million files), and for the scans,
   about 40 bytes per entry each. Pinax keeps the six newest indexes of each filesystem and deletes older ones; it
-  never deletes scans ([what to keep](ARCHITECTURE.md#what-pinax-keeps)).
+  never deletes scans ([what to keep](ARCHITECTURE.md#what-pinax-keeps)). Building an index needs room for two to
+  three times its size while it runs.
 
 ## 1. Settings
 

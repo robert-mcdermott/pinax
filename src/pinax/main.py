@@ -14,6 +14,7 @@ from . import __version__
 from .api import router as api_router
 from .config import get_settings, unsafe
 from .db import init_db
+from .limits import BUSY, GONE, QueryBudget, Stopped
 from .snapshots import indexes
 
 STATIC = Path(__file__).parent / "static"
@@ -60,10 +61,31 @@ async def security_headers(request: Request, call_next):
     return response
 
 
+@app.exception_handler(Stopped)
+async def stopped(request: Request, exc: Stopped):
+    if exc.reason == GONE:
+        log.info("Stopped %s: the browser left", request.url.path)
+        return JSONResponse({"detail": "The browser left before the answer was ready"}, status_code=503)
+    # The query string is left out: searches name files, and names can be sensitive.
+    log.warning("Stopped %s: %s after %g s", request.url.path, exc.reason, exc.seconds)
+    seconds = f"{exc.seconds:g} second{'' if exc.seconds == 1 else 's'}"
+    if exc.reason == BUSY:
+        detail = (f"Pinax is already running as many searches of whole filesystems as it allows at once, and none "
+                  f"finished within {seconds}. Try again shortly, or look within a folder.")
+        return JSONResponse({"detail": detail}, status_code=503)
+    detail = (f"Pinax stopped this after {seconds}. Searching or comparing a whole filesystem reads every file in "
+              "it: look within a folder, or narrow the search by name, type, size, or age.")
+    return JSONResponse({"detail": detail}, status_code=504)
+
+
 @app.exception_handler(Exception)
 async def unhandled(_request: Request, exc: Exception):
     log.exception("Unhandled error")
     return JSONResponse({"detail": "Internal error"}, status_code=500)
+
+
+# Outermost, so each GET's time limit covers everything below it (limits.py).
+app.add_middleware(QueryBudget)
 
 
 @app.get("/app", include_in_schema=False)

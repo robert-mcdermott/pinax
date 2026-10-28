@@ -10,12 +10,29 @@
   it), and reactivates it, with its members, folders, and recent changes. Every change is audited as the import's
   are (`lab.created`, `lab.updated`, and `lab.deactivated`, `lab.reactivated`), and slugs follow the import's
   rules. Changing a lab's kind asks first, since its free tier for past months changes too.
+- **Time limits for requests.** A request stops after `PINAX_QUERY_TIMEOUT` seconds (180 by default) and says
+  what to narrow, and stops as soon as the browser leaves the page: the interface cancels a page's reads when
+  another page opens, and Pinax interrupts their queries, so an abandoned search of a whole filesystem no longer
+  keeps the server busy. At most `PINAX_WIDE_QUERIES` (2) file-level queries of a whole filesystem run at once;
+  others wait their turn. `deploy/oauth2-proxy/pinax.cfg` waits five minutes for Pinax (`upstream_timeout`,
+  oauth2-proxy 7.3 or later) instead of oauth2-proxy's 30 seconds.
+- **New and removed files recorded at ingest.** Each index keeps every file new or removed since the previous
+  scan (`file_changes`), so *What changed* lists them from a range of it: 15 ms for a million-file filesystem,
+  against 0.4 s to compare the two scans' files. Against an older scan the files are still compared, in batches of
+  groups of top-level folders, so memory is bounded by a group rather than the filesystem.
+- **Sizing for two billion files** in `docs/DEPLOYMENT.md`: disk, memory, the room a build needs, what stays fast,
+  and what to measure on the first production scan.
 - **Guides for the demo and for real data.** `docs/DEMO.md` has how to run the demo, who is who, its six months
   and prices, and the walk-through, which used to be in the README; `docs/SETUP.md` is new, on running Pinax on
   your own data. The README is shorter and links to both.
 
 ### Changed
 
+- **Index version 5.** Older indexes still answer, comparing files when asked; `pinax rebuild --outdated` adds
+  the new and removed files to them.
+- ***Find files* shows its results before counting them.** The count of all matches is a second pass over the
+  files, so it is asked for separately (`/api/files/count`, or `total=false` on `/api/files`), and only when the
+  page is full.
 - **`pinax seed` runs only when `PINAX_ENVIRONMENT=demo`.** It deletes the catalog and indexes in
   `PINAX_VAR_ROOT`, and was refused only in `prod`, so a `dev` setup with real data could be wiped by mistake.
   The default environment is `demo`, so the demo is unchanged.
