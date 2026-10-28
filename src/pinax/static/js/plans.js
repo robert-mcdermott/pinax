@@ -3,12 +3,16 @@
 // compresses nothing: a plan records what a lab means to do, and later scans show what happened. Folders are added
 // from the age map's panel; the plan page lists them for each of the person's labs.
 import { $, $$, api, bytes, date, displayPath, emptyState, html, icon, modal, mount, num, parseQuery, placeHash, raw, state, toast } from "/js/core.js";
+import { charge } from "/js/charges.js";
 import { renderSidebar } from "/js/shell.js";
 
 const ACTIONS = { delete: "Delete", move: "Move", compress: "Compress" };
 export const actionText = (item) => (item.action === "move" ? `Move to ${item.to?.name ?? "another filesystem"}` : ACTIONS[item.action]);
 const planHash = (lab) => `#/plans${lab ? `?lab=${encodeURIComponent(lab)}` : ""}`;
 const totalText = (t) => `${num(t.folders)} folder${t.folders === 1 ? "" : "s"} · ${bytes(t.bytes)}`;
+/** What a plan would save a month, in a few words. */
+const savesText = (s) => (Number(s.monthly) > 0 ? `saves ${s.estimate ? "about " : ""}${charge(s.monthly, s.currency)} a month`
+  : s.filesystems.some((f) => f.priced) ? "saves nothing yet" : "no price set");
 
 /** The form for a folder's place in a plan: what to do with it, and a note. */
 function itemForm(targets, item = null) {
@@ -85,7 +89,7 @@ export async function planBox(box, fs, path) {
         : inside ? html`<p class="small" style="margin:0 0 8px">Inside <b>${inside.name}</b>, which is in the plan (${actionText(inside).toLowerCase()}).</p>`
         : html`<p class="small muted" style="margin:0 0 8px">Mark this folder for your lab to delete, move to cheaper storage, or compress, and see what it would save.</p>
           <button class="btn btn-secondary btn-sm" data-plan="add">${icon("plus")}Add to cleanup plan</button>`}
-      <p class="small" style="margin:10px 0 0"><a href="${planHash(here.lab.slug)}">The ${here.lab.name}'s plan</a>: ${totalText(here.total)}</p>`);
+      <p class="small" style="margin:10px 0 0"><a href="${planHash(here.lab.slug)}">The ${here.lab.name}'s plan</a>: ${totalText(here.total)}${here.total.folders ? ` · ${savesText(here.savings)}` : ""}</p>`);
     $("[data-plan=add]", box)?.addEventListener("click", async () => {
       if (await addToPlan(fs, path, here)) refresh();
     });
@@ -137,11 +141,24 @@ export async function viewPlans(el, query) {
   }));
 }
 
+/** What the plan saves on each filesystem: the lab's monthly charge now and after. */
+function savingsNote(s) {
+  const cur = s.currency;
+  const lines = s.filesystems.map((f) => (!f.priced ? `${f.fs_name} has no price, so nothing there is charged.`
+    : f.added && !f.freed ? `${f.fs_name}: ${bytes(f.added)} moved in, ${charge(f.now, cur)} a month now, ${charge(f.after, cur)} after.`
+    : `${f.fs_name}: ${bytes(f.freed)} freed${f.added ? ` and ${bytes(f.added)} moved in` : ""}, the lab's charge ${charge(f.now, cur)} a month now and ${charge(f.after, cur)} after${f.within_free ? " (the lab is within its free tier there, so freeing storage saves nothing)" : ""}.`));
+  if (s.estimate) lines.push("Compression is an estimate, from what compressing each type of file typically frees.");
+  lines.push("At today's prices and free tiers; folders inside another planned folder are counted with it.");
+  return html`<p class="small muted" style="margin:0;padding:12px 22px 16px">${lines.join(" ")}</p>`;
+}
+
 function planCard(p) {
+  const s = p.savings;
   return html`<section class="card flush">
-    <div class="card-head"><h2>${p.lab.name}</h2><span class="small muted">${totalText(p.total)}, at their size when added</span></div>
+    <div class="card-head"><h2>${p.lab.name}</h2><span class="small">${totalText(p.total)}${p.total.folders
+      ? html` · <b>${savesText(s)}</b>${Number(s.monthly) > 0 ? html` <span class="muted">(${charge(s.yearly, s.currency)} a year)</span>` : ""}` : ""}</span></div>
     ${p.items.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>Folder</th><th>What to do</th>
-        <th class="num">Size when added</th><th class="num">Now</th><th class="hide-narrow">Added</th><th></th></tr></thead><tbody>
+        <th class="num">Size when added</th><th class="num">Now</th><th class="num">Saves a month</th><th class="hide-narrow">Added</th><th></th></tr></thead><tbody>
       ${p.items.map((i) => html`<tr>
         <td><a class="rowlink" href="${placeHash("explore", { fs: i.fs, path: i.path })}">${i.name}</a>
           <div class="sub">${displayPath(i.fs, i.path)}</div>
@@ -154,10 +171,12 @@ function planCard(p) {
         <td class="nowrap">${actionText(i)}</td>
         <td class="num nowrap">${bytes(i.baseline.bytes)}</td>
         <td class="num nowrap">${i.mark.status === "here" && i.now ? bytes(i.now.bytes) : html`<span class="muted">${i.mark.status === "gone" ? "Gone" : "Moved?"}</span>`}</td>
+        <td class="num nowrap">${i.saving?.saves != null ? html`${i.saving.estimate ? "about " : ""}${charge(i.saving.saves, s.currency)}${i.saving.estimate
+          ? html`<div class="sub">${bytes(i.saving.freed)} freed, estimated</div>` : ""}` : html`<span class="muted">${i.inside ? "with the folder around it" : "—"}</span>`}</td>
         <td class="hide-narrow nowrap">${date(i.added_at)}<div class="sub">${i.added_by || ""}</div></td>
         <td class="right nowrap"><button class="btn btn-ghost btn-sm" data-item="${i.id}" data-do="change">Change</button>
           <button class="icon-btn" title="Take it out" aria-label="Take ${i.name} out of the plan" data-item="${i.id}" data-do="remove">${icon("x")}</button></td></tr>`)}
-      </tbody></table></div>`
+      </tbody></table></div>${savingsNote(s)}`
       : html`<div style="padding:0 22px 18px">${emptyState("archive", "Nothing planned yet", "Open a folder on the age map and add it from its panel.")}</div>`}
   </section>`;
 }

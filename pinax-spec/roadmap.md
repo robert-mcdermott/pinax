@@ -765,7 +765,7 @@ confirmed when the wave starts.
 | --- | --- | --- | --- |
 | 1 | Marked folders, followed across scans (S10) | The catalog records a marked folder by filesystem and path; index version 6 keeps each directory's inode from the scan; at each ingest, every marked folder is found at its path, found at another path with the same inode (proposed as a move, not applied, since inodes are reused), or gone; its totals are recorded for that scan, so a marked folder's history outlasts its snapshot; tested with renames, moves, deletions, and a reused inode; the added build time and index size measured at 100 million files | Done |
 | 2 | Marking folders for cleanup (C1) | From the age map (a folder's own panel and each tile's actions, reachable by keyboard), *Cold folders*, and *What changed*: add a folder to its lab's cleanup plan to delete, move to another filesystem, or compress, with a note; by the lab's PI and delegates, and by administrators; a folder inside one already planned counts once; the plan's total shown while exploring; audited; both themes and 375 pixels | Done |
-| 3 | What a plan saves (C2) | For each folder and the whole plan: the space freed, and the lab's monthly charge now and after, per filesystem, with free tiers (data within a free tier saves nothing, and the page says so) and the destination's price for a move; compression estimated from typical ratios for each type, and labeled as an estimate; tested against the charges worked out on the reduced sizes | To come |
+| 3 | What a plan saves (C2) | For each folder and the whole plan: the space freed, and the lab's monthly charge now and after, per filesystem, with free tiers (data within a free tier saves nothing, and the page says so) and the destination's price for a move; compression estimated from typical ratios for each type, and labeled as an estimate; tested against the charges worked out on the reduced sizes | Done |
 | 4 | Progress from scans (C3) | With each new scan, each folder is done (gone, and not moved), partly done (smaller), moved (no saving), or still to do; the space freed and the fall in the charge since the plan began; a *Cleanup plan* page for each lab with what is to do and what was done, and when; CSV for the lab or the storage team | To come |
 | 5 | Suggestions (C4) | Folders worth adding, each with its saving, added in one click: cold folders (R3), uncompressed sequencing data (R6) to compress, and workflow working folders (Nextflow `work/`, Snakemake `.snakemake/`, Cromwell `cromwell-executions/`, conda and container caches), found when the index is built; within Q3 for a lab folder at 100 million files | To come |
 | 6 | Plans across labs (C5) | For administrators: every lab's plan, planned and freed per filesystem, the largest folders planned, and a CSV | To come |
@@ -837,6 +837,20 @@ the site's own.
      filesystem; nested folders counted once, and the age map's view of it; changing and removing, by whom, and
      audited; a folder that has not moved cannot be confirmed moved.
    - *Done*: checked in the browser as a PI on the demo (adding from the panel, the panel after, *Cleanup plans*).
+3. **What a plan saves (C2).**
+   - `plans.savings`: for each filesystem a plan touches, the lab's size there in the latest scan, and its monthly
+     charge at today's price and free tier before and after (`plans.monthly`, as charges work it out); freed by a
+     delete or a move, added by a move on its destination, estimated for compression from the folder's types
+     (`plans.COMPRESSION`); each folder's saving on its own; the plan's monthly and yearly saving, worked out
+     exactly and rounded once.
+   - *Cleanup plans* shows the saving per folder (*about*, for an estimate), per filesystem (the charge now and
+     after, or that the lab is within its free tier there), and for the plan, with its yearly figure; the age map's
+     box shows the plan's saving.
+   - Tests: the charge now equals the charges' own for a month after the scan, and the charge after equals the
+     charges' own once a later scan shows the folder deleted; within the free tier nothing is saved; compression
+     estimated from a SAM beside an already gzipped FASTQ; a move freeing on one filesystem and charged on the
+     other; nested folders counted once.
+   - *Done*: checked on the demo (a 10.4 GiB folder at $22 per TB saves $0.25 a month).
 
 ## 0.8.0: folder tags (wave 8)
 

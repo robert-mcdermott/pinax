@@ -7,16 +7,46 @@ the plan's CSV, and later scans show what happened (marks.py follows each folder
 
 A lab's PI and its delegates, and administrators, change its plan; every change is audited. A folder inside one
 already planned for the same lab is counted once, as part of the larger.
+
+What a plan saves (C2) is the fall in the lab's monthly charge, at today's prices and free tiers, from the
+storage it frees: a folder deleted frees its size; one moved frees it here and is charged on the filesystem it
+goes to; one compressed frees an estimate, from typical ratios for the types in it (`COMPRESSION`). A lab within its
+free tier saves nothing by freeing storage, so the saving is worked out on the lab's whole size on each filesystem,
+not as size times price.
 """
 
-from sqlalchemy import select
+from collections import defaultdict
+from datetime import date
+from fractions import Fraction
+
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from . import marks
+from . import costs, marks
 from .auth import Identity, folder_owners
-from .models import AuditEvent, CleanupItem, Filesystem, Lab, MarkedFolder, MarkedFolderStat, User
+from .charges import money
+from .config import get_settings
+from .db import utcnow
+from .models import (
+    AuditEvent,
+    CleanupItem,
+    Filesystem,
+    FolderStat,
+    Lab,
+    LabFolder,
+    MarkedFolder,
+    MarkedFolderStat,
+    Snapshot,
+    SnapshotStatus,
+    User,
+)
 
 ACTIONS = ("delete", "move", "compress")
+
+# The share of a file's size that compressing it typically frees: gzip or bgzip for uncompressed FASTQ, VCF,
+# FASTA, and pileups; SAM to BAM; BAM to CRAM. Estimates from published figures, to be set from a site's own.
+COMPRESSION = {"fastq": 0.75, "fq": 0.75, "sam": 0.75, "bam": 0.5, "vcf": 0.85, "gvcf": 0.85, "fasta": 0.7,
+               "fa": 0.7, "fna": 0.7, "bedgraph": 0.8, "pileup": 0.85, "mpileup": 0.85}
 
 
 class PlanError(Exception):
@@ -148,13 +178,108 @@ def lab_items(session: Session, lab: Lab) -> list[CleanupItem]:
     return session.scalars(select(CleanupItem).where(CleanupItem.lab_id == lab.id).order_by(CleanupItem.added_at)).all()
 
 
+# ---------- What a plan saves ----------
+
+def lab_size(session: Session, lab: Lab, fs: Filesystem) -> int:
+    """The size of the folders `lab` owns on `fs`, in its latest scan."""
+    latest = session.scalar(select(Snapshot.id).where(Snapshot.filesystem_id == fs.id, Snapshot.status.in_(
+        (SnapshotStatus.READY, SnapshotStatus.PRUNED))).order_by(Snapshot.started_at.desc()).limit(1))
+    if latest is None:
+        return 0
+    owned = select(LabFolder.path).where(LabFolder.lab_id == lab.id, LabFolder.filesystem_id == fs.id)
+    return int(session.scalar(select(func.sum(FolderStat.bytes)).where(
+        FolderStat.snapshot_id == latest, FolderStat.folder.in_(owned))) or 0)
+
+
+def monthly(session: Session, fs: Filesystem, lab: Lab, size: int, day: date) -> Fraction | None:
+    """What `lab` pays a month for `size` on `fs` at the price and free tier of `day`; None with no price."""
+    price = costs.price_on(session, fs, day)
+    if price is None:
+        return None
+    return max(0, size - costs.free_on(session, fs, lab, day)) * Fraction(price.micros, 10**6 * costs.UNITS[price.unit])
+
+
+def compressible(types: list[dict]) -> int:
+    """What compressing files of these types would typically free (an estimate)."""
+    return round(sum(t["bytes"] * COMPRESSION.get(t["ext"], 0) for t in types))
+
+
+def freed(session: Session, item: CleanupItem) -> tuple[int, bool]:
+    """What doing `item` would free now, and whether that is an estimate; nothing if the folder is no longer at
+    its path."""
+    from .snapshots import indexes, latest_snapshot
+
+    now = latest_stat(session, item.mark)
+    if now is None or not now.present:
+        return 0, False
+    if item.action != "compress":
+        return now.bytes, False
+    fs = session.get(Filesystem, item.mark.filesystem_id)
+    return compressible(indexes.get(latest_snapshot(session, fs)).types(item.mark.path)), True
+
+
+def savings(session: Session, lab: Lab, items: list[CleanupItem], *, day: date | None = None) -> dict:
+    """What the lab's plan would save a month, at the prices and free tiers of `day` (today): for each folder on its
+    own, for each filesystem, and in all. Folders inside another planned one are counted with it."""
+    day = day or utcnow().date()
+    currency = get_settings().currency
+    counted = [i for i in items if _outermost(items, i.mark.filesystem_id, i.mark.path) is None]
+    fss = {f.id: f for f in session.scalars(select(Filesystem))}
+    sizes: dict[int, int] = {}
+
+    def size_on(fs_id: int) -> int:
+        if fs_id not in sizes:
+            sizes[fs_id] = lab_size(session, lab, fss[fs_id])
+        return sizes[fs_id]
+
+    def change(fs_id: int, delta: int) -> Fraction | None:
+        """How much the lab's monthly charge on a filesystem changes if its size changes by `delta`."""
+        before = monthly(session, fss[fs_id], lab, size_on(fs_id), day)
+        if before is None:
+            return None
+        return monthly(session, fss[fs_id], lab, max(0, size_on(fs_id) + delta), day) - before
+
+    per_item, out_of, into = {}, defaultdict(int), defaultdict(int)
+    estimated = False
+    for i in counted:
+        b, est = freed(session, i)
+        estimated |= est
+        out_of[i.mark.filesystem_id] += b
+        if i.action == "move" and i.target_filesystem_id:
+            into[i.target_filesystem_id] += b
+        here = change(i.mark.filesystem_id, -b)
+        there = change(i.target_filesystem_id, b) if i.action == "move" and i.target_filesystem_id else 0
+        alone = None if here is None else -here - (there or 0)
+        per_item[i.id] = {"freed": b, "estimate": est, "saves": str(money(alone, currency)) if alone is not None else None}
+    rows, total = [], Fraction(0)
+    for fs_id in sorted(set(out_of) | set(into), key=lambda k: fss[k].name):
+        now = monthly(session, fss[fs_id], lab, size_on(fs_id), day)
+        after = monthly(session, fss[fs_id], lab, max(0, size_on(fs_id) - out_of[fs_id] + into[fs_id]), day)
+        if now is not None:
+            total += now - after
+        free = costs.free_on(session, fss[fs_id], lab, day)
+        rows.append({"fs": fss[fs_id].slug, "fs_name": fss[fs_id].name, "size": size_on(fs_id), "freed": out_of[fs_id],
+                     "added": into[fs_id], "free": free, "priced": now is not None,
+                     "now": str(money(now, currency)) if now is not None else None,
+                     "after": str(money(after, currency)) if after is not None else None,
+                     "within_free": now is not None and size_on(fs_id) <= free})
+    return {"currency": currency, "items": per_item, "filesystems": rows, "estimate": estimated,
+            "freed": sum(out_of.values()), "moved": sum(into.values()),
+            "monthly": str(money(total, currency)), "yearly": str(money(total * 12, currency))}
+
+
 def lab_plan(session: Session, lab: Lab) -> dict:
-    """A lab's plan: each folder, and the total, counting a folder inside another planned one once."""
+    """A lab's plan: each folder, the total (counting a folder inside another planned one once), and what it
+    would save."""
     items = lab_items(session, lab)
     rows = [item_json(session, i, items) for i in items]
     counted = [r for r in rows if r["inside"] is None]
+    saved = savings(session, lab, items)
+    for r in rows:
+        r["saving"] = saved["items"].get(r["id"])
     return {"lab": {"slug": lab.slug, "name": lab.name, "kind": lab.kind}, "items": rows,
-            "total": {"folders": len(counted), "bytes": sum(r["baseline"]["bytes"] for r in counted)}}
+            "total": {"folders": len(counted), "bytes": sum(r["baseline"]["bytes"] for r in counted)},
+            "savings": {k: v for k, v in saved.items() if k != "items"}}
 
 
 def here(session: Session, ident: Identity, fs: Filesystem, path: str) -> dict:
@@ -170,7 +295,7 @@ def here(session: Session, ident: Identity, fs: Filesystem, path: str) -> dict:
     plan = lab_plan(session, lab)
     targets = session.scalars(select(Filesystem).where(Filesystem.active.is_(True), Filesystem.id != fs.id)
                               .order_by(Filesystem.name)).all()
-    return {"plannable": True, "lab": plan["lab"], "total": plan["total"],
+    return {"plannable": True, "lab": plan["lab"], "total": plan["total"], "savings": plan["savings"],
             "item": item_json(session, mine, items) if mine else None,
             "inside": item_json(session, outer, items) if outer else None,
             "targets": [{"slug": t.slug, "name": t.name} for t in targets]}

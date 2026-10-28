@@ -406,6 +406,14 @@ so it is followed across scans, and its size when it was added is kept. A lab's 
 directly, as do administrators; the folder must be in a top-level folder the lab owns; every change is audited. A
 folder inside another planned folder of the same lab is listed, but counted once, as part of the outermost.
 
+**What a plan saves** is the fall in the lab's monthly charge, at today's prices and free tiers: on each filesystem,
+the lab's whole size there (its folders in the latest scan) charged as charges are, before and after. A folder
+deleted frees its size; one moved frees it and is charged on the filesystem it goes to; one compressed frees an
+estimate, from the types in it and what compressing each typically frees (`plans.COMPRESSION`: about three quarters
+of uncompressed FASTQ or SAM, half of BAM as CRAM, more of VCF and pileups). A lab within its free tier saves
+nothing by freeing storage there, which is why the saving is not size times price. Each folder's saving on its own
+is shown too; with free tiers, those need not add up to the plan's.
+
 ## Costs
 
 What storage costs is kept in the catalog as two schedules per filesystem (`costs.py`):

@@ -12,6 +12,10 @@
   the lab's cleanup plan: to delete it, move it to another filesystem, or compress it, with a note. *Cleanup plans*
   lists each lab's folders with what to do, their size when added and now, and who added them; a folder that moved
   is offered to confirm. Pinax deletes, moves, and compresses nothing: a plan records what the lab means to do.
+- **What a plan saves.** Each plan shows the space it would free and the fall in the lab's monthly charge, at
+  today's prices and free tiers, for each folder and filesystem and in all, with the yearly figure. A move is
+  charged on the filesystem it goes to; compression is estimated from the types of file in the folder; a lab within
+  its free tier is told that freeing storage saves nothing.
 
 ### Changed
 
