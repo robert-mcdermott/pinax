@@ -15,9 +15,9 @@ Settings are `PINAX_*` environment variables, or a `.env` file in the folder you
 | Setting | Default | What it does |
 |---|---|---|
 | `PINAX_VAR_ROOT` | `var/` | The catalog database (`pinax.db`) and snapshot indexes (`snapshots/`) |
-| `PINAX_SCAN_ROOT` | `scans/` | Where `pinax scan` writes fs-inventory output, as `<filesystem>/<UTC time>/`. Scans made elsewhere can live anywhere |
+| `PINAX_SCAN_ROOT` | `scans/` | Where `pinax scan` writes fs-inventory output, as `<filesystem>/<UTC time>/`, and where the watcher looks. Scans made elsewhere can live anywhere. Pinax never deletes scans ([what to keep](ARCHITECTURE.md#what-pinax-keeps)) |
 | `PINAX_DEMO_ROOT` | `demo/` | Demo filesystems and scans written by `pinax seed` |
-| `PINAX_DATABASE_URL` | SQLite in `VAR_ROOT` | SQLAlchemy URL of the catalog, for example `postgresql+psycopg://pinax@db/pinax` |
+| `PINAX_DATABASE_URL` | SQLite in `VAR_ROOT` | SQLAlchemy URL of the catalog. Production uses the SQLite default until PostgreSQL and migrations arrive in wave 7; a PostgreSQL URL (`postgresql+psycopg://pinax@db/pinax`, with the `psycopg` driver added) works for a fresh catalog, untested ([The catalog database](ARCHITECTURE.md#the-catalog-database)) |
 
 ## Scanning
 
@@ -35,7 +35,7 @@ Settings are `PINAX_*` environment variables, or a `.env` file in the folder you
 |---|---|---|
 | `PINAX_BUILD_MEMORY_LIMIT` | `8GB` | DuckDB memory limit while building an index; it spills to a temporary folder beside the index beyond this. 8 GB builds 100 million files in two minutes; 17 GB was no faster |
 | `PINAX_BUILD_THREADS` | `0` | DuckDB threads while building; 0 means one per CPU. Steps that read the scan use fewer when memory requires: each thread decodes whole row groups of about a million entries, so the build uses as many as fit in three quarters of `PINAX_BUILD_MEMORY_LIMIT` (and halves them if a step still runs out) |
-| `PINAX_KEEP_SNAPSHOTS` | `6` | Snapshots per filesystem that keep their full index. Older ones are pruned to folder history |
+| `PINAX_KEEP_SNAPSHOTS` | `6` | Snapshots per filesystem that keep their full index. After each ingest, older ones are pruned: their indexes are deleted and their folder history kept (pruned snapshots cannot be rebuilt). Their scans are not deleted |
 
 ## Queries
 

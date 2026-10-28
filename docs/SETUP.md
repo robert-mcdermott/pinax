@@ -11,8 +11,9 @@ scheduled scans, and single sign-on, follow [DEPLOYMENT.md](DEPLOYMENT.md); ever
 - fs-inventory: `scripts/install-fs-inventory.sh` installs the pinned release into `bin/` and checks its SHA-256.
 - Read access to the filesystem's metadata (directory listings and file attributes) from where you scan it.
   Folders you cannot read are recorded as scan errors and shown under *Storage health*; the rest is scanned.
-- Disk for the snapshot indexes, about 56 bytes per file (0.6 GB for ten million files), and for the scans
-  themselves. Pinax keeps the six newest indexes of each filesystem by default.
+- Disk for the snapshot indexes, about 56 bytes per file (0.6 GB for ten million files), and for the scans,
+  about 40 bytes per entry each. Pinax keeps the six newest indexes of each filesystem and deletes older ones; it
+  never deletes scans ([what to keep](ARCHITECTURE.md#what-pinax-keeps)).
 
 ## 1. Settings
 

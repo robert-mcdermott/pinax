@@ -19,6 +19,12 @@
 - **`pinax seed` runs only when `PINAX_ENVIRONMENT=demo`.** It deletes the catalog and indexes in
   `PINAX_VAR_ROOT`, and was refused only in `prod`, so a `dev` setup with real data could be wiped by mistake.
   The default environment is `demo`, so the demo is unchanged.
+- **Guidance for operating Pinax.** `docs/ARCHITECTURE.md` says what Pinax keeps (the catalog, the indexes, and
+  the scans), what each is for, what can be made again, and which to back up, and why the catalog moves to
+  PostgreSQL in wave 7 (it said PostgreSQL was the production database; production uses SQLite until then).
+  `docs/DEPLOYMENT.md` adds which scans to keep (Pinax never deletes them), disk totals, a safe online backup and
+  restore of the catalog, reading the whole audit log, and what support staff need to know about charges and
+  statements. The scan-size figure is the measured one, about 40 bytes per entry, everywhere.
 
 ## 0.5.0 (2026-10-27)
 

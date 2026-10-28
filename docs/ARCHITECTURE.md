@@ -29,7 +29,7 @@ snapshot index that makes it fast, how it is built and queried, security, and me
                                                      │     files/gNNNNNN/  per-file Parquet, by     │
                                                      │                     group of top folders     │
                                                      │                                              │
-                                                     │ catalog (SQLite; PostgreSQL in production)   │
+                                                     │ catalog (SQLite; PostgreSQL in wave 7)       │
                                                      │   people, labs, folder ownership,            │
                                                      │   filesystems, snapshots, folder history     │
                                                      │                                              │
@@ -42,11 +42,59 @@ snapshot index that makes it fast, how it is built and queried, security, and me
 
 | Piece | Choice | Why |
 |---|---|---|
-| Crawler | fs-inventory 1.0.0 | Built for this: parallel, bounded memory, resumable, lossless names, about 25 bytes per entry in Parquet |
+| Crawler | fs-inventory 1.0.0 | Built for this: parallel, bounded memory, resumable, lossless names, about 40 bytes per entry in Parquet (measured at 100 million files) |
 | Index engine | DuckDB (embedded) | Columnar, vectorized, spills to disk, reads Parquet natively; no server to run |
 | Per-file store | Parquet, split by top-level folder and sorted by path | Compact; a lab's queries read only its files; a subfolder is a contiguous range |
-| Catalog | SQLAlchemy on SQLite (PostgreSQL in production) | Small, transactional data: who owns what, which snapshots exist, folder history |
+| Catalog | SQLAlchemy on SQLite; PostgreSQL planned (wave 7) | Small, transactional data: who owns what, which snapshots exist, folder history, prices, the audit log |
 | Web | FastAPI and plain JavaScript modules | Same stack and patterns as Tundra; nothing to build |
+
+## What Pinax keeps
+
+Pinax keeps three kinds of data. Only the catalog cannot be made again, so it is the one to back up.
+
+| | Where | What it holds | Size | If it is lost |
+|---|---|---|---|---|
+| **Catalog** | `PINAX_VAR_ROOT/pinax.db` (SQLite) | Filesystems; a record of every scan; folder history (each top-level folder's totals for every scan); people, labs and departments, memberships, folder ownership and who owned each folder when; local sign-in password hashes and sessions; prices and free tiers; the audit log; the ingest watcher's heartbeat | Small: about one row per top-level folder per scan (2,000 folders scanned weekly add about 100,000 rows a year) | Restore it from a backup. Without one, register the filesystems again, import people, labs, and folder ownership from the import files, and ingest the kept scans again; prices and free tiers, ownership history, folder history of scans no longer kept, and the audit log are lost |
+| **Snapshot indexes** | `PINAX_VAR_ROOT/snapshots/<filesystem>/<scan>/`, one per kept snapshot | `index.duckdb`: every directory's totals, and its changes since the scan before; `files/`: Parquet, one row per file, for searches and file lists | About 56 bytes per file, for each of the newest `PINAX_KEEP_SNAPSHOTS` (6) snapshots of each filesystem | `pinax rebuild SNAPSHOT_ID` makes it again from its scan |
+| **Scans** | Where fs-inventory wrote them: `PINAX_SCAN_ROOT` for `pinax scan` and the watcher, or anywhere for `pinax ingest` | fs-inventory's Parquet and `manifest.json`: every entry's path, size, times, and owner | About 40 bytes per entry | Nothing changes in the app; that snapshot's index can no longer be rebuilt or checked |
+
+**What reads what.** The web app reads only the catalog and the indexes, never the scans or the filesystem.
+Ingest reads a scan once, builds its index, and records the snapshot and its folder history in the catalog. After
+that a scan is read again only by `pinax rebuild` (after an upgrade that changes the index format, or when an
+index is lost) and by `pinax check` (the cross-check against `fs-inventory rollup`, which also uses the scan
+before it to check the changes).
+
+**Retention.** After every ingest, the indexes of all but the newest `PINAX_KEEP_SNAPSHOTS` ready snapshots of
+that filesystem are deleted, and those snapshots are marked *pruned*. Their folder history stays, so *History* for
+top-level folders, labs, departments, and filesystems, and every month's charges, cover every scan ever ingested.
+Treemaps, reports, searches, the change map, and history below the top level need a full index, so they cover the
+kept snapshots only. Only ready snapshots can be rebuilt, so a pruned snapshot stays pruned.
+
+**Scans are never deleted by Pinax.** Keep the scan of every snapshot that still has its index, so each can be
+rebuilt after an upgrade and checked. Once a snapshot is pruned, Pinax has no further use for its scan, and the
+folder can be deleted (or kept for other analysis). `pinax snapshots` lists each snapshot's status and scan folder.
+Weekly scans of a billion-file filesystem take about 40 GB each, about 2 TB a year if none are deleted.
+
+**Names are sensitive.** Scans and indexes hold every file and folder name and owner account names, and the
+catalog holds top-level folder names; names in research storage can carry identifiers, such as a study subject's
+ID in a file name. The catalog also holds people's names and emails and, with local sign-in, password hashes.
+Treat all three like the filesystem's own metadata: only the `pinax` user and group can read `/var/lib/pinax`
+(mode 0750), and backups and copies need the same protection. In the app, only storage administrators see across
+labs.
+
+### The catalog database
+
+The catalog is SQLite in WAL mode, a file opened by the Pinax processes themselves, with no database server to
+run. Many readers work at once; ingests take turns under a lock in `PINAX_VAR_ROOT`. That suits one server running
+the web app and the watcher, as [DEPLOYMENT.md](DEPLOYMENT.md) installs it.
+
+The catalog has no migrations yet: each release creates new tables and adds new columns (each nullable or with a
+default) at start-up, so an older catalog keeps working, but a change to an existing column or table cannot be
+applied to it. Wave 7 moves the catalog to PostgreSQL with migrations, for three reasons: schema changes of any
+kind can then upgrade a production catalog in place; the web app and ingest can run on more than one machine
+against one catalog; and IT's usual database backups, replication, and monitoring apply. The indexes stay
+DuckDB and Parquet files. Until then, `PINAX_DATABASE_URL` can point at PostgreSQL for a fresh catalog (with the
+`psycopg` driver added), untested and without migrations; production uses SQLite.
 
 ## The key idea: totals per directory, computed once per scan
 
@@ -395,7 +443,7 @@ uv run python bench/bench_charges.py --folders 2000 --weeks 52
 |---|---|---|
 | `pinax seed` writes demo trees of sparse files and scans them with fs-inventory | Scheduled fs-inventory scans on storage nodes or scan hosts | Pinax ingests any complete Parquet scan |
 | Demo owners rewritten to fictional accounts, and demo scans dated a month apart | Real owners and times from the scan | Only `seed.py` rewrites scans, only its own demo scans |
-| SQLite catalog | PostgreSQL | SQLAlchemy models; migrations (Alembic) still to add |
+| SQLite catalog | SQLite on one server; PostgreSQL in wave 7 | SQLAlchemy models; migrations still to add ([The catalog database](#the-catalog-database)) |
 | Demo identity switcher | Single sign-on proxy, `PINAX_AUTH_MODE=header` | Checked behind oauth2-proxy 7.15 with a stand-in identity provider |
 | People, labs, and folder mappings managed in the app | The same, fed from the authoritative source; until then imported from CSV (`pinax import`) | Same model as Tundra |
 | One server | Web and ingest can run on separate hosts sharing `var/snapshots` | Indexes are replaced, never changed in place; keep every ingest on one host, since the ingest lock is a file lock in `PINAX_VAR_ROOT` |
