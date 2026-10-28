@@ -42,7 +42,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | S7 | Say when totals are lower bounds (folders not read completely) | done (wave 1, slices 2 and 4) |
 | S8 | Explore any retained snapshot, not only the latest | done (wave 1: the API takes a snapshot; wave 3, slice 6: a scan picker on every report, by day, kept by links; pruned scans open History) |
 | S9 | The change in every directory between two scans of a filesystem: size, space on disk, files, folders, and age mix, with new and removed folders; checked against an independent computation | partial (wave 3, slice 1: since the previous scan, at ingest, checked against two scans' fs-inventory rollups; slices 4 and 5: any two retained scans) |
-| S10 | Follow a folder renamed or moved within a filesystem by its directory's inode, so a marked folder keeps its tags and plan | planned (wave 7) |
+| S10 | Follow a folder renamed or moved within a filesystem by its directory's inode, so a marked folder keeps its tags and plan | done (wave 7, slice 1: index version 6 keeps inodes; a moved folder is offered to a person to confirm, since inodes are reused; tested with renames, deletions, and a reused inode) |
 
 ## Exploration
 

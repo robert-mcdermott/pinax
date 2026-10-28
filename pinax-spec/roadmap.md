@@ -763,7 +763,7 @@ confirmed when the wave starts.
 
 | Slice | Scope and requirements | Acceptance before the next slice | Status |
 | --- | --- | --- | --- |
-| 1 | Marked folders, followed across scans (S10) | The catalog records a marked folder by filesystem and path; index version 6 keeps each directory's inode from the scan; at each ingest, every marked folder is found at its path, found at another path with the same inode (proposed as a move, not applied, since inodes are reused), or gone; its totals are recorded for that scan, so a marked folder's history outlasts its snapshot; tested with renames, moves, deletions, and a reused inode; the added build time and index size measured at 100 million files | To come |
+| 1 | Marked folders, followed across scans (S10) | The catalog records a marked folder by filesystem and path; index version 6 keeps each directory's inode from the scan; at each ingest, every marked folder is found at its path, found at another path with the same inode (proposed as a move, not applied, since inodes are reused), or gone; its totals are recorded for that scan, so a marked folder's history outlasts its snapshot; tested with renames, moves, deletions, and a reused inode; the added build time and index size measured at 100 million files | Done |
 | 2 | Marking folders for cleanup (C1) | From the age map (a folder's own panel and each tile's actions, reachable by keyboard), *Cold folders*, and *What changed*: add a folder to its lab's cleanup plan to delete, move to another filesystem, or compress, with a note; by the lab's PI and delegates, and by administrators; a folder inside one already planned counts once; the plan's total shown while exploring; audited; both themes and 375 pixels | To come |
 | 3 | What a plan saves (C2) | For each folder and the whole plan: the space freed, and the lab's monthly charge now and after, per filesystem, with free tiers (data within a free tier saves nothing, and the page says so) and the destination's price for a move; compression estimated from typical ratios for each type, and labeled as an estimate; tested against the charges worked out on the reduced sizes | To come |
 | 4 | Progress from scans (C3) | With each new scan, each folder is done (gone, and not moved), partly done (smaller), moved (no saving), or still to do; the space freed and the fall in the charge since the plan began; a *Cleanup plan* page for each lab with what is to do and what was done, and when; CSV for the lab or the storage team | To come |
@@ -785,9 +785,39 @@ confirmed when the wave starts.
 - **What a plan page warns about.** Storage snapshots keep deleted data on disk until they expire, so capacity
   comes back later than the charge falls; and a hard-linked file (R7) frees nothing until its last link is gone.
 
-Open within the wave: whether a delegate's additions need the PI's approval; the compression ratios for each type
-(FASTQ, SAM, BAM to CRAM), from published figures and the site's own, and whether compression is in the first
-version; whether a move names its destination folder or only its filesystem.
+Settled with the maintainer when the wave started:
+- A lab's delegates add folders to its plan directly, as its PI does; each folder shows who added it, and every
+  change is audited. Pinax deletes, moves, and compresses nothing: a plan records what a lab means to do.
+- Compression is in the first version, its saving estimated from typical ratios for each type, labeled as an
+  estimate.
+
+Settled within the wave:
+- A move names the filesystem it goes to (whose price sets the saving), with a note for where on it.
+- Plan actions are kept open, so an *archive* action can join them (see *Archiving with Tundra* in the parking lot).
+- The build time and index size of the inodes were measured at a million files rather than 100 million, keeping
+  to small datasets on the laptop; the pilot measures them at production size.
+
+Open within the wave: the compression ratios for each type (FASTQ, SAM, BAM to CRAM), from published figures and
+the site's own.
+
+### Slices as built
+
+1. **Marked folders, followed across scans (S10).**
+   - Index version 6 keeps each directory's device and inode in `dirs` (from the scan's `dev` and `ino`; none for a
+     scan without them). `SnapshotIndex.nodes` finds directories by path with their inode, and `paths_of` by
+     inode, in one pass over the folders.
+   - `marked_folder` and `marked_folder_stat` tables, and `marks.py`: a mark is made on a folder in the latest
+     scan, with its history from the snapshots kept in full; at each ingest, every mark of the filesystem is found
+     at its path (*here*), at another path with its inode (*moved*, to confirm or dismiss, audited), or *gone*, and
+     its totals recorded; only the latest scan moves a mark.
+   - Tests (`tests/test_marks.py`): the index's inodes; a mark's first totals; a folder renamed, one deleted whose
+     inode went to a new folder (offered, not applied), one unchanged, one smaller; confirming and dismissing a
+     move, and following the confirmed path after; an older scan found late; history after the indexes are
+     pruned; an index without inodes. `tests/scanfix.py` can give directories inodes of their own.
+   - *Done*: on a million-file synthetic scan (244,000 folders), the build took 10 s on a busy laptop, of which
+     reading the directories with their inodes 0.17 s and writing the directory table 0.6 s; the inodes take
+     at most four 256 KiB blocks of the 126 MB index (the index file is the same size as at version 5); finding
+     1,000 marked folders by path takes 25 ms, and 100 by inode 4 ms.
 
 ## 0.8.0: folder tags (wave 8)
 
@@ -867,6 +897,7 @@ Ideas kept for later, and not on a path to be built. An idea leaves the parking 
 
 | Idea | Notes |
 | --- | --- |
+| Archiving with Tundra: folders marked *archive* in a cleanup plan, or tagged for archiving (wave 8), sent to [Tundra](https://github.com/robert-mcdermott/tundra) as archive requests, for IT to review, package, upload, and verify there | Tundra is a proof of concept; Pinax shares its model of labs, people, and folder ownership, so who may ask matches. Removing the primary copy stays with the data owner; Pinax's later scans show when it is gone, and Tundra's catalog that the archive is verified. Plan actions are kept open (wave 7) so an *archive* action can join them |
 | Likely duplicates: files of the same name and size in several places | Grouping two billion files by name and size at every build is a large job; limited to large files (say 1 GiB and up) it is small. fs-inventory records no checksums, so these would be candidates, not proof |
 | Recognizing data by its folder names: sequencing runs, cryo-EM sessions, imaging plates | Partly covered by the *Source* tag (wave 8) |
 | Searching files within a collection | Within a lab, as fast as Find in a folder; across the organization, a whole-filesystem search under the time limits |

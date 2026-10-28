@@ -204,6 +204,9 @@ class SnapshotIndex:
         self.previous: dict | None = meta.get("previous") if self.has_changes else None
         # And the files new and removed since then (index version 5).
         self.has_file_changes = "file_changes" in tables
+        # Each directory's device and inode (index version 6), to follow a marked folder that moved (marks.py).
+        self.has_inodes = bool(self._con.execute(
+            "SELECT count(*) FROM duckdb_columns() WHERE table_name = 'dirs' AND column_name = 'ino'").fetchone()[0])
 
     def close(self) -> None:
         self._con.close()
@@ -271,6 +274,30 @@ class SnapshotIndex:
         rows = self._rows(f"SELECT {DIR_COLUMNS} FROM dirs WHERE depth = ? AND path = ?",
                           [self.depth_of(path), path], ROW_KEYS)
         return rows[0] if rows else None
+
+    def nodes(self, paths: list[str]) -> dict[str, dict]:
+        """The directories at `paths` that are in this scan, each with its device and inode (None before index
+        version 6)."""
+        ident = "dev, ino" if self.has_inodes else "NULL AS dev, NULL AS ino"
+        out = {}
+        for i in range(0, len(paths), 1000):
+            chunk = paths[i:i + 1000]
+            marks = ", ".join("?" * len(chunk))
+            for row in self._rows(f"SELECT {DIR_COLUMNS}, {ident} FROM dirs WHERE path IN ({marks})", chunk,
+                                  [*ROW_KEYS, "dev", "ino"]):
+                out[row["path"]] = row
+        return out
+
+    def paths_of(self, inodes: list[tuple[int, int]]) -> dict[tuple[int, int], str]:
+        """Where the directories with these (device, inode) are in this scan. A full pass over the directories,
+        for the few marked folders no longer at their paths."""
+        if not inodes or not self.has_inodes:
+            return {}
+        wanted = sorted({ino for _, ino in inodes})
+        marks = ", ".join("?" * len(wanted))
+        rows = self._raw(f"SELECT dev, ino, path FROM dirs WHERE ino IN ({marks})", wanted)
+        keys = set(inodes)
+        return {(dev, ino): path for dev, ino, path in rows if (dev, ino) in keys}
 
     def children(self, path: str, *, metric: str = "bytes", limit: int = 60, grand_limit: int = 0) -> dict:
         """The children of `path`, largest first by `metric`, the rest folded into one "other" entry.

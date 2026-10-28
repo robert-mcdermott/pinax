@@ -114,7 +114,7 @@ The age color of a folder comes from those totals: the *average age* is weighted
 
 | Table or file | One row per | Holds | Sorted by |
 |---|---|---|---|
-| `dirs` | directory | Subtree totals: files, folders, bytes, allocated bytes; files and bytes per age bucket by modification time; bytes per age bucket by access time; files and bytes per category; oldest and newest modification, newest access and change; size-weighted time sums for mean ages; count of folders not read completely. Plus the directory's own files (count, bytes, times) and its entry count and any scan error. | `(depth, path)` |
+| `dirs` | directory | Subtree totals: files, folders, bytes, allocated bytes; files and bytes per age bucket by modification time; bytes per age bucket by access time; files and bytes per category; oldest and newest modification, newest access and change; size-weighted time sums for mean ages; count of folders not read completely. Plus the directory's own files (count, bytes, times), its entry count and any scan error, and its device and inode (from index version 6). | `(depth, path)` |
 | `dir_ext` | directory and file type | Totals over the directory's *own* files of that type | `path` |
 | `dir_owner` | directory and owner (uid) | Totals over the directory's *own* files of that owner | `path` |
 | `top_ext`, `top_owner` | top-level folder and type / owner | The same, summed per top-level folder | `top_id` |
@@ -375,6 +375,26 @@ How much each filesystem holds, and when it fills at its trend (`capacity.py`, *
 A filesystem's history carries its capacity, drawn as a line on *Size by age* where it fits the scale (no more
 than twice the data). That chart shows the files' size, while the date it fills uses the measure above, so the
 two can differ by what the size does not count.
+
+## Marked folders
+
+Cleanup plans (wave 7) and tags (wave 8) are about particular folders, which outlive any one scan, so the catalog
+keeps them as **marked folders** (`marks.py`, `marked_folder`): a filesystem, a path as the index has it, and the
+directory's device and inode, which every fs-inventory scan records and index version 6 keeps. With each scan of
+the filesystem, ingest looks for every marked folder:
+
+- at its path: it is *here*, and its totals for that scan are recorded (`marked_folder_stat`: size, space on disk,
+  files, folders, cold bytes, mean age, and bytes per age bucket);
+- else at another path with the same inode, since a rename or a move within the filesystem keeps it: it is
+  offered as *moved*, for a person to confirm (the mark then follows it) or dismiss. It is not followed on its own,
+  because a deleted directory's inode can be given to a new one;
+- else it is *gone*.
+
+Only the filesystem's latest scan changes where a mark is; an older scan found late adds to its history. A new
+mark's history starts with the snapshots kept in full, and from then on it has every scan, so it outlasts the
+indexes, as folder history does for top-level folders. An index before version 6 has no inodes, so its marked
+folders are found by path only. At a million files (244,000 folders), finding 1,000 marked folders by path takes
+25 ms, and 100 by inode 4 ms (a pass over every folder's inode); the inodes take under 1 MB of the 126 MB index.
 
 ## Costs
 

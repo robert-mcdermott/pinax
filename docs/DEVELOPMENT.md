@@ -39,7 +39,8 @@ cross-check tests run the real fs-inventory binary and are skipped when it is no
 src/pinax/
   config.py        settings (see docs/CONFIGURATION.md)
   db.py            catalog engine and sessions (SQLite in WAL mode)
-  models.py        catalog schema: people, labs, folder ownership, filesystems, snapshots, folder history, audit
+  models.py        catalog schema: people, labs, folder ownership, filesystems, snapshots, folder history, capacity,
+                   marked folders, audit
   categories.py    file categories, type normalization, age buckets
   ingest/build.py  fs-inventory scan -> snapshot index (DuckDB SQL)
   crosscheck.py    `pinax check`: every directory of an index against fs-inventory rollup
@@ -52,11 +53,14 @@ src/pinax/
   signin.py        local sign-in: password hashes, sessions, lockout
   ownership.py     who owned each top-level folder when, for charging past months
   costs.py         prices and free tiers per filesystem, from a day on
-  charges.py       monthly charges: time-weighted, per lab or department and filesystem
+  charges.py       monthly charges: time-weighted, per lab or department and filesystem; and the months ahead
+  forecast.py      where a size is heading: the trend of its recent scans, with a range and a backtest
+  capacity.py      each filesystem's capacity, what the storage reports, and when it fills
+  marks.py         marked folders: followed from scan to scan by path, and by inode when they move
   auth.py          identity (demo cookie or SSO header) and folder access
   explore.py       explore and report services: resolving places, merging results across places
   serialize.py     JSON views of catalog objects
-  api/             routers: identity, sign-in, explore, admin, access, costs, health
+  api/             routers: identity, sign-in, explore, admin, access, costs, capacity, health
   seed.py          demo filesystems, people, and scans
   cli.py, main.py  command line and FastAPI app
   static/          index.html, app/, css/pinax.css, js/, img/

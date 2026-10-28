@@ -18,6 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from . import marks
 from .capacity import record_storage, scan_storage
 from .categories import AGE_BUCKETS, CATEGORY_KEYS, bucket_edges
 from .config import Settings, get_settings
@@ -374,6 +375,10 @@ def _record_folder_stats(session: Session, snap: Snapshot, index_dir: Path, sett
                 newest_mtime=_dt(j["newest"]), oldest_mtime=_dt(j["oldest"]), incomplete=j["incomplete"],
                 age_bytes=j["age_bytes"], cat_bytes=dict(zip(CATEGORY_KEYS, j["cat_bytes"])),
             ))
+        later = session.scalar(select(Snapshot.id).where(
+            Snapshot.filesystem_id == snap.filesystem_id, Snapshot.id != snap.id,
+            Snapshot.status.in_((SnapshotStatus.READY, SnapshotStatus.PRUNED)), Snapshot.started_at > snap.started_at))
+        marks.follow(session, snap, idx, latest=later is None, cold_from=cold_from)
     finally:
         idx.close()
 

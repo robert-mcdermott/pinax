@@ -6,9 +6,9 @@ directory level is precomputed once per scan, so no page ever reads per-file row
 
     <index>/index.duckdb       dirs        one row per directory: its subtree totals (files, bytes,
                                            allocated bytes, age histograms, bytes and files by
-                                           category, oldest/newest times, byte-weighted mean age),
-                                           ordered by (depth, path) so a directory's children are one
-                                           contiguous range
+                                           category, oldest/newest times, byte-weighted mean age) and
+                                           its device and inode, ordered by (depth, path) so a
+                                           directory's children are one contiguous range
                                dir_ext     per directory and file type: totals over the directory's
                                            *own* files, ordered by path, so any subtree's breakdown
                                            is one contiguous range scan
@@ -50,7 +50,7 @@ from ..categories import AGE_BUCKETS, CATEGORIES, COMPRESSION_SUFFIXES, OTHER, b
 
 log = logging.getLogger("pinax.build")
 
-INDEX_VERSION = 5
+INDEX_VERSION = 6
 # Files are staged and sorted in at most this many groups of top-level folders. A partitioned write keeps a
 # file open and buffered for each partition, so one per top-level folder does not scale to thousands of them.
 FILE_GROUPS = 64
@@ -440,11 +440,16 @@ def build_index(
 
     # ---- Directories ----
     say("Reading directories")
+    # Each directory's device and inode, which a rename or a move within the filesystem keeps (marks.py).
+    columns = {r[0] for r in con.execute("DESCRIBE entries").fetchall()}
+    identity = ("e.dev::UBIGINT AS dev, e.ino::UBIGINT AS ino" if {"dev", "ino"} <= columns
+                else "NULL::UBIGINT AS dev, NULL::UBIGINT AS ino")
     step("dirbase", f"""
         CREATE TABLE s.dirbase AS
         SELECT e.dir_id, e.parent_id, e.depth::INTEGER AS depth,
                CASE WHEN e.depth = 0 THEN 0 ELSE coalesce(t.top_id, 0) END::INTEGER AS top_id,
                e.path, e.name, e.uid, e.gid, {us('e.mtime', 'self_mtime')}, e.error, e.is_mount_point, e.dir_entries,
+               {identity},
                -- Not read completely: an error, or never listed (a mount point not entered, --max-depth). A
                -- revisit (--detect-cycles) isn't missing anything: its contents are counted where first found.
                (NOT coalesce(starts_with(e.error, 'revisit'), false)
@@ -574,7 +579,7 @@ def build_index(
     step("dirs", f"""
         CREATE TABLE dirs AS
         SELECT b.dir_id, b.parent_id, b.depth, b.top_id, b.path, b.name, b.uid, b.gid, b.self_mtime, b.error,
-               b.is_mount_point, b.dir_entries,
+               b.is_mount_point, b.dir_entries, b.dev, b.ino,
                coalesce(x.files, 0) AS d_files, coalesce(x.bytes, 0) AS d_bytes,
                x.mtime_min AS d_mtime_min, x.mtime_max AS d_mtime_max, x.atime_max AS d_atime_max,
                u.dirs, u.incomplete, {", ".join(f"u.{c}" for c in ADDITIVE)}, {", ".join(f"u.{c}" for c in EXTREMES)}

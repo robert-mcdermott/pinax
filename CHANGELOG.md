@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Marked folders, followed across scans.** Folders marked for a cleanup plan (and, later, a tag) are kept by
+  path with their directory's inode. Each scan finds them at their path, or at another path with the same inode
+  (a rename or a move, offered to a person to confirm, since inodes are reused), or gone, and records their
+  totals, so their history outlasts the snapshots' indexes.
+
+### Changed
+
+- **Index version 6** keeps each directory's device and inode. Older indexes still answer, but their marked folders
+  are found by path only; `pinax rebuild --outdated` adds the inodes.
+
 ## 0.6.0 (2026-10-28)
 
 Sixth release (wave 6, "where storage is heading"): forecasts. Every history carries a forecast of its size for
