@@ -49,7 +49,8 @@ The order follows one principle:
 
 ## In every wave, from wave 2
 
-- **Demo.** Each new capability arrives in the demo seed with data that shows it, and in the README's demo script.
+- **Demo.** Each new capability arrives in the demo seed with data that shows it, and in the demo walk-through
+  (`docs/DEMO.md`).
 - **Documentation.** The slice that builds a feature updates the README and the guide it belongs in
   (`docs/ARCHITECTURE.md`, `CONFIGURATION.md`, `DEPLOYMENT.md`, `DEVELOPMENT.md`), and `.env.example` for new settings.
 - **Trust.** New totals are checked against an independent computation in the tests, not only against themselves.

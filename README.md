@@ -54,6 +54,8 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
 
 | Document | Covers |
 |---|---|
+| [docs/DEMO.md](docs/DEMO.md) | Running the demo, who is who, its six months and prices, and a 20-minute walk-through |
+| [docs/SETUP.md](docs/SETUP.md) | Running Pinax on your own data: settings, the first administrator, scans, labs and people, prices |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Design, the snapshot index, how it is built and queried, security, measured performance and sizing |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every setting, its default, and what it does |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Installing on a server: systemd services, single sign-on, scheduled scans, upgrades, sizing, operations |
@@ -63,10 +65,10 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
 | [pinax-spec/requirements.md](pinax-spec/requirements.md) | What Pinax must do, with stable IDs and each requirement's status |
 | [CHANGELOG.md](CHANGELOG.md) | What each release contains |
 
-## Quick start
+## Try the demo
 
-Requires [uv](https://docs.astral.sh/uv/). Install the pinned fs-inventory release (1.0.0) into `bin/`;
-the script verifies its SHA-256 checksum:
+Requires [uv](https://docs.astral.sh/uv/). Install the pinned fs-inventory release (1.0.0) into `bin/`; the script
+verifies its SHA-256 checksum:
 
 ```bash
 scripts/install-fs-inventory.sh
@@ -84,99 +86,33 @@ uv run pinax seed
 uv run pinax serve
 ```
 
-Then open <http://127.0.0.1:8001>. `seed` writes two demo filesystems of about 35,000 sparse files
-(123 TB of logical size on under 10 MB of disk) with realistic ages going back fifteen years, scans each one six
-times with fs-inventory, with six months of simulated activity in between, and ingests the scans. It takes about
-fifteen seconds. It resets `var/` and `demo/` each time, and refuses to run when `PINAX_ENVIRONMENT=prod`.
+Then open <http://127.0.0.1:8001> and choose who to be.
 
-### The demo's six months
+The demo needs no setup. `pinax seed` writes two research filesystems of about 35,000 sparse files (123 TB of
+logical size on under 10 MB of disk), with ages going back fifteen years, and scans each one six times with
+fs-inventory, a month apart, with six months of activity simulated in between: labs grow, clean up, move a
+project, and join. It adds 14 labs and departments, 20 people, and storage prices, so there are six months of
+history and charges to explore. Sign-in is a persona switcher: be a PI, a delegate, or a storage administrator,
+and switch at any time. Seeding takes about fifteen seconds and resets `var/` and `demo/` each time; Pinax refuses
+both the seed and demo sign-in when `PINAX_ENVIRONMENT=prod`.
 
-The six scans of each filesystem are dated a month apart, the last one on the day you seed. Every month the
-Genomics Shared Resource delivers two Illumina runs and a nanopore run, the Fujimoto Lab adds a batch of samples
-(it grows from 21 to 27 TB), and a few other labs add results. Besides that:
+[docs/DEMO.md](docs/DEMO.md) has who is who, what happens in the six months, and a 20-minute walk-through.
 
-| Scan | Since the scan before |
-| --- | --- |
-| 1 | The starting point, five months ago |
-| 2 | The Fujimoto Lab's Cell Ranger results arrive; the Chen and Haddad labs delete temporary files and checkpoints |
-| 3 | A light-sheet project moves from the Bennett Lab to the Haddad Lab (`haddad_n/datasets/2024_lightsheet_bennett`) |
-| 4 | The Quintero Lab joins, mostly with data from the PI's previous institution: new here, but years old |
-| 5 | The Lindqvist Lab compresses its uncompressed FASTQ files (`wgs/2024_germline/fastq_uncompressed` becomes `fastq`) |
-| 6 | The Fujimoto Lab writes its atlas |
+## Use your own data
 
-Meanwhile nobody touches the Kowalski Lab's `raw/2024_tmt_plex`, which ages past two years: the lab's cold share
-climbs from 64% to 100% at the same size. *History* shows all of it, the *Change map* where each change is, and
-*What changed* lists them.
+To try Pinax on a real filesystem from this checkout, keep its data apart from the demo's and sign in with
+passwords Pinax keeps:
 
-Storage has prices, so the six months make six months of charges. *Fast* costs $25 per TB a month, and $22 from
-the 16th of last month; every lab has a terabyte of it free and departments none, and the Lindqvist Lab has its own
-5 TB from the 10th of last month (a grant's allocation). *Secure* costs $40 per TiB, with nothing free.
+```bash
+printf 'PINAX_ENVIRONMENT=dev\nPINAX_AUTH_MODE=local\nPINAX_VAR_ROOT=data/var\nPINAX_SCAN_ROOT=data/scans\n' > .env
+```
 
-## Demo script (about 20 minutes)
+Add yourself as the first administrator (it prints a temporary password), register the filesystem by its root,
+scan it, and start Pinax:
 
-1. **Home page.** Choose *Continue as Hanna Lindqvist* (a PI). *My data* shows one folder: 19 TiB, most of
-   it unchanged for years.
-2. **Age map.** Open it. `wgs/2019_tumor_normal` is a large blue tile: 17 TiB of alignments last changed
-   about seven years ago. Hover for details; switch *Color by* to *Time since last access* and
-   *Size by* to *Size of sequencing and genomics*.
-3. **File types.** The callout shows terabytes of uncompressed SAM files; click `.sam` to list them. (The lab
-   compressed its uncompressed FASTQ files before the fifth scan.)
-4. **Switch identity** (top right) to *Aiko Fujimoto*. Drill into `projects`: `2025_immune_aging` is red, data
-   written this year, beside two blue projects. Then `2022_tumor_atlas`, then `raw`: an active project hides
-   `2014_legacy_reruns`, the darkest blue tile, nearly twelve years old.
-   **Cold data** at two years lists `raw` as one cold unit; at ten years it lists `2014_legacy_reruns` alone.
-   **History** for `fujimoto_a`: the lab grew from 19 to 25 TiB in six scans, and new data on top of the columns
-   brought its cold share down from 77% to 60%. Hover a column for that scan; the three small charts follow.
-5. **Switch to Jordan Okafor**, a delegate for two labs. *My data* shows both labs' folders; the age map
-   puts both side by side. Then **switch to Valeria Quintero**, whose lab joined three scans ago: one folder, two
-   thirds of it unchanged for more than two years, because most of it came from the PI's previous institution.
-   Its *History* starts at the fourth scan.
-6. **Storage charges.** Switch back to *Hanna Lindqvist*. *My data* shows this month's storage charge, an
-   estimate to the month's end. Open *Storage charges* and choose last month: the price of *Fast* fell on the
-   16th, and the lab's own 5 TB free tier started on the 10th, so the month is worked out in three parts, each its
-   average size less what was free, at its price, for its days. *Past months* lists the months since the first
-   scan.
-7. **Switch to Priya Natarajan** (storage administrator). *All data* shows both filesystems, the largest
-   folders, the biggest changes since the previous scan (a batch of samples and an atlas in `fujimoto_a`,
-   sequencing runs in `gsr_illumina`), and
-   three unmapped folders. Open the age map of *Fast*: `scratch_legacy` is a large, very old, unmapped tile.
-   Open *History* for `kowalski_d`: the same size every scan, while its cold share climbs to 100%. Then
-   `lindqvist_h/wgs/2024_germline`: a terabyte smaller at the fifth scan, when the lab compressed its FASTQ files.
-   Open the *Change map* of *Fast* and compare with the scan of May 30: `fujimoto_a` and `haddad_n` grew,
-   `bennett_k` shrank by 81%. In `bennett_k`, the removed `imaging/2024_lightsheet` keeps the room it had; in
-   `haddad_n`, `datasets/2024_lightsheet_bennett` is new, and its tooltip says it is over a year old: it moved.
-   *What changed* for *Fast* since May 30 lists the Fujimoto project and the sequencing runs where it grew, the
-   moved project and the compressed FASTQ among new and removed folders, and the largest new files (Cell Ranger
-   BAMs); each list downloads as CSV.
-8. **Folders and labs.** Tick *Unmapped only*, then map `shared_reference` to the Genomics Shared Resource.
-   Switch to *Casey Morgan*: the folder now appears in their data.
-9. **Costs and Chargeback.** Back as Priya, *Costs* shows each filesystem's prices and free tiers, with the
-   Lindqvist Lab's exception. *Chargeback* for last month lists every lab's and department's charge, the most
-   first (the Genomics Shared Resource, a department, has nothing free), the totals by filesystem, and the
-   storage no one owns, most of it `scratch_legacy`; *Download CSV* is the statement for finance. This month,
-   `shared_reference` is charged to the Genomics Shared Resource from the moment it was mapped.
-10. **Storage health.** An unreadable folder, a very large directory (12,000 PNG tiles), problem file names
-    (a newline, a leading dash, a Windows-reserved character, a name that is not NFC), and files owned by
-    accounts that no longer exist.
-11. **Find files.** Search `*.bam`, older than five years, largest first; download the CSV.
-12. **Scans.** Six snapshots of each filesystem, a month apart, each with its full index (`PINAX_KEEP_SNAPSHOTS`
-    keeps six), and whether automatic ingest is watching for new scans. Click a date to open that scan: the
-    header says it is an older one, every report and link stays on it, and *Back to the latest* returns. Choose
-    another scan beside the date on any report.
-13. **People and access.** *Add person*: a username, a name, an email, and a lab; the panel shows the folders
-    they will see. Grant or remove the storage administrator role. *Deactivate* them, and they cannot sign in (their
-    access is kept, unused); *Reactivate* restores it. Each change is in the person's record and the audit log.
-    On the *Labs and departments* tab, each lab's folders and members; *Add lab or department* adds one (a slug, a
-    name, and whether it is a lab or a department, which decides its free tier), and its page changes its details
-    or deactivates it: its members stop seeing its folders, which stay its own (and charged to it) until they are
-    moved.
-14. **Import from CSV.** In a terminal, `uv run pinax import examples/import` lists the 14 changes the example
-    files would make: two departments, a lab, three people, their memberships, and owners for the three unmapped
-    folders. Add `--apply`, and *Folders and labs* shows no unmapped folders; every change is in the audit log.
-
-## Using real filesystems
-
-Register a filesystem by its scan root, then scan and ingest it in one step:
+```bash
+uv run pinax user add jdoe@example.org --name "Jane Doe" --email jdoe@example.org --admin
+```
 
 ```bash
 uv run pinax filesystem add fast /fh/fast --name Fast
@@ -186,35 +122,19 @@ uv run pinax filesystem add fast /fh/fast --name Fast
 uv run pinax scan fast
 ```
 
-Or ingest a scan made elsewhere, for example by a scheduled job on a storage node:
-
 ```bash
-uv run pinax ingest /scans/fast/2026-10-26
+uv run pinax serve
 ```
 
-Or let Pinax pick up each new scan written under a folder, checking every five minutes:
+Sign in with the temporary password and choose your own. Then add labs and people under *People and access*, and
+give each top-level folder its owner under *Folders and labs*; its members see it, and nobody else except storage
+administrators. With `.env` in place, `pinax seed` would reset this data, so move `.env` aside before going back to
+the demo.
 
-```bash
-uv run pinax ingest --watch /scans
-```
-
-Check that every directory's totals equal an independent computation by `fs-inventory rollup` (the ID is from
-`pinax snapshots`):
-
-```bash
-uv run pinax check 1
-```
-
-Every top-level folder of a filesystem is a unit of ownership: map each one to a lab or department under
-*Folders and labs*, and its members see it. To set up many labs and people at once, import them from CSV
-([docs/IMPORT.md](docs/IMPORT.md)):
-
-```bash
-uv run pinax import examples/import
-```
-
-To install Pinax on a server, follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): systemd services (in `deploy/`),
-single sign-on with oauth2-proxy, scheduled scans, upgrades, sizing, and operations.
+[docs/SETUP.md](docs/SETUP.md) walks through it step by step: scans made elsewhere and automatic ingest, checking
+the numbers, importing labs and people from CSV, and prices. To install Pinax on a server, with services,
+scheduled scans, and single sign-on, follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md);
+[docs/CONFIGURATION.md](docs/CONFIGURATION.md) lists every setting.
 
 ## Commands
 
@@ -245,19 +165,20 @@ src/pinax/
   ingest/build.py                  scan -> snapshot index (DuckDB + Parquet)
   crosscheck.py                    an index against fs-inventory rollup, directory by directory
   index.py                         read-only queries over one snapshot index
-  snapshots.py                     scanning, ingest, retention, the cache of open indexes
-  watch.py                         automatic ingest of new scans under a folder
-  onboard.py                       labs, people, memberships, and folder ownership from CSV
+  snapshots.py, watch.py           scanning, ingest, retention, open indexes; automatic ingest of new scans
+  people.py, labs.py, signin.py    people, labs and departments, local sign-in
+  onboard.py, ownership.py         labs, people, and folder ownership from CSV; who owned each folder when
+  costs.py, charges.py             prices and free tiers; monthly charges
   auth.py, explore.py              identity and folder access; explore and report services
-  serialize.py, api/               JSON views; FastAPI routers (identity, explore, admin, access)
+  serialize.py, api/               JSON views; FastAPI routers
   seed.py, cli.py, main.py         demo data, command line, app
   static/                          HTML, css/pinax.css (themes, chart colors), js/ (core, treemap, views), img/
-bench/                             synthetic scans of any size and query benchmarks
+bench/                             synthetic scans of any size, index and charges benchmarks
 scripts/install-fs-inventory.sh    installs the pinned fs-inventory release into bin/
 tests/                             pytest suite
-docs/                              architecture, configuration, deployment, development
+docs/                              demo, setup, architecture, configuration, deployment, import, development
 pinax-spec/                        requirements and roadmap
-bin/  var/  scans/  demo/          fs-inventory binary and runtime data (gitignored)
+bin/  var/  scans/  demo/  data/  fs-inventory binary and runtime data (gitignored)
 ```
 
 ## License
