@@ -16,9 +16,11 @@ from fastapi import HTTPException
 from sqlalchemy import BigInteger, cast, func, select
 from sqlalchemy.orm import Session, selectinload
 
+from . import capacity
 from .auth import Identity, folder_owners
 from .categories import AGE_BUCKETS, CATEGORIES, CATEGORY_KEYS
 from .config import get_settings
+from .forecast import forecast
 from .index import CHANGE_METRICS, DAY, METRICS, SnapshotIndex, Stats, add_pairs, iso_from_epoch, pattern_to_like
 from .models import Filesystem, FolderStat, Lab, LabFolder, Snapshot, SnapshotStatus
 from .serialize import folder_stat_json, iso, lab_brief
@@ -853,7 +855,7 @@ def history(session: Session, ident: Identity, fs_slug: str | None, path: str | 
     retained snapshots for a deeper folder."""
     cold_from = cold_bucket()
     lab = session.scalar(select(Lab).where(Lab.slug == lab_slug)) if lab_slug and not fs_slug else None
-    older = 0
+    older, room = 0, None
     if fs_slug:
         try:
             place = resolve(session, ident, fs_slug, path, scan)[0]
@@ -868,6 +870,8 @@ def history(session: Session, ident: Identity, fs_slug: str | None, path: str | 
         depth = idx.depth_of(place.path)
         if depth == 0:
             kind, name, members = "filesystem", place.fs.name, {place.fs.id: None}
+            room = capacity.summary(session, place.fs)
+            room["steps"] = capacity.steps(room)
         elif depth == 1:
             kind, name, members = "folder", node["name"], {place.fs.id: {idx.top_of(place.path)}}
         else:
@@ -895,7 +899,16 @@ def history(session: Session, ident: Identity, fs_slug: str | None, path: str | 
         points = _series(session, dict(members), cold_from) if members else []
     return {"kind": kind, "name": name, "lab": lab_brief(lab), "points": points, "older_scans": older,
             "keep_snapshots": get_settings().keep_snapshots, "merged": members is not None and len(members) > 1,
-            "cold_bucket": cold_from, "as_of": points[-1]["taken_at"] if points else None}
+            "cold_bucket": cold_from, "as_of": points[-1]["taken_at"] if points else None,
+            "forecast": size_forecast(points), "capacity": room}
+
+
+def size_forecast(points: list[dict], measure: str = "bytes") -> dict:
+    """The forecast of a history's size (forecast.py), from the scans the place is in; none if it is not in the
+    latest."""
+    if points and not points[-1]["present"]:
+        return {"ok": False, "why": "absent", "scans": 0}
+    return forecast([(datetime.fromisoformat(p["taken_at"].removesuffix("Z")), p[measure]) for p in points if p["present"]])
 
 
 def lab_summaries(session: Session, ident: Identity) -> list[dict]:

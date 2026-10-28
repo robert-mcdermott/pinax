@@ -245,6 +245,11 @@ Notes:
 - `fs-inventory probe /fh/fast --threads 16,32,64,128` finds a good thread count without writing anything;
   `PINAX_SCAN_THREADS` sets it for `pinax scan`.
 - An interrupted scan can be continued with `fs-inventory resume`; the watcher waits for it.
+- `pinax scan` also asks the filesystem for its total, used, and available space (`statvfs`, which reads no file)
+  and writes them to `pinax.json` beside the manifest, so *Capacity* knows how much the filesystem holds and how
+  much of it the storage counts as used, its snapshots included. A scan made with fs-inventory directly, as above,
+  has none: set the filesystem's capacity on *Capacity* instead (a capacity set there also takes the place of
+  what the storage reports, for storage whose mount shows a quota or a shared pool).
 - Pinax never deletes scan folders. Keep the scan of every snapshot that still has its index (the newest
   `PINAX_KEEP_SNAPSHOTS` of each filesystem), so it can be rebuilt after an upgrade and checked; once a snapshot
   is pruned, its scan is of no further use to Pinax and can be deleted. `pinax snapshots` lists each snapshot's

@@ -83,6 +83,12 @@ Storage has prices, so the six months make six months of charges. *Fast* costs $
 the 16th of last month; every lab has a terabyte of it free and departments none, and the Lindqvist Lab has its own
 5 TB from the 10th of last month (a grant's allocation). *Secure* costs $40 per TiB, with nothing free.
 
+## Capacity
+
+*Fast* holds 125 TiB, so at its trend it fills within the year, and an expansion to 250 TiB is scheduled for eleven
+months after the seed, too late. *Secure* holds a tebibyte. The demo's scans record nothing about the storage (its
+files are sparse, on a laptop's disk), so the capacities are set, and use is measured by the files' size.
+
 
 ## The walk-through (about 20 minutes)
 
@@ -99,6 +105,9 @@ the 16th of last month; every lab has a terabyte of it free and departments none
    **Cold data** at two years lists `raw` as one cold unit; at ten years it lists `2014_legacy_reruns` alone.
    **History** for `fujimoto_a`: the lab grew from 19 to 25 TiB in six scans, and new data on top of the columns
    brought its cold share down from 77% to 60%. Hover a column for that scan; the three small charts follow.
+   The dashed line is the forecast: at its trend, about 34 TiB in a year (*In a year*), within the shaded range.
+   The `bennett_k` lab has none: the project it handed to `haddad_n` is a step, and the trend starts again after
+   it, so it needs six scans after the step.
 5. **Switch to Jordan Okafor**, a delegate for two labs. *My data* shows both labs' folders; the age map
    puts both side by side. Then **switch to Valeria Quintero**, whose lab joined three scans ago: one folder, two
    thirds of it unchanged for more than two years, because most of it came from the PI's previous institution.
@@ -107,7 +116,7 @@ the 16th of last month; every lab has a terabyte of it free and departments none
    estimate to the month's end. Open *Storage charges* and choose last month: the price of *Fast* fell on the
    16th, and the lab's own 5 TB free tier started on the 10th, so the month is worked out in three parts, each its
    average size less what was free, at its price, for its days. *Past months* lists the months since the first
-   scan.
+   scan, and *The next 12 months* what the lab will pay if it keeps growing as it has, with a range.
 7. **Switch to Priya Natarajan** (storage administrator). *All data* shows both filesystems, the largest
    folders, the biggest changes since the previous scan (a batch of samples and an atlas in `fujimoto_a`,
    sequencing runs in `gsr_illumina`), and
@@ -126,7 +135,11 @@ the 16th of last month; every lab has a terabyte of it free and departments none
    Lindqvist Lab's exception. *Chargeback* for last month lists every lab's and department's charge, the most
    first (the Genomics Shared Resource, a department, has nothing free), the totals by filesystem, and the
    storage no one owns, most of it `scratch_legacy`; *Download CSV* is the statement for finance. This month,
-   `shared_reference` is charged to the Genomics Shared Resource from the moment it was mapped.
+   `shared_reference` is charged to the Genomics Shared Resource from the moment it was mapped. *The next 12
+   months* adds up what every lab will pay at its trend.
+   *Capacity*: *Fast* is 89% used and fills in about nine months at its trend, a month or two before the expansion
+   scheduled for eleven months on, so *All data* flags it under *Needs attention*. Its *History* draws the capacity
+   above the columns.
 10. **Storage health.** An unreadable folder, a very large directory (12,000 PNG tiles), problem file names
     (a newline, a leading dash, a Windows-reserved character, a name that is not NFC), and files owned by
     accounts that no longer exist.

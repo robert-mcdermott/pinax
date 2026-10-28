@@ -330,6 +330,52 @@ a turn within their own limit, and a query of a folder never waits. Pinax's limi
 (oauth2-proxy waits five minutes in `deploy/oauth2-proxy/pinax.cfg`), so a long request ends with Pinax's
 explanation rather than a gateway error.
 
+## Forecasts
+
+Every history (`/api/history`) comes with a forecast of its size (`forecast.py`): where the place is heading over
+the next twelve months if it keeps growing as it has. It is worked out when asked from the history's own points,
+so it covers whatever History covers, and nothing is stored.
+
+- **The trend** is a straight line through the scans of the last six months: Sen's slope, the median of the
+  slopes between every pair of scans, so one odd scan (a temporary copy, a scan that missed a folder) barely moves
+  it. The forecast carries that slope forward from the latest scan, to the same day of each of the next twelve
+  months. Weekly or monthly scans give too few points to tell growth curves apart, and a line is easy to explain.
+- **The range** is the confidence interval of Sen's slope (from the ranks of the pairwise slopes, as in
+  Kendall's test, at 80%), widened by how far the scans scatter about the trend. On synthetic histories with
+  known growth and noise it holds the outcome a year ahead in 86–90% of cases, a little more than the 80% it is
+  set for.
+- **Steps.** A change between two scans far from the usual one, off it by more than a tenth of the size and by
+  much more than the changes usually vary, is a step: a cleanup, data brought in or moved out. A trend drawn
+  across a step describes neither side of it, so the trend starts after the last one, and says so.
+- **Enough scans.** A forecast needs at least six scans over at least eight weeks, after the last step;
+  otherwise it says why there is none (too few scans, too soon after a step, or the place is not in the latest
+  scan).
+- **The backtest** is what the same method forecast for the latest scan from the scans it had three months
+  before, against the size now: how far off a forecast of this place has been.
+
+Labs and departments are forecast from the folders they own now, as History shows them, so a folder moving
+between labs does not look like growth.
+
+### Capacity
+
+How much each filesystem holds, and when it fills at its trend (`capacity.py`, *Capacity*):
+
+- **How much it holds.** `pinax scan` asks the mounted filesystem its total, used, and available space
+  (`statvfs`, which reads no file) and records them in `pinax.json` beside the scan's manifest; ingest keeps them
+  with the snapshot (`info["storage"]`). An administrator can set the capacity instead, from a day on
+  (`capacity` table, audited): from that day it takes the place of what the storage reports, and a later day
+  schedules an expansion. Scans written by fs-inventory directly need it set.
+- **What fills it**, the best measure the scans allow: the storage's own figure for space used, which counts what
+  scans cannot see (the storage's snapshots, overhead), once six scans have it; else the scans' space on disk;
+  else, for scans that record no space on disk (sparse files, as in the demo), the files' size.
+- **When it fills.** The forecast of that measure is carried forward day by day against the capacity as
+  scheduled: the first day it reaches it, the earliest within its range, and the latest, up to three years
+  ahead. A filesystem that fills within `PINAX_FILL_WARNING_MONTHS` (12) is flagged on the overview.
+
+A filesystem's history carries its capacity, drawn as a line on *Size by age* where it fits the scale (no more
+than twice the data). That chart shows the files' size, while the date it fills uses the measure above, so the
+two can differ by what the size does not count.
+
 ## Costs
 
 What storage costs is kept in the catalog as two schedules per filesystem (`costs.py`):
@@ -371,6 +417,17 @@ shown worked out: a period's charge is its average billable size times its price
 *Storage charges* (`/api/charges`) shows a person's own labs' lines this way, with each lab's last twelve months;
 its members see it whatever their role, and administrators may ask for any lab. A lab is shown the folders it was
 charged for, including ones it owned earlier in the month and has since given up, which it can no longer open.
+
+**Charges ahead** (`charges.charges_ahead`) are each lab's and department's charges for the twelve calendar months
+after this one, per filesystem: the size of the folders it owns now, at their trend (as History forecasts it), less
+the free tier scheduled, at the price scheduled, for each stretch of each month in which neither changes. The
+trend, and the low and high ends of its range, are straight lines, so each stretch is worked out exactly (the part
+of the line above the free tier), with the low and high ends giving the range. A lab with no trend on a filesystem
+(too few scans, or soon after a step) is counted there at its size in the latest scan, and says why. These are
+estimates, in floating point, rounded to the currency's unit; they are not bills. *Storage charges* shows a lab's
+next twelve months, and *Chargeback* every lab's added up (`/api/admin/costs/ahead`, asked for after the month, so
+the month shows at once; adding up the ranges overstates the range); storage no one owns is not counted. With
+2,000 folders and 200 labs, one lab's twelve months take about 15 ms, and every lab's about 100 ms.
 
 ## Security
 
@@ -464,6 +521,10 @@ folders unowned, one in a hundred changing owner, a price change, and free tiers
 *Chargeback* and its statement are the first column; a lab's *Storage charges* is the last, and *My data* the one
 before. Time grows with folders times the scans in a month; one lab reads only the folders it ever had, but still
 every folder's owner.
+
+History with its forecast, on 2,000 folders and a year of weekly scans: 4.7 ms for a lab and 1.6 ms for all data
+(the whole filesystem's totals recorded with each scan). The forecast itself works on at most the six months of
+points the history already has, a few hundred pairs of scans.
 
 ```bash
 uv run python bench/bench_charges.py --folders 2000 --weeks 52

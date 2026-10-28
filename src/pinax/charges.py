@@ -31,7 +31,8 @@ from sqlalchemy.orm import Session
 from .config import get_settings
 from .costs import UNITS, price_text, shown
 from .db import utcnow
-from .models import Filesystem, FolderStat, FreeTier, Lab, Price, Snapshot, SnapshotStatus
+from .forecast import HORIZON, MONTH_DAYS, WINDOW_DAYS, Z, fit
+from .models import Filesystem, FolderStat, FreeTier, Lab, LabFolder, Price, Snapshot, SnapshotStatus
 from .ownership import Owners
 
 SCANNED = (SnapshotStatus.READY, SnapshotStatus.PRUNED)
@@ -300,6 +301,120 @@ def lab_history(session: Session, lab_ids: set[int], *, now: datetime | None = N
             out[row["lab"]["slug"]].append({"month": month, "total": row["total"], "estimated": m["estimated"],
                                             "size": sum(f["size"] for f in row["filesystems"])})
     return dict(out)
+
+
+# ---------- What labs will pay ----------
+
+def _later_months(now: datetime, count: int) -> list[tuple[str, datetime, datetime]]:
+    """The `count` calendar months after the one `now` is in."""
+    out, y, m = [], now.year, now.month
+    for _ in range(count):
+        y, m = y + (m == 12), m % 12 + 1
+        month = f"{y:04d}-{m:02d}"
+        out.append((month, *month_bounds(month)))
+    return out
+
+
+def _above(c0: float, k: float, e0: float, e1: float) -> float:
+    """The integral of max(0, c0 + k*e) over e from e0 to e1: the part of a straight line above zero."""
+    g0, g1 = c0 + k * e0, c0 + k * e1
+    if g0 >= 0 and g1 >= 0:
+        return (g0 + g1) / 2 * (e1 - e0)
+    if g0 <= 0 and g1 <= 0:
+        return 0.0
+    cross = -c0 / k
+    return max(g0, g1) / 2 * (e1 - cross if g1 > 0 else cross - e0)
+
+
+def charges_ahead(session: Session, lab_ids: set[int] | None = None, *, now: datetime | None = None,
+                  count: int = HORIZON) -> dict[int, dict]:
+    """Each lab's or department's charges for each of the `count` calendar months after this one (R12), per
+    filesystem: day by day, the size of the folders it owns now at their trend (forecast.py), less the free tier
+    scheduled for that day, at the price scheduled for it, as charges are worked out. With the low and high ends
+    of the trend's range. Without a trend (too few scans, a step), at the size of its latest scan, saying why. These
+    are estimates, worked out in floating point and rounded to the currency's unit; they are not bills."""
+    now = now or utcnow()
+    currency = get_settings().currency
+    labs = {lab.id: lab for lab in session.scalars(select(Lab))}
+    ahead_months = _later_months(now, count)
+    out: dict[int, dict] = {}
+    for fs in session.scalars(select(Filesystem).where(Filesystem.active.is_(True)).order_by(Filesystem.name)):
+        snaps = session.execute(select(Snapshot.id, Snapshot.started_at).where(
+            Snapshot.filesystem_id == fs.id, Snapshot.status.in_(SCANNED)).order_by(Snapshot.started_at)).all()
+        if not snaps:
+            continue
+        snaps = [s for s in snaps if (snaps[-1].started_at - s.started_at).days <= WINDOW_DAYS]
+        q = select(LabFolder.path, LabFolder.lab_id).where(LabFolder.filesystem_id == fs.id)
+        if lab_ids is not None:
+            q = q.where(LabFolder.lab_id.in_(lab_ids))
+        owner = dict(session.execute(q).all())  # the folders labs own now
+        if not owner:
+            continue
+        # Each lab's size in each recent scan, added up in one pass over the folders' history.
+        held: dict[int, dict[int, int]] = defaultdict(lambda: defaultdict(int))
+        for sid, folder, b in session.execute(select(FolderStat.snapshot_id, FolderStat.folder, FolderStat.bytes).where(
+                FolderStat.snapshot_id.in_([s.id for s in snaps]), FolderStat.folder.in_(sorted(owner)))):
+            held[owner[folder]][sid] += b
+        price_rows = session.scalars(select(Price).where(Price.filesystem_id == fs.id)).all()
+        prices = _Schedule([(r.starts, r) for r in price_rows])
+        per_byte = {r.id: r.micros / 10**6 / UNITS[r.unit] for r in price_rows}  # per month
+        tiers = _FreeTiers(session.scalars(select(FreeTier).where(FreeTier.filesystem_id == fs.id)).all())
+        for lab_id, by_snap in held.items():
+            points = [(s.started_at, by_snap[s.id]) for s in snaps if s.id in by_snap]
+            if not points or points[-1][0] != snaps[-1].started_at:
+                continue  # not in the latest scan
+            trend = fit(points)
+            (last_at, size_now), lab = points[-1], labs[lab_id]
+            # The size as three straight lines in days since the latest scan, (at 0, per day): the trend and the
+            # low and high ends of its range, as forecast.ahead draws them; flat without a trend.
+            if trend["ok"]:
+                lines = [(size_now, trend["slope"]), (size_now - Z * trend["scatter"], trend["low"]),
+                         (size_now + Z * trend["scatter"], trend["high"])]
+            else:
+                lines = [(size_now, 0.0)] * 3
+            cuts_at = sorted(set(prices.starts) | tiers.starts())
+            rows, priced = [], False
+            for month, start, end in ahead_months:
+                days = (end - start).days
+                sums = [0.0, 0.0, 0.0]
+                cuts = [start, *(c for c in cuts_at if start < c < end), end]
+                for a, b in pairwise(cuts):  # a stretch with one price and one free tier
+                    price = prices.at(a)
+                    if price is None:
+                        continue
+                    priced = True
+                    free = tiers.at(lab, a)[0]
+                    e0, e1 = ((x - last_at).total_seconds() / 86400 for x in (a, b))
+                    for i, (c0, k) in enumerate(lines):
+                        sums[i] += _above(c0 - free, k, e0, e1) * per_byte[price.id] / days
+                at_end = max(0.0, lines[0][0] + lines[0][1] * (end - last_at).total_seconds() / 86400)
+                rows.append({"month": month, "size": round(at_end),
+                             **{k: str(money(Fraction(v), currency)) for k, v in zip(("charge", "low", "high"), sums, strict=True)}})
+            entry = out.setdefault(lab_id, {"lab": lab, "filesystems": []})
+            entry["filesystems"].append({
+                "fs": fs.slug, "fs_name": fs.name, "size": size_now, "trend": trend["ok"],
+                "why": None if trend["ok"] else trend["why"], "step": trend.get("step"), "scans": trend["scans"],
+                "per_month": round(trend["slope"] * MONTH_DAYS) if trend["ok"] else None, "priced": priced,
+                "months": rows})
+    zero = money(Fraction(0), currency)
+    for entry in out.values():
+        entry["months"] = [{"month": m, **{k: str(sum((Decimal(f["months"][i][k]) for f in entry["filesystems"]), zero))
+                                           for k in ("charge", "low", "high")}}
+                           for i, (m, _, _) in enumerate(ahead_months)]
+        entry["total"] = {k: str(sum((Decimal(r[k]) for r in entry["months"]), zero)) for k in ("charge", "low", "high")}
+        lab = entry.pop("lab")
+        entry["lab"] = {"slug": lab.slug, "name": lab.name, "kind": lab.kind, "active": lab.active}
+    return out
+
+
+def ahead_totals(per_lab: dict[int, dict], currency: str) -> dict:
+    """Every lab's charges ahead, added up month by month (their ranges too, which overstates the range)."""
+    zero = money(Fraction(0), currency)
+    months_ = [r["month"] for r in next(iter(per_lab.values()))["months"]] if per_lab else []
+    rows = [{"month": m, **{k: str(sum((Decimal(e["months"][i][k]) for e in per_lab.values()), zero))
+                            for k in ("charge", "low", "high")}} for i, m in enumerate(months_)]
+    return {"months": rows, "total": {k: str(sum((Decimal(r[k]) for r in rows), zero)) for k in ("charge", "low", "high")},
+            "labs": len(per_lab), "without_trend": sum(1 for e in per_lab.values() if not all(f["trend"] for f in e["filesystems"]))}
 
 
 STATEMENT_COLUMNS = ["month", "status", "lab", "lab_name", "kind", "filesystem", "average_bytes", "charged_bytes",

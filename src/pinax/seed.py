@@ -31,7 +31,7 @@ from pathlib import Path
 import duckdb
 from sqlalchemy import select
 
-from . import costs
+from . import capacity, costs
 from .config import Settings, get_settings
 from .db import Base, get_engine, reset_engine, session_scope
 from .models import AuditEvent, Filesystem, Lab, LabFolder, LabMembership, User
@@ -91,6 +91,18 @@ def demo_costs(now: float) -> tuple[list[tuple], list[tuple]]:
     free = [("fast", since, "1", "TB", {"kind": "lab"}), ("fast", since, "0", "TB", {"kind": "department"}),
             ("fast", last_month.replace(day=10), "5", "TB", {"lab": "lindqvist_h"})]
     return prices, free
+
+
+def demo_capacity(now: float) -> list[tuple]:
+    """How much the demo's filesystems hold (filesystem, from, amount, unit), from the day of the seed. Fast holds
+    125 TiB, so at its trend it fills within the year; an expansion to 250 TiB is scheduled for eleven months on,
+    too late. Secure holds a tebibyte. The demo's scans do not record what the storage reports (its files are
+    sparse, and the folder they are on is not the storage they stand for), so the capacities are set."""
+    today = datetime.fromtimestamp(now, UTC).date()
+    since = date(datetime.fromtimestamp(now - (SCANS - 1) * MONTH, UTC).year, 1, 1)  # before the first scan
+    y, m = divmod(today.month - 1 + 11, 12)
+    expansion = date(today.year + y, m + 1, 1)
+    return [("fast", since, "125", "TiB"), ("fast", expansion, "250", "TiB"), ("secure", since, "1", "TiB")]
 
 
 # username, display name, title, admin, [(lab slug, role)]
@@ -649,6 +661,8 @@ def run_seed(scale: float = 1.0) -> None:
         for fs, starts, amount, unit, who in free:
             costs.set_free_tier(s, admin, fss[fs], starts, amount, unit, kind=who.get("kind"),
                                 lab=labs[who["lab"]] if "lab" in who else None)
+        for fs, starts, amount, unit in demo_capacity(now):
+            capacity.set_capacity(s, admin, fss[fs], starts, amount, unit)
 
     owners, groups = demo_accounts(rng)
     scan_root = settings.demo_root / "scans"

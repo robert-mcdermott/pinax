@@ -25,7 +25,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | P2 | Apache-2.0; `LICENSE` and `NOTICE`; SPDX headers in source files | done (wave 1, slice 1) |
 | P3 | Read-only: never opens, moves, or changes a file on the storage it reports on; reads only fs-inventory scans | done (wave 1, slice 2) |
 | P4 | Light and dark themes, keyboard-reachable charts, WCAG AA text contrast, a table view for every chart, chart colors validated in both themes | done (wave 1, slices 1 and 4: age and share ramps pass the ordinal checks in both themes; checked at 375 px) |
-| P5 | A demo that builds in one command with real fs-inventory scans of realistic data | done (wave 1, slice 7: about 34,000 sparse files, 117 TB logical, two scans per filesystem, about ten seconds; wave 3, slice 2: six scans per filesystem a month apart, with a story in each month, about 35,000 files and 123 TB, about fifteen seconds) |
+| P5 | A demo that builds in one command with real fs-inventory scans of realistic data | done (wave 1, slice 7: about 34,000 sparse files, 117 TB logical, two scans per filesystem, about ten seconds; wave 3, slice 2: six scans per filesystem a month apart, with a story in each month, about 35,000 files and 123 TB, about fifteen seconds; wave 6: capacities, one filesystem filling within the year) |
 | P6 | Service files for the web app and ingest; a container image | partial (wave 2, slice 6: systemd units in `deploy/`; wave 10: container) |
 | P7 | PostgreSQL catalog with migrations | planned (wave 10) |
 
@@ -70,9 +70,9 @@ validation that shows it. Requirement IDs are stable and never reused.
 | R7 | Totals that count hard-linked files once | planned (wave 11) |
 | R8 | Cost by lab, department, and filesystem | done (wave 5, slice 1: prices and free tiers per filesystem, from a day on; slice 2: monthly charges per lab or department and filesystem, time-weighted, with ownership history; slice 3: what labs pay, for their members, worked out; slice 4: chargeback for finance, with a CSV statement) |
 | R9 | What changed in a folder between two scans: the subfolders that grew and shrank most, new and removed folders, and the largest new and removed files; CSV | done (wave 3, slice 5: 70–90 ms for a lab folder at a million files; wave 9: at 100 million) |
-| R10 | Forecasts of size: each filesystem, lab and department, home, and all data, 12 months ahead from the trend of its scans, with a range and a backtest | planned (wave 6) |
-| R11 | Each filesystem's capacity, and when it fills at its trend | planned (wave 6) |
-| R12 | Each lab's and department's charges for the next 12 months at its trend, with the prices and free tiers as scheduled | planned (wave 6) |
+| R10 | Forecasts of size: each filesystem, lab and department, home, and all data, 12 months ahead from the trend of its scans, with a range and a backtest | done (wave 6, slice 1: in every history, tested on synthetic histories with known growth, noise, steps, and gaps; 5 ms for a lab and 2 ms for all data on a year of weekly scans of 2,000 folders; slice 2: in *History*, with its range, backtest, and table) |
+| R11 | Each filesystem's capacity, and when it fills at its trend | done (wave 6, slice 3: recorded by `pinax scan` or set by administrators from a day on; the day it fills, with its range, tested against the trend worked out by hand) |
+| R12 | Each lab's and department's charges for the next 12 months at its trend, with the prices and free tiers as scheduled | done (wave 6, slice 4: on *Storage charges* and *Chargeback*, equal to the cent to an hour-by-hour charge on the forecast sizes) |
 
 ## Cleanup plans
 

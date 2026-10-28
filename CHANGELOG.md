@@ -1,9 +1,43 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 (2026-10-28)
+
+Sixth release (wave 6, "where storage is heading"): forecasts. Every history carries a forecast of its size for
+the next twelve months, the trend of its last six months of scans with a range and a backtest; administrators see
+how much each filesystem holds and the month it fills at its trend; and lab members see what their labs will pay
+over the next twelve months. Also in this release: labs and departments managed in the app, guidance for operating
+Pinax, and time limits and new and removed files recorded at ingest, for filesystems of two billion files. Next
+are cleanup plans (0.7.0). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+
+Upgrading from 0.5.0: indexes are now version 5; older ones still answer, comparing files when asked, and
+`pinax rebuild --outdated` adds the new and removed files to them. The catalog gains a `capacity` table, created at
+start-up. `pinax scan` writes `pinax.json` (what the storage reports) beside each new scan's manifest; scans made
+before, or with fs-inventory directly, have none, so set capacities on *Capacity*. New settings:
+`PINAX_QUERY_TIMEOUT` (180), `PINAX_WIDE_QUERIES` (2), and `PINAX_FILL_WARNING_MONTHS` (12). Behind oauth2-proxy,
+set `upstream_timeout` above the query timeout (`deploy/oauth2-proxy/pinax.cfg` has 5 minutes).
 
 ### Added
 
+- **Forecasts of size.** Every history comes with where the place is heading over the next twelve months: a
+  straight-line trend through the last six months of scans (the median of the slopes between pairs of scans, so
+  one odd scan barely moves it), carried forward from the latest scan, with a range and a backtest (what the same
+  method forecast three months earlier, against the size now). A step, such as a cleanup, starts the trend again;
+  a forecast needs six scans over eight weeks. *History* draws it after the last scan, as a dashed line over
+  the shaded range, with *In a year* beside the other figures, a table of the months ahead, and the reason when
+  there is none; the history CSV adds the months ahead (`kind` is `scan` or `forecast`). `/api/history` returns it
+  as `forecast`.
+- **Capacity, and when each filesystem fills.** *Capacity* (for administrators) shows how much each filesystem
+  holds, how much is used, its growth per month, and the month it fills at its trend, with the earliest and
+  latest within the range. `pinax scan` records what the storage reports for the filesystem (`statvfs`, in
+  `pinax.json` beside the scan's manifest), and an administrator can set the capacity from a day on instead,
+  including an expansion scheduled ahead (audited). Use is measured by the storage's own figure where scans have
+  it, else space on disk. The overview shows each filesystem's share used and when it fills, and flags one that
+  fills within `PINAX_FILL_WARNING_MONTHS` (12); a filesystem's *History* draws its capacity and shows *Fills*.
+- **What labs will pay.** *Storage charges* shows each lab's charges for the next twelve months, at the trend of
+  the folders it owns now on each filesystem, with the prices and free tiers as scheduled (a price change already
+  set applies from its day), and a range; a filesystem with no trend yet is counted at the lab's latest size, and
+  says why. *Chargeback* adds them up for every lab, after showing the month. `/api/charges` returns them as
+  `ahead`, and `/api/admin/costs/ahead` the totals.
 - **Labs and departments in the app.** *People and access* adds a lab or department (*Add lab or department*: a
   slug, a name, its kind, division, and research area), and each one's page changes its details, deactivates it
   (its members stop seeing its folders; its members and folders are kept, and its folders are still charged to

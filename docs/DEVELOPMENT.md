@@ -101,12 +101,13 @@ them, the person's home), and `lab` to limit home to one lab:
 | `GET /api/owners` | Bytes and files by owner, flagging deleted accounts |
 | `GET /api/cold?older=N` | Self-contained folders unchanged for at least age bucket N |
 | `GET /api/files?q=&category=&ext=&min_size=&older=&newer=&uid=&sort=&fmt=csv` | Files, with totals; CSV download |
-| `GET /api/home`, `GET /api/history?fs=&folder=` | Folder cards and lab totals; one folder's history |
+| `GET /api/home`, `GET /api/history?fs=&path=&lab=` | Folder cards and lab totals; a place's history, with the forecast of its size |
 | `GET /api/admin/overview`, `/health`, `/names`, `/snapshots`, `/labs`, `/people` | Administrator views |
 | `POST /api/admin/folders`, `POST /api/admin/labs/{slug}/members` | Folder ownership and membership changes |
 | `GET`, `PUT /api/admin/labs/{slug}`, `POST /api/admin/labs`, `POST /api/admin/labs/{slug}/deactivate` and `/reactivate` | A lab or department, with its record; adding, changing, and deactivating one |
-| `GET /api/charges?month=&lab=&history=` | A person's labs' charges for a month, with their past months |
-| `GET /api/admin/costs`, `/api/admin/costs/charges?month=&fmt=csv` | Prices and free tiers; every lab's charges for a month, or its CSV statement |
+| `GET /api/charges?month=&lab=&history=` | A person's labs' charges for a month, with their past months and the next twelve at their trend (`ahead`) |
+| `GET /api/admin/costs`, `/api/admin/costs/charges?month=&fmt=csv`, `/api/admin/costs/ahead` | Prices and free tiers; every lab's charges for a month, or its CSV statement; every lab's next twelve months, added up |
+| `GET /api/admin/capacity`, `POST /api/admin/capacity/{fs}`, `DELETE /api/admin/capacity/{fs}/{id}` | Each filesystem's capacity, its schedule, and when it fills; setting and removing a capacity from a day on |
 
 ## Frontend conventions
 
@@ -117,7 +118,9 @@ The interface is plain HTML, CSS, and JavaScript modules with no framework or bu
 - `js/viz.js`: age buckets, color modes, size metrics, legends, and small charts (age bars, histograms, bars).
 - `js/treemap.js`: the squarified treemap, drawn as positioned links so tiles are real navigation targets.
 - `js/timechart.js`: charts over time (stacked columns and lines on a shared date axis, with a hover and keyboard
-  readout that several charts share); `js/history.js` draws the history view with it.
+  readout that several charts share, and a forecast drawn after the last scan, `ahead`); `js/history.js` draws the
+  history view with it.
+- `js/capacity.js`: *Capacity*, each filesystem's capacity and when it fills (`capacity.py`, `api/capacity.py`).
 - `js/costs.js`: *Costs*, each filesystem's prices and free tiers (`costs.py`, `api/costs.py`).
 - `js/charges.js`: *Storage charges*, what a person's labs pay each month and how, and *Chargeback*, every lab's
   charges for a month, for administrators (`charges.py`, `api/costs.py`).

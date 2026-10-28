@@ -16,16 +16,16 @@ decisions taken are recorded here. Later waves are outlined at the end.
 **Progress** is marked here as each slice is committed: done, next or to come. Each requirement's status is
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
-**Where things stand:** waves 1 to 5 are released as 0.1.0 to 0.5.0 (tags on `main`). Merged since 0.5.0, and
-released with 0.6.0:
+**Where things stand:** waves 1 to 6 are released as 0.1.0 to 0.6.0 (tags on `main`). Besides forecasts, 0.6.0
+has what was merged since 0.5.0:
 - labs and departments can be added, changed, and deactivated in the app, so a site needs no CSV files at all;
 - guidance for operating Pinax;
 - time limits for requests, and new and removed files recorded at ingest, for filesystems of two billion files.
 
-Next come forecasts (wave 6), cleanup plans (wave 7), and folder tags (wave 8). The production pilot needs
-production storage, which will not be reachable for some time, so it waits as wave 9. If production storage
-becomes reachable sooner, the pilot becomes the next wave and the waves after it are renumbered. Ideas kept for
-later but not planned are in the [parking lot](#parking-lot).
+Next come cleanup plans (wave 7) and folder tags (wave 8). The production pilot needs production storage, which
+will not be reachable for some time, so it waits as wave 9. If production storage becomes reachable sooner, the
+pilot becomes the next wave and the waves after it are renumbered. Ideas kept for later but not planned are in the
+[parking lot](#parking-lot).
 
 The order follows one principle:
 1. **Trust first.** Totals that agree with an independent computation on every directory, and that say when
@@ -622,39 +622,134 @@ rounded (for now, half up to the cent, once per lab and filesystem, unless finan
 
 How fast each filesystem, lab, and department is growing, how large it will be in a year, when each filesystem
 fills, and what each lab will pay. It is worked out from folder history, which keeps every scan, so it needs no
-production storage, and the demo's six months of scans give six months of trend. Planned; the slices are confirmed
-when the wave starts.
+production storage, and the demo's six months of scans give six months of trend.
 
 ### Wave 6 sequence
 
 | Slice | Scope and requirements | Acceptance before the next slice | Status |
 | --- | --- | --- | --- |
-| 1 | Forecasts of size (R10, Q1) | For a filesystem, a lab or department, a person's home, and all data: the size each month for the next 12 months from the trend of the last six months of scans, with a range; at least six scans over eight weeks, or no forecast and the reason; after a large step (a cleanup, a transfer), the trend starts after it and says so; backtested: the forecast the same method gave three months earlier, against the size now; tested on synthetic histories with known growth, noise, steps, and gaps; within Q3 for a year of weekly scans of 2,000 folders | To come |
-| 2 | Forecasts in History (R10) | The forecast drawn after the last scan, set apart from the measured columns (a dashed line and a lighter range), labeled as a projection; its growth per month and its backtest beside it; in the table view and CSV; both themes and 375 pixels; colors validated | To come |
-| 3 | Capacity, and when a filesystem fills (R11) | Each filesystem's capacity, from a date on (storage is expanded): recorded by `pinax scan` from the mounted filesystem with each scan, or set by administrators; the overview shows each filesystem's size, capacity, share used, growth per month, and the month it fills, with its range, and flags one that fills soon; History draws the capacity; audited | To come |
-| 4 | What labs will pay (R12) | Each lab's and department's charges for each of the next 12 months at its trend, per filesystem, with the prices and free tiers as scheduled (a price change already set applies from its date), and the range; on *Storage charges* for lab owners, and totals for all labs on *Chargeback*; tested against the charges worked out on the forecast sizes | To come |
-| 5 | Demo and release 0.6.0 | Capacities for the demo's filesystems, one filling within the year; the README demo script; version 0.6.0, changelog (with what was merged since 0.5.0), pull request, tag, release | To come |
+| 1 | Forecasts of size (R10, Q1) | For a filesystem, a lab or department, a person's home, and all data: the size each month for the next 12 months from the trend of the last six months of scans, with a range; at least six scans over eight weeks, or no forecast and the reason; after a large step (a cleanup, a transfer), the trend starts after it and says so; backtested: the forecast the same method gave three months earlier, against the size now; tested on synthetic histories with known growth, noise, steps, and gaps; within Q3 for a year of weekly scans of 2,000 folders | Done |
+| 2 | Forecasts in History (R10) | The forecast drawn after the last scan, set apart from the measured columns (a dashed line and a lighter range), labeled as a projection; its growth per month and its backtest beside it; in the table view and CSV; both themes and 375 pixels; colors validated | Done |
+| 3 | Capacity, and when a filesystem fills (R11) | Each filesystem's capacity, from a date on (storage is expanded): recorded by `pinax scan` from the mounted filesystem with each scan, or set by administrators; the overview shows each filesystem's size, capacity, share used, growth per month, and the month it fills, with its range, and flags one that fills soon; History draws the capacity; audited | Done |
+| 4 | What labs will pay (R12) | Each lab's and department's charges for each of the next 12 months at its trend, per filesystem, with the prices and free tiers as scheduled (a price change already set applies from its date), and the range; on *Storage charges* for lab owners, and totals for all labs on *Chargeback*; tested against the charges worked out on the forecast sizes | Done |
+| 5 | Demo and release 0.6.0 | Capacities for the demo's filesystems, one filling within the year; the README demo script; version 0.6.0, changelog (with what was merged since 0.5.0), pull request, tag, release | Done |
 
-### Decisions for wave 6 (proposed)
+### Decisions for wave 6
 
 - **A straight-line trend.** Weekly or monthly scans give too few points to tell growth curves apart, and a
   straight line is easy to explain to a PI. The trend is robust: the median of the slopes between pairs of scans,
-  so one odd scan barely moves it, and the range comes from the spread of those slopes. A curve can be reconsidered
-  once the pilot has a year of production scans.
+  so one odd scan barely moves it, and the range comes from the confidence interval of that median, widened by the
+  scans' scatter. A curve can be reconsidered once the pilot has a year of production scans.
 - **Labs and departments are forecast from the folders they own now**, as History shows them, so a folder moving
   between labs does not look like growth.
 - **A forecast says how good it is.** Its backtest is shown beside it, in keeping with trust first: the same method,
   run three months earlier, was off by a given share.
 - **Capacity has two sources.** fs-inventory does not record a filesystem's size, but `pinax scan` runs where the
-  filesystem is mounted and can record what the storage reports for it (`statvfs`, which reads no file). Scans
-  written by fs-inventory directly need the capacity set by an administrator. Where the storage's own figure for
-  space used is known, it is shown beside the scans' space on disk; the difference is what scans cannot see, such
-  as the storage's own snapshots.
-- **Only capacities are stored.** Forecasts are worked out from folder history when asked.
+  filesystem is mounted and records what the storage reports for it (`statvfs`, which reads no file). Scans
+  written by fs-inventory directly need the capacity set by an administrator, and a capacity set takes the place
+  of what the storage reports from its day (a mount can show a quota or a shared pool).
+- **What fills a filesystem** is the storage's own figure for space used once six scans have it, since it counts
+  what scans cannot see (the storage's snapshots and overhead); else the scans' space on disk; else the files'
+  size (the demo's sparse files have no space on disk).
+- **Only capacities are stored.** Forecasts, fill dates, and charges ahead are worked out when asked.
+- **Charges ahead are estimates**, worked out exactly on straight lines but in floating point, and rounded to the
+  currency's unit; a lab without a trend on a filesystem is counted at its latest size there, and says why.
 
-Open within the wave: the horizon and the window (12 months ahead, from six months of scans) as settings; how soon
-"fills soon" is; whether divisions (which group labs and departments) get totals and forecasts of their own; where
-`pinax scan` keeps what it records, since a scan's directory belongs to fs-inventory.
+Settled within the wave:
+- The horizon and the window (12 months ahead, from six months of scans) are constants, not settings, until the
+  pilot gives a reason to change them; so are six scans over eight weeks and the three-month backtest.
+- "Fills soon" is within `PINAX_FILL_WARNING_MONTHS` (12) at the trend's central estimate, a setting since storage
+  teams plan purchases on different cycles.
+- `pinax scan` writes `pinax.json` beside fs-inventory's manifest: fs-inventory's `verify` reads only its own
+  tables, so the scan stays valid, and the record travels with the scan to whichever host ingests it.
+- Divisions get no totals or forecasts of their own yet: a division is a label on labs, with no page. It stays
+  open, for when divisions get one.
+
+### Slices as built
+
+1. **Forecasts of size (R10, Q1).**
+   - `forecast.py`: Sen's slope through the scans of the last six months (`WINDOW_DAYS`), after the last step, carried
+     forward from the latest scan to the same day of each of the next twelve months; the range from the slope's
+     80% confidence interval (the ranks of the pairwise slopes, as in Kendall's test) widened by the scans' scatter
+     about the trend; a step is a change between two scans off the usual one by more than a tenth of the size and
+     by more than four times the usual spread; at least six scans over eight weeks; the backtest from the scans
+     three months before the latest. Kept as constants rather than settings, until the pilot shows a reason.
+   - `/api/history` returns the forecast with every history (`forecast`): for a filesystem, a top-level or deeper
+     folder, a lab or department, a person's home, and all data; none for a place not in the latest scan.
+   - Tests (`tests/test_forecast.py`): growth recovered exactly from a steady history and from irregular scans;
+     one odd scan barely moves it; the range holds the outcome a year ahead in 75–97% of 300 noisy synthetic
+     histories (86–90% when measured); a step starts the trend again, steady fast growth is not a step; too few
+     scans, too short a time, and too soon after a step; the backtest; months of different lengths; and in
+     History, a lab's forecast, a lab after a cleanup, a new folder, and all data.
+   - *Done*: with `bench/bench_charges.py` (2,000 folders, a year of weekly scans), History with its forecast takes
+     4.7 ms for a lab and 1.6 ms for all data; the benchmark now records each scan's whole-filesystem totals, as
+     ingest does.
+2. **Forecasts in History (R10).**
+   - `js/timechart.js` draws a forecast after the last scan (`ahead`): a dashed line from the latest total over a
+     shaded range, with a hit target for each month ahead, whose readout gives the size, the range, and the change
+     from now; the chart's scale includes the range. The small charts stay on the scans.
+   - *History*: *In a year* beside the other figures (or why there is no forecast); the forecast shown or hidden
+     (`forecast=off`, kept in links); under the chart, what the forecast is and its backtest, or why there is none
+     (too few scans, a step, not in the latest scan); in the table view, a table of the months ahead; the CSV adds
+     them (`kind` is `scan` or `forecast`, with `low` and `high`).
+   - Colors: the line is the strong ink (`--strong`, navy in light, white in dark), set apart from the measured
+     age colors, at 11.7:1 and 15:1 against the chart's surface; the range is `--border`, a step from the surface
+     in both themes. The dataviz validator's contrast check passes in both; its chroma check is for categorical
+     palettes, which this is not.
+   - *Done*: checked in the browser on the demo in both themes and at 375 pixels (no horizontal scroll): all data,
+     a lab with a forecast, a lab after a step, the table view, and hovering a month ahead.
+3. **Capacity, and when a filesystem fills (R11).**
+   - `pinax scan` asks the mounted filesystem its total, used, and available space (`statvfs`) and writes them to
+     `pinax.json` beside fs-inventory's manifest (fs-inventory's `verify` reads only its own tables, so it is
+     untouched); ingest and rebuilds keep them with the snapshot (`info["storage"]`).
+   - `capacity` table and `capacity.py`: a capacity from a day on, set by administrators in GB to PiB, audited;
+     it takes the place of what the storage reports from its day, and a later day schedules an expansion. Use is
+     measured by the storage's own figure once six scans have it, else space on disk, else size (scans with no
+     space on disk); the forecast of it is carried forward day by day against the capacity as scheduled, for the
+     day it fills and the earliest and latest within the range, up to three years ahead.
+     `PINAX_FILL_WARNING_MONTHS` (12) flags one that fills soon.
+   - *Capacity* (`js/capacity.js`, `/api/admin/capacity`): each filesystem's capacity and where it comes from, use,
+     growth per month, when it fills, what the storage reported, and the schedule, with a form to set one. The
+     overview's filesystem cards show the share used and when it fills, with a chip, and *Needs attention* lists
+     those that fill soon or are full. A filesystem's *History* draws the capacity on *Size by age* where it fits
+     the scale (at most twice the data), and shows *Fills*.
+   - Tests (`tests/test_capacity.py`): no capacity until one is known; the day it fills against the trend worked
+     out by hand; a scheduled expansion moving it; soon and full, and the setting; what the storage reports, used
+     as the measure and as the capacity until one is set; size for scans without space on disk; changes checked
+     and audited; the API for administrators only; `pinax scan`'s record kept by ingest; a filesystem's history
+     carrying its capacity.
+   - *Done*: checked in the browser with a capacity set on the demo's *Fast* (69% of 160 TiB used, filling about
+     July 2029): *Capacity*, the overview, and *History*.
+4. **What labs will pay (R12).**
+   - `charges.charges_ahead`: for each lab or department on each filesystem, the size of the folders it owns now
+     at their trend, less the free tier, at the price, for each stretch of the twelve calendar months after this
+     one in which neither changes; the trend and its range are straight lines, so each stretch is the exact part of
+     a line above the free tier. A day-by-day version gave the same charges to the cent and took four times as long.
+     With no trend, at the latest size, saying why. Floating point, rounded to the currency's unit: estimates, not
+     bills.
+   - `/api/charges` returns each lab's (`ahead`), shown on *Storage charges* as *The next 12 months*: the total,
+     its range, and each month's estimate and range; `/api/admin/costs/ahead` the totals for every lab
+     (`ahead_totals`), shown on *Chargeback* once the month's charges are, so the statement does not wait for it.
+   - With `bench/bench_charges.py` (2,000 folders, 200 labs, a year of weekly scans), on a laptop busy with other
+     work (the month's charges for every lab took 103 ms, against 25 ms when it is idle): 15 ms for one lab's
+     twelve months and 407 ms for every lab's, so about 100 ms when idle.
+5. **Demo and release 0.6.0.**
+   - `pinax seed` sets capacities (`seed.demo_capacity`), dated from the day of the seed: *Fast* holds 125 TiB, so
+     at its trend it fills in about nine months and is flagged, a month or two before an expansion to 250 TiB
+     scheduled eleven months on; *Secure* holds a tebibyte. The demo's scans record nothing about the storage (its
+     files are sparse, on a laptop's disk), so use is measured by size.
+   - `docs/DEMO.md`: the capacities, *In a year* and the forecast in `fujimoto_a`'s *History*, `bennett_k` with
+     none after its step, *The next 12 months* on *Storage charges* and *Chargeback*, and *Capacity*.
+   - Version 0.6.0 in `pyproject.toml`, `pinax.__version__`, and `uv.lock`; `CHANGELOG.md` dated, with notes on
+     upgrading from 0.5.0 (index version 5, the `capacity` table created at start-up, `pinax.json` with new scans,
+     the new settings, and oauth2-proxy's `upstream_timeout`).
+   - Pull request to `main`, then tag `v0.6.0` and the release.
+   - Tests (`tests/test_charges_ahead.py`): every month equal, to the cent, to a charge worked out hour by hour on
+     the forecast sizes, with a price change scheduled ahead, and for a lab growing past its free tier during a
+     month; a lab without a trend at its latest size; members see their own labs', administrators every lab's,
+     the totals adding up.
+   - *Done*: checked on the demo's *Storage charges* (`fujimoto_a`: about $8,239 over the next twelve months) and
+     *Chargeback*.
 
 ## 0.7.0: cleanup plans (wave 7)
 

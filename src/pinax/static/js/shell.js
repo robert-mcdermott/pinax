@@ -32,6 +32,7 @@ export function renderSidebar() {
     ${admin ? html`<h4>ADMINISTRATION</h4>
       ${link("health", "heart", "Storage health", false)}
       ${link("scans", "database", "Scans", false)}
+      ${link("capacity", "server", "Capacity", false)}
       ${link("costs", "tag", "Costs", false)}
       ${link("chargeback", "table", "Chargeback", false)}
       ${link("access", "lock", "People and access", false)}` : ""}`);

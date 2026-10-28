@@ -16,7 +16,9 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
   change, age of the oldest file, time since the last access, the share that is cold, or the share of one kind
   of data. Show one or two levels, or switch to a table.
 - **History**: how any folder, lab, or filesystem grew and aged over its scans: size by age as stacked
-  columns, with files, cold share, and average age beside it, or as a table with CSV.
+  columns, with files, cold share, and average age beside it, or as a table with CSV. A forecast carries the
+  trend of the last six months of scans a year ahead, with a range and a check of how far off it was three
+  months ago.
 - **Change map**: the treemap colored by how much each folder grew (teal) or shrank (gold) since an earlier
   scan, the previous one by default, with new and removed folders drawn; drill down as in the age map.
 - **What changed**: for any folder and two scans, where it grew and shrank, the new and removed folders, and the
@@ -29,12 +31,14 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
 - **For PIs and lab members**: *My data* shows every folder their labs own, across filesystems, with size,
   age profile, cold share, and change since the previous scan. People see only their own labs' folders.
   *Storage charges* shows what each of their labs pays each month, by filesystem and folder, how each charge is
-  worked out, and the months before; this month's is an estimate, and a figure on *My data*.
+  worked out, and the months before; this month's is an estimate, and a figure on *My data*. The next twelve
+  months are estimated at the trend of each lab's folders, with the prices and free tiers as scheduled.
 - **For IT**: an overview of every filesystem, the largest folders and biggest changes, unmapped folders,
   storage health (scan errors, very large directories, small-file hotspots, problem file names, deleted
-  owners), the scan history, and people and access: add people, change their details, lab memberships, and
-  administrator role, and deactivate and reactivate them; add labs and departments, change their details, and
-  deactivate and reactivate them; every change audited; costs: each filesystem's price
+  owners), the scan history, each filesystem's capacity and the month it fills at its trend, and people and
+  access: add people, change their details, lab memberships, and administrator role, and deactivate and
+  reactivate them; add labs and departments, change their details, and deactivate and reactivate them; every
+  change audited; costs: each filesystem's price
   per month and the free tiers for labs and departments, from a day on; and chargeback: every lab's and
   department's charges for a month, totals by filesystem, the storage no one owns, and a CSV statement for finance.
 - **Sign-in three ways**: the demo's persona switcher, to show Pinax with the seeded people (no setup; refused in
@@ -54,7 +58,7 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
 
 | Document | Covers |
 |---|---|
-| [docs/DEMO.md](docs/DEMO.md) | Running the demo, who is who, its six months and prices, and a 20-minute walk-through |
+| [docs/DEMO.md](docs/DEMO.md) | Running the demo, who is who, its six months, prices, and capacities, and a 20-minute walk-through |
 | [docs/SETUP.md](docs/SETUP.md) | Running Pinax on your own data: settings, the first administrator, scans, labs and people, prices |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Design; what Pinax keeps (catalog, indexes, scans) and what to back up; the snapshot index, how it is built and queried, security, measured performance and sizing |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every setting, its default, and what it does |
