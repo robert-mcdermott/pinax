@@ -138,7 +138,8 @@ running as root. If scans run on another host instead, skip the timer and have t
 
 1. Register an application with the identity provider, with the redirect URI
    `https://pinax.example.org/oauth2/callback`, and create a client secret.
-2. Install oauth2-proxy 7 as `/usr/local/bin/oauth2-proxy`, and a system user for it.
+2. Install oauth2-proxy 7 (7.3 or later, for `upstream_timeout`) as `/usr/local/bin/oauth2-proxy`, and a system
+   user for it.
 3. Copy and edit its files: `deploy/oauth2-proxy/pinax.cfg` to `/etc/oauth2-proxy/pinax.cfg` (tenant, client
    ID, email domain, address), the client secret to `/etc/oauth2-proxy/client-secret`, and
    `deploy/oauth2-proxy/pinax.env` to `/etc/oauth2-proxy/pinax.env` with a cookie secret. Make the secrets
@@ -149,14 +150,18 @@ oauth2-proxy signs people in, removes any user headers a browser sends, and pass
 as `X-Forwarded-User`, `X-Forwarded-Email`, and `X-Forwarded-Preferred-Username`. `PINAX_AUTH_HEADER` says
 which one is the Pinax username. Pinax believes it only from `PINAX_TRUSTED_PROXIES` (this host, by default);
 the same header from anywhere else gets *401*. If oauth2-proxy runs on another host, put its address in
-`PINAX_TRUSTED_PROXIES` and make Pinax listen where only that host can reach it. `/api/health` is open without
+`PINAX_TRUSTED_PROXIES` and make Pinax listen where only that host can reach it. It waits five minutes for an
+answer from Pinax (`upstream_timeout`; its default is 30 seconds), longer than Pinax lets a request run
+(`PINAX_QUERY_TIMEOUT`, 180 seconds), so a long search ends with Pinax saying why. `/api/health` is open without
 sign-in, for monitoring.
 
 ### Signing in without single sign-on
 
 With `PINAX_AUTH_MODE=local`, people sign in with a username and a password that Pinax keeps (hashed with
 scrypt), instead of steps 6's proxy. Put an HTTPS reverse proxy in front of Pinax (nginx, Caddy, or a load
-balancer, forwarding to `127.0.0.1:8001`): in production the session cookie is sent only over HTTPS.
+balancer, forwarding to `127.0.0.1:8001`): in production the session cookie is sent only over HTTPS. Let it wait
+longer for an answer than `PINAX_QUERY_TIMEOUT` (180 seconds), so a long search ends with Pinax's explanation
+rather than a gateway error: for nginx, `proxy_read_timeout 300s;` (its default is 60 seconds).
 
 Nobody can sign in until someone has a password, so make the first administrator on the server. It prints a
 temporary password, which they must change when they first sign in:
@@ -291,15 +296,41 @@ anything else says so, and pilot catalogs are then re-created from the import fi
 | Item | Rule of thumb |
 |---|---|
 | fs-inventory scan output | about 40 bytes per entry (40 GB per billion), for each scan kept; Pinax never deletes them ([Scans](#scans)) |
-| Snapshot index | about 56 bytes per file (56 GB per billion), times `PINAX_KEEP_SNAPSHOTS` (6) |
+| Snapshot index | about 56 bytes per file (56 GB per billion), times `PINAX_KEEP_SNAPSHOTS` (6), plus about 60 bytes per file new or removed since the scan before |
+| Building an index | free space for the new index beside the kept ones (it replaces the oldest only after the ingest), and while it builds, for a staged copy of the files and DuckDB's spill files: about 2–3 times an index in all |
 | Index build | about 1.2 seconds per million files on 10 cores (100 million in two minutes, a billion in about 20 minutes, measured on synthetic data); 8 GB of memory is enough, spilling beside the index beyond it, and more is no faster |
-| Query memory | `PINAX_QUERY_MEMORY_LIMIT` per open index (4 GB at most), up to 8 open |
+| Query memory | `PINAX_QUERY_MEMORY_LIMIT` per open index (4 GB at most), up to 8 open, in the one web process; more memory left over for the operating system's page cache keeps indexes fast |
+| Long requests | Pinax stops a request after `PINAX_QUERY_TIMEOUT` (180 seconds), or when the browser leaves; the proxy in front must wait longer (oauth2-proxy's `upstream_timeout` is 5 minutes in `deploy/oauth2-proxy/pinax.cfg`, against its own default of 30 seconds; nginx's `proxy_read_timeout` is 60 seconds by default). `PINAX_WIDE_QUERIES` (2) searches of a whole filesystem run at once, and `PINAX_QUERY_THREADS` below the core count keeps one from slowing every page |
 | Catalog | small: about one row per top-level folder per scan for history (2,000 folders scanned weekly add about 100,000 rows a year) |
 
 Put `/var/lib/pinax/snapshots` on fast local SSD or NVMe: indexes are read with many small range requests. Scans
 are read in one pass, at ingest and rebuild, so they can live on slower, cheaper disk: point `PINAX_SCAN_ROOT` there,
 and add it to the units' `ReadWritePaths`. For a billion-file filesystem with the defaults, six indexes take about
 340 GB and six scans about 240 GB, plus any older scans not yet deleted.
+
+### A filesystem of two billion files
+
+Projected from the 100-million-file measurements ([Measured performance](ARCHITECTURE.md#measured-performance)),
+with the defaults:
+
+| | Two billion files |
+| --- | --- |
+| Each scan | about 80 GB; the six of the kept snapshots about 480 GB, on cheaper disk |
+| Each index | about 112 GB, so about 670 GB for six, plus `file_changes` (about 2.4 GB for a week in which 2% of the files are new or removed) |
+| Building an index | about 45 minutes on 10 cores, with 8 GB of memory, and 250–350 GB of free space while it runs: about 1–1.2 TB of NVMe for the indexes in all |
+| Web server memory | up to 32 GB for 8 open indexes at 4 GB each, plus page cache: 64 GB or more |
+| Age map, types, owners, cold folders, history, charges | tens of milliseconds, as at 100 million: they read folder totals, not files |
+| A lab's search | grows with the lab's files: a lab of 300 million files searches like a filesystem of that size, in several seconds |
+| A search of the whole filesystem | about a minute, then about as long again for the count of matches; two at a time |
+| *What changed* since the previous scan | the new and removed files read `file_changes`, fast; the folder lists read every folder, about 0.1 s per 250,000 folders, so tens of seconds at 50 million folders or more |
+| *What changed* of the whole filesystem since an older scan | compares both scans' files, minutes: longer than the time limit, so ask it of a folder |
+| Rebuilding six indexes after an upgrade that changes the index format | about 5 hours, one after another; the old indexes answer meanwhile |
+
+These are projections from synthetic scans with about 41 files per folder. Production filesystems often have
+fewer files per folder, and everything that reads every folder (the build's subtree totals, cold folders, and
+comparison, and whole-filesystem folder reports) grows with folders, so measure the first production scan: *Scans*
+gives its build time and index size, its manifest the count of folders, and the web app's journal names each
+request Pinax stopped (`Stopped /api/files: timeout after 180 s`).
 
 ## Catalog database
 
@@ -367,7 +398,10 @@ to the journal (`journalctl -u pinax-web -u pinax-ingest`).
 | See scans and their status | *Scans*, or `pinax snapshots` |
 | A failed or skipped scan | *Scans* shows the error; fix the cause and run `pinax ingest` on the scan |
 | Automatic ingest *not responding* | `systemctl status pinax-ingest` and its journal |
-| Too little disk for indexes | Lower `PINAX_KEEP_SNAPSHOTS`; pruning runs after every ingest |
+| Too little disk for indexes | Lower `PINAX_KEEP_SNAPSHOTS`; pruning runs after every ingest. A build needs room for one more index while it runs ([Sizing](#sizing)) |
+| People see "Pinax stopped this after 180 seconds" | A search or comparison of a whole filesystem read for longer than `PINAX_QUERY_TIMEOUT`: search within a folder, or narrow it by name, type, size, or age. To allow longer, raise `PINAX_QUERY_TIMEOUT` and the proxy's timeout with it. The journal names each one (`Stopped /api/files: timeout after 180 s`) |
+| People see "Pinax is already running as many searches of whole filesystems as it allows" | Others ran meanwhile: raise `PINAX_WIDE_QUERIES` if the server has the cores and memory |
+| Pages are slow while a large search runs | Set `PINAX_QUERY_THREADS` below the number of cores |
 | Scan folders filling the disk | Pinax never deletes them: delete the folders of pruned snapshots (`pinax snapshots` lists each one's status and folder) |
 | An index was lost or damaged | `pinax rebuild SNAPSHOT_ID`, from its scan; `/api/health` is `degraded` and counts `indexes_missing` while one is missing |
 | Someone forgot their password, or is locked out (local sign-in) | Their page under *People and access*, *Set a new temporary password*; or `pinax user password USERNAME` |

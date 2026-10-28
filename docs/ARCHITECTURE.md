@@ -55,7 +55,7 @@ Pinax keeps three kinds of data. Only the catalog cannot be made again, so it is
 | | Where | What it holds | Size | If it is lost |
 |---|---|---|---|---|
 | **Catalog** | `PINAX_VAR_ROOT/pinax.db` (SQLite) | Filesystems; a record of every scan; folder history (each top-level folder's totals for every scan); people, labs and departments, memberships, folder ownership and who owned each folder when; local sign-in password hashes and sessions; prices and free tiers; the audit log; the ingest watcher's heartbeat | Small: about one row per top-level folder per scan (2,000 folders scanned weekly add about 100,000 rows a year) | Restore it from a backup. Without one, register the filesystems again, import people, labs, and folder ownership from the import files, and ingest the kept scans again; prices and free tiers, ownership history, folder history of scans no longer kept, and the audit log are lost |
-| **Snapshot indexes** | `PINAX_VAR_ROOT/snapshots/<filesystem>/<scan>/`, one per kept snapshot | `index.duckdb`: every directory's totals, and its changes since the scan before; `files/`: Parquet, one row per file, for searches and file lists | About 56 bytes per file, for each of the newest `PINAX_KEEP_SNAPSHOTS` (6) snapshots of each filesystem | `pinax rebuild SNAPSHOT_ID` makes it again from its scan |
+| **Snapshot indexes** | `PINAX_VAR_ROOT/snapshots/<filesystem>/<scan>/`, one per kept snapshot | `index.duckdb`: every directory's totals, and its changes since the scan before, with the files new and removed since; `files/`: Parquet, one row per file, for searches and file lists | About 56 bytes per file, plus about 60 per file new or removed since the scan before, for each of the newest `PINAX_KEEP_SNAPSHOTS` (6) snapshots of each filesystem | `pinax rebuild SNAPSHOT_ID` makes it again from its scan |
 | **Scans** | Where fs-inventory wrote them: `PINAX_SCAN_ROOT` for `pinax scan` and the watcher, or anywhere for `pinax ingest` | fs-inventory's Parquet and `manifest.json`: every entry's path, size, times, and owner | About 40 bytes per entry | Nothing changes in the app; that snapshot's index can no longer be rebuilt or checked |
 
 **What reads what.** The web app reads only the catalog and the indexes, never the scans or the filesystem.
@@ -119,6 +119,7 @@ The age color of a folder comes from those totals: the *average age* is weighted
 | `dir_owner` | directory and owner (uid) | Totals over the directory's *own* files of that owner | `path` |
 | `top_ext`, `top_owner` | top-level folder and type / owner | The same, summed per top-level folder | `top_id` |
 | `changes` | directory of this scan or the filesystem's previous one | Both scans' subtree totals (files, folders, bytes, allocated bytes, size-weighted time sum, files and bytes per age bucket), each scan's own ages, and whether the directory is in each: what changed, new and removed folders included. Only when there was a previous scan | `(depth, path)` |
+| `file_changes` | file new since the previous scan, or removed since | `change` (`new` or `removed`), then the file's path, name, type, category, kind, size, allocated bytes, owner, group, times, links, and name flags (a removed file's from the previous scan). Only when there was a previous scan, from index version 5 | `(change, path)` |
 | `cold_units` | age threshold and cold folder | For each threshold (90 days to 10 years), the largest folders in which every file is at least that old and whose parent has a newer one: path, depth, files, bytes | `(bucket, path)` |
 | `tops`, `file_parts` | top-level folder | Name, path, ID; file count and bytes | |
 | `users`, `groups` | uid / gid | Names from the scan (`--resolve-ids`); a missing name is a deleted account | |
@@ -140,6 +141,8 @@ match. The sort orders turn every query Pinax makes into a contiguous read:
 - **Files below a folder** live in the Parquet files of its top-level folder's group, sorted by path, so the
   folder is a range of row groups and the rest are skipped. Every file query is limited to the folder's path
   range, so a lab's query never returns another lab's files, even when they share a group.
+- **New and removed files below a folder** are the rows of `file_changes` with `change = 'new'` (or `'removed'`)
+  and `path` in `[P/, P0)`, which are adjacent because it is sorted by `(change, path)`.
 
 ### File types and categories
 
@@ -181,7 +184,11 @@ retries any step that still runs out.
 7. **Changes**: when the filesystem has an earlier ready snapshot whose index is on disk, its `dirs` table is
    attached read-only and joined with the new one by path, and both scans' totals are kept in `changes`. A
    directory in only one scan is new or removed; a renamed folder is both. The comparison is done once, and
-   survives the earlier index being pruned.
+   survives the earlier index being pruned. Then the files: each group's files are anti-joined by path with those
+   of the previous scan's top-level folders of the same names, both ways, and every new and removed file goes into
+   `file_changes` (a top-level folder only in the previous scan is all removed files). One group at a time, like
+   the sort, so memory is bounded by a group. A million files with a week of synthetic changes (55,000 files new
+   or removed) adds 0.85 s to a 7 s build, and the table takes about 60 bytes per file in it.
 
 Then ingest records the snapshot and one `FolderStat` row per top-level folder in the catalog: those rows are
 the durable history (growth, cold share, mean age per scan) and they survive when old indexes are pruned. The
@@ -274,6 +281,8 @@ values from requests are bound as parameters; the only SQL fragments built in co
   of `cold_units`. Indexes built before version 3 find them at query time by joining directories with their
   parents.
 - **Files**: the top-level folder's Parquet files, restricted to the subtree's path range, filtered and sorted.
+  How many match in all is a second pass over the same files, so *Find files* asks for it separately
+  (`/api/files/count`), and only when the page is full: otherwise the page is every match.
 - **Change map** (`/api/changes`): a directory's children in this scan and an earlier one, joined by path, with
   folders in only one of them, largest first by the larger of the two sizes (or now, or then), the rest folded, and
   each listed child's largest children for two levels. The previous scan comes from the index's `changes` table,
@@ -284,8 +293,12 @@ values from requests are bound as parameters; the only SQL fragments built in co
 - **What changed** (`/api/changed`): for the same two scans, the folders below a place in both scans that grew or
   shrank most, at any depth, leaving out a folder when one of its subfolders holds nine tenths or more of its
   change (so a chain of folders is listed once, where the change is); the outermost new and removed folders; and
-  the largest new and removed files, found by anti-joining the two scans' file lists on path over the place's
-  path range. At a million files a lab folder's report takes 70–90 ms and the whole filesystem's 0.5–0.6 s.
+  the largest new and removed files. Against the previous scan those are a range of `file_changes`; against an
+  older one (or an index built before version 5), the two scans' file lists are anti-joined on path over the
+  place's path range, in batches of groups of top-level folders up to ten million files (a larger group alone), so
+  memory is bounded by a group's files. At a million files with a week of synthetic changes, a lab folder's
+  queries take about 50 ms, and the whole filesystem's 105 ms against the previous scan (0.5 s against an older
+  one); most of the 105 ms are the folder lists, which read every folder in the place.
 - **History** (`/api/history`): size, space on disk, files, bytes per age bucket, cold share, and mean age per
   scan. A filesystem uses the totals recorded with each scan; a top-level folder, a lab, or a person's home sums
   folder history in the catalog, for every scan, pruned ones included. A folder below the top level reads its
@@ -305,6 +318,17 @@ and adds it to every place link and report request, so a chosen scan stays chose
 A request without a filesystem and path covers the person's *home*: each of their labs' folders (which may be
 on several filesystems), or every filesystem root for an administrator. Results from each place are merged;
 mean ages are rebased to a common reference time.
+
+### Time limits
+
+A request reads for at most `PINAX_QUERY_TIMEOUT` seconds (180 by default). `limits.py` gives each GET under
+`/api` a budget: when it runs out, or as soon as the browser leaves the page (the interface cancels a page's reads
+when another page opens), the request's running DuckDB queries are interrupted, and it answers 504 saying what to
+narrow. File-level queries of a whole filesystem (a search at its root, the new and removed files against an older
+scan, problem names) read every file in it, so at most `PINAX_WIDE_QUERIES` (2) run at once: the others wait for
+a turn within their own limit, and a query of a folder never waits. Pinax's limit is below the proxy's
+(oauth2-proxy waits five minutes in `deploy/oauth2-proxy/pinax.cfg`), so a long request ends with Pinax's
+explanation rather than a gateway error.
 
 ## Costs
 
@@ -401,12 +425,20 @@ Build time is about 1.2 seconds per million files, so a billion-file scan would 
 laptop, and less on a server with more cores and faster disks; that is small next to the crawl itself.
 Directory-level queries depend on the number of directories in the range they read, not on file counts, so
 they stay in the tens of milliseconds. Searches across a whole file system scan its files' name column, so they
-grow linearly: 2.8 seconds at 100 million files, about 30 seconds at a billion. Scoped to a lab folder they stay
-fast. These are projections from synthetic data; wave 6 measures production storage.
+grow linearly: 2.8 seconds at 100 million files, about 30 seconds at a billion, and about a minute at two billion,
+with about as long again for the count of matches (which *Find files* asks for separately). Scoped to a lab folder
+they stay fast. The new and removed files of *What changed* against the previous scan grow with what changed, not
+with the filesystem; against an older scan, a whole filesystem's comparison grows with its files (0.4 s at a
+million, so minutes at two billion, beyond the time limit), and is best asked of a folder. These are projections
+from synthetic data, which has about 41 files per folder; production filesystems often have fewer, so two billion
+files may mean 50 to 200 million folders, beyond anything measured so far. Reports that read every folder of a
+whole filesystem, like the folder lists of *What changed* (about 0.1 s per 250,000 folders here), grow with them.
+Wave 6 measures production storage.
 
 Index size is about 56 bytes per file, mostly the per-file Parquet (which is kept sorted and compressed). A
 billion-file snapshot needs about 56 GB; keeping six snapshots per file system (the default) needs about
-330 GB. Folder history in the catalog is tiny.
+330 GB. `file_changes` adds about 60 bytes per file new or removed since the previous scan: a week in which 2% of
+two billion files are new or removed adds about 2.4 GB. Folder history in the catalog is tiny.
 
 Reproduce with:
 
