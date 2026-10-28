@@ -18,6 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from .capacity import record_storage, scan_storage
 from .categories import AGE_BUCKETS, CATEGORY_KEYS, bucket_edges
 from .config import Settings, get_settings
 from .db import utcnow
@@ -133,6 +134,11 @@ def run_scan(fs: Filesystem, settings: Settings, *, extra_args: list[str] | None
     verify = subprocess.run([binary, "verify", str(out)], capture_output=True, text=True, check=False)
     if verify.returncode != 0:
         raise IngestError(f"fs-inventory verify failed: {verify.stdout.strip()} {verify.stderr.strip()}")
+    try:  # what the storage reports for the filesystem, for its capacity (capacity.py)
+        storage = record_storage(out, fs.root)
+        progress(f"The storage reports {storage['used']:,} bytes used of {storage['total']:,}")
+    except OSError as e:
+        progress(f"Could not ask the storage its size ({e}); set the capacity on Capacity instead")
     progress(f"Scan written to {out}")
     return out
 
@@ -286,6 +292,8 @@ def _record_build(session: Session, snap: Snapshot, index_dir: Path, result, man
                  "categories": list(CATEGORY_KEYS), "age_buckets": [b.short for b in AGE_BUCKETS],
                  "errors_by_kind": manifest.get("errors_by_kind", []), "index_version": INDEX_VERSION,
                  "compared_with": prev.id if prev and result.compared else None}
+    if storage := scan_storage(Path(snap.scan_dir)):
+        snap.info["storage"] = storage
     session.flush()
     _record_folder_stats(session, snap, index_dir, settings)
 

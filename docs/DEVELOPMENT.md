@@ -107,6 +107,7 @@ them, the person's home), and `lab` to limit home to one lab:
 | `GET`, `PUT /api/admin/labs/{slug}`, `POST /api/admin/labs`, `POST /api/admin/labs/{slug}/deactivate` and `/reactivate` | A lab or department, with its record; adding, changing, and deactivating one |
 | `GET /api/charges?month=&lab=&history=` | A person's labs' charges for a month, with their past months |
 | `GET /api/admin/costs`, `/api/admin/costs/charges?month=&fmt=csv` | Prices and free tiers; every lab's charges for a month, or its CSV statement |
+| `GET /api/admin/capacity`, `POST /api/admin/capacity/{fs}`, `DELETE /api/admin/capacity/{fs}/{id}` | Each filesystem's capacity, its schedule, and when it fills; setting and removing a capacity from a day on |
 
 ## Frontend conventions
 
@@ -119,6 +120,7 @@ The interface is plain HTML, CSS, and JavaScript modules with no framework or bu
 - `js/timechart.js`: charts over time (stacked columns and lines on a shared date axis, with a hover and keyboard
   readout that several charts share, and a forecast drawn after the last scan, `ahead`); `js/history.js` draws the
   history view with it.
+- `js/capacity.js`: *Capacity*, each filesystem's capacity and when it fills (`capacity.py`, `api/capacity.py`).
 - `js/costs.js`: *Costs*, each filesystem's prices and free tiers (`costs.py`, `api/costs.py`).
 - `js/charges.js`: *Storage charges*, what a person's labs pay each month and how, and *Chargeback*, every lab's
   charges for a month, for administrators (`charges.py`, `api/costs.py`).

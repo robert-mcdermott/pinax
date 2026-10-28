@@ -356,6 +356,26 @@ so it covers whatever History covers, and nothing is stored.
 Labs and departments are forecast from the folders they own now, as History shows them, so a folder moving
 between labs does not look like growth.
 
+### Capacity
+
+How much each filesystem holds, and when it fills at its trend (`capacity.py`, *Capacity*):
+
+- **How much it holds.** `pinax scan` asks the mounted filesystem its total, used, and available space
+  (`statvfs`, which reads no file) and records them in `pinax.json` beside the scan's manifest; ingest keeps them
+  with the snapshot (`info["storage"]`). An administrator can set the capacity instead, from a day on
+  (`capacity` table, audited): from that day it takes the place of what the storage reports, and a later day
+  schedules an expansion. Scans written by fs-inventory directly need it set.
+- **What fills it**, the best measure the scans allow: the storage's own figure for space used, which counts what
+  scans cannot see (the storage's snapshots, overhead), once six scans have it; else the scans' space on disk;
+  else, for scans that record no space on disk (sparse files, as in the demo), the files' size.
+- **When it fills.** The forecast of that measure is carried forward day by day against the capacity as
+  scheduled: the first day it reaches it, the earliest within its range, and the latest, up to three years
+  ahead. A filesystem that fills within `PINAX_FILL_WARNING_MONTHS` (12) is flagged on the overview.
+
+A filesystem's history carries its capacity, drawn as a line on *Size by age* where it fits the scale (no more
+than twice the data). That chart shows the files' size, while the date it fills uses the measure above, so the
+two can differ by what the size does not count.
+
 ## Costs
 
 What storage costs is kept in the catalog as two schedules per filesystem (`costs.py`):

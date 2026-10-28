@@ -87,7 +87,7 @@ def fit(points: list[Point]) -> dict:
     return {"ok": True, **out, "slope": slope, "low": min(low, slope), "high": max(high, slope), "scatter": scatter}
 
 
-def _ahead(trend: dict, value: float, days: float) -> tuple[float, float, float]:
+def ahead(trend: dict, value: float, days: float) -> tuple[float, float, float]:
     mid = value + trend["slope"] * days
     low = value + trend["low"] * days - Z * trend["scatter"]
     high = value + trend["high"] * days + Z * trend["scatter"]
@@ -103,19 +103,19 @@ def forecast(points: list[Point], *, months: int = HORIZON) -> dict:
     if not trend["ok"]:
         return {**trend, "need": need}
     end, value = points[-1]
-    ahead = []
+    upcoming = []
     for k in range(1, months + 1):
         at = add_months(end, k)
-        mid, low, high = _ahead(trend, value, _days(end, at))
-        ahead.append({"at": iso(at), "value": round(mid), "low": round(low), "high": round(high)})
+        mid, low, high = ahead(trend, value, _days(end, at))
+        upcoming.append({"at": iso(at), "value": round(mid), "low": round(low), "high": round(high)})
     backtest = None
     earlier = [p for p in points if _days(p[0], end) >= BACKTEST_DAYS]
     then = fit(earlier)
     if then["ok"]:
         made, was = earlier[-1]
-        predicted = _ahead(then, was, _days(made, end))[0]
+        predicted = ahead(then, was, _days(made, end))[0]
         backtest = {"made_at": iso(made), "forecast": round(predicted), "actual": round(value),
                     "error": (predicted - value) / value if value else None}
     return {"ok": True, "since": trend["since"], "scans": trend["scans"], "step": trend["step"], "need": need,
             "per_month": round(trend["slope"] * MONTH_DAYS), "per_month_low": round(trend["low"] * MONTH_DAYS),
-            "per_month_high": round(trend["high"] * MONTH_DAYS), "points": ahead, "backtest": backtest}
+            "per_month_high": round(trend["high"] * MONTH_DAYS), "points": upcoming, "backtest": backtest}

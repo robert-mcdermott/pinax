@@ -4,6 +4,7 @@ import {
   $, $$, ageText, api, bytes, date, displayPath, duration, emptyState, html, icon, kindLabel, modal, mount, num,
   parseQuery, pct, placeHash, raw, state, toast, when,
 } from "/js/core.js";
+import { fillChip, fillRange, fillShort } from "/js/capacity.js";
 import { renderSidebar } from "/js/shell.js";
 import { ageBar, ageHistogram, bars, categories, coldBytes, thresholdText } from "/js/viz.js";
 
@@ -24,6 +25,7 @@ export async function viewOverview(el) {
   const movers = folders.filter((f) => f.change && f.change.bytes).sort((a, b) => Math.abs(b.change.bytes) - Math.abs(a.change.bytes)).slice(0, 8);
   const cats = categories().map((c, i) => ({ label: c.label, key: c.key, bytes: s.cat_bytes[i] })).filter((c) => c.bytes).sort((a, b) => b.bytes - a.bytes);
   const cold = coldBytes(s, cb);
+  const filling = ov.filesystems.filter((f) => f.capacity && (f.capacity.soon || f.capacity.full));
   mount(el, html`
     <div class="page-head"><div><div class="eyebrow">Overview</div><h1>All data</h1>
       <p>Every filesystem Pinax indexes, as of each one's latest scan.</p></div>
@@ -54,6 +56,7 @@ export async function viewOverview(el) {
           ${bars(cats.slice(0, 8), { href: (c) => `#/types?cat=${c.key}` })}</div>
         <div class="card"><div class="card-head"><h2>Needs attention</h2><a class="small" href="#/health">Storage health</a></div>
           <ul class="feed">
+            ${filling.map((f) => html`<li><span>${icon("server")}</span><span><b>${f.filesystem.name} ${f.capacity.full ? "is full" : `fills within ${f.capacity.warning_months} months`}</b>${f.capacity.full ? "" : `: about ${fillShort(f.capacity)} at its trend, ${fillRange(f.capacity)}`}. <a href="#/capacity">Capacity</a></span></li>`)}
             <li><span>${icon("folder")}</span><span><b>${unmapped.length} unmapped top-level folders</b> hold ${bytes(unmapped.reduce((t, f) => t + f.latest.bytes, 0))} that no PI can see. <a href="#/folders?unmapped=1">Map them</a></span></li>
             <li><span>${icon("alert")}</span><span><b>${num(errors)} scan errors</b>, such as folders the scanner could not open, so their totals are lower bounds. <a href="#/health">Review</a></span></li>
             <li><span>${icon("tag")}</span><span><b>${num(names)} problem file names</b> that break scripts and migrations. <a href="#/health">Review</a></span></li>
@@ -74,9 +77,19 @@ function fsCard(f) {
         <div class="stat"><div class="n">${ageText(s.mean_age_days)}</div><div class="l">Average age</div></div></div>
       ${ageBar(s.age_bytes)}
       <p class="small muted" style="margin:12px 0 0">Scanned ${date(snap.started_at, true)} in ${duration(snap.scan_seconds)} ·
-        indexed in ${duration(snap.build_seconds)} · ${num(snap.errors)} error${snap.errors === 1 ? "" : "s"}</p>`
+        indexed in ${duration(snap.build_seconds)} · ${num(snap.errors)} error${snap.errors === 1 ? "" : "s"}</p>
+      ${f.capacity ? capacityLine(f.capacity) : ""}`
       : html`<p class="muted">Not scanned yet.</p>`}
   </div>`;
+}
+
+/** How full a filesystem is, and when it fills at its trend. */
+function capacityLine(c) {
+  if (!c.capacity.bytes) return html`<p class="small muted" style="margin:10px 0 0"><a href="#/capacity">Set its capacity</a> to see when it fills.</p>`;
+  const share = Math.min(1, c.share ?? 0);
+  return html`<div style="margin-top:14px"><div class="progress" role="img" aria-label="${pct(c.share * 100)} of the capacity used"><span style="width:${(share * 100).toFixed(1)}%"></span></div>
+    <p class="small" style="margin:8px 0 0"><b>${pct(c.share * 100)}</b> of ${bytes(c.capacity.bytes)} used ·
+      ${c.fills?.at ? `fills about ${fillShort(c)}` : fillShort(c)} ${fillChip(c)} <a href="#/capacity">Capacity</a></p></div>`;
 }
 
 function folderTable(rows, cb, { compact = false, map = false } = {}) {

@@ -118,6 +118,21 @@ class FreeTier(Base):
     lab: Mapped["Lab | None"] = relationship()
 
 
+class Capacity(Base):
+    """How much a filesystem holds, from a day on, as an administrator set it (storage expanded, or an expansion
+    scheduled). It takes the place of what the storage reports from that day. Kept, like prices."""
+
+    __tablename__ = "capacity"
+    __table_args__ = (UniqueConstraint("filesystem_id", "starts"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    filesystem_id: Mapped[int] = mapped_column(ForeignKey("filesystem.id", ondelete="CASCADE"), index=True)
+    starts: Mapped[date] = mapped_column(Date)
+    bytes: Mapped[int] = mapped_column(BigInteger)
+    unit: Mapped[str] = mapped_column(String(8), default="TB")  # how the amount was given, to show it the same way
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
 class LabFolder(Base):
     """A top-level folder of a filesystem, owned by exactly one lab or department."""
 

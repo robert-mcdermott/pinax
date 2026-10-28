@@ -12,6 +12,13 @@
   the shaded range, with *In a year* beside the other figures, a table of the months ahead, and the reason when
   there is none; the history CSV adds the months ahead (`kind` is `scan` or `forecast`). `/api/history` returns it
   as `forecast`.
+- **Capacity, and when each filesystem fills.** *Capacity* (for administrators) shows how much each filesystem
+  holds, how much is used, its growth per month, and the month it fills at its trend, with the earliest and
+  latest within the range. `pinax scan` records what the storage reports for the filesystem (`statvfs`, in
+  `pinax.json` beside the scan's manifest), and an administrator can set the capacity from a day on instead,
+  including an expansion scheduled ahead (audited). Use is measured by the storage's own figure where scans have
+  it, else space on disk. The overview shows each filesystem's share used and when it fills, and flags one that
+  fills within `PINAX_FILL_WARNING_MONTHS` (12); a filesystem's *History* draws its capacity and shows *Fills*.
 - **Labs and departments in the app.** *People and access* adds a lab or department (*Add lab or department*: a
   slug, a name, its kind, division, and research area), and each one's page changes its details, deactivates it
   (its members stop seeing its folders; its members and folders are kept, and its folders are still charged to

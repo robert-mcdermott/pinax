@@ -35,17 +35,21 @@ export function niceTicks(max, { target = 4, unit = 1 } = {}) {
  *   onHover(i | null): called as the pointer or keyboard moves; mark: a point to mark for good (a chosen scan);
  *   ahead: a forecast after the last point, { from, anchor, values, low, high, label }: `times` goes on past the
  *     scans with one time per value, drawn as a dashed line from `anchor` (the total at point `from`) over a
- *     shaded range, with hit targets of their own.
+ *     shaded range, with hit targets of their own;
+ *   limit: a capacity, { steps: [{ from (Date, or null from the start), value }], label }, drawn as a solid line
+ *     where it fits the scale (no more than twice the data), and left off the scale if it is far above.
  */
 export function renderTimeChart(el, opts) {
-  const { times, kind, series, ticks, tick, value, tip, label, onHover = () => {}, mark = null, ahead = null } = opts;
+  const { times, kind, series, ticks, tick, value, tip, label, onHover = () => {}, mark = null, ahead = null, limit = null } = opts;
   el.innerHTML = "";
   const W = el.clientWidth, H = el.clientHeight, n = times.length;
   const body = getComputedStyle(document.body).fontFamily;
   const axisFont = `400 11.5px ${body}`, labelFont = `700 12.5px ${body}`;
   const totals = times.map((_, i) => (kind === "stack"
     ? series.reduce((t, s) => t + (s.values[i] || 0), 0) : Math.max(...series.map((s) => s.values[i] ?? 0))));
-  const ys = ticks(Math.max(0, ...totals, ...(ahead ? ahead.high : [])));
+  const dataTop = Math.max(0, ...totals, ...(ahead ? ahead.high : []));
+  const caps = limit ? limit.steps.filter((s) => s.value <= 2 * dataTop) : [];
+  const ys = ticks(Math.max(dataTop, ...caps.map((s) => s.value)));
   const top = ys[ys.length - 1] || 1;
   const last = [...Array(n).keys()].reverse().find((i) => series.some((s) => s.values[i] != null));
   const start = ahead ? n - ahead.values.length : n; // the first forecast point
@@ -84,6 +88,18 @@ export function renderTimeChart(el, opts) {
   const every = Math.max(1, Math.ceil(n / Math.max(1, Math.floor(pw / widest))));
   for (let i = n - 1; i >= 0; i -= every) {
     parts.push(`<text class="tc-axis" x="${xs[i]}" y="${T + ph + 18}" text-anchor="middle">${esc(fmt(times[i]))}</text>`);
+  }
+  if (caps.length) {
+    // Each step of the capacity, from its day (or the start) to the next step (or the end).
+    const at = (d) => Math.max(left, Math.min(left + pw, n === 1 || !span ? left : left + pad + ((+d - t0) / span) * (pw - 2 * pad)));
+    const all = limit.steps;
+    all.forEach((s, i) => {
+      if (!caps.includes(s)) return;
+      const x0 = s.from ? at(s.from) : left, x1 = all[i + 1]?.from ? at(all[i + 1].from) : left + pw;
+      if (x1 <= x0) return;
+      parts.push(`<line class="tc-cap" x1="${x0}" x2="${x1}" y1="${y(s.value)}" y2="${y(s.value)}"/>`);
+      if (!all[i + 1]) parts.push(`<text class="tc-cap-label" x="${x1}" y="${y(s.value) - 6}" text-anchor="end">${esc(`${limit.label} ${tick(s.value)}`)}</text>`);
+    });
   }
   if (ahead) {
     // The range under everything: from the anchor out to each month's low and high.

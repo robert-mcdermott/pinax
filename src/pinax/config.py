@@ -52,6 +52,8 @@ class Settings(BaseSettings):
     cold_days: int = 730
     # Costs: the currency prices are in (an ISO 4217 code), shown in the viewer's own number format.
     currency: str = Field("USD", pattern=r"^[A-Z]{3}$")
+    # Capacity: a filesystem that fills within this many months at its trend is flagged on the overview.
+    fill_warning_months: int = Field(12, ge=1, le=120)
 
     # Identity. "demo" uses a persona cookie: anyone picks anyone, for showing Pinax with the seeded people (refused
     # when ENVIRONMENT=prod). "local": people sign in with a password Pinax keeps, for sites without single sign-on.

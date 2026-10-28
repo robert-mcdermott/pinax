@@ -3,6 +3,7 @@
 // size after the last scan, then files, cold share, and average age as small multiples on the same dates (never
 // two scales on one chart), with one readout for all four; or the same as a table.
 import { $, $$, ageText, api, bytes, date, emptyState, html, icon, mount, num, parseQuery, pct, placeHash, placeQuery, state } from "/js/core.js";
+import { fillRange, fillShort, measureText } from "/js/capacity.js";
 import { downloadCsv } from "/js/reports.js";
 import { scopeHeader } from "/js/shell.js";
 import { niceTicks, renderTimeChart } from "/js/timechart.js";
@@ -48,6 +49,7 @@ export async function viewHistory(el, query) {
   const fc = data.forecast;
   const ahead = fc.ok && q.forecast !== "off" ? fc : null;
   const year = fc.ok ? fc.points[fc.points.length - 1] : null;
+  const room = data.capacity; // a filesystem's capacity, and when it fills
 
   mount(el, html`
     ${head}
@@ -60,6 +62,8 @@ export async function viewHistory(el, query) {
         <div class="sub">${shown.length > 1 ? `${ageText(first.mean_age_days)} at the first scan` : "Since last change, weighted by size"}</div></div>
       <div class="kpi" style="--kpi-accent:var(--strong)"><div class="label">In a year</div><div class="value">${year ? bytes(year.value) : "—"}</div>
         <div class="sub">${year ? `${perMonth(fc.per_month)} · likely ${range(year)}` : whyShort(fc)}</div></div>
+      ${room ? html`<div class="kpi" style="--kpi-accent:var(--fh-teal)"><div class="label">Fills</div><div class="value">${fillShort(room)}</div>
+        <div class="sub">${room.capacity.bytes ? `${pct(room.share * 100)} of ${bytes(room.capacity.bytes)} used${room.fills?.at ? ` · ${fillRange(room)}` : ""}` : "Set its capacity on Capacity"}</div></div>` : ""}
     </div>
     <div class="toolbar">
       <div class="ctl"><span>View</span><div class="pills" role="group" aria-label="View">
@@ -79,7 +83,8 @@ export async function viewHistory(el, query) {
         <div class="ramp-legend" aria-label="Color legend"><span class="lt">Last change</span>
           ${buckets().map((b, i) => html`<span><i style="background:var(${ageColor(i)})"></i>${b.label}</span>`)}
           ${ahead ? html`<span><i class="key-ahead"></i>Forecast</span>` : ""}</div>
-        <p class="small muted" style="margin:10px 0 0">${forecastText(fc, !!ahead)}</p></div>
+        <p class="small muted" style="margin:10px 0 0">${forecastText(fc, !!ahead)}${room?.capacity.bytes
+          ? ` The solid line is the capacity, ${room.capacity.source === "set" ? "as set" : "as the storage reports it"}; when it fills is measured by ${measureText(room)}.` : ""}</p></div>
       <div class="grid cols-3" style="margin-top:20px">
         <div class="card"><div class="card-head"><h2>Files</h2></div><div class="tc" id="h-files" style="height:190px"></div></div>
         <div class="card"><div class="card-head"><h2>Share ${cold.toLowerCase()}</h2></div><div class="tc" id="h-cold" style="height:190px"></div></div>
@@ -99,7 +104,7 @@ export async function viewHistory(el, query) {
     [...pts.map((p) => ["scan", p.taken_at, p.present, p.bytes, p.alloc_bytes, p.files, p.cold_bytes, share(p)?.toFixed(4) ?? "",
       p.mean_age_days ?? "", ...p.age_bytes, "", ""]),
     ...(fc.ok ? fc.points.map((f) => ["forecast", f.at, "", f.value, "", "", "", "", "", ...buckets().map(() => ""), f.low, f.high]) : [])]));
-  if (view === "charts") drawCharts(el, pts, cold, marked, ahead);
+  if (view === "charts") drawCharts(el, pts, cold, marked, ahead, room);
 }
 
 const perMonth = (v) => `${signed(v, bytes)} a month`.replace("No change a month", "No growth");
@@ -151,7 +156,7 @@ function aheadReadout(f, k, now) {
     <p class="small" style="margin:6px 0 0">If it keeps growing as it has since ${date(f.since)}: ${perMonth(f.per_month)}.</p>`;
 }
 
-function drawCharts(el, pts, cold, mark, ahead) {
+function drawCharts(el, pts, cold, mark, ahead, room) {
   const later = ahead ? ahead.points.map((p) => new Date(p.at)) : [];
   const times = pts.map((p) => new Date(p.taken_at));
   const now = pts[pts.length - 1];
@@ -167,6 +172,7 @@ function drawCharts(el, pts, cold, mark, ahead) {
         // The oldest (coldest, blue) data at the bottom: new data lands on top in red, and old data settles.
         series: buckets().map((b, i) => ({ token: ageColor(i), label: b.label, values: pts.map((p) => (p.present ? p.age_bytes[i] : null)) })).reverse(),
         value: (i) => bytes(pts[i].bytes),
+        limit: room?.steps.length ? { label: "Capacity", steps: room.steps.map((s) => ({ from: s.from && new Date(s.from), value: s.bytes })) } : null,
         ahead: ahead && { from: pts.length - 1, anchor: now.bytes, values: ahead.points.map((p) => p.value),
           low: ahead.points.map((p) => p.low), high: ahead.points.map((p) => p.high), label: bytes(end.value) },
         label: `Size by age over ${pts.length} scans, from ${bytes(pts[0].bytes)} to ${bytes(now.bytes)}${end

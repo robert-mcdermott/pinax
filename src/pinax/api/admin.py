@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .. import explore
+from .. import capacity, explore
 from ..auth import Identity, require_admin
 from ..db import get_session
 from ..index import Stats
@@ -47,6 +47,7 @@ def overview(_: Identity = Depends(require_admin), session: Session = Depends(ge
             entry["previous"] = {"id": prev.id, "started_at": iso(prev.started_at), "bytes": prev.bytes,
                                  "files": prev.files} if prev else None
             entry["name_issues"] = sum(r["entries"] for r in idx.name_flag_counts())
+            entry["capacity"] = capacity.summary(session, fs)
         out.append(entry)
     audit = session.scalars(select(AuditEvent).order_by(AuditEvent.ts.desc()).limit(10)).all()
     return {"filesystems": out,

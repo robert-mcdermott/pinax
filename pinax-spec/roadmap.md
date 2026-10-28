@@ -631,7 +631,7 @@ when the wave starts.
 | --- | --- | --- | --- |
 | 1 | Forecasts of size (R10, Q1) | For a filesystem, a lab or department, a person's home, and all data: the size each month for the next 12 months from the trend of the last six months of scans, with a range; at least six scans over eight weeks, or no forecast and the reason; after a large step (a cleanup, a transfer), the trend starts after it and says so; backtested: the forecast the same method gave three months earlier, against the size now; tested on synthetic histories with known growth, noise, steps, and gaps; within Q3 for a year of weekly scans of 2,000 folders | Done |
 | 2 | Forecasts in History (R10) | The forecast drawn after the last scan, set apart from the measured columns (a dashed line and a lighter range), labeled as a projection; its growth per month and its backtest beside it; in the table view and CSV; both themes and 375 pixels; colors validated | Done |
-| 3 | Capacity, and when a filesystem fills (R11) | Each filesystem's capacity, from a date on (storage is expanded): recorded by `pinax scan` from the mounted filesystem with each scan, or set by administrators; the overview shows each filesystem's size, capacity, share used, growth per month, and the month it fills, with its range, and flags one that fills soon; History draws the capacity; audited | To come |
+| 3 | Capacity, and when a filesystem fills (R11) | Each filesystem's capacity, from a date on (storage is expanded): recorded by `pinax scan` from the mounted filesystem with each scan, or set by administrators; the overview shows each filesystem's size, capacity, share used, growth per month, and the month it fills, with its range, and flags one that fills soon; History draws the capacity; audited | Done |
 | 4 | What labs will pay (R12) | Each lab's and department's charges for each of the next 12 months at its trend, per filesystem, with the prices and free tiers as scheduled (a price change already set applies from its date), and the range; on *Storage charges* for lab owners, and totals for all labs on *Chargeback*; tested against the charges worked out on the forecast sizes | To come |
 | 5 | Demo and release 0.6.0 | Capacities for the demo's filesystems, one filling within the year; the README demo script; version 0.6.0, changelog (with what was merged since 0.5.0), pull request, tag, release | To come |
 
@@ -689,6 +689,28 @@ Open within the wave: the horizon and the window (12 months ahead, from six mont
      palettes, which this is not.
    - *Done*: checked in the browser on the demo in both themes and at 375 pixels (no horizontal scroll): all data,
      a lab with a forecast, a lab after a step, the table view, and hovering a month ahead.
+3. **Capacity, and when a filesystem fills (R11).**
+   - `pinax scan` asks the mounted filesystem its total, used, and available space (`statvfs`) and writes them to
+     `pinax.json` beside fs-inventory's manifest (fs-inventory's `verify` reads only its own tables, so it is
+     untouched); ingest and rebuilds keep them with the snapshot (`info["storage"]`).
+   - `capacity` table and `capacity.py`: a capacity from a day on, set by administrators in GB to PiB, audited;
+     it takes the place of what the storage reports from its day, and a later day schedules an expansion. Use is
+     measured by the storage's own figure once six scans have it, else space on disk, else size (scans with no
+     space on disk); the forecast of it is carried forward day by day against the capacity as scheduled, for the
+     day it fills and the earliest and latest within the range, up to three years ahead.
+     `PINAX_FILL_WARNING_MONTHS` (12) flags one that fills soon.
+   - *Capacity* (`js/capacity.js`, `/api/admin/capacity`): each filesystem's capacity and where it comes from, use,
+     growth per month, when it fills, what the storage reported, and the schedule, with a form to set one. The
+     overview's filesystem cards show the share used and when it fills, with a chip, and *Needs attention* lists
+     those that fill soon or are full. A filesystem's *History* draws the capacity on *Size by age* where it fits
+     the scale (at most twice the data), and shows *Fills*.
+   - Tests (`tests/test_capacity.py`): no capacity until one is known; the day it fills against the trend worked
+     out by hand; a scheduled expansion moving it; soon and full, and the setting; what the storage reports, used
+     as the measure and as the capacity until one is set; size for scans without space on disk; changes checked
+     and audited; the API for administrators only; `pinax scan`'s record kept by ingest; a filesystem's history
+     carrying its capacity.
+   - *Done*: checked in the browser with a capacity set on the demo's *Fast* (69% of 160 TiB used, filling about
+     July 2029): *Capacity*, the overview, and *History*.
 
 ## 0.7.0: cleanup plans (wave 7)
 
