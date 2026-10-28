@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Time monthly charges on a synthetic catalog: a year of weekly scans of one filesystem's top-level folders,
-owned by labs and departments, with price changes, free tiers, and folders changing owner.
+"""Time monthly charges and forecasts on a synthetic catalog: a year of weekly scans of one filesystem's top-level
+folders, owned by labs and departments, with price changes, free tiers, and folders changing owner.
 
 Builds the catalog in a temporary folder (nothing else is touched) and prints the timings as JSON.
 
@@ -52,12 +52,14 @@ def build(folders: int, weeks: int, labs: int, seed: int = 1) -> datetime:
         size = {n: rng.randrange(10**9, 50 * 10**12) for n in names}
         for w in range(weeks):
             when = first + timedelta(weeks=w, minutes=rng.randrange(120))
-            snap = Snapshot(filesystem_id=fs.id, scan_id=f"fast-{w}", scan_dir="/x", started_at=when,
-                            status="ready" if w >= weeks - 6 else "pruned")
-            s.add(snap)
-            s.flush()
             for n in names:
                 size[n] = max(0, int(size[n] * rng.uniform(0.97, 1.05)))
+            # As ingest records them: the whole filesystem's totals with each scan.
+            totals = {"bytes": sum(size.values()), "alloc_bytes": 0, "files": 0, "age_bytes": [0] * 7, "mean_age_days": None}
+            snap = Snapshot(filesystem_id=fs.id, scan_id=f"fast-{w}", scan_dir="/x", started_at=when,
+                            status="ready" if w >= weeks - 6 else "pruned", info={"totals": totals})
+            s.add(snap)
+            s.flush()
             s.execute(insert(FolderStat), [{"snapshot_id": snap.id, "filesystem_id": fs.id, "folder": n,
                                             "taken_at": when, "bytes": b} for n, b in size.items()])
         costs.add_price(s, None, fs, "2025-01-01", "25", "TB")
@@ -79,9 +81,10 @@ def main() -> None:
         os.environ["PINAX_VAR_ROOT"] = tmp
         from sqlalchemy import select
 
-        from pinax import charges
+        from pinax import charges, explore
+        from pinax.auth import identity_for
         from pinax.db import init_db, session_scope
-        from pinax.models import Lab
+        from pinax.models import Lab, User
 
         init_db()
         s0 = time.perf_counter()
@@ -95,11 +98,20 @@ def main() -> None:
             t_current, _ = timed(lambda: charges.monthly_charges(s, now.strftime("%Y-%m"), now=now))
             t_lab, _ = timed(lambda: charges.monthly_charges(s, month, now=now, labs_only={lab}))
             t_history, _ = timed(lambda: charges.lab_history(s, {lab}, now=now), repeat=3)
+            admin = User(username="ivy", display_name="Ivy", email="ivy@example.org", is_admin=True)
+            s.add(admin)
+            s.flush()
+            ident = identity_for(admin)
+            t_lab_ahead, lab_ahead = timed(lambda: explore.history(s, ident, None, None, lab_slug="lab0001"))
+            t_all_ahead, _ = timed(lambda: explore.history(s, ident, None, None))
         print(json.dumps({
             "folders": args.folders, "weekly_scans": args.weeks, "labs": args.labs, "catalog_built_s": round(built, 1),
             "month": month, "lines": sum(len(r["filesystems"]) for r in out["labs"]), "unbilled": len(out["unbilled"]),
             "ms": {"every_lab_for_a_month": round(t_month, 1), "every_lab_this_month": round(t_current, 1),
-                   "one_lab_for_a_month": round(t_lab, 1), "one_lab_twelve_months": round(t_history, 1)},
+                   "one_lab_for_a_month": round(t_lab, 1), "one_lab_twelve_months": round(t_history, 1),
+                   "one_lab_history_and_forecast": round(t_lab_ahead, 1),
+                   "all_data_history_and_forecast": round(t_all_ahead, 1)},
+            "lab_forecast_ok": lab_ahead["forecast"]["ok"],
         }, indent=2))
 
 

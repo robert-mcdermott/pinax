@@ -629,7 +629,7 @@ when the wave starts.
 
 | Slice | Scope and requirements | Acceptance before the next slice | Status |
 | --- | --- | --- | --- |
-| 1 | Forecasts of size (R10, Q1) | For a filesystem, a lab or department, a person's home, and all data: the size each month for the next 12 months from the trend of the last six months of scans, with a range; at least six scans over eight weeks, or no forecast and the reason; after a large step (a cleanup, a transfer), the trend starts after it and says so; backtested: the forecast the same method gave three months earlier, against the size now; tested on synthetic histories with known growth, noise, steps, and gaps; within Q3 for a year of weekly scans of 2,000 folders | To come |
+| 1 | Forecasts of size (R10, Q1) | For a filesystem, a lab or department, a person's home, and all data: the size each month for the next 12 months from the trend of the last six months of scans, with a range; at least six scans over eight weeks, or no forecast and the reason; after a large step (a cleanup, a transfer), the trend starts after it and says so; backtested: the forecast the same method gave three months earlier, against the size now; tested on synthetic histories with known growth, noise, steps, and gaps; within Q3 for a year of weekly scans of 2,000 folders | Done |
 | 2 | Forecasts in History (R10) | The forecast drawn after the last scan, set apart from the measured columns (a dashed line and a lighter range), labeled as a projection; its growth per month and its backtest beside it; in the table view and CSV; both themes and 375 pixels; colors validated | To come |
 | 3 | Capacity, and when a filesystem fills (R11) | Each filesystem's capacity, from a date on (storage is expanded): recorded by `pinax scan` from the mounted filesystem with each scan, or set by administrators; the overview shows each filesystem's size, capacity, share used, growth per month, and the month it fills, with its range, and flags one that fills soon; History draws the capacity; audited | To come |
 | 4 | What labs will pay (R12) | Each lab's and department's charges for each of the next 12 months at its trend, per filesystem, with the prices and free tiers as scheduled (a price change already set applies from its date), and the range; on *Storage charges* for lab owners, and totals for all labs on *Chargeback*; tested against the charges worked out on the forecast sizes | To come |
@@ -655,6 +655,26 @@ when the wave starts.
 Open within the wave: the horizon and the window (12 months ahead, from six months of scans) as settings; how soon
 "fills soon" is; whether divisions (which group labs and departments) get totals and forecasts of their own; where
 `pinax scan` keeps what it records, since a scan's directory belongs to fs-inventory.
+
+### Slices as built
+
+1. **Forecasts of size (R10, Q1).**
+   - `forecast.py`: Sen's slope through the scans of the last six months (`WINDOW_DAYS`), after the last step, carried
+     forward from the latest scan to the same day of each of the next twelve months; the range from the slope's
+     80% confidence interval (the ranks of the pairwise slopes, as in Kendall's test) widened by the scans' scatter
+     about the trend; a step is a change between two scans off the usual one by more than a tenth of the size and
+     by more than four times the usual spread; at least six scans over eight weeks; the backtest from the scans
+     three months before the latest. Kept as constants rather than settings, until the pilot shows a reason.
+   - `/api/history` returns the forecast with every history (`forecast`): for a filesystem, a top-level or deeper
+     folder, a lab or department, a person's home, and all data; none for a place not in the latest scan.
+   - Tests (`tests/test_forecast.py`): growth recovered exactly from a steady history and from irregular scans;
+     one odd scan barely moves it; the range holds the outcome a year ahead in 75–97% of 300 noisy synthetic
+     histories (86–90% when measured); a step starts the trend again, steady fast growth is not a step; too few
+     scans, too short a time, and too soon after a step; the backtest; months of different lengths; and in
+     History, a lab's forecast, a lab after a cleanup, a new folder, and all data.
+   - *Done*: with `bench/bench_charges.py` (2,000 folders, a year of weekly scans), History with its forecast takes
+     4.7 ms for a lab and 1.6 ms for all data; the benchmark now records each scan's whole-filesystem totals, as
+     ingest does.
 
 ## 0.7.0: cleanup plans (wave 7)
 

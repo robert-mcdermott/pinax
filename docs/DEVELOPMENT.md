@@ -101,7 +101,7 @@ them, the person's home), and `lab` to limit home to one lab:
 | `GET /api/owners` | Bytes and files by owner, flagging deleted accounts |
 | `GET /api/cold?older=N` | Self-contained folders unchanged for at least age bucket N |
 | `GET /api/files?q=&category=&ext=&min_size=&older=&newer=&uid=&sort=&fmt=csv` | Files, with totals; CSV download |
-| `GET /api/home`, `GET /api/history?fs=&folder=` | Folder cards and lab totals; one folder's history |
+| `GET /api/home`, `GET /api/history?fs=&path=&lab=` | Folder cards and lab totals; a place's history, with the forecast of its size |
 | `GET /api/admin/overview`, `/health`, `/names`, `/snapshots`, `/labs`, `/people` | Administrator views |
 | `POST /api/admin/folders`, `POST /api/admin/labs/{slug}/members` | Folder ownership and membership changes |
 | `GET`, `PUT /api/admin/labs/{slug}`, `POST /api/admin/labs`, `POST /api/admin/labs/{slug}/deactivate` and `/reactivate` | A lab or department, with its record; adding, changing, and deactivating one |

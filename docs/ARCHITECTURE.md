@@ -330,6 +330,32 @@ a turn within their own limit, and a query of a folder never waits. Pinax's limi
 (oauth2-proxy waits five minutes in `deploy/oauth2-proxy/pinax.cfg`), so a long request ends with Pinax's
 explanation rather than a gateway error.
 
+## Forecasts
+
+Every history (`/api/history`) comes with a forecast of its size (`forecast.py`): where the place is heading over
+the next twelve months if it keeps growing as it has. It is worked out when asked from the history's own points,
+so it covers whatever History covers, and nothing is stored.
+
+- **The trend** is a straight line through the scans of the last six months: Sen's slope, the median of the
+  slopes between every pair of scans, so one odd scan (a temporary copy, a scan that missed a folder) barely moves
+  it. The forecast carries that slope forward from the latest scan, to the same day of each of the next twelve
+  months. Weekly or monthly scans give too few points to tell growth curves apart, and a line is easy to explain.
+- **The range** is the confidence interval of Sen's slope (from the ranks of the pairwise slopes, as in
+  Kendall's test, at 80%), widened by how far the scans scatter about the trend. On synthetic histories with
+  known growth and noise it holds the outcome a year ahead in 86–90% of cases, a little more than the 80% it is
+  set for.
+- **Steps.** A change between two scans far from the usual one, off it by more than a tenth of the size and by
+  much more than the changes usually vary, is a step: a cleanup, data brought in or moved out. A trend drawn
+  across a step describes neither side of it, so the trend starts after the last one, and says so.
+- **Enough scans.** A forecast needs at least six scans over at least eight weeks, after the last step;
+  otherwise it says why there is none (too few scans, too soon after a step, or the place is not in the latest
+  scan).
+- **The backtest** is what the same method forecast for the latest scan from the scans it had three months
+  before, against the size now: how far off a forecast of this place has been.
+
+Labs and departments are forecast from the folders they own now, as History shows them, so a folder moving
+between labs does not look like growth.
+
 ## Costs
 
 What storage costs is kept in the catalog as two schedules per filesystem (`costs.py`):
@@ -464,6 +490,10 @@ folders unowned, one in a hundred changing owner, a price change, and free tiers
 *Chargeback* and its statement are the first column; a lab's *Storage charges* is the last, and *My data* the one
 before. Time grows with folders times the scans in a month; one lab reads only the folders it ever had, but still
 every folder's owner.
+
+History with its forecast, on 2,000 folders and a year of weekly scans: 4.7 ms for a lab and 1.6 ms for all data
+(the whole filesystem's totals recorded with each scan). The forecast itself works on at most the six months of
+points the history already has, a few hundred pairs of scans.
 
 ```bash
 uv run python bench/bench_charges.py --folders 2000 --weeks 52
