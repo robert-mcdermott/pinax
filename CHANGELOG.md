@@ -10,6 +10,15 @@
   it), and reactivates it, with its members, folders, and recent changes. Every change is audited as the import's
   are (`lab.created`, `lab.updated`, and `lab.deactivated`, `lab.reactivated`), and slugs follow the import's
   rules. Changing a lab's kind asks first, since its free tier for past months changes too.
+- **Guides for the demo and for real data.** `docs/DEMO.md` has how to run the demo, who is who, its six months
+  and prices, and the walk-through, which used to be in the README; `docs/SETUP.md` is new, on running Pinax on
+  your own data. The README is shorter and links to both.
+
+### Changed
+
+- **`pinax seed` runs only when `PINAX_ENVIRONMENT=demo`.** It deletes the catalog and indexes in
+  `PINAX_VAR_ROOT`, and was refused only in `prod`, so a `dev` setup with real data could be wiped by mistake.
+  The default environment is `demo`, so the demo is unchanged.
 
 ## 0.5.0 (2026-10-27)
 

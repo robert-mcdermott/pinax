@@ -8,7 +8,7 @@ Settings are `PINAX_*` environment variables, or a `.env` file in the folder you
 | Setting | Default | What it does |
 |---|---|---|
 | `PINAX_APP_NAME` | `Pinax` | Name shown by the API |
-| `PINAX_ENVIRONMENT` | `demo` | `demo`, `dev`, or `prod`. `pinax seed` refuses to run in `prod` |
+| `PINAX_ENVIRONMENT` | `demo` | `demo`, `dev`, or `prod`. `pinax seed` deletes the catalog and indexes, so it runs only in `demo`; use `dev` for real data on a workstation ([SETUP.md](SETUP.md)) and `prod` on a server |
 
 ## Locations
 

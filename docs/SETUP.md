@@ -28,15 +28,14 @@ PINAX_SCAN_ROOT=data/scans
 EOF
 ```
 
+- `PINAX_ENVIRONMENT=dev`: this catalog holds real data, so `pinax seed`, which deletes the catalog to write the
+  demo, refuses to run (it runs only in `demo`). To go back to the demo, move `.env` aside, or keep the demo in a
+  separate checkout.
 - `PINAX_AUTH_MODE=local`: people sign in with a username and a password. (The demo's persona switcher lets
   anyone be anyone; single sign-on needs a proxy, set up in [DEPLOYMENT.md](DEPLOYMENT.md).)
 - `PINAX_VAR_ROOT` holds the catalog (`pinax.db`) and the snapshot indexes; `PINAX_SCAN_ROOT` is where
   `pinax scan` writes scans. `data/` is ignored by git, so no scan, path, or name is committed by accident.
 - This replaces any `.env` you have; [.env.example](../.env.example) lists every setting with its default.
-
-> **Careful with `pinax seed`.** It deletes the catalog and indexes in `PINAX_VAR_ROOT` before writing the demo,
-> and these settings apply to every command run from this folder. To go back to the demo, move `.env` aside first,
-> or keep the demo in a separate checkout. (`seed` refuses to run only when `PINAX_ENVIRONMENT=prod`.)
 
 ## 2. The first administrator
 

@@ -324,3 +324,23 @@ def test_password_hashes():
     assert verify_password("a passphrase", h) and not verify_password("a passphrase!", h)
     assert not verify_password("anything", None) and not verify_password("anything", "md5$abc")
     assert len({temporary_password() for _ in range(50)}) == 50
+
+
+@pytest.mark.parametrize("environment", ["dev", "prod"])
+def test_seeding_runs_only_in_the_demo(env, monkeypatch, capsys, environment):
+    """Seeding deletes the catalog and indexes, so a real-data (dev) or production setting refuses it."""
+    from pinax import cli, config, seed
+
+    ran = []
+    monkeypatch.setattr(seed, "run_seed", lambda scale: ran.append(scale))
+    monkeypatch.setattr(sys, "argv", ["pinax", "seed"])
+    monkeypatch.setenv("PINAX_ENVIRONMENT", environment)
+    config.get_settings.cache_clear()
+    with pytest.raises(SystemExit) as done:
+        cli.main()
+    assert done.value.code == 2 and f"PINAX_ENVIRONMENT=demo, not {environment}" in capsys.readouterr().err
+    assert not ran
+    monkeypatch.setenv("PINAX_ENVIRONMENT", "demo")
+    config.get_settings.cache_clear()
+    cli.main()
+    assert ran == [1.0]

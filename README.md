@@ -93,8 +93,8 @@ logical size on under 10 MB of disk), with ages going back fifteen years, and sc
 fs-inventory, a month apart, with six months of activity simulated in between: labs grow, clean up, move a
 project, and join. It adds 14 labs and departments, 20 people, and storage prices, so there are six months of
 history and charges to explore. Sign-in is a persona switcher: be a PI, a delegate, or a storage administrator,
-and switch at any time. Seeding takes about fifteen seconds and resets `var/` and `demo/` each time; Pinax refuses
-both the seed and demo sign-in when `PINAX_ENVIRONMENT=prod`.
+and switch at any time. Seeding takes about fifteen seconds and resets `var/` and `demo/` each time, so it runs
+only when `PINAX_ENVIRONMENT=demo` (the default); Pinax refuses demo sign-in when `PINAX_ENVIRONMENT=prod`.
 
 [docs/DEMO.md](docs/DEMO.md) has who is who, what happens in the six months, and a 20-minute walk-through.
 
@@ -128,8 +128,8 @@ uv run pinax serve
 
 Sign in with the temporary password and choose your own. Then add labs and people under *People and access*, and
 give each top-level folder its owner under *Folders and labs*; its members see it, and nobody else except storage
-administrators. With `.env` in place, `pinax seed` would reset this data, so move `.env` aside before going back to
-the demo.
+administrators. With this `.env`, `pinax seed` refuses to run, so it cannot wipe your data; move `.env` aside to
+go back to the demo.
 
 [docs/SETUP.md](docs/SETUP.md) walks through it step by step: scans made elsewhere and automatic ingest, checking
 the numbers, importing labs and people from CSV, and prices. To install Pinax on a server, with services,
@@ -141,7 +141,7 @@ scheduled scans, and single sign-on, follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT
 | Command | Purpose |
 |---|---|
 | `uv run pinax serve [--host H] [--port N]` | The web app (default port 8001) |
-| `uv run pinax seed [--scale 1.0]` | Reset runtime data and build the demo |
+| `uv run pinax seed [--scale 1.0]` | Reset runtime data and build the demo (only when `PINAX_ENVIRONMENT=demo`) |
 | `uv run pinax filesystem add SLUG ROOT [--name N] [--display-root P]` | Register a filesystem |
 | `uv run pinax filesystem list` | List filesystems and their latest scan |
 | `uv run pinax scan SLUG [--no-ingest] [-- fs-inventory options]` | Scan with fs-inventory, verify, and ingest |

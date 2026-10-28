@@ -36,8 +36,9 @@ numbers are for the default).
 
 Sign-in in the demo is a persona switcher (`PINAX_AUTH_MODE=demo`, the default): anyone can be anyone, and
 *Switch identity* (top right) changes who you are. That is fine on a laptop and wrong anywhere else, so Pinax
-refuses to start in demo mode, and refuses to seed, when `PINAX_ENVIRONMENT=prod`. To try Pinax on real data
-instead, see [SETUP.md](SETUP.md).
+refuses to start in demo mode when `PINAX_ENVIRONMENT=prod`. And since seeding deletes the catalog, `pinax seed`
+runs only when `PINAX_ENVIRONMENT=demo` (the default), never on a catalog set up for real data. To try Pinax on
+real data instead, see [SETUP.md](SETUP.md).
 
 ## Who is who
 
