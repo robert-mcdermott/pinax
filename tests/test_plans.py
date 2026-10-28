@@ -2,6 +2,8 @@
 """Cleanup plans (C1): a lab's PI, delegates, and administrators add folders to the lab's plan, to delete, move,
 or compress; others' folders cannot be planned; a folder inside a planned one counts once; every change audited."""
 
+import zlib
+
 import pytest
 from conftest import ROOT, login
 
@@ -187,3 +189,73 @@ def test_nested_folders_are_counted_once_in_the_savings(priced):
     _add(priced, "ada", f"{ALPHA}/projects")
     s = _savings(priced)["savings"]
     assert s["freed"] == 19060 and s["filesystems"][0]["after"] == "0.00"
+
+
+# ---------- Progress from later scans (C3) ----------
+
+def _later(tmp_path, name: str, files: list[dict], inodes: dict | None = None):
+    from datetime import UTC, datetime
+
+    from scanfix import write_scan
+
+    from pinax.db import session_scope
+    from pinax.snapshots import ingest_scan
+
+    # Directories keep inodes of their own across this scan's changes (in the first scan they are by position).
+    dirs = {"/".join(f["path"].split("/")[:i]) for f in files for i in range(1, f["path"].count("/") + 1)}
+    stable = {d: 1_000_000 + zlib.crc32(d.encode()) for d in dirs}
+    write_scan(tmp_path / name, ROOT, files, started=datetime(2026, 10, 20, tzinfo=UTC), inodes=stable | (inodes or {}))
+    with session_scope() as s:
+        ingest_scan(s, tmp_path / name, progress=lambda m: None)
+
+
+def _files(sam_as_bam: int | None = None, drop_old: bool = False, rename_old: bool = False) -> list[dict]:
+    from conftest import FILES
+
+    out = []
+    for f in FILES:
+        p = f["path"]
+        if drop_old and "/2015_old/" in p:
+            continue
+        if p.endswith("raw_2014.sam") and sam_as_bam is not None:
+            f = dict(f, path=p.replace(".sam", ".bam"), size=sam_as_bam)
+        if rename_old:
+            f = dict(f, path=f["path"].replace("/2015_old/", "/2015_archive/"))
+        out.append(f)
+    return out
+
+
+def _progress(client) -> dict[str, dict]:
+    plan = _savings(client)
+    return {i["name"]: i["progress"] for i in plan["items"]} | {"_done": plan["savings"]["done"]}
+
+
+def test_done_and_what_it_saves(priced, tmp_path):
+    _add(priced, "ada", f"{ALPHA}/projects/2015_old")
+    item = _add(priced, "ada", f"{ALPHA}/projects/2025_new", "compress").json()
+    assert item["estimate"] == 6750 and item["progress"] == {"status": "to do", "freed": 0, "since": None}
+    _later(tmp_path, "s1", _files(sam_as_bam=2250, drop_old=True))  # the SAM made a BAM a quarter its size
+    p = _progress(priced)
+    assert p["2015_old"]["status"] == "done" and p["2015_old"]["freed"] == 8050
+    assert p["2015_old"]["since"].startswith("2026-10-20")
+    assert p["2025_new"]["status"] == "done" and p["2025_new"]["freed"] == 6750
+    assert p["_done"] == {"freed": 14800, "monthly": "14.80"}
+    s = _savings(priced)["savings"]
+    assert s["freed"] == 0 and s["monthly"] == "0.00"  # nothing left to free
+
+
+def test_partly_done_and_moved(priced, tmp_path):
+    from sqlalchemy import select
+
+    from pinax.db import session_scope
+    from pinax.models import MarkedFolder
+
+    _add(priced, "ada", f"{ALPHA}/projects/2015_old")
+    _add(priced, "ada", f"{ALPHA}/projects/2025_new", "compress")
+    with session_scope() as s:
+        ino = s.scalar(select(MarkedFolder.ino).where(MarkedFolder.path.endswith("2015_old")))
+    _later(tmp_path, "s1", _files(sam_as_bam=5000, rename_old=True), inodes={"alpha_lab/projects/2015_archive": ino})
+    p = _progress(priced)
+    assert p["2025_new"] == {"status": "partly done", "freed": 4000, "since": p["2025_new"]["since"]}
+    assert p["2015_old"] == {"status": "moved", "freed": 0, "since": None}  # renamed: nothing freed
+    assert p["_done"]["freed"] == 4000

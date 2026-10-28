@@ -766,7 +766,7 @@ confirmed when the wave starts.
 | 1 | Marked folders, followed across scans (S10) | The catalog records a marked folder by filesystem and path; index version 6 keeps each directory's inode from the scan; at each ingest, every marked folder is found at its path, found at another path with the same inode (proposed as a move, not applied, since inodes are reused), or gone; its totals are recorded for that scan, so a marked folder's history outlasts its snapshot; tested with renames, moves, deletions, and a reused inode; the added build time and index size measured at 100 million files | Done |
 | 2 | Marking folders for cleanup (C1) | From the age map (a folder's own panel and each tile's actions, reachable by keyboard), *Cold folders*, and *What changed*: add a folder to its lab's cleanup plan to delete, move to another filesystem, or compress, with a note; by the lab's PI and delegates, and by administrators; a folder inside one already planned counts once; the plan's total shown while exploring; audited; both themes and 375 pixels | Done |
 | 3 | What a plan saves (C2) | For each folder and the whole plan: the space freed, and the lab's monthly charge now and after, per filesystem, with free tiers (data within a free tier saves nothing, and the page says so) and the destination's price for a move; compression estimated from typical ratios for each type, and labeled as an estimate; tested against the charges worked out on the reduced sizes | Done |
-| 4 | Progress from scans (C3) | With each new scan, each folder is done (gone, and not moved), partly done (smaller), moved (no saving), or still to do; the space freed and the fall in the charge since the plan began; a *Cleanup plan* page for each lab with what is to do and what was done, and when; CSV for the lab or the storage team | To come |
+| 4 | Progress from scans (C3) | With each new scan, each folder is done (gone, and not moved), partly done (smaller), moved (no saving), or still to do; the space freed and the fall in the charge since the plan began; a *Cleanup plan* page for each lab with what is to do and what was done, and when; CSV for the lab or the storage team | Done |
 | 5 | Suggestions (C4) | Folders worth adding, each with its saving, added in one click: cold folders (R3), uncompressed sequencing data (R6) to compress, and workflow working folders (Nextflow `work/`, Snakemake `.snakemake/`, Cromwell `cromwell-executions/`, conda and container caches), found when the index is built; within Q3 for a lab folder at 100 million files | To come |
 | 6 | Plans across labs (C5) | For administrators: every lab's plan, planned and freed per filesystem, the largest folders planned, and a CSV | To come |
 | 7 | Demo and release 0.7.0 | A demo lab with a plan made before the demo's last scan, partly done by it, with one folder renamed rather than removed; the README demo script; version 0.7.0, changelog, pull request, tag, release | To come |
@@ -851,6 +851,19 @@ the site's own.
      estimated from a SAM beside an already gzipped FASTQ; a move freeing on one filesystem and charged on the
      other; nested folders counted once.
    - *Done*: checked on the demo (a 10.4 GiB folder at $22 per TB saves $0.25 a month).
+4. **Progress from scans (C3).**
+   - `plans.progress`: from the marked folder's totals in the scans after it was added: done (gone and not moved;
+     or, for compression, shrunk by nine tenths of the estimate kept when it was added), partly done (smaller),
+     moved (nothing freed), or to do; the space freed and the scan that showed it. The plan's *done so far*: the
+     space freed, and what it saves a month now (what it would cost back, less a moved folder's cost where it
+     went). What a plan would still save leaves out what is done.
+   - *Cleanup plans*: *To do* (with partly done folders and moves to confirm) and *Done* (what was done, freed, and
+     by which scan), the plan's *done so far*, and a CSV per plan.
+   - Tests: a folder deleted and one compressed fully by a later scan, done, with what they free and save, and
+     nothing left to save; one compressed partly; one renamed, which freed nothing. Later test scans give their
+     directories stable inodes, since numbering them by position hands a deleted folder's inode to another (the
+     reuse that makes a move something to confirm).
+   - *Done*: checked on the demo's *Cleanup plans* (a folder to do; progress waits for the demo's scans, slice 7).
 
 ## 0.8.0: folder tags (wave 8)
 

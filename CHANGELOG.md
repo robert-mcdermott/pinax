@@ -16,6 +16,10 @@
   today's prices and free tiers, for each folder and filesystem and in all, with the yearly figure. A move is
   charged on the filesystem it goes to; compression is estimated from the types of file in the folder; a lab within
   its free tier is told that freeing storage saves nothing.
+- **Progress from scans.** Each scan after a folder was added shows whether it is done (gone, or compressed by
+  most of its estimate), partly done (smaller), moved (nothing freed), or still to do. *Cleanup plans* lists what
+  is to do and what is done, by which scan, with the space freed so far and what it saves a month, and each plan
+  downloads as CSV.
 
 ### Changed
 

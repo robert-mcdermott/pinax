@@ -414,6 +414,13 @@ of uncompressed FASTQ or SAM, half of BAM as CRAM, more of VCF and pileups). A l
 nothing by freeing storage there, which is why the saving is not size times price. Each folder's saving on its own
 is shown too; with free tiers, those need not add up to the plan's.
 
+**Progress** comes from the scans after a folder was added: one gone (and not moved) is done; one compressed is
+done once it has shrunk by nine tenths of its estimate (recorded when it was added); one smaller than when added
+is partly done; one at another path with its inode freed nothing. What is done is shown with the scan that showed
+it, and what it saves a month now: what the freed space would cost the lab if it were back, less what a moved folder
+costs where it went. What a plan would still save counts only what is not done. A plan downloads as CSV, a row per
+folder, for the lab or the storage team.
+
 ## Costs
 
 What storage costs is kept in the catalog as two schedules per filesystem (`costs.py`):

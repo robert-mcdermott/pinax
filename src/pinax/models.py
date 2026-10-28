@@ -350,6 +350,7 @@ class CleanupItem(Base):
                                                              nullable=True)
     baseline_bytes: Mapped[int] = mapped_column(BigInteger, default=0)  # its size when it was added
     baseline_files: Mapped[int] = mapped_column(BigInteger, default=0)
+    baseline_estimate: Mapped[int | None] = mapped_column(BigInteger, nullable=True)  # compression's, when added
 
     lab: Mapped["Lab"] = relationship()
     mark: Mapped[MarkedFolder] = relationship()

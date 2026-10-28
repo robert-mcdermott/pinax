@@ -4,6 +4,7 @@
 // from the age map's panel; the plan page lists them for each of the person's labs.
 import { $, $$, api, bytes, date, displayPath, emptyState, html, icon, modal, mount, num, parseQuery, placeHash, raw, state, toast } from "/js/core.js";
 import { charge } from "/js/charges.js";
+import { downloadCsv } from "/js/reports.js";
 import { renderSidebar } from "/js/shell.js";
 
 const ACTIONS = { delete: "Delete", move: "Move", compress: "Compress" };
@@ -132,6 +133,7 @@ export async function viewPlans(el, query) {
     const done = b.dataset.do === "remove" ? await removeItem(item) : await changeItem(item, targets);
     if (done) viewPlans(el, query);
   }));
+  $$("[data-csv]", el).forEach((b) => b.addEventListener("click", () => planCsv(data.labs.find((p) => p.lab.slug === b.dataset.csv))));
   $$("[data-moved]", el).forEach((b) => b.addEventListener("click", async () => {
     try {
       await api(`plans/${b.dataset.moved}/moved`, { method: "POST", body: { accept: b.dataset.accept === "1" } });
@@ -154,29 +156,55 @@ function savingsNote(s) {
 
 function planCard(p) {
   const s = p.savings;
+  const todo = p.items.filter((i) => i.progress.status !== "done");
+  const done = p.items.filter((i) => i.progress.status === "done");
+  const progressText = (i) => (i.progress.status === "partly done" ? `${bytes(i.progress.freed)} freed${i.progress.since ? ` by ${date(i.progress.since)}` : ""}` : "");
   return html`<section class="card flush">
-    <div class="card-head"><h2>${p.lab.name}</h2><span class="small">${totalText(p.total)}${p.total.folders
+    <div class="card-head"><h2>${p.lab.name}</h2><span class="small">${totalText(p.total)}${todo.length
       ? html` · <b>${savesText(s)}</b>${Number(s.monthly) > 0 ? html` <span class="muted">(${charge(s.yearly, s.currency)} a year)</span>` : ""}` : ""}</span></div>
-    ${p.items.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>Folder</th><th>What to do</th>
+    ${s.done.freed ? html`<p class="callout" style="margin:0 22px 14px">${icon("check")} <b>Done so far: ${bytes(s.done.freed)} freed</b>,
+      saving ${charge(s.done.monthly, s.currency)} a month, as later scans show.</p>` : ""}
+    ${todo.length ? html`<h3 style="margin:0;padding:0 22px 6px">To do</h3><div class="table-wrap"><table class="table"><thead><tr><th>Folder</th><th>What to do</th>
         <th class="num">Size when added</th><th class="num">Now</th><th class="num">Saves a month</th><th class="hide-narrow">Added</th><th></th></tr></thead><tbody>
-      ${p.items.map((i) => html`<tr>
+      ${todo.map((i) => html`<tr>
         <td><a class="rowlink" href="${placeHash("explore", { fs: i.fs, path: i.path })}">${i.name}</a>
           <div class="sub">${displayPath(i.fs, i.path)}</div>
           ${i.inside ? html`<div class="sub">Inside another planned folder: counted with it</div>` : ""}
           ${i.note ? html`<div class="sub">${i.note}</div>` : ""}
+          ${i.progress.status === "partly done" ? html`<div class="sub"><span class="chip chip-queued">partly done</span> ${progressText(i)}</div>` : ""}
           ${i.mark.status === "moved" ? html`<div class="alert alert-info" style="margin-top:8px">${icon("info")}<div>
             Not at its path in the latest scan; a folder with its inode is at <b>${displayPath(i.fs, i.mark.moved_to)}</b>. If it moved there, nothing was freed.
             <div class="toolbar" style="margin-top:6px"><button class="btn btn-secondary btn-sm" data-moved="${i.id}" data-accept="1">It moved there</button>
             <button class="btn btn-ghost btn-sm" data-moved="${i.id}" data-accept="0">It is not the same folder</button></div></div></div>` : ""}</td>
         <td class="nowrap">${actionText(i)}</td>
         <td class="num nowrap">${bytes(i.baseline.bytes)}</td>
-        <td class="num nowrap">${i.mark.status === "here" && i.now ? bytes(i.now.bytes) : html`<span class="muted">${i.mark.status === "gone" ? "Gone" : "Moved?"}</span>`}</td>
-        <td class="num nowrap">${i.saving?.saves != null ? html`${i.saving.estimate ? "about " : ""}${charge(i.saving.saves, s.currency)}${i.saving.estimate
+        <td class="num nowrap">${i.mark.status === "here" && i.now ? bytes(i.now.bytes) : html`<span class="muted">Moved?</span>`}</td>
+        <td class="num nowrap">${i.action === "compress" && i.saving && !i.saving.freed ? html`<span class="muted">—</span><div class="sub">nothing in it typically compresses</div>`
+          : i.saving?.saves != null ? html`${i.saving.estimate ? "about " : ""}${charge(i.saving.saves, s.currency)}${i.saving.estimate
           ? html`<div class="sub">${bytes(i.saving.freed)} freed, estimated</div>` : ""}` : html`<span class="muted">${i.inside ? "with the folder around it" : "—"}</span>`}</td>
         <td class="hide-narrow nowrap">${date(i.added_at)}<div class="sub">${i.added_by || ""}</div></td>
         <td class="right nowrap"><button class="btn btn-ghost btn-sm" data-item="${i.id}" data-do="change">Change</button>
           <button class="icon-btn" title="Take it out" aria-label="Take ${i.name} out of the plan" data-item="${i.id}" data-do="remove">${icon("x")}</button></td></tr>`)}
-      </tbody></table></div>${savingsNote(s)}`
-      : html`<div style="padding:0 22px 18px">${emptyState("archive", "Nothing planned yet", "Open a folder on the age map and add it from its panel.")}</div>`}
+      </tbody></table></div>${savingsNote(s)}` : ""}
+    ${done.length ? html`<h3 style="margin:0;padding:${todo.length ? "4px" : "0"} 22px 6px">Done</h3><div class="table-wrap"><table class="table"><thead><tr><th>Folder</th><th>What was done</th>
+        <th class="num">Freed</th><th>By the scan of</th><th class="hide-narrow">Added</th><th></th></tr></thead><tbody>
+      ${done.map((i) => html`<tr><td><span class="title-cell">${i.name}</span><div class="sub">${displayPath(i.fs, i.path)}</div></td>
+        <td class="nowrap">${actionText(i)}</td><td class="num nowrap">${bytes(i.progress.freed)}</td>
+        <td class="nowrap">${i.progress.since ? date(i.progress.since) : "—"}</td>
+        <td class="hide-narrow nowrap">${date(i.added_at)}<div class="sub">${i.added_by || ""}</div></td>
+        <td class="right"><button class="icon-btn" title="Take it out" aria-label="Take ${i.name} out of the plan" data-item="${i.id}" data-do="remove">${icon("x")}</button></td></tr>`)}
+      </tbody></table></div>` : ""}
+    ${!p.items.length ? html`<div style="padding:0 22px 18px">${emptyState("archive", "Nothing planned yet", "Open a folder on the age map and add it from its panel.")}</div>`
+      : html`<div class="toolbar" style="padding:0 22px 16px"><button class="btn btn-ghost btn-sm" data-csv="${p.lab.slug}">${icon("download")}Download CSV</button></div>`}
   </section>`;
+}
+
+/** A plan as CSV, for the lab or the storage team. */
+export function planCsv(p) {
+  downloadCsv(`pinax-cleanup-plan-${p.lab.slug}.csv`,
+    ["lab", "filesystem", "path", "action", "to", "note", "added_by", "added_at", "bytes_when_added", "bytes_now", "status", "freed",
+      "freed_by", "saves_a_month", "estimate", "currency"],
+    p.items.map((i) => [p.lab.slug, i.fs, i.path, i.action, i.to?.slug ?? "", i.note, i.added_by ?? "", i.added_at, i.baseline.bytes,
+      i.now?.present ? i.now.bytes : "", i.progress.status, i.progress.freed, i.progress.since ?? "", i.saving?.saves ?? "",
+      i.saving?.estimate ? "yes" : "", p.savings.currency]));
 }

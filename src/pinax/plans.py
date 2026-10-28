@@ -8,6 +8,10 @@ the plan's CSV, and later scans show what happened (marks.py follows each folder
 A lab's PI and its delegates, and administrators, change its plan; every change is audited. A folder inside one
 already planned for the same lab is counted once, as part of the larger.
 
+Progress (C3) comes from later scans: a folder gone (and not moved) is done; one compressed is done once it has
+shrunk by most of its estimate; one smaller than when it was added is partly done; one that moved freed nothing.
+What is done frees space, and saves what that space would cost the lab a month now.
+
 What a plan saves (C2) is the fall in the lab's monthly charge, at today's prices and free tiers, from the
 storage it frees: a folder deleted frees its size; one moved frees it here and is charged on the filesystem it
 goes to; one compressed frees an estimate, from typical ratios for the types in it (`COMPRESSION`). A lab within its
@@ -111,6 +115,8 @@ def add(session: Session, ident: Identity, fs: Filesystem, path: str, action: st
                        baseline_snapshot_id=latest.snapshot_id if latest else None,
                        baseline_bytes=latest.bytes if latest else 0, baseline_files=latest.files if latest else 0)
     item.lab, item.mark = lab, mark
+    if action == "compress":
+        item.baseline_estimate = freed(session, item)[0]
     session.add(item)
     _audit(session, ident.user, "plan.added", f"{lab.name}: {path} added to the cleanup plan ({_what(item, target)})",
            item, fs)
@@ -122,6 +128,8 @@ def change(session: Session, ident: Identity, item: CleanupItem, action: str, *,
            note: str = "") -> CleanupItem:
     fs = session.get(Filesystem, item.mark.filesystem_id)
     target = _target(session, fs, action, to)
+    if action == "compress" and item.action != "compress":
+        item.baseline_estimate = freed(session, CleanupItem(mark=item.mark, action="compress"))[0]
     item.action, item.target_filesystem_id, item.note = action, target.id if target else None, note.strip()[:2000]
     _audit(session, ident.user, "plan.changed", f"{item.lab.name}: {item.mark.path} now planned to {_what(item, target)}",
            item, fs)
@@ -156,6 +164,40 @@ def _outermost(items: list[CleanupItem], fs_id: int, path: str) -> CleanupItem |
     return min(around, key=lambda i: len(i.mark.path)) if around else None
 
 
+DONE, PARTLY, MOVED, TO_DO = "done", "partly done", "moved", "to do"
+
+
+def progress(session: Session, item: CleanupItem) -> dict:
+    """What later scans show of a planned folder: done, partly done, moved (nothing freed), or still to do; the
+    space freed, and since which scan."""
+    stats = session.scalars(select(MarkedFolderStat).where(MarkedFolderStat.mark_id == item.mark_id,
+                                                           MarkedFolderStat.taken_at > _added_scan(session, item))
+                            .order_by(MarkedFolderStat.taken_at)).all()
+    base = item.baseline_bytes
+    if item.mark.status == marks.MOVED:
+        return {"status": MOVED, "freed": 0, "since": None}
+    if item.mark.status == marks.GONE:
+        since = next((s.taken_at for s in stats if not s.present), None)
+        return {"status": DONE, "freed": base, "since": _iso(since)}
+    now = stats[-1].bytes if stats and stats[-1].present else base
+    smaller = next((s.taken_at for s in stats if s.present and s.bytes < base), None)
+    gain = max(0, base - now)
+    if item.action == "compress" and item.baseline_estimate and gain >= 0.9 * item.baseline_estimate:
+        return {"status": DONE, "freed": gain, "since": _iso(smaller)}
+    if gain > 0:
+        return {"status": PARTLY, "freed": gain, "since": _iso(smaller)}
+    return {"status": TO_DO, "freed": 0, "since": None}
+
+
+def _added_scan(session: Session, item: CleanupItem):
+    snap = session.get(Snapshot, item.baseline_snapshot_id) if item.baseline_snapshot_id else None
+    return snap.started_at if snap else item.added_at
+
+
+def _iso(t) -> str | None:
+    return t.isoformat() + "Z" if t else None
+
+
 def item_json(session: Session, item: CleanupItem, items: list[CleanupItem]) -> dict:
     fs = session.get(Filesystem, item.mark.filesystem_id)
     target = session.get(Filesystem, item.target_filesystem_id) if item.target_filesystem_id else None
@@ -171,6 +213,7 @@ def item_json(session: Session, item: CleanupItem, items: list[CleanupItem]) -> 
         "now": {"bytes": now.bytes, "files": now.files, "present": now.present} if now else None,
         "mark": {"id": item.mark.id, "status": item.mark.status, "moved_to": item.mark.moved_to},
         "inside": outer.id if outer else None,
+        "estimate": item.baseline_estimate, "progress": progress(session, item),
     }
 
 
@@ -242,7 +285,8 @@ def savings(session: Session, lab: Lab, items: list[CleanupItem], *, day: date |
     per_item, out_of, into = {}, defaultdict(int), defaultdict(int)
     estimated = False
     for i in counted:
-        b, est = freed(session, i)
+        # A folder done frees nothing more (compressing what compression made is not asked of it).
+        b, est = (0, False) if progress(session, i)["status"] == DONE else freed(session, i)
         estimated |= est
         out_of[i.mark.filesystem_id] += b
         if i.action == "move" and i.target_filesystem_id:
@@ -263,7 +307,20 @@ def savings(session: Session, lab: Lab, items: list[CleanupItem], *, day: date |
                      "now": str(money(now, currency)) if now is not None else None,
                      "after": str(money(after, currency)) if after is not None else None,
                      "within_free": now is not None and size_on(fs_id) <= free})
+    # What is done already: the space freed, and what it saves a month now: what it would cost the lab if it
+    # were back, less what a moved folder costs where it went.
+    done, landed, saved = defaultdict(int), defaultdict(int), Fraction(0)
+    for i in counted:
+        got = progress(session, i)["freed"]
+        done[i.mark.filesystem_id] += got
+        if got and i.action == "move" and i.target_filesystem_id:
+            landed[i.target_filesystem_id] += got
+    for fs_id, b in done.items():
+        saved += (change(fs_id, b) or 0) if b else 0
+    for fs_id, b in landed.items():
+        saved += change(fs_id, -b) or 0
     return {"currency": currency, "items": per_item, "filesystems": rows, "estimate": estimated,
+            "done": {"freed": sum(done.values()), "monthly": str(money(saved, currency))},
             "freed": sum(out_of.values()), "moved": sum(into.values()),
             "monthly": str(money(total, currency)), "yearly": str(money(total * 12, currency))}
 
