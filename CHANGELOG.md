@@ -12,7 +12,11 @@
   folder history: the time-weighted average of its folders' sizes (each scan holds until the next), less its free
   tier, at the price in effect, worked out exactly and rounded to the cent once per lab and filesystem. The month in
   progress is an estimate to its end. Storage no one owns is unbilled. For administrators at
-  `/api/admin/costs/charges?month=YYYY-MM`; the pages follow in the next slices.
+  `/api/admin/costs/charges?month=YYYY-MM`.
+- **Storage charges (wave 5, slice 3).** A page for everyone in a lab or department: what each of their labs pays
+  for a month, by filesystem and folder, with each charge worked out in words (average size, less the free tier,
+  at the price, for the days it applied), and each lab's past months. This month's charge is an estimate to the
+  month's end and shows on *My data*. Administrators may look at any lab's.
 - **Ownership history.** Pinax now records each change of a top-level folder's owner (in the app or by
   `pinax import`), so past months are charged to the owners they had. The new `folder_owner` table is created at
   start-up; folders that have never changed need no history.

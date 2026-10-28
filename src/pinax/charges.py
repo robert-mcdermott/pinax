@@ -29,7 +29,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .config import get_settings
-from .costs import UNITS, price_text
+from .costs import UNITS, price_text, shown
 from .db import utcnow
 from .models import Filesystem, FolderStat, FreeTier, Lab, Price, Snapshot, SnapshotStatus
 from .ownership import Owners
@@ -59,6 +59,22 @@ def money(value: Fraction, currency: str) -> Decimal:
 
 
 @dataclass
+class Period:
+    """A run of a line's month with one price and one free tier: how its charge is worked out. Sizes and the
+    charge are its part of the month's (as in Line); `share` is its length as a share of the month."""
+
+    start: datetime
+    end: datetime
+    price: Price | None
+    free: int
+    free_unit: str | None  # as the free tier was given; None: no free tier
+    share: Fraction = Fraction(0)
+    size: Fraction = Fraction(0)
+    billable: Fraction = Fraction(0)
+    charge: Fraction = Fraction(0)
+
+
+@dataclass
 class Line:
     """One lab's storage and charge on one filesystem for one month. Sizes are averages over the month, in bytes."""
 
@@ -68,6 +84,16 @@ class Line:
     folders: dict[str, Fraction] = field(default_factory=lambda: defaultdict(Fraction))
     free: set[int] = field(default_factory=set)  # free tiers (bytes) that applied
     unpriced: Fraction = Fraction(0)  # share of the month with storage but no price
+    periods: list[Period] = field(default_factory=list)
+
+    def period(self, start: datetime, end: datetime, price: Price | None, free: int, unit: str | None) -> Period:
+        """The period [start, end) belongs to: the last one, when it runs on with the same price and free tier."""
+        last = self.periods[-1] if self.periods else None
+        if last is None or last.end != start or last.price is not price or last.free != free:
+            last = Period(start, end, price, free, unit)
+            self.periods.append(last)
+        last.end = end
+        return last
 
 
 class _Schedule:
@@ -85,17 +111,19 @@ class _Schedule:
 
 class _FreeTiers:
     def __init__(self, rows: list[FreeTier]):
-        self.kinds = {k: _Schedule([(r.starts, r.bytes or 0) for r in rows if r.lab_id is None and r.kind == k])
+        self.kinds = {k: _Schedule([(r.starts, (r.bytes or 0, r.unit)) for r in rows if r.lab_id is None and r.kind == k])
                       for k in {r.kind for r in rows if r.lab_id is None}}
-        self.own = {lab: _Schedule([(r.starts, r.bytes) for r in rows if r.lab_id == lab])
+        self.own = {lab: _Schedule([(r.starts, None if r.bytes is None else (r.bytes, r.unit))
+                                    for r in rows if r.lab_id == lab])
                     for lab in {r.lab_id for r in rows if r.lab_id is not None}}
 
-    def at(self, lab: Lab, when: datetime) -> int:
+    def at(self, lab: Lab, when: datetime) -> tuple[int, str | None]:
+        """Bytes free for `lab` at `when`, and the unit the tier was given in (None when no tier applies)."""
         own = self.own.get(lab.id)
-        if own is not None and (b := own.at(when)) is not None:
-            return b
+        if own is not None and (t := own.at(when)) is not None:
+            return t
         kind = self.kinds.get(lab.kind)
-        return (kind.at(when) or 0) if kind is not None else 0
+        return (kind.at(when) if kind is not None else None) or (0, None)
 
     def starts(self) -> set[datetime]:
         return {t for s in [*self.kinds.values(), *self.own.values()] for t in s.starts}
@@ -117,7 +145,8 @@ def filesystem_lines(session: Session, fs: Filesystem, start: datetime, end: dat
     scan_times = [s.started_at for s in snaps]
     owners = Owners(session, fs.id)
     price_rows = session.scalars(select(Price).where(Price.filesystem_id == fs.id)).all()
-    prices = _Schedule([(p.starts, Fraction(p.micros, 10**6 * UNITS[p.unit])) for p in price_rows])
+    prices = _Schedule([(p.starts, p) for p in price_rows])
+    per_byte = {p.id: Fraction(p.micros, 10**6 * UNITS[p.unit]) for p in price_rows}  # per month
     tiers = _FreeTiers(session.scalars(select(FreeTier).where(FreeTier.filesystem_id == fs.id)).all())
 
     cuts = {start, end} | {t for t in [*scan_times, *owners.changes(), *prices.starts, *tiers.starts()] if start < t < end}
@@ -141,15 +170,20 @@ def filesystem_lines(session: Session, fs: Filesystem, start: datetime, end: dat
             else:
                 held[lab_id] += size
         for lab_id, size in held.items():
-            line, free = lines[lab_id], tiers.at(labs[lab_id], a)
+            line, (free, unit) = lines[lab_id], tiers.at(labs[lab_id], a)
             billable = max(0, size - free)
+            charge = 0 if price is None else billable * per_byte[price.id] * share
             line.size += size * share
             line.billable += billable * share
+            line.charge += charge
             line.free.add(free)
-            if price is None:
-                line.unpriced += share if size else 0
-            else:
-                line.charge += billable * price * share
+            if price is None and size:
+                line.unpriced += share
+            period = line.period(a, b, price, free, unit)
+            period.share += share
+            period.size += size * share
+            period.billable += billable * share
+            period.charge += charge
     applied = []  # the prices in effect during the month, each for the part of it it covered
     ordered = sorted(price_rows, key=lambda r: r.starts)
     for p, nxt in pairwise([*ordered, None]):
@@ -165,10 +199,24 @@ def _bytes(f: Fraction) -> int:
     return int(f + Fraction(1, 2)) if f >= 0 else -int(-f + Fraction(1, 2))
 
 
+def _iso(t: datetime) -> str:
+    return t.isoformat() + "Z"
+
+
+def _period_json(p: Period, currency: str) -> dict:
+    """A period with its sizes as averages over the period itself, so that charge = billable x price x share."""
+    return {"from": _iso(p.start), "to": _iso(p.end), "days": round((p.end - p.start) / timedelta(days=1), 2),
+            "share": float(p.share), "size": _bytes(p.size / p.share), "billable": _bytes(p.billable / p.share),
+            "free": p.free, "free_amount": shown(p.free, p.free_unit) if p.free_unit else None, "free_unit": p.free_unit,
+            "price": price_text(p.price.micros) if p.price else None, "unit": p.price.unit if p.price else None,
+            "charge": str(money(p.charge, currency))}
+
+
 def _line_json(line: Line, fs: Filesystem, prices: list[dict], currency: str) -> dict:
     return {"fs": fs.slug, "fs_name": fs.name, "size": _bytes(line.size), "billable": _bytes(line.billable),
             "free": sorted(line.free),
             "charge": str(money(line.charge, currency)), "unpriced": line.unpriced > 0, "prices": prices,
+            "periods": [_period_json(p, currency) for p in line.periods],
             "folders": sorted(({"folder": k, "size": _bytes(v)} for k, v in line.folders.items() if v),
                               key=lambda x: -x["size"])}
 
@@ -202,8 +250,8 @@ def monthly_charges(session: Session, month: str, *, now: datetime | None = None
     rows = [{"lab": {"slug": labs[i].slug, "name": labs[i].name, "kind": labs[i].kind, "active": labs[i].active},
              "total": str(totals[i]), "filesystems": by_lab[i]} for i in by_lab]
     rows.sort(key=lambda r: (-Decimal(r["total"]), r["lab"]["name"]))
-    return {"month": month, "currency": currency, "start": start.isoformat() + "Z", "end": end.isoformat() + "Z",
-            "estimated": now < end, "through": (min(now, end).isoformat() + "Z") if now < end else None,
+    return {"month": month, "currency": currency, "start": _iso(start), "end": _iso(end),
+            "days": (end - start).days, "estimated": now < end, "through": _iso(now) if start <= now < end else None,
             "labs": rows, "unbilled": unbilled, "by_filesystem": by_fs,
             "total": str(sum((Decimal(r["total"]) for r in rows), zero))}
 
@@ -220,3 +268,16 @@ def months(session: Session, now: datetime | None = None) -> list[str]:
         out.append(f"{y:04d}-{m:02d}")
         y, m = y + (m == 12), m % 12 + 1
     return out[::-1]
+
+
+def lab_history(session: Session, lab_ids: set[int], *, now: datetime | None = None,
+                count: int = 12) -> dict[str, list[dict]]:
+    """Each lab's charge and average storage, month by month, newest first, over the last `count` months with
+    scans; a month the lab stored nothing in is left out."""
+    out: dict[str, list[dict]] = defaultdict(list)
+    for month in months(session, now)[:count]:
+        m = monthly_charges(session, month, now=now, labs_only=lab_ids)
+        for row in m["labs"]:
+            out[row["lab"]["slug"]].append({"month": month, "total": row["total"], "estimated": m["estimated"],
+                                            "size": sum(f["size"] for f in row["filesystems"])})
+    return dict(out)

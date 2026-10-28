@@ -290,7 +290,13 @@ So that a past month is charged to the owners it had, the catalog keeps **owners
 `ownership.py`): a row each time a top-level folder changes owner, in the app or by `pinax import`. The first change
 of a folder also records who had it until then, from the beginning; a folder that has never changed is its current
 owner's throughout. `/api/admin/costs/charges?month=YYYY-MM` returns every lab's and department's charges for a
-month, by filesystem and folder, with the prices that applied and what is unbilled (wave 5, slices 3 and 4 show it).
+month, by filesystem and folder, with the prices that applied and what is unbilled (wave 5, slice 4 shows it).
+
+Each line is also split into **periods**, runs of the month with one price and one free tier, so the charge can be
+shown worked out: a period's charge is its average billable size times its price times its share of the month.
+*Storage charges* (`/api/charges`) shows a person's own labs' lines this way, with each lab's last twelve months;
+its members see it whatever their role, and administrators may ask for any lab. A lab is shown the folders it was
+charged for, including ones it owned earlier in the month and has since given up, which it can no longer open.
 
 ## Security
 

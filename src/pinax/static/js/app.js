@@ -6,6 +6,7 @@ import {
 } from "/js/core.js";
 import { folderCard, renderSidebar } from "/js/shell.js";
 import { viewChanged } from "/js/changed.js";
+import { charge, viewCharges } from "/js/charges.js";
 import { viewCosts } from "/js/costs.js";
 import { viewChanges } from "/js/changes.js";
 import { viewExplore } from "/js/explore.js";
@@ -21,7 +22,8 @@ async function viewHome(el) {
   state.place = null;
   renderSidebar();
   if (state.me.is_admin) return viewOverview(el);
-  const [home, tree] = await Promise.all([api("home"), api("tree")]);
+  const [home, tree, charges] = await Promise.all([api("home"), api("tree"),
+    api("charges", { query: { history: false }, quiet: true }).catch(() => null)]);
   const folders = home.folders;
   const cb = tree.cold_bucket;
   const s = tree.node.stats;
@@ -44,6 +46,9 @@ async function viewHome(el) {
       <div class="kpi" style="--kpi-accent:var(--age-5)"><div class="label">Unchanged for ${thresholdText(cb)}+</div><div class="value">${bytes(cold)}</div><div class="sub">${pct(s.bytes ? (cold / s.bytes) * 100 : 0)} of your data</div></div>
       <div class="kpi" style="--kpi-accent:var(--age-4)"><div class="label">Average age</div><div class="value">${ageText(s.mean_age_days)}</div><div class="sub">Weighted by size</div></div>
       <a class="kpi" href="#/history" style="--kpi-accent:var(--fh-bright-blue)"><div class="label">Change since the previous scan</div><div class="value">${!hasChange ? "—" : change ? `${change > 0 ? "+" : "−"}${bytes(Math.abs(change))}` : "No change"}</div><div class="sub">${hasChange ? "Across your folders · history" : "Only one scan so far"}</div></a>
+      ${charges?.priced && charges.labs.some((l) => l.filesystems.length) ? html`<a class="kpi" href="#/charges" style="--kpi-accent:var(--fh-teal)">
+        <div class="label">Storage charges this month</div><div class="value">${charge(charges.total, charges.currency)}</div>
+        <div class="sub">${charges.estimated ? "Estimated to the month's end" : "This month"} · ${charges.labs.length === 1 ? charges.labs[0].lab.name : `${charges.labs.length} labs`}</div></a>` : ""}
     </div>
     <h2 style="margin:8px 0 14px">Your folders</h2>
     <div class="folder-cards">${folders.map((f) => folderCard(f, cb))}</div>
@@ -70,6 +75,7 @@ const routes = [
   [/^#\/health(\?.*)?$/, viewHealth],
   [/^#\/scans$/, viewScans],
   [/^#\/costs$/, viewCosts],
+  [/^#\/charges(\?.*)?$/, viewCharges],
   [/^#\/access(\?.*)?$/, viewAccess],
   [/^#\/access\/people\/([^?]+)$/, viewPerson],
 ];

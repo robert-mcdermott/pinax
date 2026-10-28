@@ -28,6 +28,8 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
   that no longer exist), and file search by name or glob, type, size, age, and owner, with CSV export.
 - **For PIs and lab members**: *My data* shows every folder their labs own, across filesystems, with size,
   age profile, cold share, and change since the previous scan. People see only their own labs' folders.
+  *Storage charges* shows what each of their labs pays each month, by filesystem and folder, how each charge is
+  worked out, and the months before; this month's is an estimate, and a figure on *My data*.
 - **For IT**: an overview of every filesystem, the largest folders and biggest changes, unmapped folders,
   storage health (scan errors, very large directories, small-file hotspots, problem file names, deleted
   owners), the scan history, and people and access: add people, change their details, lab memberships, and

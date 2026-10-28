@@ -39,7 +39,7 @@ def billing(env):
     """Fast (priced, with free tiers) and Secure (no price), the labs, their folders, and the scans above."""
     from pinax import costs
     from pinax.db import session_scope
-    from pinax.models import Filesystem, FolderStat, Lab, LabFolder, LabKind, Snapshot, User
+    from pinax.models import Filesystem, FolderStat, Lab, LabFolder, LabKind, LabMembership, Snapshot, User
     from pinax.ownership import record_change
 
     with session_scope() as s:
@@ -47,10 +47,12 @@ def billing(env):
         secure = Filesystem(slug="secure", name="Secure", root="/research/secure")
         labs = {slug: Lab(slug=slug, name=f"{slug.title()} Lab", kind=kind) for slug, kind in
                 (("alpha", LabKind.LAB), ("beta", LabKind.LAB), ("core", LabKind.DEPARTMENT))}
-        s.add_all([fast, secure, *labs.values(),
-                   User(username="ivy", display_name="Ivy", email="ivy@example.org", is_admin=True),
-                   User(username="ada", display_name="Ada", email="ada@example.org")])
+        people = {u: User(username=u, display_name=u.title(), email=f"{u}@example.org", is_admin=u == "ivy")
+                  for u in ("ivy", "ada", "ben", "nobody")}
+        s.add_all([fast, secure, *labs.values(), *people.values()])
         s.flush()
+        s.add_all([LabMembership(user_id=people["ada"].id, lab_id=labs["alpha"].id, role="pi"),
+                   LabMembership(user_id=people["ben"].id, lab_id=labs["beta"].id, role="delegate")])
         for folder, slug in OWNERS_NOW.items():
             s.add(LabFolder(lab_id=labs[slug].id, filesystem_id=fast.id, path=folder))
         s.add(LabFolder(lab_id=labs["alpha"].id, filesystem_id=secure.id, path="alpha_lab"))
@@ -250,3 +252,73 @@ def test_only_administrators_see_every_lab_charges(billing):
         r = c.get("/api/admin/costs/charges", params={"month": "2026-09"})
         assert r.status_code == 200 and r.json()["months"][-1] == "2026-08"
         assert c.get("/api/admin/costs/charges", params={"month": "September"}).status_code == 422
+
+
+@pytest.fixture
+def members(billing, monkeypatch):
+    """The billing catalog on 10 October 2026, mid-month, for the people in it."""
+    from fastapi.testclient import TestClient
+
+    from pinax import charges
+    from pinax.api import costs as costs_api
+    from pinax.main import app
+
+    now = lambda: datetime(2026, 10, 10, 12)
+    monkeypatch.setattr(charges, "utcnow", now)
+    monkeypatch.setattr(costs_api, "utcnow", now)
+    with TestClient(app) as c:
+        yield c
+
+
+def _mine(client, who, **query):
+    login(client, who)
+    return client.get("/api/charges", params=query)
+
+
+def test_members_see_their_own_labs_charges(members):
+    sept = _mine(members, "ada", month="2026-09").json()
+    assert [r["lab"]["slug"] for r in sept["labs"]] == ["alpha"] and sept["labs"][0]["role"] == "pi"
+    assert [c["slug"] for c in sept["choices"]] == ["alpha"] and sept["priced"] and "unbilled" not in sept
+    admin = _mine(members, "ivy", month="2026-09", lab="alpha").json()
+    assert admin["labs"][0]["total"] == sept["labs"][0]["total"] == sept["total"]
+    assert [c["slug"] for c in admin["choices"]] == ["alpha", "beta", "core"]
+    assert _mine(members, "ivy").json()["labs"][0]["lab"]["slug"] == "alpha"  # an administrator in no lab: the first
+    # Beta Lab is billed for beta_lab until it moved, but may no longer open it.
+    beta = _mine(members, "ben", month="2026-09").json()["labs"][0]
+    folders = {f["folder"]: f["open"] for f in beta["filesystems"][0]["folders"]}
+    assert folders == {"beta_lab": False, "beta_two": True}
+    for who, lab in (("ada", "beta"), ("ben", "core"), ("ada", "nowhere")):
+        assert _mine(members, who, lab=lab).status_code == 404
+    nobody = _mine(members, "nobody").json()
+    assert nobody["labs"] == [] and nobody["choices"] == [] and nobody["total"] == "0.00"
+    assert _mine(members, "ada", month="2026-13").status_code == 422
+
+
+def test_how_each_charge_is_worked_out(members):
+    """Each period has one price and one free tier; its charge is its average billable size at its price for its
+    share of the month, and the periods add up to the line."""
+    alpha = _mine(members, "ada", month="2026-09").json()["labs"][0]
+    fast, secure = (next(f for f in alpha["filesystems"] if f["fs"] == fs) for fs in ("fast", "secure"))
+    got = [(p["from"][:10], p["to"][:10], p["price"], p["free_amount"]) for p in fast["periods"]]
+    assert got == [("2026-09-01", "2026-09-10", "30", "1"), ("2026-09-10", "2026-09-16", "30", "3"),
+                   ("2026-09-16", "2026-09-25", "24", "3"), ("2026-09-25", "2026-10-01", "24", "1")]
+    for p in fast["periods"]:
+        worked = Decimal(p["billable"]) * Decimal(p["price"]) / TB * Decimal(p["share"])
+        assert abs(worked - Decimal(p["charge"])) < Decimal("0.01")
+        assert p["days"] == round(p["share"] * 30, 2)
+    assert abs(sum(Decimal(p["charge"]) for p in fast["periods"]) - Decimal(fast["charge"])) <= Decimal("0.02")
+    assert secure["unpriced"] and [(p["price"], p["days"]) for p in secure["periods"]] == [(None, 30)]
+    core = _mine(members, "ivy", month="2026-09", lab="core").json()["labs"][0]["filesystems"][0]
+    assert {(p["free"], p["free_amount"]) for p in core["periods"]} == {(0, "0")}  # departments: none
+
+
+def test_this_month_and_the_months_before(members):
+    oct_ = _mine(members, "ada").json()
+    assert oct_["month"] == "2026-10" and oct_["estimated"] and oct_["through"] == "2026-10-10T12:00:00Z"
+    assert oct_["months"] == ["2026-10", "2026-09", "2026-08"] and oct_["days"] == 31
+    history = oct_["labs"][0]["history"]
+    assert [(h["month"], h["estimated"]) for h in history] == [("2026-10", True), ("2026-09", False), ("2026-08", False)]
+    assert history[0]["total"] == oct_["labs"][0]["total"] == "108.00"
+    sept = _mine(members, "ada", month="2026-09").json()["labs"][0]
+    assert history[1]["total"] == sept["total"] and history[1]["size"] == sum(f["size"] for f in sept["filesystems"])
+    assert _mine(members, "ada", history="false").json()["labs"][0]["history"] == []  # for the home page

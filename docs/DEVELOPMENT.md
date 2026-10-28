@@ -102,6 +102,8 @@ them, the person's home), and `lab` to limit home to one lab:
 | `GET /api/home`, `GET /api/history?fs=&folder=` | Folder cards and lab totals; one folder's history |
 | `GET /api/admin/overview`, `/health`, `/names`, `/snapshots`, `/labs`, `/people` | Administrator views |
 | `POST /api/admin/folders`, `POST /api/admin/labs/{slug}/members` | Folder ownership and membership changes |
+| `GET /api/charges?month=&lab=&history=` | A person's labs' charges for a month, with their past months |
+| `GET /api/admin/costs`, `/api/admin/costs/charges?month=` | Prices and free tiers; every lab's charges for a month |
 
 ## Frontend conventions
 
@@ -114,6 +116,7 @@ The interface is plain HTML, CSS, and JavaScript modules with no framework or bu
 - `js/timechart.js`: charts over time (stacked columns and lines on a shared date axis, with a hover and keyboard
   readout that several charts share); `js/history.js` draws the history view with it.
 - `js/costs.js`: *Costs*, each filesystem's prices and free tiers (`costs.py`, `api/costs.py`).
+- `js/charges.js`: *Storage charges*, what a person's labs pay each month and how (`charges.py`, `api/costs.py`).
 - `js/changes.js`: the change map, on `js/treemap.js`, with its seven-step gold-to-teal scale (`--chg-*`);
   `js/changed.js`: what changed, the same comparison as lists.
 - `js/shell.js`: the sidebar and the scope header (breadcrumbs, the scan date and its picker, links to every report

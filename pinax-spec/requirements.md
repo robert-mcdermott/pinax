@@ -67,7 +67,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | R5 | Find files by name or glob, type, category, size, age, and owner; CSV export | done (wave 1, slice 5) |
 | R6 | Call out uncompressed sequencing data | done (wave 1, slice 5) |
 | R7 | Totals that count hard-linked files once | planned (wave 8) |
-| R8 | Cost by lab, department, and filesystem | partial (wave 5, slice 1: prices and free tiers per filesystem, from a day on; slice 2: monthly charges per lab or department and filesystem, time-weighted, with ownership history; slices 3 and 4: what labs pay and chargeback) |
+| R8 | Cost by lab, department, and filesystem | partial (wave 5, slice 1: prices and free tiers per filesystem, from a day on; slice 2: monthly charges per lab or department and filesystem, time-weighted, with ownership history; slice 3: what labs pay, for their members, worked out; slice 4: chargeback) |
 | R9 | What changed in a folder between two scans: the subfolders that grew and shrank most, new and removed folders, and the largest new and removed files; CSV | done (wave 3, slice 5: 70–90 ms for a lab folder at a million files; wave 6: at 100 million) |
 
 ## Access

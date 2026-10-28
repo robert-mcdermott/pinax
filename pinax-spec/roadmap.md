@@ -17,7 +17,8 @@ decisions taken are recorded here. Later waves are outlined at the end.
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
 **Where things stand:** waves 1 to 4 are released as 0.1.0 to 0.4.0 (tags on `main`). Wave 5, costs and chargeback,
-is under way on `wave5`: prices and free tiers, and monthly charges, are done; what labs pay is next. The production
+is under way on `wave5`: prices and free tiers, monthly charges, and what labs pay are done; chargeback for
+finance is next. The production
 pilot needs production storage, which will not be reachable for some time, so it waits as wave 6; work that needs
 no production storage comes first.
 
@@ -510,8 +511,8 @@ needs no production storage, and the demo's six months of scans make six months 
 | --- | --- | --- | --- |
 | 1 | Prices and free tiers (R8) | For each filesystem, a price per month per GB, GiB, TB, or TiB, from a date on (earlier prices kept); a free tier per filesystem for labs, and one for departments (none allowed), with exceptions for particular labs; one currency (`PINAX_CURRENCY`); set by administrators on a *Costs* page, every change audited; tested | Done |
 | 2 | Monthly charges (R8, Q1) | For each lab or department and filesystem, each month: the time-weighted average size from folder history (each scan's size holds until the next), less the free tier, times the price in effect, worked out day by day; the current month estimated to its end; tested against brute force over scan dates, price changes, free tiers, and folders changing owner | Done |
-| 3 | What labs pay (R8) | For lab owners and members: this month's estimate and past months, by filesystem and top-level folder, with how each charge is worked out; a figure on the home page; both themes and 375 pixels | Next |
-| 4 | Chargeback for finance (R8) | For administrators: every lab's and department's charges for a month, storage no one owns (unbilled), totals by filesystem, and a CSV statement; within Q3 for a year of weekly scans of 2,000 folders | To come |
+| 3 | What labs pay (R8) | For lab owners and members: this month's estimate and past months, by filesystem and top-level folder, with how each charge is worked out; a figure on the home page; both themes and 375 pixels | Done |
+| 4 | Chargeback for finance (R8) | For administrators: every lab's and department's charges for a month, storage no one owns (unbilled), totals by filesystem, and a CSV statement; within Q3 for a year of weekly scans of 2,000 folders | Next |
 | 5 | Demo and release 0.5.0 | Prices and free tiers in the demo seed; the README demo script; version 0.5.0, changelog, pull request, tag, release | To come |
 
 ### Decisions for wave 5
@@ -561,6 +562,22 @@ rounded (for now, half up to the cent, once per lab and filesystem, unless finan
      tier starting and ending, a department with none, unowned folders, and files in the root; the month after; the
      estimate for the month in progress; months before the first scan and price; rounding (cents and whole units);
      ownership recorded by the app; administrators only.
+3. **What labs pay (R8).**
+   - Each line split into periods with one price and one free tier, so its charge reads worked out: "Sep 1 – Sep
+     15: 43.668 TB on average, with no free tier, so 43.668 TB at $25.00 per TB per month, for 15 of 30 days:
+     $545.84". Sizes in the unit the price is in, so the arithmetic reads straight.
+   - `/api/charges?month=&lab=`, for anyone in a lab or department, whatever their role: their labs' lines, each
+     lab's last twelve months, whether any price is set, and the months there are. Administrators may ask for any
+     lab. A folder a lab was charged for but has since given up is listed and cannot be opened.
+   - *Storage charges* (`js/charges.js`, in the sidebar for everyone): a month picker (and a lab picker for
+     administrators); per lab, its total, each filesystem's charge, its periods and folders, and its past months;
+     this month marked as an estimate to its end; a note when no prices are set. On *My data*, this month's
+     charges across the person's labs, when a price is set.
+   - Tests: members see only their labs (and 404 for others), an administrator any; a lab billed for a folder it
+     has given up sees it but cannot open it; each period's charge is its billable size at its price for its share
+     of the month, and the periods add up to the line; departments with none free; the month in progress, its
+     history, and the months before.
+   - *Done*: checked in the browser in both themes and at 375 pixels, with prices set on the demo and without.
 
 ## Later waves (outlined)
 
