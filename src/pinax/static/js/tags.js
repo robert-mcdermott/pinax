@@ -82,3 +82,82 @@ export async function viewTags(el) {
     } catch (e) { toast(e.message, "error"); }
   }));
 }
+
+// ---------- A folder's tags, in the age map's panel ----------
+const shownValue = (t) => (t.value ? `${t.tag.label}: ${t.value}` : t.tag.label);
+
+function valueField(tag) {
+  if (!tag || tag.type === "flag") return "";
+  if (tag.type === "choice") return html`<select class="select" name="value">${tag.choices.map((c) => html`<option>${c}</option>`)}</select>`;
+  if (tag.type === "date") return html`<input class="input" type="date" name="value" required>`;
+  return html`<input class="input" name="value" maxlength="200" required placeholder="${tag.key === "grant" ? "e.g. R01-CA123456" : ""}">`;
+}
+
+function addTag(fs, path, here) {
+  const list = here.available;
+  const body = html`<form class="stack" style="gap:10px">
+    <label class="field"><span class="small">Tag</span><select class="select" name="tag">${list.map((t) => html`<option value="${t.id}">${t.label}${t.lab ? ` (${t.lab.name}'s own)` : ""}</option>`)}</select></label>
+    <div class="field" id="tag-value">${valueField(list[0])}</div>
+    <p class="small muted" style="margin:0" id="tag-about">${list[0]?.description || ""}</p>
+    <p class="small muted" style="margin:0">A tag applies to this folder and everything below it.</p></form>`;
+  const pending = modal({ title: `Tag ${path.split("/").pop()}`, body, confirm: "Add tag",
+    onConfirm: (wrap) => {
+      const f = new FormData($("form", wrap));
+      return api("tags/folders", { method: "POST", body: { fs, path, tag: Number(f.get("tag")), value: f.get("value") } });
+    } });
+  const wrap = document.querySelector(".modal-backdrop:last-of-type");
+  $("select[name=tag]", wrap)?.addEventListener("change", (e) => {
+    const t = list.find((x) => String(x.id) === e.target.value);
+    mount($("#tag-value", wrap), valueField(t));
+    $("#tag-about", wrap).textContent = t?.description || "";
+  });
+  return pending;
+}
+
+function makeTag(lab) {
+  return modal({ title: `A tag of the ${lab.name}'s own`,
+    body: html`<form class="stack" style="gap:10px"><label class="field"><span class="small">Name</span><input class="input" name="label" required maxlength="100" placeholder="e.g. Atlas paper"></label>
+      <label class="radio"><input type="radio" name="type" value="flag" checked> <span>A flag (no value)</span></label>
+      <label class="radio"><input type="radio" name="type" value="text"> <span>Text (a value on each folder)</span></label>
+      <p class="small muted" style="margin:0">Seen by the lab's members and administrators, who may fold it into a standard tag.</p></form>`,
+    confirm: "Make tag",
+    onConfirm: (wrap) => {
+      const f = new FormData($("form", wrap));
+      return api("tags/custom", { method: "POST", body: { lab: lab.slug, label: f.get("label"), type: f.get("type") } });
+    } });
+}
+
+/** The age map panel's part: a folder's own tags, those it inherits, and adding one. */
+export async function tagBox(box, fs, path) {
+  let here;
+  try {
+    here = await api("tags/here", { query: { fs, path }, quiet: true });
+  } catch (e) {
+    if (e.name !== "AbortError") mount(box, "");
+    return;
+  }
+  if (!here.taggable) return mount(box, "");
+  const draw = () => {
+    const own = here.tags.filter((t) => !t.from), inherited = here.tags.filter((t) => t.from);
+    mount(box, html`<h3>Tags</h3>
+      ${own.length || inherited.length ? html`<div class="tag-list">
+        ${own.map((t) => html`<span class="tag">${t.tag.protects ? icon("shield") : icon("tag")}${shownValue(t)}${t.can_remove
+          ? html`<button class="tag-x" title="Take it off" aria-label="Take ${shownValue(t)} off" data-untag="${t.id}">${icon("x")}</button>` : ""}</span>`)}
+        ${inherited.map((t) => html`<span class="tag inherited" title="From ${t.from}">${t.tag.protects ? icon("shield") : icon("tag")}${shownValue(t)}
+          <small>from ${t.from.split("/").pop()}</small></span>`)}</div>`
+        : html`<p class="small muted" style="margin:0 0 8px">No tags yet. Tags say what a folder holds (project, grant, stage, source) and apply to everything below it.</p>`}
+      <div class="toolbar" style="margin-top:8px">${here.available.length ? html`<button class="btn btn-secondary btn-sm" data-tag="add">${icon("plus")}Add tag</button>` : ""}
+        ${here.can_make && here.lab ? html`<button class="btn btn-ghost btn-sm" data-tag="make">A tag of the lab's own</button>` : ""}</div>`);
+    $("[data-tag=add]", box)?.addEventListener("click", async () => {
+      const next = await addTag(fs, path, here);
+      if (next) { here = next; toast("Tagged"); draw(); }
+    });
+    $("[data-tag=make]", box)?.addEventListener("click", async () => {
+      if (await makeTag(here.lab)) { here = await api("tags/here", { query: { fs, path } }); toast("Tag made"); draw(); }
+    });
+    $$("[data-untag]", box).forEach((b) => b.addEventListener("click", async () => {
+      try { here = await api(`tags/folders/${b.dataset.untag}`, { method: "DELETE" }); toast("Taken off"); draw(); } catch (e) { toast(e.message, "error"); }
+    }));
+  };
+  draw();
+}

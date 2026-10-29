@@ -193,3 +193,207 @@ def lab_tags(session: Session, lab: Lab, *, active_only: bool = False) -> list[T
     if active_only:
         q = q.where(Tag.active.is_(True))
     return session.scalars(q.order_by(Tag.label)).all()
+
+
+# ---------- Tagging folders (T2) ----------
+
+def _owner(session: Session, fs, path: str):
+    from .plans import owner_of, top_folder
+
+    return top_folder(fs, path), owner_of(session, fs, path)
+
+
+def can_apply(ident, tag: Tag, lab: Lab | None) -> bool:
+    """Whether `ident` (None: the command line) may put `tag` on a folder `lab` owns."""
+    if not tag.active:
+        return False
+    if ident is None:
+        return True
+    if tag.lab_id is not None and (lab is None or tag.lab_id != lab.id):
+        return False  # a lab's own tags are for its folders
+    if ident.is_admin:
+        return True
+    return tag.applied_by == "owners" and lab is not None and lab.id in ident.lab_roles
+
+
+def _visible(ident, fs, path: str, top: str | None) -> bool:
+    from .explore import canonical
+
+    return top is not None and canonical(path, fs.root) and (ident is None or ident.can_view_folder(fs.id, top))
+
+
+def apply(session: Session, ident, fs, path: str, tag: Tag, value: str | None, *, cold_from: int) -> FolderTag:
+    """Tag a folder (and so everything below it). A tag with one value replaces the value the folder had."""
+    from . import marks
+
+    top, lab = _owner(session, fs, path)
+    if not _visible(ident, fs, path, top):
+        raise TagError("That folder is not in the latest scan, or it is not shared with you", 404)
+    if not can_apply(ident, tag, lab):
+        raise TagError(f"{tag.label} {'is retired' if not tag.active else 'is not one you can put on this folder'}", 403)
+    value = valid_value(tag, value)
+    try:
+        mark = marks.mark_folder(session, fs, path, cold_from=cold_from)
+    except marks.MarkError as e:
+        raise TagError(str(e), e.status) from e
+    had = session.scalars(select(FolderTag).where(FolderTag.tag_id == tag.id, FolderTag.mark_id == mark.id)).all()
+    if any(h.value == value for h in had):
+        raise TagError("The folder has that tag already", 409)
+    if not tag.many:
+        for h in had:
+            session.delete(h)
+    user = ident.user if ident else None
+    ft = FolderTag(tag_id=tag.id, mark_id=mark.id, value=value, added_by=user.id if user else None)
+    ft.tag, ft.mark = tag, mark
+    session.add(ft)
+    shown = f"{tag.label}: {value}" if value else tag.label
+    _audit(session, user, "folder.tagged", f"{path} tagged {shown}", tag, path=path, value=value)
+    session.flush()
+    return ft
+
+
+def untag(session: Session, ident, ft: FolderTag) -> None:
+    from .models import Filesystem
+
+    fs = session.get(Filesystem, ft.mark.filesystem_id)
+    _, lab = _owner(session, fs, ft.mark.path)
+    if not can_apply(ident, ft.tag, lab) and not (ident and ident.is_admin):
+        raise TagError("That tag is not one you can take off", 403)
+    _audit(session, ident.user if ident else None, "folder.untagged", f"{ft.mark.path}: {ft.tag.label} taken off",
+           ft.tag, path=ft.mark.path, value=ft.value)
+    session.delete(ft)
+    session.flush()
+
+
+def ancestors(path: str, root: str) -> list[str]:
+    """`path` and each folder above it, up to (not including) the filesystem root."""
+    root = root.rstrip("/")
+    out, p = [], path
+    while p.startswith(root + "/"):
+        out.append(p)
+        p = p.rsplit("/", 1)[0]
+    return out
+
+
+def _ft_json(ft: FolderTag, ident, lab: Lab | None, here: str, session: Session) -> dict:
+    by = session.get(User, ft.added_by) if ft.added_by else None
+    return {"id": ft.id, "tag": tag_json(ft.tag), "value": ft.value, "from": None if ft.mark.path == here else ft.mark.path,
+            "added_by": by.display_name if by else None, "added_at": ft.added_at.isoformat() + "Z",
+            "can_remove": ft.mark.path == here and (can_apply(ident, ft.tag, lab) or bool(ident and ident.is_admin))}
+
+
+def effective(session: Session, fs_id: int, path: str, root: str) -> list[FolderTag]:
+    """The tags a folder has: its own, and those of the folders above it."""
+    from .models import MarkedFolder
+
+    up = ancestors(path, root)
+    if not up:
+        return []
+    return session.scalars(select(FolderTag).join(MarkedFolder, MarkedFolder.id == FolderTag.mark_id).where(
+        MarkedFolder.filesystem_id == fs_id, MarkedFolder.path.in_(up))).all()
+
+
+def here(session: Session, ident, fs, path: str) -> dict:
+    """For the age map's panel: a folder's own tags and those it inherits, and the tags the person can add."""
+    top, lab = _owner(session, fs, path)
+    if not _visible(ident, fs, path, top):
+        return {"taggable": False}
+    have = sorted(effective(session, fs.id, path, fs.root), key=lambda ft: (-len(ft.mark.path), ft.tag.label))
+    usable = [t for t in standard_tags(session, active_only=True) if can_apply(ident, t, lab)]
+    if lab is not None:
+        usable += [t for t in lab_tags(session, lab, active_only=True) if can_apply(ident, t, lab)]
+    member = lab is not None and (ident.is_admin or lab.id in ident.lab_roles)
+    return {"taggable": True, "lab": {"slug": lab.slug, "name": lab.name} if lab else None,
+            "tags": [_ft_json(ft, ident, lab, path, session) for ft in have],
+            "available": [tag_json(t) for t in usable], "can_make": member}
+
+
+def make_custom(session: Session, ident, lab: Lab, label: str, kind: str = "flag") -> Tag:
+    """A lab's own tag, made by its PI or a delegate (or an administrator): a flag or text."""
+    if not (ident.is_admin or lab.id in ident.lab_roles):
+        raise TagError("Only the lab's PI and delegates make its tags", 403)
+    if kind not in ("flag", "text"):
+        raise TagError("A lab's own tag is a flag or text")
+    label = label.strip()[:100]
+    key = _key(label)
+    if session.scalar(select(Tag.id).where(Tag.lab_id == lab.id, Tag.key == key)):
+        raise TagError(f"The {lab.name} has a tag {label!r} already", 409)
+    tag = Tag(key=key, label=label, lab_id=lab.id, value_type=kind, many=kind == "text", applied_by="owners")
+    tag.lab = lab
+    session.add(tag)
+    _audit(session, ident.user, "tag.added", f"{lab.name}: its own tag {label!r} made", tag)
+    session.flush()
+    return tag
+
+
+def merge(session: Session, actor: User | None, custom: Tag, into: Tag, value: str | None = None) -> int:
+    """Fold a lab's own tag into a standard one: each folder with it gets the standard tag (with `value`, or the
+    custom tag's own value, or for a flag its name), and the lab's tag is retired. Returns how many folders."""
+    if custom.lab_id is None or into.lab_id is not None:
+        raise TagError("A lab's own tag is merged into a standard tag")
+    moved = 0
+    for ft in session.scalars(select(FolderTag).where(FolderTag.tag_id == custom.id)).all():
+        v = valid_value(into, value if value is not None else (ft.value or custom.label))
+        exists = session.scalar(select(FolderTag).where(FolderTag.tag_id == into.id, FolderTag.mark_id == ft.mark_id))
+        if exists is not None and not into.many:
+            exists.value = v
+        elif exists is None or exists.value != v:
+            session.add(FolderTag(tag_id=into.id, mark_id=ft.mark_id, value=v, added_by=ft.added_by, added_at=ft.added_at))
+        session.delete(ft)
+        moved += 1
+    custom.active = False
+    _audit(session, actor, "tag.merged", f"{custom.lab.name}'s tag {custom.label!r} merged into {into.label!r}", custom,
+           into=into.key, folders=moved)
+    session.flush()
+    return moved
+
+
+def tagged_below(session: Session, ident, fs, path: str) -> dict[str, list[str]]:
+    """For the age map's tiles: each tagged folder at or below `path` the person may see, with its tags' labels."""
+    from .models import MarkedFolder
+
+    q = (select(MarkedFolder.path, Tag.label, FolderTag.value).join(FolderTag, FolderTag.mark_id == MarkedFolder.id)
+         .join(Tag, Tag.id == FolderTag.tag_id).where(MarkedFolder.filesystem_id == fs.id))
+    q = q.where((MarkedFolder.path == path) | MarkedFolder.path.startswith(path.rstrip("/") + "/", autoescape=True))
+    out: dict[str, list[str]] = {}
+    for p, label, value in session.execute(q):
+        top = p[len(fs.root.rstrip("/")) + 1:].split("/", 1)[0]
+        if ident.can_view_folder(fs.id, top):
+            out.setdefault(p, []).append(f"{label}: {value}" if value else label)
+    return out
+
+
+def import_rows(session: Session, rows: list[dict], *, apply_them: bool, cold_from: int) -> tuple[list[str], list[str]]:
+    """Tags from a CSV (filesystem, path, tag, value; a lab's own tag as lab:key), as the command line: what each
+    row does, and what is wrong. Nothing is changed unless `apply_them` and nothing is wrong."""
+    from .models import Filesystem
+
+    done, problems = [], []
+    for n, row in enumerate(rows, start=2):
+        fs = session.scalar(select(Filesystem).where(Filesystem.slug == (row.get("filesystem") or "").strip()))
+        key = (row.get("tag") or "").strip()
+        lab_slug, _, key = key.rpartition(":")
+        q = select(Tag).where(Tag.key == key)
+        q = q.where(Tag.lab_id == select(Lab.id).where(Lab.slug == lab_slug).scalar_subquery()) if lab_slug else q.where(Tag.lab_id.is_(None))
+        tag = session.scalar(q)
+        path = (row.get("path") or "").strip().rstrip("/")
+        if fs is None or tag is None:
+            problems.append(f"line {n}: no {'filesystem' if fs is None else 'tag'} {row.get('filesystem') if fs is None else row.get('tag')!r}")
+            continue
+        if not path.startswith("/"):
+            path = f"{fs.root.rstrip('/')}/{path}"
+        try:
+            with session.begin_nested():
+                apply(session, None, fs, path, tag, row.get("value"), cold_from=cold_from)
+                done.append(f"line {n}: {path}: {tag.label}{': ' + row['value'] if row.get('value') else ''}")
+                if not apply_them:
+                    raise _Undo
+        except _Undo:
+            pass
+        except TagError as e:
+            problems.append(f"line {n}: {path}: {e}")
+    return done, problems
+
+
+class _Undo(Exception):
+    """Rolls back one row of a dry run."""

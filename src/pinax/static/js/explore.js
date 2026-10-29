@@ -6,6 +6,7 @@ import {
   raw, state, when,
 } from "/js/core.js";
 import { planBox } from "/js/plans.js";
+import { tagBox } from "/js/tags.js";
 import { scopeHeader } from "/js/shell.js";
 import { renderTreemap } from "/js/treemap.js";
 import {
@@ -19,7 +20,17 @@ export async function viewExplore(el, query) {
   const q = { ...DEFAULTS, ...parseQuery(query) };
   const place = q.fs ? { fs: q.fs, path: q.path } : null;
   const view = { size: q.size, color: q.color, levels: q.levels, view: q.view };
-  const data = await api("tree", { query: { ...placeQuery(place), metric: q.size, depth: Number(q.levels), lab: q.lab } });
+  const [data, below] = await Promise.all([
+    api("tree", { query: { ...placeQuery(place), metric: q.size, depth: Number(q.levels), lab: q.lab } }),
+    place ? api("tags/below", { query: { fs: place.fs, path: place.path }, quiet: true }).catch(() => ({ tagged: {} })) : { tagged: {} }]);
+  // A tile's own tags, or that it holds tagged folders (null: neither).
+  const tagged = Object.entries(below.tagged);
+  const tagsOf = (t) => {
+    if (!t.path || t.kind !== "dir") return null;
+    const own = below.tagged[t.path];
+    if (own) return own.join(", ");
+    return tagged.some(([p]) => p.startsWith(`${t.path}/`)) ? "Holds tagged folders" : null;
+  };
 
   const node = data.node;
   const asOf = data.as_of;
@@ -54,7 +65,7 @@ export async function viewExplore(el, query) {
     <div class="explore-layout">
       <div class="card tm-card">
         ${q.view === "map" ? html`<div class="tm" id="tm" role="group" aria-label="Treemap of ${node.name}: ${metricLabel(q.size)} by ${colorOptions().find((c) => c.key === q.color)?.label}"></div>`
-          : childTable(tiles, q, asOf, cb, hrefFor, total)}
+          : childTable(tiles, q, asOf, cb, hrefFor, total, tagsOf)}
         ${legend(q.color, cb)}
         <p class="small muted" style="margin:10px 0 0">Tile area is ${metricLabel(q.size).toLowerCase()}. ${node.subdirs > 60 ? `The largest 60 of ${num(node.subdirs)} subfolders are drawn; the rest are combined. ` : ""}Click a folder to open it.</p>
       </div>
@@ -68,8 +79,9 @@ export async function viewExplore(el, query) {
       value: (t) => metricValue(t.stats, q.size),
       color: (t) => colorFor(t.stats, q.color, asOf, cb).token,
       href: hrefFor,
-      label: (t) => `${metricText(metricValue(t.stats, q.size), q.size)} · ${colorFor(t.stats, q.color, asOf, cb).text}`,
-      tip: (t) => String(tileTip(t, q, asOf, cb, total)),
+      label: (t) => `${metricText(metricValue(t.stats, q.size), q.size)} · ${colorFor(t.stats, q.color, asOf, cb).text}${tagsOf(t) ? ` · tags: ${tagsOf(t)}` : ""}`,
+      tip: (t) => String(tileTip(t, q, asOf, cb, total, tagsOf(t))),
+      mark: (t) => Boolean(tagsOf(t)),
       onEmpty: () => String(html`<div class="empty">${icon("treemap")}<h3>Nothing to draw</h3><p>No subfolder here has any ${metricLabel(q.size).toLowerCase()}.</p></div>`),
     });
     draw();
@@ -80,6 +92,8 @@ export async function viewExplore(el, query) {
     window.addEventListener("hashchange", () => { window.removeEventListener("resize", redraw); window.removeEventListener("pinax:theme", redraw); }, { once: true });
   }
 
+  const tagEl = $("#tag-box", el);
+  if (tagEl && node.fs && node.path) tagBox(tagEl, node.fs, node.path);
   const planEl = $("#plan-box", el);
   if (planEl && node.fs && node.path) planBox(planEl, node.fs, node.path);
 
@@ -94,7 +108,7 @@ export async function viewExplore(el, query) {
   }));
 }
 
-function tileTip(t, q, asOf, cb, total) {
+function tileTip(t, q, asOf, cb, total, tags = null) {
   const s = t.stats;
   const v = metricValue(s, q.size);
   const c = colorFor(s, q.color, asOf, cb);
@@ -112,11 +126,12 @@ function tileTip(t, q, asOf, cb, total) {
       <dt>Unchanged ${thresholdText(cb)}+</dt><dd>${pct(s.bytes ? (coldBytes(s, cb) / s.bytes) * 100 : 0)}</dd>
       ${q.color.startsWith("share:") || q.color === "access" ? html`<dt>Color</dt><dd>${c.text}</dd>` : ""}
       ${t.lab ? html`<dt>Owned by</dt><dd>${t.lab.name}</dd>` : ""}
+      ${tags ? html`<dt>Tags</dt><dd>${tags}</dd>` : ""}
       ${t.error ? html`<dt>Scan error</dt><dd>${t.error}</dd>` : ""}
     </dl>`;
 }
 
-function childTable(tiles, q, asOf, cb, hrefFor, total) {
+function childTable(tiles, q, asOf, cb, hrefFor, total, tagsOf = () => null) {
   const rows = [...tiles].sort((a, b) => metricValue(b.stats, q.size) - metricValue(a.stats, q.size));
   return html`<div class="table-wrap"><table class="table compact"><thead><tr>
       <th>Folder</th><th class="num">${metricLabel(q.size)}</th><th class="num">Share</th><th class="num">Files</th>
@@ -126,7 +141,7 @@ function childTable(tiles, q, asOf, cb, hrefFor, total) {
       const href = hrefFor(t);
       return html`<tr>
         <td>${href ? html`<a class="rowlink" href="${href}">${t.name}</a>` : html`<span class="title-cell">${t.name}</span>`}
-          ${t.lab ? html`<div class="sub">${t.lab.name}</div>` : ""}</td>
+          ${t.lab ? html`<div class="sub">${t.lab.name}</div>` : ""}${tagsOf(t) ? html`<div class="sub">${icon("tag")} ${tagsOf(t)}</div>` : ""}</td>
         <td class="num nowrap">${metricText(v, q.size)}</td><td class="num">${total ? pct((v / total) * 100) : "—"}</td>
         <td class="num">${num(t.stats.files)}</td><td class="num nowrap">${ageText(t.stats.mean_age_days)}</td>
         <td class="nowrap">${t.stats.newest ? date(t.stats.newest) : "—"}</td><td>${ageBar(t.stats.age_bytes)}</td></tr>`;
@@ -165,6 +180,7 @@ function detailPanel(node, data, q, cb) {
       <a href="${placeHash("owners", place, extra)}">Owners</a></p>
     ${node.direct && node.direct.files ? html`<p class="small muted" style="margin:10px 0 0">${num(node.direct.files)} files (${bytes(node.direct.bytes)}) sit directly in this folder.
       <a href="${placeHash("files", place, { direct: 1 })}">List them</a></p>` : ""}
+    <div id="tag-box" class="plan-box"></div>
     <div id="plan-box" class="plan-box"></div>
   </aside>`;
 }

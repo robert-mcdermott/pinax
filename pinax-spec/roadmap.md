@@ -912,7 +912,7 @@ split their charges by grant. Planned; the slices are confirmed when the wave st
 | Slice | Scope and requirements | Acceptance before the next slice | Status |
 | --- | --- | --- | --- |
 | 1 | The tag list (T1) | Standard tags kept by administrators on a *Tags* page: added, changed, and retired (a tag in use is retired, not deleted); each with a type (a flag, text, a date, or a choice from a list), who may apply it (owners, or administrators only), and whether it protects a folder from cleanup; the default list below at start-up, for a site to change; audited | Done |
-| 2 | Tagging folders (T2) | From the age map's folder panel and tile actions: a folder's own tags, and those it inherits from the folders above it; a lab's PI and delegates tag its folders, administrators any folder; a lab makes custom tags of its own, seen by its members and administrators; administrators merge a custom tag into a standard one; `pinax import` takes tags in bulk; tiles that are or hold tagged folders are marked, with their tags in tooltips and the table view; audited; both themes and 375 pixels | To come |
+| 2 | Tagging folders (T2) | From the age map's folder panel and tile actions: a folder's own tags, and those it inherits from the folders above it; a lab's PI and delegates tag its folders, administrators any folder; a lab makes custom tags of its own, seen by its members and administrators; administrators merge a custom tag into a standard one; `pinax import` takes tags in bulk; tiles that are or hold tagged folders are marked, with their tags in tooltips and the table view; audited; both themes and 375 pixels | Done |
 | 3 | Finding data by tag (T3) | A *Collections* page: folders by tag and value, combined (Source is cryo-EM and Data stage is raw), across filesystems, within what the person may see; each folder's size, files, cold share, average age, monthly cost, owner, and tags; nested folders counted once in the total; the collection's history and forecast from the recorded totals (waves 6 and 7); CSV; within Q3, reading only the catalog | To come |
 | 4 | Cost by tag (T4) | Charges split by a tag's values, such as by grant or project: each tagged folder's share of its lab's charge on its filesystem, time-weighted from the recorded totals, and what is untagged; on *Storage charges* and in the statement CSV; tested against brute force | To come |
 | 5 | Protection (T5) | A folder with a protecting tag (*Keep until*, before its date; *Legal hold*), and everything below it, cannot be added to a cleanup plan; folders already planned are flagged; suggestions leave them out | To come |
@@ -961,6 +961,23 @@ Settled when the wave started:
    - Tests (`tests/test_tags.py`): the default list, added once; adding and changing, and what is refused; a tag in
      use retired, not deleted, and its choices kept; administrators only; values by type.
    - *Done*: checked in the browser on the demo.
+2. **Tagging folders (T2).**
+   - `tags.apply` and `untag`: a lab's PI and delegates (and administrators) put a standard tag applied by owners,
+     or the lab's own tag, on its folders; administrators any tag on any folder; a retired tag on none. A one-value
+     tag replaces the value; the same value twice is refused. A folder's tags are its own and its ancestors'
+     (`tags.effective`). `make_custom` (a lab's own flag or text tag) and `merge` (into a standard tag, retiring
+     the lab's). Each audited.
+   - `/api/tags/here`, `/below`, `/folders`, `/custom`, and `/api/admin/tags/{id}/merge`. The age map's panel has a
+     *Tags* box (own tags with *take it off*, inherited ones from the folder above, *Add tag* with a value field
+     for the tag's type, and a tag of the lab's own); tiles that are or hold tagged folders carry a dot, and their
+     tags are in the tooltip, the accessible label, and the table view.
+   - `pinax tags import FILE [--apply]`: a CSV of filesystem, path, tag, value (`lab:key` for a lab's own), a dry
+     run first, and nothing changed if any row is refused. It is a command of its own rather than part of
+     `pinax import`, whose plan of labs, people, and folders it does not need.
+   - Tests: a PI's tag, inherited below; more than one value; who may tag what; a one-value tag replaced; a retired
+     tag; a lab's own tag, other labs refused, and merging it; untagging; the audit; the command line's dry run,
+     refusal, and apply.
+   - *Done*: checked in the browser on the demo (a tag added from the panel; the tile's dot and tooltip).
 
 ## Later waves (outlined)
 

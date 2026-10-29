@@ -9,6 +9,11 @@
   more, and some protecting a folder from cleanup plans. A default list is added once: Project, Grant or award, Data
   stage, Source, Data classification, IRB protocol, Shared in a repository, Keep until, and Legal hold. A tag in use
   is retired rather than deleted; every change is audited.
+- **Tagging folders.** From a folder's panel on the age map, a lab's PI or delegate tags it (and so everything below
+  it), with the standard tags and with tags of the lab's own; the panel shows the tags a folder inherits from the
+  folders above it. Tiles that are or hold tagged folders carry a dot, with their tags in the tooltip and the table.
+  Administrators tag any folder, and fold a lab's tag into a standard one. `pinax tags import` tags folders in bulk
+  from a CSV, as a dry run unless `--apply`.
 
 ## 0.7.0 (2026-10-29)
 
