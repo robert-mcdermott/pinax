@@ -1,40 +1,13 @@
 # Changelog
 
-## Unreleased
-
-### Added
-
-- **A website with the whole documentation** (`node docs/site/build.mjs` builds it into `site/`): a product home
-  page, and every guide as pages with a menu, previous and next, and *On this page*, in light and dark themes and at
-  a phone's width. It is built from the guides in `docs/`, so the two never differ, and checks every link, anchor,
-  and screenshot.
-- **Screenshots of every page**, 40 scenes in both themes, captured from a demo of their own by
-  `node docs/capture/capture.mjs` driving headless Chrome.
-- **New guides**: how Pinax sees storage (`docs/CONCEPTS.md`), a user guide (`docs/USER-GUIDE.md`), an
-  administration guide (`docs/ADMINISTRATION.md`), every command (`docs/CLI.md`), troubleshooting
-  (`docs/TROUBLESHOOTING.md`), and a map of them all (`docs/README.md`), so a new administrator has everything to
-  install, configure, and operate Pinax.
-
-### Changed
-
-- *Storage charges* and *Costs* have icons of their own (a receipt and a banknote) instead of the tag *Tags* has, and
-  *Searches* one of its own instead of *Age report*'s clock.
-
-### Fixed
-
-- The demo's *Fast* fills within the year again, before its scheduled expansion (120 TiB rather than 125), as the
-  demo guide says; since 0.7.0 its trend had slowed past it.
-- The deployment guide ran `pinax db upgrade` and `pinax db copy` without Pinax's settings; they now use the shell
-  function from its step 3. Local sign-in behind a proxy records the person's address, as of 0.10.0, which the guide
-  now says.
-
 ## 0.10.0 (2026-10-29)
 
 Tenth release (wave 10, "operations"): what a production deployment needs from Pinax itself. The catalog can be
 PostgreSQL, with migrations that upgrade it in place (SQLite stays the default, with nothing to install); logs of
-every request and every audit event, as text or JSON; and Prometheus metrics to trend and alert on. It comes before
-the production pilot (now wave 11) and reach (now wave 12, with sign-in with Microsoft Entra ID in Pinax itself).
-See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+every request and every audit event, as text or JSON; and Prometheus metrics to trend and alert on. With it comes
+documentation for a new administrator to install, configure, and operate Pinax, and a website made from it with
+screenshots of every page. It comes before the production pilot (now wave 11) and reach (now wave 12, with sign-in
+with Microsoft Entra ID in Pinax itself). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
 
 Upgrading from 0.9.0: back the catalog up first ([Backups](docs/DEPLOYMENT.md#backups)). When Pinax starts, the
 first migration adopts the catalog in place, adding nothing it already has; `PINAX_DB_AUTO_UPGRADE=false` leaves
@@ -75,6 +48,16 @@ both from `deploy/` again.
   their times, index queries, stopped queries, whole-filesystem query turns, and audit events by action, sign-ins
   among them. Filesystems are named, never labs, people, or paths. `deploy/prometheus/` has a scrape job and alert
   rules to start from, and oauth2-proxy lets Prometheus through to `/metrics`.
+- **A website with the whole documentation** (`node docs/site/build.mjs` builds it into `site/`): a product home
+  page, and every guide as pages with a menu, previous and next, and *On this page*, in light and dark themes and at
+  a phone's width. It is built from the guides in `docs/`, so the two never differ, and checks every link, anchor,
+  and screenshot.
+- **Screenshots of every page**, 40 scenes in both themes, captured from a demo of their own by
+  `node docs/capture/capture.mjs` driving headless Chrome.
+- **New guides**: how Pinax sees storage (`docs/CONCEPTS.md`), a user guide (`docs/USER-GUIDE.md`), an
+  administration guide (`docs/ADMINISTRATION.md`), every command (`docs/CLI.md`), troubleshooting
+  (`docs/TROUBLESHOOTING.md`), and a map of them all (`docs/README.md`), so a new administrator has everything to
+  install, configure, and operate Pinax.
 
 ### Changed
 
@@ -84,11 +67,17 @@ both from `deploy/` again.
 - **The roadmap.** Operations comes next as wave 10 (0.10.0), before the production pilot (now wave 11) and reach
   (now wave 12), at the maintainer's request. Reach now plans sign-in with Microsoft Entra ID in Pinax itself, with
   OpenID Connect, rather than behind an authenticating proxy.
+- *Storage charges* and *Costs* have icons of their own (a receipt and a banknote) instead of the tag *Tags* has, and
+  *Searches* one of its own instead of *Age report*'s clock.
 
 ### Fixed
 
 - Two Pinax processes opening a new SQLite catalog at the same moment could fail with "database is locked".
 - The age map of a whole filesystem now marks top-level folders that are tagged, or hold tagged folders.
+- The demo's *Fast* fills within the year again, before its scheduled expansion (120 TiB rather than 125), as the
+  demo guide says; since 0.7.0 its trend had slowed past it.
+- The deployment guide ran `pinax db upgrade` and `pinax db copy` without Pinax's settings; they now use the shell
+  function from its step 3. It also says that local sign-in behind a proxy records the person's address.
 
 ## 0.9.0 (2026-10-29)
 
