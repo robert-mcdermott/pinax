@@ -52,6 +52,10 @@ class Settings(BaseSettings):
     cold_days: int = 730
     # Costs: the currency prices are in (an ISO 4217 code), shown in the viewer's own number format.
     currency: str = Field("USD", pattern=r"^[A-Z]{3}$")
+    # Searches run in the background (jobs.py): how long one may run, in seconds, and how many days its results are
+    # kept. They take the same turns as whole-filesystem queries (wide_queries).
+    job_timeout: int = Field(3600, ge=60)
+    job_days: int = Field(7, ge=1, le=365)
     # Capacity: a filesystem that fills within this many months at its trend is flagged on the overview.
     fill_warning_months: int = Field(12, ge=1, le=120)
 

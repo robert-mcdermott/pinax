@@ -53,7 +53,7 @@ from ..categories import AGE_BUCKETS, CATEGORIES, COMPRESSION_SUFFIXES, OTHER, b
 
 log = logging.getLogger("pinax.build")
 
-INDEX_VERSION = 6
+INDEX_VERSION = 7
 # Files are staged and sorted in at most this many groups of top-level folders. A partitioned write keeps a
 # file open and buffered for each partition, so one per top-level folder does not scale to thousands of them.
 FILE_GROUPS = 64
@@ -72,6 +72,7 @@ ADDITIVE = (
     ["files", "bytes", "alloc", "m_wsum", "m_fsum", "m_n", "a_wsum", "a_n"]
     + [f"mf{i}" for i in range(NB)] + [f"mb{i}" for i in range(NB)] + [f"ab{i}" for i in range(NB)]
     + [f"cf{i}" for i in range(NC)] + [f"cb{i}" for i in range(NC)]
+    + ["hl_files", "hl_bytes"]  # extra hard links, and the bytes they would have counted again (R7)
 )
 EXTREMES = {"mtime_min": "min", "mtime_max": "max", "atime_max": "max", "ctime_max": "max"}
 FLOAT_COLUMNS = {"m_wsum", "m_fsum", "a_wsum"}
@@ -202,6 +203,7 @@ def _direct_aggregates() -> str:
         "coalesce(sum(size * aday), 0)::DOUBLE AS a_wsum",
         "count(aday)::BIGINT AS a_n",
         "min(mtime) AS mtime_min", "max(mtime) AS mtime_max", "max(atime) AS atime_max", "max(ctime) AS ctime_max",
+        "count(*) FILTER (WHERE extra_link)::BIGINT AS hl_files", "coalesce(sum(link_bytes), 0)::BIGINT AS hl_bytes",
     ]
     cols += [f"count(*) FILTER (WHERE mbk = {i})::BIGINT AS mf{i}" for i in range(NB)]
     cols += [f"coalesce(sum(size) FILTER (WHERE mbk = {i}), 0)::BIGINT AS mb{i}" for i in range(NB)]
@@ -444,6 +446,17 @@ def build_index(
         return f"{_to_us(col) if ns else col} AS {alias or col.split('.')[-1]}"
 
     groups = min(FILE_GROUPS, con.execute("SELECT count(*) FROM tops").fetchone()[0] + 1)
+    # Hard links (R7): a file with several links counts its size once, at its first link by path; each later link
+    # is a file with no size. Only hard-linked files are compared, so a scan with few of them costs little.
+    columns = {r[0] for r in con.execute("DESCRIBE entries").fetchall()}
+    if {"dev", "ino", "nlink"} <= columns:
+        step("links", """
+            CREATE TEMP TABLE extra_links AS SELECT path FROM (
+              SELECT path, row_number() OVER (PARTITION BY dev, ino ORDER BY path) AS k
+              FROM entries WHERE kind <> 'dir' AND nlink > 1) WHERE k > 1
+        """)
+    else:
+        con.execute("CREATE TEMP TABLE extra_links (path VARCHAR)")
     step("stage", f"""
         COPY (
           WITH e AS (
@@ -452,14 +465,16 @@ def build_index(
                    CASE WHEN extension IN ({comp})
                         THEN coalesce(regexp_extract(lower(name), '\\.([^./]{{1,16}})\\.[^./]+$', 1), '')
                         ELSE '' END AS inner_ext,
-                   CASE WHEN depth >= 2 THEN split_part({rel}, '/', 1) END AS top_name
+                   CASE WHEN depth >= 2 THEN split_part({rel}, '/', 1) END AS top_name,
+                   path IN (SELECT path FROM extra_links) AS extra_link
             FROM entries WHERE kind <> 'dir'
           )
           SELECT coalesce(t.top_id, 0)::INTEGER AS top_id, (coalesce(t.top_id, 0) % {groups})::INTEGER AS grp,
                  e.path, e.parent_id, e.name, e.depth::INTEGER AS depth,
                  CASE WHEN e.inner_ext <> '' THEN e.inner_ext || '.' || e.extension ELSE e.extension END AS ext,
                  coalesce(c.cat, {OTHER})::UTINYINT AS cat,
-                 e.kind, e.size, e.alloc_bytes, e.uid, e.gid, e.mtime, e.atime, e.ctime, e.nlink, e.name_flags
+                 e.kind, e.size, e.alloc_bytes, e.uid, e.gid, e.mtime, e.atime, e.ctime, e.nlink, e.name_flags,
+                 e.extra_link
           FROM e
           LEFT JOIN tops t ON t.name = e.top_name
           LEFT JOIN ext_cat c ON c.ext = CASE WHEN e.inner_ext <> '' THEN e.inner_ext ELSE e.extension END
@@ -469,7 +484,6 @@ def build_index(
     # ---- Directories ----
     say("Reading directories")
     # Each directory's device and inode, which a rename or a move within the filesystem keeps (marks.py).
-    columns = {r[0] for r in con.execute("DESCRIBE entries").fetchall()}
     identity = ("e.dev::UBIGINT AS dev, e.ino::UBIGINT AS ino" if {"dev", "ino"} <= columns
                 else "NULL::UBIGINT AS dev, NULL::UBIGINT AS ino")
     step("dirbase", f"""
@@ -499,7 +513,8 @@ def build_index(
     aday = "epoch(atime) / 86400.0"
     empty_src = ("SELECT NULL::BIGINT AS parent_id, NULL::BIGINT AS size, NULL::BIGINT AS alloc_bytes, "
                  "NULL::DOUBLE AS mday, NULL::DOUBLE AS aday, NULL::TIMESTAMPTZ AS mtime, NULL::TIMESTAMPTZ AS atime, "
-                 "NULL::TIMESTAMPTZ AS ctime, NULL::INTEGER AS mbk, NULL::INTEGER AS abk, NULL::INTEGER AS cat WHERE false")
+                 "NULL::TIMESTAMPTZ AS ctime, NULL::INTEGER AS mbk, NULL::INTEGER AS abk, NULL::INTEGER AS cat, "
+                 "NULL::BOOLEAN AS extra_link, NULL::BIGINT AS link_bytes WHERE false")
     con.execute(f"CREATE TABLE s.direct AS SELECT parent_id AS dir_id, {_direct_aggregates()} "
                 f"FROM ({empty_src}) GROUP BY parent_id")
     con.execute("""
@@ -525,11 +540,16 @@ def build_index(
                                      FILENAME_PATTERN 'part-{{i}}')
         """, clean=out)
         sorted_src = f"read_parquet({_sql_str(str(out / '*.parquet'))})"
+        # The files as totals count them: an extra hard link has no size (its bytes counted at the first link).
+        counted = f"""(SELECT * REPLACE (CASE WHEN extra_link THEN 0 ELSE size END AS size,
+                                         CASE WHEN extra_link THEN 0 ELSE alloc_bytes END AS alloc_bytes),
+                              CASE WHEN extra_link THEN size ELSE 0 END AS link_bytes
+                       FROM {sorted_src})"""
         with_ages = f"""
             SELECT *, {mday} AS mday, {aday} AS aday,
                    {_bucket_case(f'({ref_us} - epoch_us(mtime))')} AS mbk,
                    {_bucket_case(f'({ref_us} - epoch_us(atime))')} AS abk
-            FROM {sorted_src}
+            FROM {counted}
         """
         step("direct", f"INSERT INTO s.direct SELECT parent_id AS dir_id, {_direct_aggregates()} "
                        f"FROM ({with_ages}) GROUP BY parent_id")
@@ -537,13 +557,13 @@ def build_index(
             INSERT INTO s.ext_raw
             SELECT parent_id, ext, cat, count(*), coalesce(sum(size), 0), coalesce(sum(alloc_bytes), 0),
                    coalesce(sum(size * {mday}), 0), min(mtime), max(mtime), max(atime)
-            FROM {sorted_src} GROUP BY parent_id, ext, cat
+            FROM {counted} GROUP BY parent_id, ext, cat
         """)
         step("by_owner", f"""
             INSERT INTO s.owner_raw
             SELECT parent_id, uid, count(*), coalesce(sum(size), 0), coalesce(sum(alloc_bytes), 0),
                    coalesce(sum(size * {mday}), 0), max(mtime)
-            FROM {sorted_src} GROUP BY parent_id, uid
+            FROM {counted} GROUP BY parent_id, uid
         """)
         step("names", f"""
             INSERT INTO name_flags
@@ -553,7 +573,7 @@ def build_index(
             ) WHERE (name_flags & flag) <> 0 GROUP BY top_id, flag
         """)
         step("parts", f"INSERT INTO file_parts SELECT top_id, {grp}, count(*), coalesce(sum(size), 0) "
-                      f"FROM {sorted_src} GROUP BY top_id")
+                      f"FROM {counted} GROUP BY top_id")
         if n % 50 == 0 or n == len(partitions):
             say(f"  {n} of {len(partitions)} groups of top-level folders")
     shutil.rmtree(stage, ignore_errors=True)

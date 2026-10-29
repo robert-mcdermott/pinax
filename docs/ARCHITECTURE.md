@@ -29,7 +29,7 @@ snapshot index that makes it fast, how it is built and queried, security, and me
                                                      │     files/gNNNNNN/  per-file Parquet, by     │
                                                      │                     group of top folders     │
                                                      │                                              │
-                                                     │ catalog (SQLite; PostgreSQL in wave 10)      │
+                                                     │ catalog (SQLite; PostgreSQL in wave 11)      │
                                                      │   people, labs, folder ownership,            │
                                                      │   filesystems, snapshots, folder history     │
                                                      │                                              │
@@ -45,7 +45,7 @@ snapshot index that makes it fast, how it is built and queried, security, and me
 | Crawler | fs-inventory 1.0.0 | Built for this: parallel, bounded memory, resumable, lossless names, about 40 bytes per entry in Parquet (measured at 100 million files) |
 | Index engine | DuckDB (embedded) | Columnar, vectorized, spills to disk, reads Parquet natively; no server to run |
 | Per-file store | Parquet, split by top-level folder and sorted by path | Compact; a lab's queries read only its files; a subfolder is a contiguous range |
-| Catalog | SQLAlchemy on SQLite; PostgreSQL planned (wave 10) | Small, transactional data: who owns what, which snapshots exist, folder history, prices, the audit log |
+| Catalog | SQLAlchemy on SQLite; PostgreSQL planned (wave 11) | Small, transactional data: who owns what, which snapshots exist, folder history, prices, the audit log |
 | Web | FastAPI and plain JavaScript modules | Same stack and patterns as Tundra; nothing to build |
 
 ## What Pinax keeps
@@ -90,7 +90,7 @@ the web app and the watcher, as [DEPLOYMENT.md](DEPLOYMENT.md) installs it.
 
 The catalog has no migrations yet: each release creates new tables and adds new columns (each nullable or with a
 default) at start-up, so an older catalog keeps working, but a change to an existing column or table cannot be
-applied to it. Wave 10 moves the catalog to PostgreSQL with migrations, for three reasons: schema changes of any
+applied to it. Wave 11 moves the catalog to PostgreSQL with migrations, for three reasons: schema changes of any
 kind can then upgrade a production catalog in place; the web app and ingest can run on more than one machine
 against one catalog; and IT's usual database backups, replication, and monitoring apply. The indexes stay
 DuckDB and Parquet files. Until then, `PINAX_DATABASE_URL` can point at PostgreSQL for a fresh catalog (with the
@@ -114,7 +114,7 @@ The age color of a folder comes from those totals: the *average age* is weighted
 
 | Table or file | One row per | Holds | Sorted by |
 |---|---|---|---|
-| `dirs` | directory | Subtree totals: files, folders, bytes, allocated bytes; files and bytes per age bucket by modification time; bytes per age bucket by access time; files and bytes per category; oldest and newest modification, newest access and change; size-weighted time sums for mean ages; count of folders not read completely. Plus the directory's own files (count, bytes, times), its entry count and any scan error, and its device and inode (from index version 6). | `(depth, path)` |
+| `dirs` | directory | Subtree totals: files, folders, bytes, allocated bytes; files and bytes per age bucket by modification time; bytes per age bucket by access time; files and bytes per category; oldest and newest modification, newest access and change; size-weighted time sums for mean ages; count of folders not read completely. Plus the directory's own files (count, bytes, times), its entry count and any scan error, and its device and inode (from index version 6), and its extra hard links and their bytes (from version 7). | `(depth, path)` |
 | `dir_ext` | directory and file type | Totals over the directory's *own* files of that type | `path` |
 | `dir_owner` | directory and owner (uid) | Totals over the directory's *own* files of that owner | `path` |
 | `top_ext`, `top_owner` | top-level folder and type / owner | The same, summed per top-level folder | `top_id` |
@@ -210,7 +210,9 @@ reached a second time under `--detect-cycles` is not: its contents are counted w
 
 `pinax check` (`crosscheck.py`) compares an index with `fs-inventory rollup`, a separate implementation in
 Rust of the same subtree totals. Rollup runs on a shadow of the scan folder (a copy of the manifest and a
-link to the entries, so the scan itself is never written to), with Pinax's age bucket edges
+link to the entries, so the scan itself is never written to; for a scan with hard-linked files, a copy of the
+entries in which every link after a file's first has no size, since rollup counts every link and Pinax counts a
+file once, the rule written again in `crosscheck.py` rather than shared), with Pinax's age bucket edges
 (`90d,1y,2y,3y,5y,10y`) and an age depth as deep as the scan, so every directory gets its own histogram. The
 two are then joined on `dir_id` and compared on 31 measures per directory: path, files, folders, bytes,
 allocated bytes, incomplete folders, oldest and newest modification time, newest access and change time, and
@@ -236,7 +238,7 @@ folder must still exist for this part of the check. At 100 million files (2.44 m
 nearly all of it the two rollups, and every directory was equal (between two synthetic scans with the same
 contents). Between changed scans from `synth_scan.py --evolve` at one million files, comparing takes 0.2 seconds
 of a six-second build and checking it 1.1 seconds, every directory equal; changed scans at 100 million files wait
-for server-class hardware (wave 9).
+for server-class hardware (wave 10).
 
 ## Real filesystems
 
@@ -264,7 +266,7 @@ A real scan was checked the same way: the maintainer's documents folder on a lap
 builds in 0.8 s and every query takes under 25 ms. It also showed common types that were counted as *other*:
 camera photo and video formats, macro-enabled spreadsheets, diagrams, executables, and disk images, 35% of its
 bytes. With those added, *other* is 0.8% of its bytes, nearly all of it files without an extension. Production
-storage, with many owners and a billion files, is measured in wave 9.
+storage, with many owners and a billion files, is measured in wave 10.
 
 ## Querying
 
@@ -331,6 +333,13 @@ a turn within their own limit, and a query of a folder never waits. Pinax's limi
 (oauth2-proxy waits five minutes in `deploy/oauth2-proxy/pinax.cfg`), so a long request ends with Pinax's
 explanation rather than a gateway error.
 
+**Searches in the background** (`jobs.py`, *Searches*) are for what a page cannot wait for: a search of a whole
+filesystem (for administrators, from *Find files*) runs in Pinax's own worker threads, at most `PINAX_WIDE_QUERIES`
+at once, taking the same turns as those of pages, each within `PINAX_JOB_TIMEOUT` (an hour), and writes every match,
+in order, to a Parquet file under `VAR_ROOT/jobs`, kept for `PINAX_JOB_DAYS` (7). A job searches the scans the
+person saw when they asked; only they and administrators see it, and its CSV is written once, when first asked
+for. A job left queued or running when Pinax stops is marked as stopped when it starts again.
+
 ## Forecasts
 
 Every history (`/api/history`) comes with a forecast of its size (`forecast.py`): where the place is heading over
@@ -376,6 +385,15 @@ How much each filesystem holds, and when it fills at its trend (`capacity.py`, *
 A filesystem's history carries its capacity, drawn as a line on *Size by age* where it fits the scale (no more
 than twice the data). That chart shows the files' size, while the date it fills uses the measure above, so the
 two can differ by what the size does not count.
+
+### Hard links
+
+A file with several hard links is one file on disk, so totals count its size once (R7): at its first link by
+path, for its device and inode. Its other links are still files (each is a name someone sees), with no size, in
+every total: folders, ages, types, owners, folder history, and so charges. Each folder records its extra links and
+the bytes they would have counted again (`hl_files`, `hl_bytes`, from index version 7), shown in the age map's
+panel. *Find files* lists every link, with the file's size. Only hard-linked files are compared at build (a window
+over files with more than one link), so a scan with few costs nothing: 2 ms at a million files without any.
 
 ## Marked folders
 
@@ -474,6 +492,14 @@ folders have one, with a CSV.
 it, out of cleanup plans (`tags.protection`): adding such a folder is refused, and so is adding a folder that holds
 one, since cleaning it up would take the protected folder too. A folder planned before it was protected is flagged
 on the plan; suggestions leave protected folders out.
+
+## Saved views
+
+A person saves the page they are on (`views.py`, `saved_view`): its address in the app (a report, its place, and
+its settings, such as `/explore?fs=fast&path=...&size=files`), under a name, kept to themselves or shared with one of
+their labs, whose members see it among their views on *My data* (*All data* for administrators). Only pages of
+Pinax are kept, and a view is only an address, so whoever opens it sees only what they may. Saving, changing,
+and deleting are audited; only whoever saved a view changes it.
 
 ## Costs
 
@@ -589,7 +615,7 @@ million, so minutes at two billion, beyond the time limit), and is best asked of
 from synthetic data, which has about 41 files per folder; production filesystems often have fewer, so two billion
 files may mean 50 to 200 million folders, beyond anything measured so far. Reports that read every folder of a
 whole filesystem, like the folder lists of *What changed* (about 0.1 s per 250,000 folders here), grow with them.
-Wave 9 measures production storage.
+Wave 10 measures production storage.
 
 Index size is about 56 bytes per file, mostly the per-file Parquet (which is kept sorted and compressed). A
 billion-file snapshot needs about 56 GB; keeping six snapshots per file system (the default) needs about
@@ -635,7 +661,7 @@ uv run python bench/bench_charges.py --folders 2000 --weeks 52
 |---|---|---|
 | `pinax seed` writes demo trees of sparse files and scans them with fs-inventory | Scheduled fs-inventory scans on storage nodes or scan hosts | Pinax ingests any complete Parquet scan |
 | Demo owners rewritten to fictional accounts, and demo scans dated a month apart | Real owners and times from the scan | Only `seed.py` rewrites scans, only its own demo scans |
-| SQLite catalog | SQLite on one server; PostgreSQL in wave 10 | SQLAlchemy models; migrations still to add ([The catalog database](#the-catalog-database)) |
+| SQLite catalog | SQLite on one server; PostgreSQL in wave 11 | SQLAlchemy models; migrations still to add ([The catalog database](#the-catalog-database)) |
 | Demo identity switcher | Single sign-on proxy, `PINAX_AUTH_MODE=header` | Checked behind oauth2-proxy 7.15 with a stand-in identity provider |
 | People, labs, and folder mappings managed in the app | The same, fed from the authoritative source; until then imported from CSV (`pinax import`) | Same model as Tundra |
 | One server | Web and ingest can run on separate hosts sharing `var/snapshots` | Indexes are replaced, never changed in place; keep every ingest on one host, since the ingest lock is a file lock in `PINAX_VAR_ROOT` |

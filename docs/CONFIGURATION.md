@@ -17,7 +17,7 @@ Settings are `PINAX_*` environment variables, or a `.env` file in the folder you
 | `PINAX_VAR_ROOT` | `var/` | The catalog database (`pinax.db`) and snapshot indexes (`snapshots/`) |
 | `PINAX_SCAN_ROOT` | `scans/` | Where `pinax scan` writes fs-inventory output, as `<filesystem>/<UTC time>/`, and where the watcher looks. Scans made elsewhere can live anywhere. Pinax never deletes scans ([what to keep](ARCHITECTURE.md#what-pinax-keeps)) |
 | `PINAX_DEMO_ROOT` | `demo/` | Demo filesystems and scans written by `pinax seed` |
-| `PINAX_DATABASE_URL` | SQLite in `VAR_ROOT` | SQLAlchemy URL of the catalog. Production uses the SQLite default until PostgreSQL and migrations arrive in wave 10; a PostgreSQL URL (`postgresql+psycopg://pinax@db/pinax`, with the `psycopg` driver added) works for a fresh catalog, untested ([The catalog database](ARCHITECTURE.md#the-catalog-database)) |
+| `PINAX_DATABASE_URL` | SQLite in `VAR_ROOT` | SQLAlchemy URL of the catalog. Production uses the SQLite default until PostgreSQL and migrations arrive in wave 11; a PostgreSQL URL (`postgresql+psycopg://pinax@db/pinax`, with the `psycopg` driver added) works for a fresh catalog, untested ([The catalog database](ARCHITECTURE.md#the-catalog-database)) |
 
 ## Scanning
 
@@ -49,6 +49,8 @@ Settings are `PINAX_*` environment variables, or a `.env` file in the folder you
 | `PINAX_EXPORT_MAX_ROWS` | `100000` | Most files a CSV download contains |
 | `PINAX_COLD_DAYS` | `730` | When data counts as cold, in days since its last change. Rounded to the age bucket that starts nearest (two years by default) |
 | `PINAX_CURRENCY` | `USD` | The currency prices are in (an ISO 4217 code such as `EUR`), shown in each viewer's own number format. Prices and free tiers themselves are set on *Costs*, not here |
+| `PINAX_JOB_TIMEOUT` | `3600` | How long, in seconds, a search in the background may run (see *Searches*); at least 60 |
+| `PINAX_JOB_DAYS` | `7` | How many days the results of a search in the background are kept |
 | `PINAX_FILL_WARNING_MONTHS` | `12` | A filesystem that fills within this many months at its trend is flagged on the overview and on *Capacity*. Capacities themselves are set on *Capacity*, or come from what `pinax scan` records |
 
 ## Identity

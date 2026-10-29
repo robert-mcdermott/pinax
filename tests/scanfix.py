@@ -76,7 +76,7 @@ def write_scan(out: Path, root: str, files: list[dict], *, started: datetime | N
         rows.append({
             "path": full(rel), "parent_path": full(parent) if rel else "", "name": rel.rsplit("/", 1)[-1] if rel else root.rsplit("/", 1)[-1],
             "extension": None, "kind": "dir", "depth": 0 if not rel else rel.count("/") + 1, "dir_id": did,
-            "parent_id": dirs[parent] if rel else 0, "ino": (inodes or {}).get(rel, did), "uid": 1000, "gid": 1000, "mode": 0o40755, "size": 4096,
+            "parent_id": dirs[parent] if rel else 0, "ino": (inodes or {}).get(rel, did), "nlink": 1, "uid": 1000, "gid": 1000, "mode": 0o40755, "size": 4096,
             "alloc_bytes": 4096, "mtime": ago(1), "atime": ago(1),
             "dir_entries": len(kids) + len(kfiles) if listed else None, "error": err, "name_flags": 0,
             "is_mount_point": rel in mounts, "extra_ns": 0,
@@ -88,7 +88,7 @@ def write_scan(out: Path, root: str, files: list[dict], *, started: datetime | N
         mtime = ago(f.get("age_days", 0))
         rows.append({
             "path": full(rel), "parent_path": full(parent), "name": name, "extension": _ext(name), "kind": f.get("kind", "file"),
-            "depth": rel.count("/") + 1, "dir_id": None, "parent_id": dirs[parent], "ino": 10_000 + i, "uid": f.get("uid", 1000),
+            "depth": rel.count("/") + 1, "dir_id": None, "parent_id": dirs[parent], "ino": f.get("ino", 10_000 + i), "nlink": f.get("nlink", 1), "uid": f.get("uid", 1000),
             "gid": 1000, "mode": 0o100644, "size": f["size"], "alloc_bytes": f.get("alloc", f["size"]), "mtime": mtime,
             "atime": ago(f.get("atime_days", f.get("age_days", 0))), "dir_entries": None, "error": None,
             "name_flags": f.get("name_flags", 0), "is_mount_point": False, "extra_ns": f.get("extra_ns", 0),
@@ -98,10 +98,10 @@ def write_scan(out: Path, root: str, files: list[dict], *, started: datetime | N
     con = duckdb.connect()
     con.execute("SET TimeZone = 'UTC'")
     con.execute("""CREATE TABLE e (path VARCHAR, parent_path VARCHAR, name VARCHAR, extension VARCHAR, kind VARCHAR,
-        depth INTEGER, dir_id BIGINT, parent_id BIGINT, ino UBIGINT, uid BIGINT, gid BIGINT, mode INTEGER, size BIGINT,
+        depth INTEGER, dir_id BIGINT, parent_id BIGINT, ino UBIGINT, nlink BIGINT, uid BIGINT, gid BIGINT, mode INTEGER, size BIGINT,
         alloc_bytes BIGINT, mtime BIGINT, atime BIGINT, dir_entries BIGINT, error VARCHAR, name_flags INTEGER,
         is_mount_point BOOLEAN, extra_ns BIGINT)""")
-    keys = ["path", "parent_path", "name", "extension", "kind", "depth", "dir_id", "parent_id", "ino", "uid", "gid", "mode",
+    keys = ["path", "parent_path", "name", "extension", "kind", "depth", "dir_id", "parent_id", "ino", "nlink", "uid", "gid", "mode",
             "size", "alloc_bytes", "mtime", "atime", "dir_entries", "error", "name_flags", "is_mount_point", "extra_ns"]
     def ts(col: str) -> str:
         if time_unit == "ns":
@@ -110,7 +110,7 @@ def write_scan(out: Path, root: str, files: list[dict], *, started: datetime | N
 
     con.executemany(f"INSERT INTO e VALUES ({', '.join('?' for _ in keys)})", [[r[k] for k in keys] for r in rows])
     con.execute(f"""COPY (SELECT path, parent_path, name, extension, NULL::BLOB AS path_raw, name_flags, kind, depth, dir_id,
-        parent_id, 1::UBIGINT AS dev, ino, 1::BIGINT AS nlink, uid, gid, mode, size, alloc_bytes, {ts('atime')} AS atime,
+        parent_id, 1::UBIGINT AS dev, ino, nlink, uid, gid, mode, size, alloc_bytes, {ts('atime')} AS atime,
         {ts('mtime')} AS mtime, {ts('mtime')} AS ctime, NULL::TIMESTAMPTZ AS btime, NULL::UBIGINT AS rdev,
         dir_entries, NULL::BIGINT AS dir_files, NULL::BIGINT AS dir_subdirs, NULL::BIGINT AS dir_bytes,
         NULL::BIGINT AS dir_alloc_bytes, is_mount_point, 0 AS time_flags, error, NULL::VARCHAR AS symlink_target,

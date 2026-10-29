@@ -10,7 +10,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__
+from . import __version__, jobs
 from .api import router as api_router
 from .config import get_settings, unsafe
 from .db import init_db
@@ -26,6 +26,7 @@ async def lifespan(_app: FastAPI):
     if problem := unsafe(get_settings()):
         raise RuntimeError(f"Refusing to start: {problem}")
     init_db()
+    jobs.recover()
     yield
     indexes.clear()
 

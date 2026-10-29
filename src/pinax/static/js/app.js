@@ -11,7 +11,9 @@ import { viewCapacity } from "/js/capacity.js";
 import { viewCosts } from "/js/costs.js";
 import { viewPlans } from "/js/plans.js";
 import { viewTags } from "/js/tags.js";
+import { bindSave, viewsCard } from "/js/views.js";
 import { viewCollections } from "/js/collections.js";
+import { viewSearches } from "/js/searches.js";
 import { viewChanges } from "/js/changes.js";
 import { viewExplore } from "/js/explore.js";
 import { viewHistory } from "/js/history.js";
@@ -60,7 +62,9 @@ async function viewHome(el) {
       <div class="table-wrap"><table class="table"><thead><tr><th>Lab or department</th><th class="num">Folders</th><th class="num">Size</th><th class="num">Cold</th><th class="num">Change</th></tr></thead><tbody>
       ${home.labs.map((l) => html`<tr><td><a class="rowlink" href="#/explore?lab=${encodeURIComponent(l.slug)}">${l.name}</a><div class="sub">${l.research_area}</div></td>
         <td class="num">${l.folders}</td><td class="num">${bytes(l.bytes)}</td><td class="num">${pct(l.bytes ? (l.cold_bytes / l.bytes) * 100 : 0)}</td>
-        <td class="num">${l.change ? `${l.change > 0 ? "+" : "−"}${bytes(Math.abs(l.change))}` : "—"}</td></tr>`)}</tbody></table></div></div>` : ""}`);
+        <td class="num">${l.change ? `${l.change > 0 ? "+" : "−"}${bytes(Math.abs(l.change))}` : "—"}</td></tr>`)}</tbody></table></div></div>` : ""}
+    <div id="home-views"></div>`);
+  viewsCard(el.querySelector("#home-views"));
 }
 
 // ---------- Boot ----------
@@ -83,6 +87,7 @@ const routes = [
   [/^#\/plans(\?.*)?$/, viewPlans],
   [/^#\/tags$/, viewTags],
   [/^#\/collections(\?.*)?$/, viewCollections],
+  [/^#\/searches(\?.*)?$/, viewSearches],
   [/^#\/charges(\?.*)?$/, viewCharges],
   [/^#\/chargeback(\?.*)?$/, viewChargeback],
   [/^#\/access(\?.*)?$/, viewAccess],
@@ -104,5 +109,6 @@ if (!state.me && state.config.auth_mode === "local") {
 } else {
   renderSidebar();
   startRouter(routes, main, { onRoute: () => setActiveNav((location.hash || "#/").split("?")[0], ".side-link") });
+  bindSave(main);
   window.addEventListener("hashchange", () => renderSidebar());
 }

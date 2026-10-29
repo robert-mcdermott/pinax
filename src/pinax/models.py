@@ -399,6 +399,43 @@ class FolderTag(Base):
     mark: Mapped[MarkedFolder] = relationship()
 
 
+class SavedView(Base):
+    """A page someone saved (views.py): the app's address of a report with its place and settings, under a name,
+    kept to themselves or shared with one of their labs."""
+
+    __tablename__ = "saved_view"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    address: Mapped[str] = mapped_column(String(2000))  # the part after the app's #
+    lab_id: Mapped[int | None] = mapped_column(ForeignKey("lab.id", ondelete="SET NULL"), nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    user: Mapped[User] = relationship()
+    lab: Mapped["Lab | None"] = relationship()
+
+
+class SearchJob(Base):
+    """A file search run in the background (jobs.py): what was asked (`request`), its state (`queued`, `running`,
+    `done`, `failed`, `stopped`), and how many files it found; its results are a Parquet file under VAR_ROOT/jobs."""
+
+    __tablename__ = "search_job"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), index=True)
+    request: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    status: Mapped[str] = mapped_column(String(16), default="queued", index=True)
+    message: Mapped[str] = mapped_column(Text, default="")
+    files: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    user: Mapped[User] = relationship()
+
+
 class Heartbeat(Base):
     """The latest word from a long-running process, such as `pinax ingest --watch`, so the interface can say
     whether it is running."""

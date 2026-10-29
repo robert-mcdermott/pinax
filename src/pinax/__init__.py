@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Pinax: explore your data. File system reporting for research storage."""
 
-__version__ = "0.8.0"
+__version__ = "0.9.0"
 
 
 def main() -> None:

@@ -59,10 +59,12 @@ src/pinax/
   marks.py         marked folders: followed from scan to scan by path, and by inode when they move
   plans.py         cleanup plans: the folders each lab means to delete, move, or compress
   tags.py          folder tags: the standard list, labs' own tags, and tagging folders
+  views.py         saved views: pages people keep and share with their labs
+  jobs.py          searches in the background: worker threads, results kept as Parquet
   auth.py          identity (demo cookie or SSO header) and folder access
   explore.py       explore and report services: resolving places, merging results across places
   serialize.py     JSON views of catalog objects
-  api/             routers: identity, sign-in, explore, admin, access, costs, capacity, plans, tags, health
+  api/             routers: identity, sign-in, explore, admin, access, costs, capacity, plans, tags, views, health
   seed.py          demo filesystems, people, and scans
   cli.py, main.py  command line and FastAPI app
   static/          index.html, app/, css/pinax.css, js/, img/
@@ -107,6 +109,7 @@ them, the person's home), and `lab` to limit home to one lab:
 | `GET /api/owners` | Bytes and files by owner, flagging deleted accounts |
 | `GET /api/cold?older=N` | Self-contained folders unchanged for at least age bucket N |
 | `GET /api/files?q=&category=&ext=&min_size=&older=&newer=&uid=&sort=&fmt=csv` | Files, with totals; CSV download |
+| `POST`, `GET /api/files/jobs`; `GET`, `DELETE /api/files/jobs/{id}`; `GET /api/files/jobs/{id}/csv` | A search in the background, the person's searches, one with a page of its results, stopping or deleting one, and its CSV |
 | `GET /api/home`, `GET /api/history?fs=&path=&lab=` | Folder cards and lab totals; a place's history, with the forecast of its size |
 | `GET /api/admin/overview`, `/health`, `/names`, `/snapshots`, `/labs`, `/people` | Administrator views |
 | `POST /api/admin/folders`, `POST /api/admin/labs/{slug}/members` | Folder ownership and membership changes |
@@ -118,6 +121,7 @@ them, the person's home), and `lab` to limit home to one lab:
 | `GET`, `POST /api/admin/tags`; `PUT`, `DELETE /api/admin/tags/{id}`, `POST /api/admin/tags/{id}/active` | The standard tags and labs' own; adding, changing, retiring, and deleting an unused one |
 | `GET /api/tags/here?fs=&path=`, `/api/tags/below?fs=&path=`; `POST /api/tags/folders`, `DELETE /api/tags/folders/{id}`; `POST /api/tags/custom`; `POST /api/admin/tags/{id}/merge` | A folder's tags and those it inherits; the tagged folders below one; tagging and untagging; a lab's own tag; folding one into a standard tag |
 | `GET /api/tags/filters`, `/api/tags/collection?want=ID[:value]` (repeated) | The tags a person can look for, with their values; the folders that have every wanted tag, with totals, history, and forecast |
+| `GET`, `POST /api/views`; `PUT`, `DELETE /api/views/{id}` | A person's views and those shared with their labs; saving, renaming, sharing, deleting |
 | `GET /api/admin/costs`, `/api/admin/costs/charges?month=&fmt=csv`, `/api/admin/costs/ahead` | Prices and free tiers; every lab's charges for a month, or its CSV statement; every lab's next twelve months, added up |
 | `GET /api/admin/capacity`, `POST /api/admin/capacity/{fs}`, `DELETE /api/admin/capacity/{fs}/{id}` | Each filesystem's capacity, its schedule, and when it fills; setting and removing a capacity from a day on |
 
@@ -137,6 +141,8 @@ The interface is plain HTML, CSS, and JavaScript modules with no framework or bu
 - `js/tags.js`: *Tags*, the standard tags for administrators, and the tags box in the age map's panel (`tags.py`,
   `api/tags.py`).
 - `js/collections.js`: *Collections*, finding data by tag.
+- `js/views.js`: *Save view* on every report's header, and the saved views on the home pages.
+- `js/searches.js`: *Searches*, searches run in the background.
 - `js/costs.js`: *Costs*, each filesystem's prices and free tiers (`costs.py`, `api/costs.py`).
 - `js/charges.js`: *Storage charges*, what a person's labs pay each month and how, and *Chargeback*, every lab's
   charges for a month, for administrators (`charges.py`, `api/costs.py`).

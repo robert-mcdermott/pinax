@@ -166,6 +166,8 @@ function detailPanel(node, data, q, cb) {
       <div><b>${ageText(s.mean_age_days)}</b><span>Average age</span></div>
       <div><b>${s.newest ? when(s.newest) : "—"}</b><span>Last change</span></div>
     </div>
+    ${node.links?.files ? html`<p class="small muted" style="margin:0 0 10px">${icon("link")} ${num(node.links.files)} hard link${node.links.files === 1 ? "" : "s"} to files counted
+      elsewhere here or in another folder: their ${bytes(node.links.bytes)} is counted once, at each file's first link.</p>` : ""}
     ${cold ? html`<div class="callout"><b>${bytes(cold)}</b> (${pct((cold / s.bytes) * 100)}) has not changed for ${thresholdText(cb)} or more.
       <a href="${placeHash("cold", place, { ...extra, older: cb })}">Find cold folders</a></div>` : ""}
     ${s.incomplete ? html`<div class="alert alert-warn">${icon("alert")}<div>${num(s.incomplete)} folder${s.incomplete === 1 ? "" : "s"} here could not be read completely, so these totals are lower bounds.</div></div>` : ""}

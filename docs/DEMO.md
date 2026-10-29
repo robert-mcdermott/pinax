@@ -129,7 +129,10 @@ files are sparse, on a laptop's disk), so the capacities are set, and use is mea
    in a plan. *Storage charges* splits the lab's month by grant: the tumor atlas's grant, the immune aging study's,
    and what is not tagged. *Collections* with *Source* is *sequencing* and *Data stage* is *raw* finds the Genomics
    Shared Resource's runs and the Lindqvist Lab's tumor-normal study (its source inherited from `wgs`).
-9. **Switch to Priya Natarajan** (storage administrator). *All data* shows both filesystems, the largest
+9. **Saved views.** Still as Aiko Fujimoto, *My data* lists *Tumor atlas, oldest data*, a view she saved and shared
+   with her lab: it opens the age map of the tumor atlas colored by its oldest files. *Save view* on any report keeps
+   another.
+10. **Switch to Priya Natarajan** (storage administrator). *All data* shows both filesystems, the largest
    folders, the biggest changes since the previous scan (a batch of samples and an atlas in `fujimoto_a`,
    sequencing runs in `gsr_illumina`), and
    three unmapped folders. Open the age map of *Fast*: `scratch_legacy` is a large, very old, unmapped tile.
@@ -141,9 +144,9 @@ files are sparse, on a laptop's disk), so the capacities are set, and use is mea
    *What changed* for *Fast* since the first scan lists the Fujimoto project and the sequencing runs where it grew, the
    moved project and the compressed FASTQ among new and removed folders, and the largest new files (Cell Ranger
    BAMs); each list downloads as CSV.
-10. **Folders and labs.** Tick *Unmapped only*, then map `shared_reference` to the Genomics Shared Resource.
+11. **Folders and labs.** Tick *Unmapped only*, then map `shared_reference` to the Genomics Shared Resource.
    Switch to *Casey Morgan*: the folder now appears in their data.
-11. **Costs and Chargeback.** Back as Priya, *Costs* shows each filesystem's prices and free tiers, with the
+12. **Costs and Chargeback.** Back as Priya, *Costs* shows each filesystem's prices and free tiers, with the
    Lindqvist Lab's exception. *Chargeback* for last month lists every lab's and department's charge, the most
    first (the Genomics Shared Resource, a department, has nothing free), the totals by filesystem, and the
    storage no one owns, most of it `scratch_legacy`; *Download CSV* is the statement for finance. This month,
@@ -152,22 +155,25 @@ files are sparse, on a laptop's disk), so the capacities are set, and use is mea
    *Capacity*: *Fast* is 89% used and fills in about nine months at its trend, a month or two before the expansion
    scheduled for eleven months on, so *All data* flags it under *Needs attention*. Its *History* draws the capacity
    above the columns.
-12. **Storage health.** An unreadable folder, a very large directory (12,000 PNG tiles), problem file names
+13. **Storage health.** An unreadable folder, a very large directory (12,000 PNG tiles), problem file names
     (a newline, a leading dash, a Windows-reserved character, a name that is not NFC), and files owned by
     accounts that no longer exist.
-13. **Find files.** Search `*.bam`, older than five years, largest first; download the CSV.
-14. **Scans.** Six snapshots of each filesystem, a month apart, each with its full index (`PINAX_KEEP_SNAPSHOTS`
+14. **Find files.** Search `*.bam`, older than five years, largest first; download the CSV. On all of *Fast*,
+    *Run in the background* runs the search past a page's time limit: *Searches* already has one, every BAM on
+    *Fast*, done by the seed. And the age map of `lindqvist_h/wgs/2019_tumor_normal/from_core` shows four hard
+    links to the core's FASTQ files, counted once, at the core.
+15. **Scans.** Six snapshots of each filesystem, a month apart, each with its full index (`PINAX_KEEP_SNAPSHOTS`
     keeps six), and whether automatic ingest is watching for new scans. Click a date to open that scan: the
     header says it is an older one, every report and link stays on it, and *Back to the latest* returns. Choose
     another scan beside the date on any report.
-15. **People and access.** *Add person*: a username, a name, an email, and a lab; the panel shows the folders
+16. **People and access.** *Add person*: a username, a name, an email, and a lab; the panel shows the folders
     they will see. Grant or remove the storage administrator role. *Deactivate* them, and they cannot sign in (their
     access is kept, unused); *Reactivate* restores it. Each change is in the person's record and the audit log.
     On the *Labs and departments* tab, each lab's folders and members; *Add lab or department* adds one (a slug, a
     name, and whether it is a lab or a department, which decides its free tier), and its page changes its details
     or deactivates it: its members stop seeing its folders, which stay its own (and charged to it) until they are
     moved.
-16. **Import from CSV.** In a terminal, `uv run pinax import examples/import` lists the 14 changes the example
+17. **Import from CSV.** In a terminal, `uv run pinax import examples/import` lists the 14 changes the example
     files would make: two departments, a lab, three people, their memberships, and owners for the three unmapped
     folders. Add `--apply`, and *Folders and labs* shows no unmapped folders; every change is in the audit log.
 
