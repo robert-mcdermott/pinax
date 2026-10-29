@@ -354,3 +354,51 @@ def test_administrators_see_every_plan(priced, tmp_path):
     assert next(f for f in every["filesystems"] if f["fs"] == "slow")["moved_in"] == 8000
     assert [i["name"] for i in every["largest"]] == ["archive", "2025_new"]  # by what each would free
     assert every["done"]["freed"] == 8050
+
+
+# ---------- Protection (T5) ----------
+
+def _protect(client, user: str, path: str, key: str, value=None):
+    login(client, "ivy")
+    tag = next(t["id"] for t in client.get("/api/admin/tags").json()["standard"] if t["key"] == key)
+    login(client, user)
+    r = client.post("/api/tags/folders", json={"fs": "fast", "path": path, "tag": tag, "value": value})
+    assert r.status_code == 200, r.text
+
+
+def test_protected_folders_cannot_be_planned(planner):
+    _protect(planner, "ada", f"{ALPHA}/projects/2015_old", "keep_until", "2099-01-01")
+    for path, says in ((f"{ALPHA}/projects/2015_old", "It is kept until 2099-01-01"),
+                       (f"{ALPHA}/projects/2015_old/reads", "It is inside"),
+                       (f"{ALPHA}/projects", "It holds")):
+        r = _add(planner, "ada", path)
+        assert r.status_code == 409 and r.json()["detail"].startswith(says), (path, r.json())
+    assert _add(planner, "ada", f"{ALPHA}/projects/2025_new").status_code == 200  # beside it, not in it
+    here = planner.get("/api/plans/here", params={"fs": "fast", "path": f"{ALPHA}/projects/2015_old"}).json()
+    assert here["protected"]["tag"] == "Keep until"
+
+
+def test_a_date_past_protects_nothing_and_legal_hold_always(planner):
+    _protect(planner, "ada", f"{ALPHA}/projects/2015_old", "keep_until", "2020-01-01")
+    assert _add(planner, "ada", f"{ALPHA}/projects/2015_old").status_code == 200
+    _protect(planner, "ivy", f"{ROOT}/beta_lab", "legal_hold")
+    r = _add(planner, "ben", f"{ROOT}/beta_lab/imaging")
+    assert r.status_code == 409 and "legal hold" in r.json()["detail"]
+
+
+def test_a_planned_folder_protected_later_is_flagged(planner):
+    _add(planner, "ada", f"{ALPHA}/projects/2015_old")
+    _protect(planner, "ivy", f"{ALPHA}/projects", "legal_hold")
+    login(planner, "ada")
+    (item,) = planner.get("/api/plans").json()["labs"][0]["items"]
+    assert item["protected"]["where"] == "above" and "legal hold" in item["protected"]["why"]
+
+
+def test_suggestions_leave_protected_folders_out(planner):
+    login(planner, "ada")
+    before = {s["path"] for s in planner.get("/api/plans/suggestions", params={"lab": "alpha"}).json()["suggestions"]}
+    assert f"{ALPHA}/projects/2015_old" in before
+    _protect(planner, "ada", f"{ALPHA}/projects/2015_old", "keep_until", "2099-01-01")
+    login(planner, "ada")
+    after = {s["path"] for s in planner.get("/api/plans/suggestions", params={"lab": "alpha"}).json()["suggestions"]}
+    assert f"{ALPHA}/projects/2015_old" not in after

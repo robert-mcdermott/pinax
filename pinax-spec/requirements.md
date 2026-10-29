@@ -92,7 +92,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | T2 | Data owners and administrators tag folders, and tags apply to everything below; labs make custom tags, which administrators can merge into standard ones | done (wave 8, slice 2: from the age map's panel, and `pinax tags import`) |
 | T3 | Find folders by tag and value across filesystems, with their totals, history, and forecast; CSV | done (wave 8, slice 3: within Q3 for collections of up to about 100 folders; 0.6 s for 2,000) |
 | T4 | Charges split by a tag's values, such as by grant or project | done (wave 8, slice 4: on *Storage charges*, equal to brute force) |
-| T5 | Tags that protect folders from cleanup plans (*Keep until*, *Legal hold*) | planned (wave 8) |
+| T5 | Tags that protect folders from cleanup plans (*Keep until*, *Legal hold*) | done (wave 8, slice 5) |
 
 ## Access
 

@@ -88,6 +88,7 @@ export async function planBox(box, fs, path) {
         <div class="toolbar"><button class="btn btn-secondary btn-sm" data-plan="change">Change</button>
           <button class="btn btn-ghost btn-sm" data-plan="remove">Take it out</button></div>`
         : inside ? html`<p class="small" style="margin:0 0 8px">Inside <b>${inside.name}</b>, which is in the plan (${actionText(inside).toLowerCase()}).</p>`
+        : here.protected ? html`<p class="small" style="margin:0 0 8px">${icon("shield")} ${here.protected.why}.</p>`
         : html`<p class="small muted" style="margin:0 0 8px">Mark this folder for your lab to delete, move to cheaper storage, or compress, and see what it would save.</p>
           <button class="btn btn-secondary btn-sm" data-plan="add">${icon("plus")}Add to cleanup plan</button>`}
       <p class="small" style="margin:10px 0 0"><a href="${planHash(here.lab.slug)}">The ${here.lab.name}'s plan</a>: ${totalText(here.total)}${here.total.folders ? ` · ${savesText(here.savings)}` : ""}</p>`);
@@ -191,6 +192,7 @@ function planCard(p) {
           ${i.inside ? html`<div class="sub">Inside another planned folder: counted with it</div>` : ""}
           ${i.note ? html`<div class="sub">${i.note}</div>` : ""}
           ${i.progress.status === "partly done" ? html`<div class="sub"><span class="chip chip-queued">partly done</span> ${progressText(i)}</div>` : ""}
+          ${i.protected ? html`<div class="alert alert-warn" style="margin-top:8px">${icon("shield")}<div>Protected since it was planned: ${i.protected.why.replace(", so it cannot go in a cleanup plan", "")}. Take it out of the plan, or ask for the tag to be taken off.</div></div>` : ""}
           ${i.mark.status === "moved" ? html`<div class="alert alert-info" style="margin-top:8px">${icon("info")}<div>
             Not at its path in the latest scan; a folder with its inode is at <b>${displayPath(i.fs, i.mark.moved_to)}</b>. If it moved there, nothing was freed.
             <div class="toolbar" style="margin-top:6px"><button class="btn btn-secondary btn-sm" data-moved="${i.id}" data-accept="1">It moved there</button>

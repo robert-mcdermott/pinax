@@ -103,6 +103,10 @@ def add(session: Session, ident: Identity, fs: Filesystem, path: str, action: st
     if lab is None:
         raise PlanError("No lab or department owns that folder, so it has no plan to go in")
     target = _target(session, fs, action, to)
+    from .tags import protection, protection_text
+
+    if (held := protection(session, fs, path)) is not None:
+        raise PlanError(protection_text(held), 409)
     try:
         mark = marks.mark_folder(session, fs, path, cold_from=cold_from)
     except marks.MarkError as e:
@@ -167,6 +171,14 @@ def _outermost(items: list[CleanupItem], fs_id: int, path: str) -> CleanupItem |
 DONE, PARTLY, MOVED, TO_DO = "done", "partly done", "moved", "to do"
 
 
+def _protected(session: Session, fs: Filesystem, path: str) -> dict | None:
+    """A planned folder that a tag added since protects (tags.protection), with why."""
+    from .tags import protection, protection_text
+
+    held = protection(session, fs, path)
+    return {**held, "why": protection_text(held)} if held else None
+
+
 def progress(session: Session, item: CleanupItem) -> dict:
     """What later scans show of a planned folder: done, partly done, moved (nothing freed), or still to do; the
     space freed, and since which scan."""
@@ -214,6 +226,7 @@ def item_json(session: Session, item: CleanupItem, items: list[CleanupItem]) -> 
         "mark": {"id": item.mark.id, "status": item.mark.status, "moved_to": item.mark.moved_to},
         "inside": outer.id if outer else None,
         "estimate": item.baseline_estimate, "progress": progress(session, item),
+        "protected": _protected(session, fs, item.mark.path),
     }
 
 
@@ -353,6 +366,7 @@ def here(session: Session, ident: Identity, fs: Filesystem, path: str) -> dict:
     targets = session.scalars(select(Filesystem).where(Filesystem.active.is_(True), Filesystem.id != fs.id)
                               .order_by(Filesystem.name)).all()
     return {"plannable": True, "lab": plan["lab"], "total": plan["total"], "savings": plan["savings"],
+            "protected": _protected(session, fs, path),
             "item": item_json(session, mine, items) if mine else None,
             "inside": item_json(session, outer, items) if outer else None,
             "targets": [{"slug": t.slug, "name": t.name} for t in targets]}
@@ -371,6 +385,7 @@ def suggestions(session: Session, lab: Lab, *, limit: int = 10) -> list[dict]:
     already planned, or inside one, are left out; a folder suggested twice is suggested for the larger saving, and
     one inside another suggested folder is left to it."""
     from .snapshots import cold_bucket, indexes, latest_snapshot
+    from .tags import protection
 
     currency = get_settings().currency
     day = utcnow().date()
@@ -389,7 +404,7 @@ def suggestions(session: Session, lab: Lab, *, limit: int = 10) -> list[dict]:
 
         def offer(kind: str, row_path: str, what: str, size_: int, frees: int, action: str, *, fs=fs, size=size) -> None:
             key = (fs.id, row_path)
-            if key in planned or _outermost(items, fs.id, row_path) or frees <= 0:
+            if key in planned or _outermost(items, fs.id, row_path) or frees <= 0 or protection(session, fs, row_path):
                 return
             now = monthly(session, fs, lab, size, day)
             saves = None if now is None else now - monthly(session, fs, lab, max(0, size - frees), day)

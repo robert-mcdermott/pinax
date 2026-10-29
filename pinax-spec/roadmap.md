@@ -915,7 +915,7 @@ split their charges by grant. Planned; the slices are confirmed when the wave st
 | 2 | Tagging folders (T2) | From the age map's folder panel and tile actions: a folder's own tags, and those it inherits from the folders above it; a lab's PI and delegates tag its folders, administrators any folder; a lab makes custom tags of its own, seen by its members and administrators; administrators merge a custom tag into a standard one; `pinax import` takes tags in bulk; tiles that are or hold tagged folders are marked, with their tags in tooltips and the table view; audited; both themes and 375 pixels | Done |
 | 3 | Finding data by tag (T3) | A *Collections* page: folders by tag and value, combined (Source is cryo-EM and Data stage is raw), across filesystems, within what the person may see; each folder's size, files, cold share, average age, monthly cost, owner, and tags; nested folders counted once in the total; the collection's history and forecast from the recorded totals (waves 6 and 7); CSV; within Q3, reading only the catalog | Done |
 | 4 | Cost by tag (T4) | Charges split by a tag's values, such as by grant or project: each tagged folder's share of its lab's charge on its filesystem, time-weighted from the recorded totals, and what is untagged; on *Storage charges* and in the statement CSV; tested against brute force | Done |
-| 5 | Protection (T5) | A folder with a protecting tag (*Keep until*, before its date; *Legal hold*), and everything below it, cannot be added to a cleanup plan; folders already planned are flagged; suggestions leave them out | To come |
+| 5 | Protection (T5) | A folder with a protecting tag (*Keep until*, before its date; *Legal hold*), and everything below it, cannot be added to a cleanup plan; folders already planned are flagged; suggestions leave them out | Done |
 | 6 | Demo and release 0.8.0 | Demo folders with standard and custom tags, charges split by grant, and a folder on legal hold; the README demo script; version 0.8.0, changelog, pull request, tag, release | To come |
 
 The default tags, which a site changes on the *Tags* page:
@@ -1002,6 +1002,14 @@ Settled when the wave started:
      scans, with nested tagged folders, a folder with two values, and another lab's tagged folder left out; other
      labs refused.
    - *Done*: checked in the browser on the demo (a grant on a lab's sequencing folder).
+5. **Protection (T5).**
+   - `tags.protection`: a protecting tag in effect (a flag; a date not yet past) on the folder, above it, or below
+     it, with why. `plans.add` refuses such a folder (a folder that holds a protected one would take it too);
+     planned folders carry `protected`; `plans.here` says why in the age map's box; suggestions skip them.
+   - *Cleanup plans* flags a folder protected since it was planned.
+   - Tests: a folder kept until a later date, one inside it, and one holding it refused, one beside it not; a date
+     past protects nothing; legal hold; a planned folder protected later is flagged; suggestions leave a protected
+     cold folder out.
 
 ## Later waves (outlined)
 

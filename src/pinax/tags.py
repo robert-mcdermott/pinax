@@ -523,3 +523,40 @@ def collection(session: Session, ident, wanted: list[tuple[int, str | None]]) ->
              "cold_bytes": sum(r["cold_bytes"] for r in rows), "monthly": str(sum(costs, Decimal(0))) if costs else None,
              "currency": currency}
     return {"folders": rows, "total": total, "points": points, "forecast": size_forecast(points) if points else None}
+
+
+# ---------- Protection from cleanup (T5) ----------
+
+def _protecting(ft: FolderTag, today: date) -> bool:
+    if not ft.tag.protects:
+        return False
+    return ft.tag.value_type != "date" or (bool(ft.value) and date.fromisoformat(ft.value) >= today)
+
+
+def _why(ft: FolderTag) -> dict:
+    return {"tag": ft.tag.label, "value": ft.value, "path": ft.mark.path,
+            "text": f"kept until {ft.value}" if ft.tag.value_type == "date" else ft.tag.label.lower()}
+
+
+def protection(session: Session, fs, path: str, today: date | None = None) -> dict | None:
+    """What protects a folder from cleanup, if anything: a protecting tag on it or a folder above it (on legal hold;
+    kept until a day not yet past), or on a folder below it, which cleaning it up would take too."""
+    from .db import utcnow
+    from .models import MarkedFolder
+
+    today = today or utcnow().date()
+    for ft in effective(session, fs.id, path, fs.root):
+        if _protecting(ft, today):
+            return {**_why(ft), "where": "here" if ft.mark.path == path else "above"}
+    below = session.scalars(select(FolderTag).join(MarkedFolder, MarkedFolder.id == FolderTag.mark_id).join(
+        Tag, Tag.id == FolderTag.tag_id).where(MarkedFolder.filesystem_id == fs.id, Tag.protects.is_(True),
+                                               MarkedFolder.path.startswith(path.rstrip("/") + "/", autoescape=True))).all()
+    for ft in below:
+        if _protecting(ft, today):
+            return {**_why(ft), "where": "below"}
+    return None
+
+
+def protection_text(p: dict) -> str:
+    where = {"here": "It is", "above": f"It is inside {p['path']}, which is", "below": f"It holds {p['path']}, which is"}
+    return f"{where[p['where']]} {p['text']}, so it cannot go in a cleanup plan"

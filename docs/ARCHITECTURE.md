@@ -470,6 +470,11 @@ untagged. A folder's bytes belong to its nearest tagged folder (itself, or the n
 several values splits evenly between them. *Storage charges* shows the split for each lab, by the grant if its
 folders have one, with a CSV.
 
+**Protection.** A protecting tag (*Legal hold*; *Keep until*, before its date) keeps its folder, and everything below
+it, out of cleanup plans (`tags.protection`): adding such a folder is refused, and so is adding a folder that holds
+one, since cleaning it up would take the protected folder too. A folder planned before it was protected is flagged
+on the plan; suggestions leave protected folders out.
+
 ## Costs
 
 What storage costs is kept in the catalog as two schedules per filesystem (`costs.py`):
