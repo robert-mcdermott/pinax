@@ -265,6 +265,17 @@ The interface shows control characters and bidirectional overrides in names as e
 `core.js`, applied to every value `html` puts in text). Attribute values keep the exact text, since some are
 read back.
 
+## Documentation and the website
+
+The guides are Markdown in `docs/` ([README.md](README.md) is their map), and the website is built from them:
+`node docs/site/build.mjs` makes `site/`, each page a guide or some of its sections, with screenshots of the demo in
+both themes ([site/README.md](site/README.md)). A change that users or administrators would notice updates the guide
+it belongs in: the user guide, the administration guide, the command line, configuration, deployment, or
+troubleshooting. `tests/test_docs.py` checks that every command and subcommand has its section in `docs/CLI.md`,
+that every guide is on a page of the site, and that every screenshot a guide shows exists in both themes.
+`node docs/capture/capture.mjs` captures the screenshots from a demo of its own; re-capture them when the interface
+or the demo changes.
+
 ## Demo data
 
 `seed.py` defines the demo filesystems (`FILESYSTEMS`), labs (`LABS`), unmapped folders, people (`PEOPLE`),

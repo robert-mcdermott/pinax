@@ -72,14 +72,22 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
 
 ## Documentation
 
+The guides are in [docs/](docs/README.md), and make a website with screenshots of every page in both themes
+(`node docs/site/build.mjs` builds it into `site/`; [docs/site/README.md](docs/site/README.md)).
+
 | Document | Covers |
 |---|---|
+| [docs/CONCEPTS.md](docs/CONCEPTS.md) | How Pinax sees storage: scans, snapshots, folder ownership, sizes, ages, change, costs, plans, tags |
+| [docs/USER-GUIDE.md](docs/USER-GUIDE.md) | Every page a lab sees, for PIs, lab members, and administrators exploring |
 | [docs/DEMO.md](docs/DEMO.md) | Running the demo, who is who, its six months, prices, and capacities, and a 20-minute walk-through |
 | [docs/SETUP.md](docs/SETUP.md) | Running Pinax on your own data: settings, the first administrator, scans, labs and people, prices |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Design; what Pinax keeps (catalog, indexes, scans) and what to back up; the snapshot index, how it is built and queried, security, measured performance and sizing |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Installing on a server: systemd services, single sign-on, scheduled scans, the catalog on SQLite or PostgreSQL, backups, upgrades, sizing, charges and statements, logs, metrics, operations |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every setting, its default, and what it does |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Installing on a server: systemd services, single sign-on, scheduled scans and keeping them, upgrades, sizing, backups, charges and statements, operations |
+| [docs/ADMINISTRATION.md](docs/ADMINISTRATION.md) | The administrator's pages: folders and labs, people and access, scans, storage health, capacity, costs, chargeback, tags, the audit log |
 | [docs/IMPORT.md](docs/IMPORT.md) | The CSV format for importing labs, people, memberships, and folder ownership |
+| [docs/CLI.md](docs/CLI.md) | Every `pinax` command and option |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | What a problem looks like, why, and what to do |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Design; what Pinax keeps (catalog, indexes, scans) and what to back up; the snapshot index, how it is built and queried, security, measured performance and sizing |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Code layout, conventions, the HTTP API, the interface, themes and chart colors, tests, benchmarks |
 | [pinax-spec/roadmap.md](pinax-spec/roadmap.md) | The plan: waves (one release each) and their slices, what is done, what is next, decisions |
 | [pinax-spec/requirements.md](pinax-spec/requirements.md) | What Pinax must do, with stable IDs and each requirement's status |
@@ -172,9 +180,11 @@ scheduled scans, and single sign-on, follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT
 | `uv run pinax user add USERNAME --name NAME --email EMAIL [--admin]` | Add a person, for example the first administrator; with `PINAX_AUTH_MODE=local`, prints a temporary password (`pinax user password USERNAME` makes a new one, `pinax user list` lists people) |
 | `uv run pinax import FOLDER [--apply]` | Import labs, people, memberships, and folder ownership from CSV; a dry run unless `--apply` ([docs/IMPORT.md](docs/IMPORT.md)) |
 | `uv run pinax check SNAPSHOT_ID \| SCAN_DIR [--index DIR] [--age-depth N] [--json]` | Check an index, and its changes since the previous scan, against `fs-inventory rollup`, directory by directory |
+| `uv run pinax tags import FILE [--apply]` | Tag folders from CSV; a dry run unless `--apply` |
+| `uv run pinax db status \| upgrade [--sql] \| copy TARGET` | The catalog's database: whether it is up to date, upgrading it, copying it to another database |
 | `uv run pytest` | Tests: index correctness, the rollup cross-check, queries, authorization, and an end-to-end scan |
 
-API documentation is served at `/api/docs`.
+Every command and option is in [docs/CLI.md](docs/CLI.md). API documentation is served at `/api/docs`.
 
 ## Layout
 

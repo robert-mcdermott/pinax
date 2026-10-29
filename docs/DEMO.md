@@ -89,7 +89,7 @@ the 16th of last month; every lab has a terabyte of it free and departments none
 
 ## Capacity
 
-*Fast* holds 125 TiB, so at its trend it fills within the year, and an expansion to 250 TiB is scheduled for eleven
+*Fast* holds 120 TiB, so at its trend it fills within the year, and an expansion to 250 TiB is scheduled for eleven
 months after the seed, too late. *Secure* holds a tebibyte. The demo's scans record nothing about the storage (its
 files are sparse, on a laptop's disk), so the capacities are set, and use is measured by the files' size.
 
@@ -156,7 +156,7 @@ files are sparse, on a laptop's disk), so the capacities are set, and use is mea
    storage no one owns, most of it `scratch_legacy`; *Download CSV* is the statement for finance. This month,
    `shared_reference` is charged to the Genomics Shared Resource from the moment it was mapped. *The next 12
    months* adds up what every lab will pay at its trend.
-   *Capacity*: *Fast* is 89% used and fills in about nine months at its trend, a month or two before the expansion
+   *Capacity*: *Fast* is 92% used and fills in about eight months at its trend, a few months before the expansion
    scheduled for eleven months on, so *All data* flags it under *Needs attention*. Its *History* draws the capacity
    above the columns.
 13. **Storage health.** An unreadable folder, a very large directory (12,000 PNG tiles), problem file names

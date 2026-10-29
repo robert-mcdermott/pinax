@@ -19,7 +19,7 @@ export function renderSidebar() {
     <h4>OVERVIEW</h4>
     <a class="side-link" href="#/" data-route="#/">${icon("home")}${admin ? "All data" : "My data"}</a>
     ${link("folders", "folder", admin ? "Folders and labs" : "My folders", false)}
-    ${link("charges", "tag", "Storage charges", false)}
+    ${link("charges", "receipt", "Storage charges", false)}
     ${link("plans", "archive", "Cleanup plans", false)}
     ${link("collections", "layers", "Collections", false)}
     <h4 class="scope-label">EXPLORE${p && p.fs ? html` <span class="tiny" title="${p.name || ""}">· ${p.name || ""}</span>` : ""}</h4>
@@ -32,13 +32,13 @@ export function renderSidebar() {
     ${link("cold", "snowflake", "Cold data")}
     ${link("owners", "users", "Owners")}
     ${link("files", "search", "Find files")}
-    ${state.me.is_admin ? link("searches", "clock", "Searches", false) : ""}
+    ${state.me.is_admin ? link("searches", "inbox", "Searches", false) : ""}
     ${admin ? html`<h4>ADMINISTRATION</h4>
       ${link("health", "heart", "Storage health", false)}
       ${link("scans", "database", "Scans", false)}
       ${link("capacity", "server", "Capacity", false)}
       ${link("tags", "tag", "Tags", false)}
-      ${link("costs", "tag", "Costs", false)}
+      ${link("costs", "banknote", "Costs", false)}
       ${link("chargeback", "table", "Chargeback", false)}
       ${link("access", "lock", "People and access", false)}` : ""}`);
   setActiveNav((location.hash || "#/").split("?")[0], ".side-link");

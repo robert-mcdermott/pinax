@@ -1,5 +1,33 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **A website with the whole documentation** (`node docs/site/build.mjs` builds it into `site/`): a product home
+  page, and every guide as pages with a menu, previous and next, and *On this page*, in light and dark themes and at
+  a phone's width. It is built from the guides in `docs/`, so the two never differ, and checks every link, anchor,
+  and screenshot.
+- **Screenshots of every page**, 40 scenes in both themes, captured from a demo of their own by
+  `node docs/capture/capture.mjs` driving headless Chrome.
+- **New guides**: how Pinax sees storage (`docs/CONCEPTS.md`), a user guide (`docs/USER-GUIDE.md`), an
+  administration guide (`docs/ADMINISTRATION.md`), every command (`docs/CLI.md`), troubleshooting
+  (`docs/TROUBLESHOOTING.md`), and a map of them all (`docs/README.md`), so a new administrator has everything to
+  install, configure, and operate Pinax.
+
+### Changed
+
+- *Storage charges* and *Costs* have icons of their own (a receipt and a banknote) instead of the tag *Tags* has, and
+  *Searches* one of its own instead of *Age report*'s clock.
+
+### Fixed
+
+- The demo's *Fast* fills within the year again, before its scheduled expansion (120 TiB rather than 125), as the
+  demo guide says; since 0.7.0 its trend had slowed past it.
+- The deployment guide ran `pinax db upgrade` and `pinax db copy` without Pinax's settings; they now use the shell
+  function from its step 3. Local sign-in behind a proxy records the person's address, as of 0.10.0, which the guide
+  now says.
+
 ## 0.10.0 (2026-10-29)
 
 Tenth release (wave 10, "operations"): what a production deployment needs from Pinax itself. The catalog can be
