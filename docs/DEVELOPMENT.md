@@ -112,6 +112,7 @@ them, the person's home), and `lab` to limit home to one lab:
 | `POST /api/admin/folders`, `POST /api/admin/labs/{slug}/members` | Folder ownership and membership changes |
 | `GET`, `PUT /api/admin/labs/{slug}`, `POST /api/admin/labs`, `POST /api/admin/labs/{slug}/deactivate` and `/reactivate` | A lab or department, with its record; adding, changing, and deactivating one |
 | `GET /api/charges?month=&lab=&history=` | A person's labs' charges for a month, with their past months and the next twelve at their trend (`ahead`) |
+| `GET /api/charges/split?lab=&month=&tag=` | A lab's month split by a tag's values, and the tags its folders have to split by |
 | `GET /api/plans?lab=`, `/api/plans/here?fs=&path=`; `POST /api/plans`, `PUT`, `DELETE /api/plans/{id}`, `POST /api/plans/{id}/moved` | A person's labs' cleanup plans; a folder's place in its lab's plan; adding, changing, and taking out a folder; confirming or dismissing a move |
 | `GET /api/plans/suggestions?lab=`, `/api/plans/all` | Folders worth adding to a lab's plan; every lab's plan, for administrators |
 | `GET`, `POST /api/admin/tags`; `PUT`, `DELETE /api/admin/tags/{id}`, `POST /api/admin/tags/{id}/active` | The standard tags and labs' own; adding, changing, retiring, and deleting an unused one |

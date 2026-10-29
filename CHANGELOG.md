@@ -18,6 +18,9 @@
   cryo-EM and Data stage is raw), on their own or from a folder above, among those the person may see, with their
   size, files, cold share, owner, tags, and monthly cost, their history and forecast, and a CSV. A folder inside
   another that matches is counted with it.
+- **Charges by tag.** *Storage charges* splits each lab's month by a tag's values, by grant if its folders have one:
+  each value's share of the lab's charge is its folders' share of the lab's average size, a folder inside another
+  tagged one counting for its own value, and the rest is shown as not tagged; with a CSV.
 
 ## 0.7.0 (2026-10-29)
 

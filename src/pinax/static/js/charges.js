@@ -3,6 +3,7 @@
 // top-level folder, with how each charge is worked out, their past months, and the next twelve at their trend.
 // Administrators pick any lab, and have Chargeback: every lab's charges for a month, for finance.
 import { api, bytes, date, emptyState, fsInfo, html, icon, kindLabel, mount, num, parseQuery, pct, placeHash, raw, roleLabel, state } from "/js/core.js";
+import { downloadCsv } from "/js/reports.js";
 import { renderSidebar } from "/js/shell.js";
 
 const UNIT = { GB: 1e9, GiB: 2 ** 30, TB: 1e12, TiB: 2 ** 40 };
@@ -61,6 +62,35 @@ export async function viewCharges(el, query) {
 
   el.querySelector("#c-month")?.addEventListener("change", (e) => go({ month: e.target.value }));
   el.querySelector("#c-lab")?.addEventListener("change", (e) => go({ lab: e.target.value }));
+  // Each lab's month split by a tag, once the month itself is shown.
+  data.labs.forEach((l) => splitBox(el.querySelector(`[data-split="${l.lab.slug}"]`), l.lab, data.month, null));
+}
+
+/** A lab's month split by a tag's values (a grant, a project), with the tags its folders have to choose from. */
+async function splitBox(box, lab, month, tag) {
+  if (!box) return;
+  let got;
+  try {
+    got = await api("charges/split", { query: { lab: lab.slug, month, tag }, quiet: true });
+  } catch (e) {
+    if (e.name !== "AbortError") mount(box, "");
+    return;
+  }
+  const s = got.split;
+  if (!s) return mount(box, "");
+  mount(box, html`<h3>By tag</h3>
+    <div class="toolbar"><label class="ctl"><span>Split by</span><select class="select sm" data-split-tag>
+      ${got.options.map((o) => html`<option value="${o.id}" ${o.id === s.tag.id ? raw("selected") : ""}>${o.label}</option>`)}</select></label>
+      <button class="btn btn-ghost btn-sm" data-split-csv>${icon("download")}Download CSV</button></div>
+    <div class="table-wrap"><table class="table compact"><thead><tr><th>${s.tag.label}</th><th class="num">Average size</th><th class="num">Charge</th></tr></thead><tbody>
+      ${s.values.map((v) => html`<tr><td>${v.value}</td><td class="num">${bytes(v.size)}</td><td class="num nowrap">${charge(v.charge, s.currency)}</td></tr>`)}
+      <tr><td class="muted">Not tagged</td><td></td><td class="num nowrap">${charge(s.untagged, s.currency)}</td></tr></tbody></table></div>
+    <p class="tiny muted">Each value's share of the lab's charge on each filesystem is its folders' share of the lab's average size there; a folder
+      inside another tagged one counts for its own value, and a folder with several values splits evenly.</p>`);
+  box.querySelector("[data-split-tag]").addEventListener("change", (e) => splitBox(box, lab, month, e.target.value));
+  box.querySelector("[data-split-csv]").addEventListener("click", () => downloadCsv(`pinax-charges-${lab.slug}-${month}-by-${s.tag.label.toLowerCase().replace(/\W+/g, "-")}.csv`,
+    ["lab", "month", "tag", "value", "average_bytes", "charge", "currency"],
+    [...s.values.map((v) => [lab.slug, month, s.tag.label, v.value, v.size, v.charge, s.currency]), [lab.slug, month, s.tag.label, "", "", s.untagged, s.currency]]));
 }
 
 function labCard(l, data) {
@@ -80,6 +110,7 @@ function labCard(l, data) {
       ${l.history.map((h) => html`<tr class="${h.month === data.month ? "current" : ""}"><td>${h.month === data.month ? html`<b aria-current="page">${monthName(h.month)}</b>`
         : html`<a class="rowlink" href="${link(h.month)}">${monthName(h.month)}</a>`}${h.estimated ? html` <span class="chip chip-queued">estimate</span>` : ""}</td>
         <td class="num">${sized(h.size, unit)}</td><td class="num nowrap">${charge(h.total, cur)}</td></tr>`)}</tbody></table></div>` : ""}
+    <div data-split="${l.lab.slug}"></div>
     ${l.ahead ? ahead(l.ahead, cur) : ""}
   </section>`;
 }

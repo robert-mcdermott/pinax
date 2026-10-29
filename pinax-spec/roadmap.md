@@ -914,7 +914,7 @@ split their charges by grant. Planned; the slices are confirmed when the wave st
 | 1 | The tag list (T1) | Standard tags kept by administrators on a *Tags* page: added, changed, and retired (a tag in use is retired, not deleted); each with a type (a flag, text, a date, or a choice from a list), who may apply it (owners, or administrators only), and whether it protects a folder from cleanup; the default list below at start-up, for a site to change; audited | Done |
 | 2 | Tagging folders (T2) | From the age map's folder panel and tile actions: a folder's own tags, and those it inherits from the folders above it; a lab's PI and delegates tag its folders, administrators any folder; a lab makes custom tags of its own, seen by its members and administrators; administrators merge a custom tag into a standard one; `pinax import` takes tags in bulk; tiles that are or hold tagged folders are marked, with their tags in tooltips and the table view; audited; both themes and 375 pixels | Done |
 | 3 | Finding data by tag (T3) | A *Collections* page: folders by tag and value, combined (Source is cryo-EM and Data stage is raw), across filesystems, within what the person may see; each folder's size, files, cold share, average age, monthly cost, owner, and tags; nested folders counted once in the total; the collection's history and forecast from the recorded totals (waves 6 and 7); CSV; within Q3, reading only the catalog | Done |
-| 4 | Cost by tag (T4) | Charges split by a tag's values, such as by grant or project: each tagged folder's share of its lab's charge on its filesystem, time-weighted from the recorded totals, and what is untagged; on *Storage charges* and in the statement CSV; tested against brute force | To come |
+| 4 | Cost by tag (T4) | Charges split by a tag's values, such as by grant or project: each tagged folder's share of its lab's charge on its filesystem, time-weighted from the recorded totals, and what is untagged; on *Storage charges* and in the statement CSV; tested against brute force | Done |
 | 5 | Protection (T5) | A folder with a protecting tag (*Keep until*, before its date; *Legal hold*), and everything below it, cannot be added to a cleanup plan; folders already planned are flagged; suggestions leave them out | To come |
 | 6 | Demo and release 0.8.0 | Demo folders with standard and custom tags, charges split by grant, and a folder on legal hold; the README demo script; version 0.8.0, changelog, pull request, tag, release | To come |
 
@@ -990,6 +990,18 @@ Settled when the wave started:
    - *Done*: `bench/bench_tags.py` (2,000 tagged folders of 200 labs, half a year of weekly totals): 60–70 ms for a
      collection of 34 folders, 85–95 ms for 100, about 0.6 s for all 2,000, after reading each table once rather
      than per folder (the first version took 1 s for 100 and 18 s for 2,000). Checked in the browser on the demo.
+4. **Cost by tag (T4).**
+   - `charges.split_by_tag`: a lab's month on each filesystem, split by a tag's values: each value's share of the
+     lab's charge is its folders' time-weighted average size (from the totals recorded with each scan, each holding
+     until the next) over the lab's; a folder's bytes go to its nearest tagged folder; several values split evenly;
+     the rest untagged.
+   - `/api/charges/split` (a lab's members and administrators), with the tags its folders have to split by, the grant
+     first. *Storage charges* shows it for each lab, loaded after the month, with a CSV of its own; the statement
+     for finance is unchanged, since a split by tag is the lab's view of its own charge.
+   - Tests (`tests/test_charges_split.py`): equal, to the cent, to brute force hour by hour through a month of weekly
+     scans, with nested tagged folders, a folder with two values, and another lab's tagged folder left out; other
+     labs refused.
+   - *Done*: checked in the browser on the demo (a grant on a lab's sequencing folder).
 
 ## Later waves (outlined)
 

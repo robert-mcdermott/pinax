@@ -463,6 +463,13 @@ on each day with a scan of one of its folders, from when they were marked, and i
 weekly totals (`bench/bench_tags.py`), a collection of 34 folders takes 60–70 ms, of 100 folders 85–95 ms, and of
 all 2,000 about 0.6 s.
 
+**Charges by tag** (`charges.split_by_tag`, `/api/charges/split`) split a lab's month by a tag's values, such as by
+grant: on each filesystem, each value gets the share of the lab's charge there that its folders' time-weighted
+average size is of the lab's (each scan's totals holding until the next, as charges are worked out), and the rest is
+untagged. A folder's bytes belong to its nearest tagged folder (itself, or the nearest above it), and a folder with
+several values splits evenly between them. *Storage charges* shows the split for each lab, by the grant if its
+folders have one, with a CSV.
+
 ## Costs
 
 What storage costs is kept in the catalog as two schedules per filesystem (`costs.py`):
