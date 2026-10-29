@@ -913,7 +913,7 @@ split their charges by grant. Planned; the slices are confirmed when the wave st
 | --- | --- | --- | --- |
 | 1 | The tag list (T1) | Standard tags kept by administrators on a *Tags* page: added, changed, and retired (a tag in use is retired, not deleted); each with a type (a flag, text, a date, or a choice from a list), who may apply it (owners, or administrators only), and whether it protects a folder from cleanup; the default list below at start-up, for a site to change; audited | Done |
 | 2 | Tagging folders (T2) | From the age map's folder panel and tile actions: a folder's own tags, and those it inherits from the folders above it; a lab's PI and delegates tag its folders, administrators any folder; a lab makes custom tags of its own, seen by its members and administrators; administrators merge a custom tag into a standard one; `pinax import` takes tags in bulk; tiles that are or hold tagged folders are marked, with their tags in tooltips and the table view; audited; both themes and 375 pixels | Done |
-| 3 | Finding data by tag (T3) | A *Collections* page: folders by tag and value, combined (Source is cryo-EM and Data stage is raw), across filesystems, within what the person may see; each folder's size, files, cold share, average age, monthly cost, owner, and tags; nested folders counted once in the total; the collection's history and forecast from the recorded totals (waves 6 and 7); CSV; within Q3, reading only the catalog | To come |
+| 3 | Finding data by tag (T3) | A *Collections* page: folders by tag and value, combined (Source is cryo-EM and Data stage is raw), across filesystems, within what the person may see; each folder's size, files, cold share, average age, monthly cost, owner, and tags; nested folders counted once in the total; the collection's history and forecast from the recorded totals (waves 6 and 7); CSV; within Q3, reading only the catalog | Done |
 | 4 | Cost by tag (T4) | Charges split by a tag's values, such as by grant or project: each tagged folder's share of its lab's charge on its filesystem, time-weighted from the recorded totals, and what is untagged; on *Storage charges* and in the statement CSV; tested against brute force | To come |
 | 5 | Protection (T5) | A folder with a protecting tag (*Keep until*, before its date; *Legal hold*), and everything below it, cannot be added to a cleanup plan; folders already planned are flagged; suggestions leave them out | To come |
 | 6 | Demo and release 0.8.0 | Demo folders with standard and custom tags, charges split by grant, and a folder on legal hold; the README demo script; version 0.8.0, changelog, pull request, tag, release | To come |
@@ -978,6 +978,18 @@ Settled when the wave started:
      tag; a lab's own tag, other labs refused, and merging it; untagging; the audit; the command line's dry run,
      refusal, and apply.
    - *Done*: checked in the browser on the demo (a tag added from the panel; the tile's dot and tooltip).
+3. **Finding data by tag (T3).**
+   - `tags.collection`: the folders with every wanted tag (a value, or any), own or inherited, that the person may
+     see; the outermost of them; each with its latest recorded totals, owner, tags, and monthly cost (its share of
+     its lab's charge, by size); the total; the history from the recorded totals, one point per day with a scan;
+     and its forecast. `tags.filters`: the tags a person can look for, with the values on folders they may see.
+   - `/api/tags/collection` and `/api/tags/filters`; *Collections* (`js/collections.js`, under *Overview*):
+     conditions kept in the address, the figures, size over time with the forecast, the folders, and a CSV.
+   - Tests: the outermost folders with a tag; tags combined and inherited; any value; only what the person may see;
+     the values to look for; the monthly cost as a share of the lab's charge; the history after a later scan.
+   - *Done*: `bench/bench_tags.py` (2,000 tagged folders of 200 labs, half a year of weekly totals): 60–70 ms for a
+     collection of 34 folders, 85–95 ms for 100, about 0.6 s for all 2,000, after reading each table once rather
+     than per folder (the first version took 1 s for 100 and 18 s for 2,000). Checked in the browser on the demo.
 
 ## Later waves (outlined)
 

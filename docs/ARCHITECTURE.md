@@ -454,6 +454,15 @@ them; tiles that are or hold tagged folders carry a dot, with their tags in the 
 `pinax tags import FILE` tags folders in bulk from a CSV (filesystem, path, tag, value; a lab's own tag as
 `lab:key`), as a dry run unless `--apply`, and changes nothing if any row is refused.
 
+**Collections** find data by its tags (`tags.collection`, *Collections*): the folders that have every tag asked for
+(each with a value, or any), on their own or from a folder above, that the person may see. The outermost of them
+are the collection, each with its latest totals (recorded with each scan for marked folders), owner, tags, and
+monthly cost (its share of its lab's charge on its filesystem, by size). The collection's history is those totals
+on each day with a scan of one of its folders, from when they were marked, and its forecast is that history's
+(forecast.py). Only the catalog is read, each table once: with 2,000 tagged folders of 200 labs and half a year of
+weekly totals (`bench/bench_tags.py`), a collection of 34 folders takes 60–70 ms, of 100 folders 85–95 ms, and of
+all 2,000 about 0.6 s.
+
 ## Costs
 
 What storage costs is kept in the catalog as two schedules per filesystem (`costs.py`):

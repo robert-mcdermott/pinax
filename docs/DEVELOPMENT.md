@@ -116,6 +116,7 @@ them, the person's home), and `lab` to limit home to one lab:
 | `GET /api/plans/suggestions?lab=`, `/api/plans/all` | Folders worth adding to a lab's plan; every lab's plan, for administrators |
 | `GET`, `POST /api/admin/tags`; `PUT`, `DELETE /api/admin/tags/{id}`, `POST /api/admin/tags/{id}/active` | The standard tags and labs' own; adding, changing, retiring, and deleting an unused one |
 | `GET /api/tags/here?fs=&path=`, `/api/tags/below?fs=&path=`; `POST /api/tags/folders`, `DELETE /api/tags/folders/{id}`; `POST /api/tags/custom`; `POST /api/admin/tags/{id}/merge` | A folder's tags and those it inherits; the tagged folders below one; tagging and untagging; a lab's own tag; folding one into a standard tag |
+| `GET /api/tags/filters`, `/api/tags/collection?want=ID[:value]` (repeated) | The tags a person can look for, with their values; the folders that have every wanted tag, with totals, history, and forecast |
 | `GET /api/admin/costs`, `/api/admin/costs/charges?month=&fmt=csv`, `/api/admin/costs/ahead` | Prices and free tiers; every lab's charges for a month, or its CSV statement; every lab's next twelve months, added up |
 | `GET /api/admin/capacity`, `POST /api/admin/capacity/{fs}`, `DELETE /api/admin/capacity/{fs}/{id}` | Each filesystem's capacity, its schedule, and when it fills; setting and removing a capacity from a day on |
 
@@ -132,7 +133,9 @@ The interface is plain HTML, CSS, and JavaScript modules with no framework or bu
   history view with it.
 - `js/capacity.js`: *Capacity*, each filesystem's capacity and when it fills (`capacity.py`, `api/capacity.py`).
 - `js/plans.js`: *Cleanup plans*, and the cleanup plan box in the age map's panel (`plans.py`, `api/plans.py`).
-- `js/tags.js`: *Tags*, the standard tags for administrators (`tags.py`, `api/tags.py`).
+- `js/tags.js`: *Tags*, the standard tags for administrators, and the tags box in the age map's panel (`tags.py`,
+  `api/tags.py`).
+- `js/collections.js`: *Collections*, finding data by tag.
 - `js/costs.js`: *Costs*, each filesystem's prices and free tiers (`costs.py`, `api/costs.py`).
 - `js/charges.js`: *Storage charges*, what a person's labs pay each month and how, and *Chargeback*, every lab's
   charges for a month, for administrators (`charges.py`, `api/costs.py`).

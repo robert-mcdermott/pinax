@@ -14,6 +14,7 @@ everything below it.
 
 import re
 from datetime import date
+from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -397,3 +398,128 @@ def import_rows(session: Session, rows: list[dict], *, apply_them: bool, cold_fr
 
 class _Undo(Exception):
     """Rolls back one row of a dry run."""
+
+
+# ---------- Finding data by tag (T3) ----------
+
+def filters(session: Session, ident) -> list[dict]:
+    """The tags a person can look for, each with the values folders they may see have."""
+    from .models import Filesystem, MarkedFolder
+
+    roots = {f.id: f.root for f in session.scalars(select(Filesystem))}
+    used: dict[int, set[str]] = {}
+    rows = session.execute(select(FolderTag.tag_id, FolderTag.value, MarkedFolder.filesystem_id, MarkedFolder.path)
+                           .join(MarkedFolder, MarkedFolder.id == FolderTag.mark_id))
+    for tag_id, value, fs_id, path in rows:
+        top = path[len(roots[fs_id].rstrip("/")) + 1:].split("/", 1)[0]
+        if ident.can_view_folder(fs_id, top):
+            used.setdefault(tag_id, set()).add(value)
+    q = select(Tag).where(Tag.id.in_(used) | (Tag.lab_id.is_(None) & Tag.active.is_(True)))
+    out = []
+    for t in session.scalars(q.order_by(Tag.lab_id.is_not(None), Tag.label)):
+        if t.lab_id is not None and not (ident.is_admin or t.lab_id in ident.lab_roles):
+            continue
+        out.append({**tag_json(t), "values": sorted(used.get(t.id, set()) - {""})})
+    return out
+
+
+def collection(session: Session, ident, wanted: list[tuple[int, str | None]]) -> dict:
+    """The folders that have every one of `wanted` (a tag, and a value or any), on their own or from a folder above,
+    that the person may see: the outermost of them, each with its latest totals, owner, monthly cost, and tags; their
+    total; and their history and forecast, from the totals recorded with each scan. Reads only the catalog, each
+    table once."""
+    from collections import defaultdict
+    from datetime import datetime, time
+
+    from .auth import folder_owners
+    from .charges import money
+    from .config import get_settings
+    from .db import utcnow
+    from .explore import size_forecast
+    from .models import Filesystem, FolderStat, MarkedFolder, MarkedFolderStat, Snapshot, SnapshotStatus
+    from .plans import monthly, top_folder
+
+    if not wanted:
+        return {"folders": [], "total": None, "points": [], "forecast": None}
+    fss = {f.id: f for f in session.scalars(select(Filesystem))}
+    tag_by = {tg.id: tg for tg in session.scalars(select(Tag))}
+    marks = {m.id: m for m in session.scalars(select(MarkedFolder).where(MarkedFolder.id.in_(select(FolderTag.mark_id))))}
+    # Every tag on every tagged folder, by filesystem and path, so ancestors are at hand.
+    have: dict[tuple[int, str], list[tuple[int, str]]] = defaultdict(list)
+    for tag_id, mark_id, value in session.execute(select(FolderTag.tag_id, FolderTag.mark_id, FolderTag.value)):
+        m = marks[mark_id]
+        have[(m.filesystem_id, m.path)].append((tag_id, value))
+    wanted_ids = {t for t, _ in wanted}
+
+    def effective(fs_id: int, path: str) -> list[tuple[int, str]]:
+        return [tv for p in ancestors(path, fss[fs_id].root) for tv in have.get((fs_id, p), [])]
+
+    by_path = {(m.filesystem_id, m.path): m for m in marks.values()}
+    hits = []
+    for key, tvs in have.items():
+        if not any(t in wanted_ids for t, _ in tvs):
+            continue
+        tags_here = effective(*key)
+        if all(any(t == w and (v is None or val == v) for t, val in tags_here) for w, v in wanted) and \
+                ident.can_view_folder(key[0], top_folder(fss[key[0]], key[1])):
+            hits.append(by_path[key])
+    # The outermost: a match with no match above it.
+    matched = {(h.filesystem_id, h.path) for h in hits}
+    hits = [h for h in hits if not any((h.filesystem_id, p) in matched
+                                       for p in ancestors(h.path, fss[h.filesystem_id].root)[1:])]
+    cols = (MarkedFolderStat.mark_id, MarkedFolderStat.taken_at, MarkedFolderStat.present, MarkedFolderStat.bytes,
+            MarkedFolderStat.files, MarkedFolderStat.cold_bytes, MarkedFolderStat.mean_age_days)
+    stats = session.execute(select(*cols).where(MarkedFolderStat.mark_id.in_([m.id for m in hits]))
+                            .order_by(MarkedFolderStat.taken_at)).all()
+    last = {}
+    for s in stats:
+        last[s.mark_id] = s
+    owners = folder_owners(session)
+    held: dict[tuple[int, int], int] = defaultdict(int)  # (lab, filesystem) -> its size in the latest scan
+    for fs_id in {m.filesystem_id for m in hits}:
+        latest_id = session.scalar(select(Snapshot.id).where(Snapshot.filesystem_id == fs_id, Snapshot.status.in_(
+            (SnapshotStatus.READY, SnapshotStatus.PRUNED))).order_by(Snapshot.started_at.desc()).limit(1))
+        for folder, b in session.execute(select(FolderStat.folder, FolderStat.bytes).where(FolderStat.snapshot_id == latest_id)):
+            if (lab := owners.get((fs_id, folder))) is not None:
+                held[(lab.id, fs_id)] += b
+    currency, day = get_settings().currency, utcnow().date()
+    whole: dict[tuple[int, int], tuple[int, object]] = {}  # (lab, filesystem) -> (its size, its monthly charge)
+    rows = []
+    for m in sorted(hits, key=lambda h: (fss[h.filesystem_id].name, h.path)):
+        fs = fss[m.filesystem_id]
+        lab = owners.get((fs.id, top_folder(fs, m.path)))
+        s = last.get(m.id)
+        here = s is not None and s.present
+        size = s.bytes if here else 0
+        cost = None
+        if lab is not None:
+            if (lab.id, fs.id) not in whole:
+                n = held[(lab.id, fs.id)]
+                whole[(lab.id, fs.id)] = (n, monthly(session, fs, lab, n, day))
+            n, charge = whole[(lab.id, fs.id)]
+            if charge is not None and n:
+                cost = charge * size / n  # its share of the lab's charge there
+        labels = sorted({f"{tag_by[t].label}: {v}" if v else tag_by[t].label for t, v in effective(fs.id, m.path)})
+        rows.append({"fs": fs.slug, "fs_name": fs.name, "path": m.path, "name": m.path.rsplit("/", 1)[-1],
+                     "lab": {"slug": lab.slug, "name": lab.name} if lab else None, "status": m.status,
+                     "bytes": size, "files": s.files if here else 0, "cold_bytes": s.cold_bytes if here else 0,
+                     "mean_age_days": s.mean_age_days if here else None,
+                     "taken_at": s.taken_at.isoformat() + "Z" if s else None,
+                     "monthly": str(money(cost, currency)) if cost is not None else None, "tags": labels})
+    # History: on each day with a scan of one of them, each folder as of its latest scan by then.
+    days = sorted({s.taken_at.date() for s in stats})
+    points, latest, i = [], {}, 0
+    for d in days:
+        end = datetime.combine(d, time.max)
+        while i < len(stats) and stats[i].taken_at <= end:  # one pass: each folder's latest scan by then
+            latest[stats[i].mark_id] = stats[i]
+            i += 1
+        at = max(s.taken_at for s in latest.values())
+        present = [s for s in latest.values() if s.present]
+        points.append({"taken_at": at.isoformat() + "Z", "present": bool(present), "bytes": sum(s.bytes for s in present),
+                       "files": sum(s.files for s in present), "cold_bytes": sum(s.cold_bytes for s in present)})
+    costs = [Decimal(r["monthly"]) for r in rows if r["monthly"] is not None]
+    total = {"folders": len(rows), "bytes": sum(r["bytes"] for r in rows), "files": sum(r["files"] for r in rows),
+             "cold_bytes": sum(r["cold_bytes"] for r in rows), "monthly": str(sum(costs, Decimal(0))) if costs else None,
+             "currency": currency}
+    return {"folders": rows, "total": total, "points": points, "forecast": size_forecast(points) if points else None}

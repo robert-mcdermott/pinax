@@ -2,7 +2,7 @@
 """Folder tags (tags.py): the standard tags, for administrators to keep; and tagging folders, for a lab's members
 and administrators."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -126,6 +126,26 @@ def here(fs: str, path: str, identity: Identity = Depends(current_identity), ses
 def below(fs: str, path: str, identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
     """The tagged folders at or below a folder, for marking the age map's tiles."""
     return {"tagged": tags.tagged_below(session, identity, _fs(session, fs), path)}
+
+
+@router.get("/tags/filters")
+def filters(identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
+    """The tags a person can look for, with the values on folders they may see."""
+    return {"tags": tags.filters(session, identity)}
+
+
+@router.get("/tags/collection")
+def collection(want: list[str] = Query(default=[]), identity: Identity = Depends(current_identity),
+               session: Session = Depends(get_session)):
+    """The folders that have every wanted tag (`want=ID` for any value, `want=ID:value` for one), on their own or
+    from a folder above: the outermost, with their totals, history, and forecast."""
+    parsed = []
+    for w in want:
+        tag_id, _, value = w.partition(":")
+        if not tag_id.isdigit():
+            raise HTTPException(422, f"A wanted tag is ID or ID:value, not {w!r}")
+        parsed.append((int(tag_id), value or None))
+    return tags.collection(session, identity, parsed)
 
 
 class FolderTagBody(BaseModel):

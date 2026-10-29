@@ -14,6 +14,10 @@
   folders above it. Tiles that are or hold tagged folders carry a dot, with their tags in the tooltip and the table.
   Administrators tag any folder, and fold a lab's tag into a standard one. `pinax tags import` tags folders in bulk
   from a CSV, as a dry run unless `--apply`.
+- **Collections.** Find data by its tags across filesystems: the folders that have every tag asked for (Source is
+  cryo-EM and Data stage is raw), on their own or from a folder above, among those the person may see, with their
+  size, files, cold share, owner, tags, and monthly cost, their history and forecast, and a CSV. A folder inside
+  another that matches is counted with it.
 
 ## 0.7.0 (2026-10-29)
 

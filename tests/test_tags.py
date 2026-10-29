@@ -209,3 +209,84 @@ def test_tags_in_bulk_from_the_command_line(client, tmp_path, monkeypatch, capsy
         cli.main()
     keep = _here(client, "ada", f"{ALPHA}/projects/2015_old")["tags"]
     assert {(t["tag"]["key"], t["value"]) for t in keep} == {("project", "Atlas"), ("keep_until", "2031-01-31")}
+
+
+# ---------- Finding data by tag (T3) ----------
+
+def _collection(client, user: str, *want: str) -> dict:
+    login(client, user)
+    r = client.get("/api/tags/collection", params=[("want", w) for w in want])
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+@pytest.fixture
+def tagged(client):
+    project, stage = _id(client, "project"), _id(client, "stage")
+    _tag(client, "ada", f"{ALPHA}/projects", project, "Atlas")
+    _tag(client, "ada", f"{ALPHA}/projects/2015_old", stage, "raw")
+    _tag(client, "ada", f"{ALPHA}/projects/2015_old/reads", project, "Atlas")  # inside one already tagged Atlas
+    _tag(client, "ben", f"{ROOT}/beta_lab", project, "Atlas")
+    _tag(client, "ben", f"{ROOT}/beta_lab/imaging", stage, "raw")
+    return client, project, stage
+
+
+def test_a_collection_is_the_outermost_folders_with_the_tag(tagged):
+    client, project, _stage = tagged
+    c = _collection(client, "ivy", f"{project}:Atlas")
+    assert [(f["path"], f["lab"]["slug"]) for f in c["folders"]] == [(f"{ALPHA}/projects", "alpha"), (f"{ROOT}/beta_lab", "beta")]
+    assert c["total"]["bytes"] == 19060 + 9005 and c["total"]["folders"] == 2
+    assert "Project: Atlas" in c["folders"][0]["tags"]
+
+
+def test_tags_combine_and_are_inherited(tagged):
+    client, project, stage = tagged
+    both = _collection(client, "ivy", f"{project}:Atlas", f"{stage}:raw")
+    assert [f["path"] for f in both["folders"]] == [f"{ALPHA}/projects/2015_old", f"{ROOT}/beta_lab/imaging"]
+    assert sorted(both["folders"][0]["tags"]) == ["Data stage: raw", "Project: Atlas"]
+    assert [f["path"] for f in _collection(client, "ivy", str(stage))["folders"]] == [
+        f"{ALPHA}/projects/2015_old", f"{ROOT}/beta_lab/imaging"]  # any value
+    assert _collection(client, "ivy", f"{project}:Nothing")["folders"] == []
+
+
+def test_a_collection_holds_only_what_the_person_may_see(tagged):
+    client, project, _ = tagged
+    assert [f["lab"]["slug"] for f in _collection(client, "ada", f"{project}:Atlas")["folders"]] == ["alpha"]
+    assert _collection(client, "nobody", f"{project}:Atlas")["folders"] == []
+    login(client, "ada")
+    values = {t["key"]: t["values"] for t in client.get("/api/tags/filters").json()["tags"]}
+    assert values["project"] == ["Atlas"] and values["stage"] == ["raw"] and "legal_hold" in values
+
+
+def test_what_a_collection_costs_is_its_share_of_the_labs_charge(tagged):
+    from sqlalchemy import select
+
+    from pinax import costs
+    from pinax.db import session_scope
+    from pinax.models import Filesystem
+
+    client, project, _ = tagged
+    with session_scope() as s:
+        costs.add_price(s, None, s.scalar(select(Filesystem)), "2026-01-01", "1000000", "GB")
+    alpha = _collection(client, "ada", f"{project}:Atlas")
+    # The Alpha Lab's 19,061 bytes cost 19.061 a month; projects holds 19,060 of them.
+    assert alpha["folders"][0]["monthly"] == "19.06" and alpha["total"]["monthly"] == "19.06"
+
+
+def test_a_collection_has_a_history(tagged, tmp_path):
+    from datetime import UTC, datetime
+
+    from conftest import FILES
+    from scanfix import write_scan
+
+    from pinax.db import session_scope
+    from pinax.snapshots import ingest_scan
+
+    client, project, _ = tagged
+    write_scan(tmp_path / "later", ROOT, FILES + [{"path": "alpha_lab/projects/new/more.bam", "size": 1000, "age_days": 1}],
+               started=datetime(2026, 10, 20, tzinfo=UTC))
+    with session_scope() as s:
+        ingest_scan(s, tmp_path / "later", progress=lambda m: None)
+    c = _collection(client, "ivy", f"{project}:Atlas")
+    assert [p["bytes"] for p in c["points"]] == [28065, 29065]
+    assert c["forecast"]["ok"] is False and c["forecast"]["why"] == "scans"
