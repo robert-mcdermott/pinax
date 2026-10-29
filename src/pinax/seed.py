@@ -95,14 +95,14 @@ def demo_costs(now: float) -> tuple[list[tuple], list[tuple]]:
 
 def demo_capacity(now: float) -> list[tuple]:
     """How much the demo's filesystems hold (filesystem, from, amount, unit), from the day of the seed. Fast holds
-    125 TiB, so at its trend it fills within the year; an expansion to 250 TiB is scheduled for eleven months on,
+    120 TiB, so at its trend it fills within the year; an expansion to 250 TiB is scheduled for eleven months on,
     too late. Secure holds a tebibyte. The demo's scans do not record what the storage reports (its files are
     sparse, and the folder they are on is not the storage they stand for), so the capacities are set."""
     today = datetime.fromtimestamp(now, UTC).date()
     since = date(datetime.fromtimestamp(now - (SCANS - 1) * MONTH, UTC).year, 1, 1)  # before the first scan
     y, m = divmod(today.month - 1 + 11, 12)
     expansion = date(today.year + y, m + 1, 1)
-    return [("fast", since, "125", "TiB"), ("fast", expansion, "250", "TiB"), ("secure", since, "1", "TiB")]
+    return [("fast", since, "120", "TiB"), ("fast", expansion, "250", "TiB"), ("secure", since, "1", "TiB")]
 
 
 # The demo's tags, put on after the last scan by who would: (username, folder, tag key, value). A lab's own tag is
