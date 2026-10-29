@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.8.0 (2026-10-29)
+
+Eighth release (wave 8, "folder tags"): folders described in terms a lab and IT share. Administrators keep a list of
+standard tags (a default of nine to start), labs tag their folders with them and with tags of their own, and a tag
+applies to everything below its folder. *Collections* finds data by tag across filesystems, with its size, cost,
+history, and forecast; *Storage charges* splits a lab's month by grant or project; and *Legal hold* and *Keep until*
+keep folders out of cleanup plans. Next is the production pilot (0.9.0), when production storage is reachable. See
+[pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+
+Upgrading from 0.7.0: the catalog gains `tag` and `folder_tag` tables, created at start-up, and the default tags are
+added then. Indexes are unchanged (version 6). No new settings.
+
+### Added
+
+- **Tags.** *Tags* (for administrators) keeps the standard tags folders can have: each a flag, text, a date, or a
+  choice from the site's own list, applied by lab PIs and delegates or by administrators only, with one value or
+  more, and some protecting a folder from cleanup plans. A default list is added once: Project, Grant or award, Data
+  stage, Source, Data classification, IRB protocol, Shared in a repository, Keep until, and Legal hold. A tag in use
+  is retired rather than deleted; every change is audited.
+- **Tagging folders.** From a folder's panel on the age map, a lab's PI or delegate tags it (and so everything below
+  it), with the standard tags and with tags of the lab's own; the panel shows the tags a folder inherits from the
+  folders above it. Tiles that are or hold tagged folders carry a dot, with their tags in the tooltip and the table.
+  Administrators tag any folder, and fold a lab's tag into a standard one. `pinax tags import` tags folders in bulk
+  from a CSV, as a dry run unless `--apply`.
+- **Collections.** Find data by its tags across filesystems: the folders that have every tag asked for (Source is
+  cryo-EM and Data stage is raw), on their own or from a folder above, among those the person may see, with their
+  size, files, cold share, owner, tags, and monthly cost, their history and forecast, and a CSV. A folder inside
+  another that matches is counted with it.
+- **Charges by tag.** *Storage charges* splits each lab's month by a tag's values, by grant if its folders have one:
+  each value's share of the lab's charge is its folders' share of the lab's average size, a folder inside another
+  tagged one counting for its own value, and the rest is shown as not tagged; with a CSV.
+- **Protected from cleanup.** A folder on *Legal hold*, or tagged *Keep until* a day not yet past, cannot be added to
+  a cleanup plan, nor can anything inside it or any folder that holds it; a folder planned before it was protected
+  is flagged, and suggestions leave protected folders out.
+
 ## 0.7.0 (2026-10-29)
 
 Seventh release (wave 7, "cleanup plans"): what a lab could free, and what it would save. From a folder's panel on

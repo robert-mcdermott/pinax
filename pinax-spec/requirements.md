@@ -25,7 +25,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | P2 | Apache-2.0; `LICENSE` and `NOTICE`; SPDX headers in source files | done (wave 1, slice 1) |
 | P3 | Read-only: never opens, moves, or changes a file on the storage it reports on; reads only fs-inventory scans | done (wave 1, slice 2) |
 | P4 | Light and dark themes, keyboard-reachable charts, WCAG AA text contrast, a table view for every chart, chart colors validated in both themes | done (wave 1, slices 1 and 4: age and share ramps pass the ordinal checks in both themes; checked at 375 px) |
-| P5 | A demo that builds in one command with real fs-inventory scans of realistic data | done (wave 1, slice 7: about 34,000 sparse files, 117 TB logical, two scans per filesystem, about ten seconds; wave 3, slice 2: six scans per filesystem a month apart, with a story in each month, about 35,000 files and 123 TB, about fifteen seconds; wave 6: capacities, one filesystem filling within the year; wave 7: a cleanup plan, partly done and with a folder renamed by the last scan) |
+| P5 | A demo that builds in one command with real fs-inventory scans of realistic data | done (wave 1, slice 7: about 34,000 sparse files, 117 TB logical, two scans per filesystem, about ten seconds; wave 3, slice 2: six scans per filesystem a month apart, with a story in each month, about 35,000 files and 123 TB, about fifteen seconds; wave 6: capacities, one filesystem filling within the year; wave 7: a cleanup plan, partly done and with a folder renamed by the last scan; wave 8: tags, a grant split, a folder on legal hold) |
 | P6 | Service files for the web app and ingest; a container image | partial (wave 2, slice 6: systemd units in `deploy/`; wave 10: container) |
 | P7 | PostgreSQL catalog with migrations | planned (wave 10) |
 
@@ -88,11 +88,11 @@ validation that shows it. Requirement IDs are stable and never reused.
 
 | # | Requirement | Status |
 | --- | --- | --- |
-| T1 | Standard tags kept by administrators, typed (flag, text, date, choice), with a default list a site changes | planned (wave 8) |
-| T2 | Data owners and administrators tag folders, and tags apply to everything below; labs make custom tags, which administrators can merge into standard ones | planned (wave 8) |
-| T3 | Find folders by tag and value across filesystems, with their totals, history, and forecast; CSV | planned (wave 8) |
-| T4 | Charges split by a tag's values, such as by grant or project | planned (wave 8) |
-| T5 | Tags that protect folders from cleanup plans (*Keep until*, *Legal hold*) | planned (wave 8) |
+| T1 | Standard tags kept by administrators, typed (flag, text, date, choice), with a default list a site changes | done (wave 8, slice 1) |
+| T2 | Data owners and administrators tag folders, and tags apply to everything below; labs make custom tags, which administrators can merge into standard ones | done (wave 8, slice 2: from the age map's panel, and `pinax tags import`) |
+| T3 | Find folders by tag and value across filesystems, with their totals, history, and forecast; CSV | done (wave 8, slice 3: within Q3 for collections of up to about 100 folders; 0.6 s for 2,000) |
+| T4 | Charges split by a tag's values, such as by grant or project | done (wave 8, slice 4: on *Storage charges*, equal to brute force) |
+| T5 | Tags that protect folders from cleanup plans (*Keep until*, *Legal hold*) | done (wave 8, slice 5) |
 
 ## Access
 

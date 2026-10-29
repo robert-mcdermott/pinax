@@ -16,13 +16,13 @@ decisions taken are recorded here. Later waves are outlined at the end.
 **Progress** is marked here as each slice is committed: done, next or to come. Each requirement's status is
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
-**Where things stand:** waves 1 to 7 are released as 0.1.0 to 0.7.0 (tags on `main`). Besides forecasts, 0.6.0
+**Where things stand:** waves 1 to 8 are released as 0.1.0 to 0.8.0 (tags on `main`). Besides forecasts, 0.6.0
 has what was merged since 0.5.0:
 - labs and departments can be added, changed, and deactivated in the app, so a site needs no CSV files at all;
 - guidance for operating Pinax;
 - time limits for requests, and new and removed files recorded at ingest, for filesystems of two billion files.
 
-Next come folder tags (wave 8). The production pilot needs production storage, which
+Next is the production pilot needs production storage, which
 will not be reachable for some time, so it waits as wave 9. If production storage becomes reachable sooner, the
 pilot becomes the next wave and the waves after it are renumbered. Ideas kept for later but not planned are in the
 [parking lot](#parking-lot).
@@ -905,18 +905,18 @@ the site's own.
 Folders described in terms a lab and IT share: the project, the grant, the instrument, the stage of the data, how
 sensitive it is, and how long it must be kept. Administrators keep a list of standard tags; data owners tag their
 folders with them, or with tags of their own; people find data by tag across filesystems, see what it costs, and
-split their charges by grant. Planned; the slices are confirmed when the wave starts.
+split their charges by grant.
 
 ### Wave 8 sequence
 
 | Slice | Scope and requirements | Acceptance before the next slice | Status |
 | --- | --- | --- | --- |
-| 1 | The tag list (T1) | Standard tags kept by administrators on a *Tags* page: added, changed, and retired (a tag in use is retired, not deleted); each with a type (a flag, text, a date, or a choice from a list), who may apply it (owners, or administrators only), and whether it protects a folder from cleanup; the default list below at start-up, for a site to change; audited | To come |
-| 2 | Tagging folders (T2) | From the age map's folder panel and tile actions: a folder's own tags, and those it inherits from the folders above it; a lab's PI and delegates tag its folders, administrators any folder; a lab makes custom tags of its own, seen by its members and administrators; administrators merge a custom tag into a standard one; `pinax import` takes tags in bulk; tiles that are or hold tagged folders are marked, with their tags in tooltips and the table view; audited; both themes and 375 pixels | To come |
-| 3 | Finding data by tag (T3) | A *Collections* page: folders by tag and value, combined (Source is cryo-EM and Data stage is raw), across filesystems, within what the person may see; each folder's size, files, cold share, average age, monthly cost, owner, and tags; nested folders counted once in the total; the collection's history and forecast from the recorded totals (waves 6 and 7); CSV; within Q3, reading only the catalog | To come |
-| 4 | Cost by tag (T4) | Charges split by a tag's values, such as by grant or project: each tagged folder's share of its lab's charge on its filesystem, time-weighted from the recorded totals, and what is untagged; on *Storage charges* and in the statement CSV; tested against brute force | To come |
-| 5 | Protection (T5) | A folder with a protecting tag (*Keep until*, before its date; *Legal hold*), and everything below it, cannot be added to a cleanup plan; folders already planned are flagged; suggestions leave them out | To come |
-| 6 | Demo and release 0.8.0 | Demo folders with standard and custom tags, charges split by grant, and a folder on legal hold; the README demo script; version 0.8.0, changelog, pull request, tag, release | To come |
+| 1 | The tag list (T1) | Standard tags kept by administrators on a *Tags* page: added, changed, and retired (a tag in use is retired, not deleted); each with a type (a flag, text, a date, or a choice from a list), who may apply it (owners, or administrators only), and whether it protects a folder from cleanup; the default list below at start-up, for a site to change; audited | Done |
+| 2 | Tagging folders (T2) | From the age map's folder panel and tile actions: a folder's own tags, and those it inherits from the folders above it; a lab's PI and delegates tag its folders, administrators any folder; a lab makes custom tags of its own, seen by its members and administrators; administrators merge a custom tag into a standard one; `pinax import` takes tags in bulk; tiles that are or hold tagged folders are marked, with their tags in tooltips and the table view; audited; both themes and 375 pixels | Done |
+| 3 | Finding data by tag (T3) | A *Collections* page: folders by tag and value, combined (Source is cryo-EM and Data stage is raw), across filesystems, within what the person may see; each folder's size, files, cold share, average age, monthly cost, owner, and tags; nested folders counted once in the total; the collection's history and forecast from the recorded totals (waves 6 and 7); CSV; within Q3, reading only the catalog | Done |
+| 4 | Cost by tag (T4) | Charges split by a tag's values, such as by grant or project: each tagged folder's share of its lab's charge on its filesystem, time-weighted from the recorded totals, and what is untagged; on *Storage charges* and in the statement CSV; tested against brute force | Done |
+| 5 | Protection (T5) | A folder with a protecting tag (*Keep until*, before its date; *Legal hold*), and everything below it, cannot be added to a cleanup plan; folders already planned are flagged; suggestions leave them out | Done |
+| 6 | Demo and release 0.8.0 | Demo folders with standard and custom tags, charges split by grant, and a folder on legal hold; the README demo script; version 0.8.0, changelog, pull request, tag, release | Done |
 
 The default tags, which a site changes on the *Tags* page:
 
@@ -932,7 +932,7 @@ The default tags, which a site changes on the *Tags* page:
 | Keep until | Date | Owners | Protects from cleanup until the date |
 | Legal hold | Flag | Administrators | Protects from cleanup |
 
-### Decisions for wave 8 (proposed)
+### Decisions for wave 8
 
 - **Tags are on folders and apply to everything below them**, not on files (see wave 7).
 - **Standard tags have types**, so their values compare: a date is a date, and a choice comes from its list, which
@@ -943,8 +943,83 @@ The default tags, which a site changes on the *Tags* page:
 - **Collections read only the catalog**, from the totals recorded for marked folders at each ingest (wave 7), so
   finding data by tag takes milliseconds however many filesystems it spans.
 
-Open within the wave: who sets *Data classification*; whether new top-level folders must have some tags; whether a
-folder can drop a tag it inherits.
+Settled when the wave started:
+- *Data classification* is applied by administrators by default; each tag's *applied by* is the site's to change.
+- New top-level folders need no tags: required tags wait for a site that wants them.
+- A folder cannot drop a tag it inherits; the tag is taken off the folder that has it.
+
+### Slices as built
+
+1. **The tag list (T1).**
+   - `tag` and `folder_tag` tables, and `tags.py`: standard tags (no lab) and labs' own; a type (flag, text, date,
+     choice with its list), more than one value or not, applied by owners or administrators, and protecting (a flag
+     or a date); values checked by type. The default list is added by `init_db` when the catalog has no standard tag
+     at all, so a site's removals stay. Adding, changing (not the type; not taking away a choice in use), retiring
+     and bringing back, and deleting an unused tag, each audited.
+   - `/api/admin/tags` and *Tags* (`js/tags.js`, under *Administration*): the standard tags and labs' own, with how
+     many folders have each.
+   - Tests (`tests/test_tags.py`): the default list, added once; adding and changing, and what is refused; a tag in
+     use retired, not deleted, and its choices kept; administrators only; values by type.
+   - *Done*: checked in the browser on the demo.
+2. **Tagging folders (T2).**
+   - `tags.apply` and `untag`: a lab's PI and delegates (and administrators) put a standard tag applied by owners,
+     or the lab's own tag, on its folders; administrators any tag on any folder; a retired tag on none. A one-value
+     tag replaces the value; the same value twice is refused. A folder's tags are its own and its ancestors'
+     (`tags.effective`). `make_custom` (a lab's own flag or text tag) and `merge` (into a standard tag, retiring
+     the lab's). Each audited.
+   - `/api/tags/here`, `/below`, `/folders`, `/custom`, and `/api/admin/tags/{id}/merge`. The age map's panel has a
+     *Tags* box (own tags with *take it off*, inherited ones from the folder above, *Add tag* with a value field
+     for the tag's type, and a tag of the lab's own); tiles that are or hold tagged folders carry a dot, and their
+     tags are in the tooltip, the accessible label, and the table view.
+   - `pinax tags import FILE [--apply]`: a CSV of filesystem, path, tag, value (`lab:key` for a lab's own), a dry
+     run first, and nothing changed if any row is refused. It is a command of its own rather than part of
+     `pinax import`, whose plan of labs, people, and folders it does not need.
+   - Tests: a PI's tag, inherited below; more than one value; who may tag what; a one-value tag replaced; a retired
+     tag; a lab's own tag, other labs refused, and merging it; untagging; the audit; the command line's dry run,
+     refusal, and apply.
+   - *Done*: checked in the browser on the demo (a tag added from the panel; the tile's dot and tooltip).
+3. **Finding data by tag (T3).**
+   - `tags.collection`: the folders with every wanted tag (a value, or any), own or inherited, that the person may
+     see; the outermost of them; each with its latest recorded totals, owner, tags, and monthly cost (its share of
+     its lab's charge, by size); the total; the history from the recorded totals, one point per day with a scan;
+     and its forecast. `tags.filters`: the tags a person can look for, with the values on folders they may see.
+   - `/api/tags/collection` and `/api/tags/filters`; *Collections* (`js/collections.js`, under *Overview*):
+     conditions kept in the address, the figures, size over time with the forecast, the folders, and a CSV.
+   - Tests: the outermost folders with a tag; tags combined and inherited; any value; only what the person may see;
+     the values to look for; the monthly cost as a share of the lab's charge; the history after a later scan.
+   - *Done*: `bench/bench_tags.py` (2,000 tagged folders of 200 labs, half a year of weekly totals): 60–70 ms for a
+     collection of 34 folders, 85–95 ms for 100, about 0.6 s for all 2,000, after reading each table once rather
+     than per folder (the first version took 1 s for 100 and 18 s for 2,000). Checked in the browser on the demo.
+4. **Cost by tag (T4).**
+   - `charges.split_by_tag`: a lab's month on each filesystem, split by a tag's values: each value's share of the
+     lab's charge is its folders' time-weighted average size (from the totals recorded with each scan, each holding
+     until the next) over the lab's; a folder's bytes go to its nearest tagged folder; several values split evenly;
+     the rest untagged.
+   - `/api/charges/split` (a lab's members and administrators), with the tags its folders have to split by, the grant
+     first. *Storage charges* shows it for each lab, loaded after the month, with a CSV of its own; the statement
+     for finance is unchanged, since a split by tag is the lab's view of its own charge.
+   - Tests (`tests/test_charges_split.py`): equal, to the cent, to brute force hour by hour through a month of weekly
+     scans, with nested tagged folders, a folder with two values, and another lab's tagged folder left out; other
+     labs refused.
+   - *Done*: checked in the browser on the demo (a grant on a lab's sequencing folder).
+5. **Protection (T5).**
+   - `tags.protection`: a protecting tag in effect (a flag; a date not yet past) on the folder, above it, or below
+     it, with why. `plans.add` refuses such a folder (a folder that holds a protected one would take it too);
+     planned folders carry `protected`; `plans.here` says why in the age map's box; suggestions skip them.
+   - *Cleanup plans* flags a folder protected since it was planned.
+   - Tests: a folder kept until a later date, one inside it, and one holding it refused, one beside it not; a date
+     past protects nothing; legal hold; a planned folder protected later is flagged; suggestions leave a protected
+     cold folder out.
+6. **Demo and release 0.8.0.**
+   - `pinax seed` tags demo folders after the last scan (`seed.DEMO_TAGS`, each by the person who would): the
+     Fujimoto Lab's two projects with their grants and the lab's own *Atlas paper*, its 2018 pilot kept until 2030,
+     the Lindqvist Lab's sequencing with a grant and its tumor-normal study raw, restricted, and under an IRB
+     protocol, the Genomics Shared Resource's runs raw sequencing, and the Kowalski Lab's 2016 phosphoproteome on
+     legal hold.
+   - `docs/DEMO.md`: a walk-through step for tags, the grant split, and a collection; the README describes tags.
+   - Version 0.8.0 in `pyproject.toml`, `pinax.__version__`, and `uv.lock`; `CHANGELOG.md` dated, with notes on
+     upgrading from 0.7.0 (two catalog tables and the default tags, at start-up).
+   - Pull request to `main`, then tag `v0.8.0` and the release.
 
 ## Later waves (outlined)
 

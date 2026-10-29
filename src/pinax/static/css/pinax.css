@@ -755,6 +755,15 @@ pre.json { background: var(--surface-2); color: var(--text); border: 1px solid v
 .cost-card h3 { margin: 18px 0 8px; }
 .plan-box:not(:empty) { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
 .plan-box h3 { margin: 0 0 8px; }
+.tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag-list .tag { display: inline-flex; align-items: center; gap: 4px; }
+.tag-list .tag.inherited { background: transparent; border: 1px dashed var(--border-strong); }
+.tag-list .tag small { color: var(--text-muted); }
+.tag-x { border: 0; background: none; color: inherit; padding: 0 0 0 2px; cursor: pointer; display: inline-flex; }
+.tag-x svg { width: 12px; height: 12px; }
+/* A tile that is, or holds, a tagged folder: a white dot with a navy ring, which shows on every tile color. */
+.tm-tile.tagged::after { content: ""; position: absolute; top: 5px; right: 5px; width: 8px; height: 8px; border-radius: 50%;
+  background: #FFFFFF; box-shadow: 0 0 0 2px #112345; }
 .plan-form .radio { display: flex; align-items: center; gap: 8px; }
 .cost-card .card-head { flex-wrap: wrap; gap: 6px 16px; }
 .cost-form { margin: 12px 0 0; padding-top: 12px; border-top: 1px solid var(--border); }

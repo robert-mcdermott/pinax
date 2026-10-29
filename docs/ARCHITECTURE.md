@@ -433,6 +433,48 @@ Administrators see **every lab's plan** (`/api/plans/all`, *Cleanup plans* witho
 would free and save, and what is done; per filesystem, what is to be freed, moved in, and freed so far; the largest
 folders still to do; each lab's plan; and one CSV of every folder, for the storage team.
 
+## Tags
+
+Folders are described with **tags** (`tags.py`, `tag` and `folder_tag`). Administrators keep the standard tags on
+*Tags*: each has a type (a flag, text, a date, or a choice from the site's own list), says who may apply it (a
+lab's PI and delegates, or administrators only), whether a folder may have more than one value, and whether it
+protects a folder from cleanup plans (a flag, or a date until it). A default list is added the first time the
+catalog is set up, and never again, so a site's changes stay: Project, Grant or award, Data stage, Source, Data
+classification (administrators only), IRB protocol, Shared in a repository, Keep until, and Legal hold. A tag in use
+is retired rather than deleted (folders keep it; it can no longer be applied), its type cannot change, and a choice
+in use cannot be taken away. Every change is audited.
+
+A tag is put on a folder (a marked folder, so it follows the folder across scans) and **applies to everything below
+it**: a folder's tags are its own and those of the folders above it, which it cannot drop. A lab's PI and delegates
+tag its folders with the standard tags applied by owners and with the lab's own tags (a flag or text, made by them,
+seen by the lab's members and administrators); administrators tag any folder with any tag, and can fold a lab's tag
+into a standard one (each folder gets the standard tag, with a value given or the lab tag's own, and the lab's tag
+is retired). A tag with one value replaces the folder's value. The age map's panel shows a folder's tags and adds
+them; tiles that are or hold tagged folders carry a dot, with their tags in the tooltip and the table view.
+`pinax tags import FILE` tags folders in bulk from a CSV (filesystem, path, tag, value; a lab's own tag as
+`lab:key`), as a dry run unless `--apply`, and changes nothing if any row is refused.
+
+**Collections** find data by its tags (`tags.collection`, *Collections*): the folders that have every tag asked for
+(each with a value, or any), on their own or from a folder above, that the person may see. The outermost of them
+are the collection, each with its latest totals (recorded with each scan for marked folders), owner, tags, and
+monthly cost (its share of its lab's charge on its filesystem, by size). The collection's history is those totals
+on each day with a scan of one of its folders, from when they were marked, and its forecast is that history's
+(forecast.py). Only the catalog is read, each table once: with 2,000 tagged folders of 200 labs and half a year of
+weekly totals (`bench/bench_tags.py`), a collection of 34 folders takes 60–70 ms, of 100 folders 85–95 ms, and of
+all 2,000 about 0.6 s.
+
+**Charges by tag** (`charges.split_by_tag`, `/api/charges/split`) split a lab's month by a tag's values, such as by
+grant: on each filesystem, each value gets the share of the lab's charge there that its folders' time-weighted
+average size is of the lab's (each scan's totals holding until the next, as charges are worked out), and the rest is
+untagged. A folder's bytes belong to its nearest tagged folder (itself, or the nearest above it), and a folder with
+several values splits evenly between them. *Storage charges* shows the split for each lab, by the grant if its
+folders have one, with a CSV.
+
+**Protection.** A protecting tag (*Legal hold*; *Keep until*, before its date) keeps its folder, and everything below
+it, out of cleanup plans (`tags.protection`): adding such a folder is refused, and so is adding a folder that holds
+one, since cleaning it up would take the protected folder too. A folder planned before it was protected is flagged
+on the plan; suggestions leave protected folders out.
+
 ## Costs
 
 What storage costs is kept in the catalog as two schedules per filesystem (`costs.py`):

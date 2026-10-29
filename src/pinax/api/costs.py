@@ -15,7 +15,7 @@ from .. import charges, costs
 from ..auth import Identity, current_identity, require_admin
 from ..config import get_settings
 from ..db import get_session, utcnow
-from ..models import Filesystem, FreeTier, Lab, Price
+from ..models import Filesystem, FreeTier, Lab, LabFolder, Price
 
 router = APIRouter(tags=["costs"])
 admin = APIRouter(prefix="/admin/costs")
@@ -176,6 +176,34 @@ def lab_charges(month: str | None = None, lab: str | None = None, history: bool 
             "months": charges.months(session),
             "priced": session.scalar(select(Price.id).limit(1)) is not None,
             "choices": [{"slug": c.slug, "name": c.name, "kind": c.kind} for c in choices]}
+
+
+@router.get("/charges/split")
+def charges_split(lab: str, month: str | None = None, tag: int | None = None,
+                  identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
+    """A lab's charges for a month split by a tag's values (a grant, a project), with the tags its folders have to
+    split by (the grant, if any, by default)."""
+    from ..models import FolderTag, MarkedFolder, Tag
+
+    found = session.scalar(select(Lab).where(Lab.slug == lab))
+    if found is None or not (identity.is_admin or found.id in identity.lab_roles):
+        raise HTTPException(404, "No such lab or department")
+    owned = {(f.filesystem_id, f.path) for f in session.scalars(select(LabFolder).where(LabFolder.lab_id == found.id))}
+    roots = {f.id: f.root.rstrip("/") for f in session.scalars(select(Filesystem))}
+    used = {}
+    for t_, fs_id, path in session.execute(select(Tag, MarkedFolder.filesystem_id, MarkedFolder.path)
+                                           .join(FolderTag, FolderTag.tag_id == Tag.id)
+                                           .join(MarkedFolder, MarkedFolder.id == FolderTag.mark_id)):
+        if (fs_id, path[len(roots[fs_id]) + 1:].split("/", 1)[0]) in owned:
+            used[t_.id] = t_
+    options = sorted(used.values(), key=lambda x: (x.key != "grant", x.label))
+    chosen = tag if tag in used else (options[0].id if options else None)
+    month = month or utcnow().strftime("%Y-%m")
+    try:
+        split = charges.split_by_tag(session, found, month, chosen) if chosen else None
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    return {"options": [{"id": x.id, "label": x.label} for x in options], "split": split}
 
 
 router.include_router(admin)

@@ -121,7 +121,7 @@ export function renderTreemap(el, tiles, opts) {
     const a = document.createElement(url ? "a" : "div");
     if (url) a.href = url;
     if (!focusable) a.tabIndex = -1;
-    a.className = `tm-tile ${frame ? "frame" : "leaf"} ${url ? "" : "static"}`;
+    a.className = `tm-tile ${frame ? "frame" : "leaf"} ${url ? "" : "static"}${opts.mark?.(t) ? " tagged" : ""}`;
     const x = r.x + GAP, y = r.y + GAP, w = Math.max(0, r.w - 2 * GAP), h = Math.max(0, r.h - 2 * GAP);
     Object.assign(a.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` });
     if (!frame) {

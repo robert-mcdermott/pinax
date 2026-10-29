@@ -438,3 +438,74 @@ def statement_rows(out: dict) -> list[list]:
 
     rows = [row(r["lab"], line) for r in out["labs"] for line in r["filesystems"]]
     return rows + [row(None, line) for line in out["unbilled"]]
+
+
+# ---------- Charges by tag (T4) ----------
+
+def split_by_tag(session: Session, lab: Lab, month: str, tag_id: int, *, now: datetime | None = None) -> dict:
+    """A lab's charges for `month` split by the values of a tag (a grant, a project): on each filesystem, each value
+    gets the share of the lab's charge that its folders' time-weighted average size is of the lab's, and the rest is
+    untagged. A folder's bytes belong to its nearest tagged folder (itself, or the nearest above it), and a folder
+    with several values splits evenly between them. Sizes come from the totals recorded for tagged folders with each
+    scan, each holding until the next, as charges are worked out."""
+    from .models import FolderTag, MarkedFolder, MarkedFolderStat, Tag
+    from .tags import ancestors
+
+    start, end = month_bounds(month)
+    month_us = (end - start) // US
+    out = monthly_charges(session, month, now=now, labs_only={lab.id})
+    currency = out["currency"]
+    row = next((r for r in out["labs"] if r["lab"]["slug"] == lab.slug), None)
+    tag = session.get(Tag, tag_id)
+    values: dict[str, dict] = defaultdict(lambda: {"charge": Fraction(0), "size": Fraction(0)})
+    untagged = Fraction(0)
+    owned = {(f.filesystem_id, f.path) for f in session.scalars(select(LabFolder).where(LabFolder.lab_id == lab.id))}
+    for line in (row["filesystems"] if row else []):
+        fs = session.scalar(select(Filesystem).where(Filesystem.slug == line["fs"]))
+        charge = Fraction(Decimal(line["charge"]))
+        size = Fraction(line["size"])
+        tagged = session.execute(select(MarkedFolder, FolderTag.value).join(FolderTag, FolderTag.mark_id == MarkedFolder.id)
+                                 .where(FolderTag.tag_id == tag_id, MarkedFolder.filesystem_id == fs.id)).all()
+        marks: dict[int, tuple[MarkedFolder, list[str]]] = {}
+        for m, value in tagged:
+            top = m.path[len(fs.root.rstrip("/")) + 1:].split("/", 1)[0]
+            if (fs.id, top) in owned:
+                marks.setdefault(m.id, (m, []))[1].append(value or tag.label)
+        if not marks or not size:
+            untagged += charge
+            continue
+        by_path = {m.path: mid for mid, (m, _) in marks.items()}
+        # Each tagged folder's nearest tagged folder above it, whose bytes it takes out.
+        parent = {mid: next((by_path[p] for p in ancestors(m.path, fs.root)[1:] if p in by_path), None)
+                  for mid, (m, _) in marks.items()}
+        stats = session.execute(select(MarkedFolderStat.mark_id, MarkedFolderStat.taken_at, MarkedFolderStat.present,
+                                       MarkedFolderStat.bytes).where(MarkedFolderStat.mark_id.in_(list(marks)),
+                                                                     MarkedFolderStat.taken_at < end)
+                                .order_by(MarkedFolderStat.taken_at)).all()
+        times = sorted({s.taken_at for s in stats})
+        cuts = sorted({start, end} | {t for t in times if start < t < end})
+        sums: dict[int, int] = defaultdict(int)  # byte-microseconds each tagged folder holds of its own
+        i, latest = 0, {}
+        for a, b in pairwise(cuts):
+            while i < len(stats) and stats[i].taken_at <= a:
+                latest[stats[i].mark_id] = stats[i].bytes if stats[i].present else 0
+                i += 1
+            own = dict(latest)
+            for mid, up in parent.items():
+                if up is not None and mid in latest and up in own:
+                    own[up] -= latest[mid]
+            span = (b - a) // US
+            for mid, b_ in own.items():
+                sums[mid] += max(0, b_) * span
+        for mid, (_, vals) in marks.items():
+            avg = Fraction(sums[mid], month_us)
+            share = charge * avg / size if size else Fraction(0)
+            for v in vals:
+                values[v]["charge"] += share / len(vals)
+                values[v]["size"] += avg / len(vals)
+        untagged += charge - sum((charge * Fraction(sums[mid], month_us) / size for mid in marks), Fraction(0))
+    rows = [{"value": v, "charge": str(money(d["charge"], currency)), "size": _bytes(d["size"])}
+            for v, d in sorted(values.items(), key=lambda kv: -kv[1]["charge"])]
+    return {"month": month, "currency": currency, "tag": {"id": tag.id, "label": tag.label} if tag else None,
+            "total": row["total"] if row else str(money(Fraction(0), currency)), "values": rows,
+            "untagged": str(money(max(Fraction(0), untagged), currency)), "estimated": out["estimated"]}

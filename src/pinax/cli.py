@@ -61,6 +61,13 @@ def main() -> None:
         imp.add_argument(f"--{name}", type=Path, help=f"The {name} file (instead of {name}.csv in the folder)")
     imp.add_argument("--apply", action="store_true", help="Make the changes (all of them, or none if any row is refused)")
 
+    tags = sub.add_parser("tags", help="Folder tags in bulk")
+    tags_sub = tags.add_subparsers(dest="tags_command", required=True)
+    tags_imp = tags_sub.add_parser("import", help="Tag folders from a CSV (filesystem, path, tag, value; a lab's own tag "
+                                                  "as lab:key), a dry run unless --apply")
+    tags_imp.add_argument("file", type=Path)
+    tags_imp.add_argument("--apply", action="store_true", help="Tag the folders (all of them, or none if any row is refused)")
+
     check = sub.add_parser("check", help="Check an index against fs-inventory rollup, directory by directory")
     check.add_argument("target", help="Snapshot ID, or an fs-inventory scan directory")
     check.add_argument("--index", type=Path,
@@ -130,6 +137,8 @@ def main() -> None:
         sys.exit(_check(args))
     elif args.command == "import":
         sys.exit(_import(args))
+    elif args.command == "tags":
+        sys.exit(_tags_import(args))
     elif args.command == "rebuild":
         sys.exit(_rebuild(args))
 
@@ -217,6 +226,36 @@ def _watch(args: argparse.Namespace) -> int:
     except KeyboardInterrupt:
         return 0
     return 1 if result.failed else 0
+
+
+def _tags_import(args: argparse.Namespace) -> int:
+    import csv
+
+    from .db import init_db, session_scope
+    from .snapshots import cold_bucket
+    from .tags import import_rows
+
+    init_db()
+    try:
+        with args.file.open(newline="", encoding="utf-8-sig") as f:
+            rows = list(csv.DictReader(f))
+    except OSError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    with session_scope() as s:
+        done, problems = import_rows(s, rows, apply_them=False, cold_from=cold_bucket())
+        for line in done:
+            print(("Tagged " if args.apply and not problems else "Would tag ") + line)
+        for line in problems:
+            print(f"Refused {line}", file=sys.stderr)
+        if problems:
+            print(f"{len(problems)} row(s) refused; nothing was changed.", file=sys.stderr)
+            return 1
+        if args.apply:
+            import_rows(s, rows, apply_them=True, cold_from=cold_bucket())
+        else:
+            print("A dry run: nothing was changed. Run again with --apply to tag them.")
+    return 0
 
 
 def _import(args: argparse.Namespace) -> int:

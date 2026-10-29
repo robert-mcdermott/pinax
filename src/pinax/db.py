@@ -100,6 +100,9 @@ def init_db() -> None:
     engine = get_engine()
     Base.metadata.create_all(engine)
     add_missing_columns(engine)
+    from .tags import ensure_defaults
+
+    ensure_defaults()
 
 
 def add_missing_columns(engine: Engine) -> list[str]:

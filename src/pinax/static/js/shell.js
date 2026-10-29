@@ -20,6 +20,7 @@ export function renderSidebar() {
     ${link("folders", "folder", admin ? "Folders and labs" : "My folders", false)}
     ${link("charges", "tag", "Storage charges", false)}
     ${link("plans", "archive", "Cleanup plans", false)}
+    ${link("collections", "layers", "Collections", false)}
     <h4 class="scope-label">EXPLORE${p && p.fs ? html` <span class="tiny" title="${p.name || ""}">· ${p.name || ""}</span>` : ""}</h4>
     ${link("explore", "treemap", "Age map")}
     ${link("changes", "activity", "Change map")}
@@ -34,6 +35,7 @@ export function renderSidebar() {
       ${link("health", "heart", "Storage health", false)}
       ${link("scans", "database", "Scans", false)}
       ${link("capacity", "server", "Capacity", false)}
+      ${link("tags", "tag", "Tags", false)}
       ${link("costs", "tag", "Costs", false)}
       ${link("chargeback", "table", "Chargeback", false)}
       ${link("access", "lock", "People and access", false)}` : ""}`);
