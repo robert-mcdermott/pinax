@@ -169,6 +169,8 @@ const P = {
   treemap: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M11 3v18"/><path d="M11 12h10"/><path d="M16 12v9"/>',
   pie: '<path d="M12 3a9 9 0 1 0 9 9h-9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/>',
   tag: '<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><path d="M8 8h.01"/>',
+  receipt: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6"/><path d="M9 12h6"/><path d="M9 16h4"/>',
+  banknote: '<rect x="2.5" y="6" width="19" height="12" rx="1.5"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9.5h.01"/><path d="M18 14.5h.01"/>',
   snowflake: '<path d="M12 2v20"/><path d="M4.9 7l14.2 10"/><path d="M4.9 17L19.1 7"/><path d="M9 4l3 2 3-2"/><path d="M9 20l3-2 3 2"/>',
   heart: '<path d="M20.8 5.6a5 5 0 0 0-7.1 0L12 7.3l-1.7-1.7a5 5 0 1 0-7.1 7.1L12 21.5l8.8-8.8a5 5 0 0 0 0-7.1z"/>',
   home: '<path d="M3 11l9-8 9 8"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/>',
