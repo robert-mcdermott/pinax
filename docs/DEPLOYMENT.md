@@ -467,8 +467,50 @@ How a charge is worked out is in [ARCHITECTURE.md](ARCHITECTURE.md#costs).
 ## Monitoring and operations
 
 `/api/health` needs no sign-in and names nothing: it answers `ok`; `degraded` when a ready snapshot's index is
-missing or automatic ingest has stopped or stopped responding; and 503 when the catalog cannot be read. Logs go
-to the journal (`journalctl -u pinax-web -u pinax-ingest`).
+missing or automatic ingest has stopped or stopped responding; and 503 when the catalog cannot be read.
+
+### Logs
+
+Logs go to the journal (`journalctl -u pinax-web -u pinax-ingest`), as text:
+
+```text
+2026-10-28 20:32:50 INFO pinax: Pinax 0.10.0 started: environment prod, sign-in header, catalog postgresql+psycopg://pinax@db.example.org/pinax, data in /var/lib/pinax
+2026-10-28 20:32:57 INFO pinax.request: GET /api/tree 200 in 122 ms, 6 index queries 27 ms [user=fujimoto_a address=10.20.4.17 request=c4b8784fe19b4890]
+2026-10-28 20:33:02 INFO pinax.audit: view.saved: View 'Tumor atlas' saved, shared with the Fujimoto Lab [user=fujimoto_a address=10.20.4.17 request=51d0c2a7e3b94b11]
+```
+
+- **Requests**: one line for each request to the API, with the method, the path (never the query string, which
+  can name files), the status, the time taken and the part of it in index queries, and the person, their address,
+  and the request's ID. The ID is also the response's `X-Request-ID`, so a person's report of a problem can be
+  found; a trusted proxy's own `X-Request-ID` is kept, so its log and Pinax's match. Behind a proxy in
+  `PINAX_TRUSTED_PROXIES`, the address is the person's own, from `X-Forwarded-For`. A request slower than
+  `PINAX_SLOW_REQUEST_SECONDS` (5) is a warning marked *slow*, and a failed one is a warning too. Pages, scripts,
+  and `/api/health` are not logged.
+- **Audit**: every audit event (each change in the app, by import, and from the command line, and each sign-in and
+  failed sign-in with local sign-in) is logged by `pinax.audit` once its change is committed, with who made it and
+  from where; from the command line, with the account that ran it.
+- **Never logged**: passwords, session cookies and tokens, request bodies, query strings, or the catalog's password.
+
+For a log collector (Splunk, Elastic, Loki, or the like), `PINAX_LOG_FORMAT=json` writes one JSON object per line,
+with `ts` (UTC), `level`, `logger`, `message`, `request_id`, `user`, and `address`, and the details of each request
+(`http`: method, path, route, status, ms, bytes, queries, query_ms, slow) and audit event (`audit`: id, action,
+actor_id, detail) as fields of their own. To write to files rather than the journal, and to keep every audit event
+in a file of its own for security monitoring:
+
+```bash
+PINAX_LOG_FILE=/var/log/pinax/pinax.log
+PINAX_AUDIT_LOG=/var/log/pinax/audit.log
+```
+
+The services' units make `/var/log/pinax`; `deploy/logrotate/pinax` rotates the files daily and keeps 90 days:
+
+```bash
+sudo install -m 0644 /opt/pinax/deploy/logrotate/pinax /etc/logrotate.d/pinax
+```
+
+The audit log in a file is a copy: the catalog keeps every event, and *People and access* shows them.
+
+### Tasks
 
 | Task | How |
 |---|---|
@@ -476,13 +518,13 @@ to the journal (`journalctl -u pinax-web -u pinax-ingest`).
 | A failed or skipped scan | *Scans* shows the error; fix the cause and run `pinax ingest` on the scan |
 | Automatic ingest *not responding* | `systemctl status pinax-ingest` and its journal |
 | Too little disk for indexes | Lower `PINAX_KEEP_SNAPSHOTS`; pruning runs after every ingest. A build needs room for one more index while it runs ([Sizing](#sizing)) |
-| People see "Pinax stopped this after 180 seconds" | A search or comparison of a whole filesystem read for longer than `PINAX_QUERY_TIMEOUT`: search within a folder, or narrow it by name, type, size, or age. To allow longer, raise `PINAX_QUERY_TIMEOUT` and the proxy's timeout with it. The journal names each one (`Stopped /api/files: timeout after 180 s`) |
+| People see "Pinax stopped this after 180 seconds" | A search or comparison of a whole filesystem read for longer than `PINAX_QUERY_TIMEOUT`: search within a folder, or narrow it by name, type, size, or age. To allow longer, raise `PINAX_QUERY_TIMEOUT` and the proxy's timeout with it. The log names each one (`Stopped /api/files: timeout after 180 s`) |
 | People see "Pinax is already running as many searches of whole filesystems as it allows" | Others ran meanwhile: raise `PINAX_WIDE_QUERIES` if the server has the cores and memory |
 | Pages are slow while a large search runs | Set `PINAX_QUERY_THREADS` below the number of cores |
 | Scan folders filling the disk | Pinax never deletes them: delete the folders of pruned snapshots (`pinax snapshots` lists each one's status and folder) |
 | An index was lost or damaged | `pinax rebuild SNAPSHOT_ID`, from its scan; `/api/health` is `degraded` and counts `indexes_missing` while one is missing |
 | Someone forgot their password, or is locked out (local sign-in) | Their page under *People and access*, *Set a new temporary password*; or `pinax user password USERNAME` |
-| Read the audit log | Each person's and lab's page shows its recent changes, and *All data* the latest under *Recent activity*; the whole log is the catalog's `audit_event` table (below) |
+| Read the audit log | Each person's and lab's page shows its recent changes, and *All data* the latest under *Recent activity*; every event is in the log too (`pinax.audit`, and `PINAX_AUDIT_LOG` if set), and the whole log is the catalog's `audit_event` table (below) |
 | A lab asks why a past month's charge changed | See [Charges and statements](#charges-and-statements) |
 | Someone cannot see their lab's data | Check *People and access* (membership) and *Folders and labs* (the folder is mapped to their lab) |
 | Someone gets *401* after signing in | Their username (the header named by `PINAX_AUTH_HEADER`) is not an active person in the catalog |
@@ -494,4 +536,10 @@ sign-in with local sign-in; never a password):
 
 ```bash
 sudo -u pinax sqlite3 /var/lib/pinax/pinax.db "SELECT ts, action, summary FROM audit_event ORDER BY ts DESC LIMIT 100"
+```
+
+On PostgreSQL, the same query with `psql`:
+
+```bash
+sudo -u pinax psql "postgresql://pinax@db.example.org/pinax" -c "SELECT ts, action, summary FROM audit_event ORDER BY ts DESC LIMIT 100"
 ```

@@ -12,12 +12,14 @@ others wait for a turn within their own time limit.
 
 import asyncio
 import threading
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager, nullcontext
 from contextvars import ContextVar
 
 import duckdb
 
+from . import logs
 from .config import get_settings
 
 TIMEOUT, BUSY, GONE = "timeout", "busy", "gone"
@@ -68,10 +70,17 @@ class Budget:
 _budget: ContextVar[Budget | None] = ContextVar("pinax_budget", default=None)
 
 
-def guard(cur: duckdb.DuckDBPyConnection):
-    """Run a query on `cur` within the current request's budget, if there is one."""
+@contextmanager
+def guard(cur: duckdb.DuckDBPyConnection) -> Iterator[None]:
+    """Run a query on `cur` within the current request's budget, if there is one, and count its time in the
+    request's log line."""
     budget = _budget.get()
-    return budget.running(cur) if budget is not None else nullcontext()
+    started = time.perf_counter()
+    try:
+        with budget.running(cur) if budget is not None else nullcontext():
+            yield
+    finally:
+        logs.count_query(time.perf_counter() - started)
 
 
 _slots: threading.BoundedSemaphore | None = None

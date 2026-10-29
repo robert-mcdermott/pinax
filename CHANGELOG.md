@@ -16,9 +16,25 @@
 - **`pinax db copy`** moves a catalog into another, empty database, such as SQLite into PostgreSQL: every table in
   one transaction, PostgreSQL's id sequences set past the copied rows, and every count compared.
 
+- **Logs.** One line for each request to the API, with its status, the time taken and the part of it in index
+  queries, the person, their address, and a request ID (returned as `X-Request-ID`); slow and failed requests are
+  warnings (`PINAX_SLOW_REQUEST_SECONDS`). Every audit event is logged as well, once its change is committed, with
+  who made it and from where (from the command line, the account that ran it), and optionally to a file of its own
+  (`PINAX_AUDIT_LOG`) for security monitoring. Text for the journal, or JSON lines for a log collector
+  (`PINAX_LOG_FORMAT`), to standard error or a file `logrotate` can rotate (`PINAX_LOG_FILE`,
+  `deploy/logrotate/pinax`). A line when Pinax starts names its version and catalog. Never a password, token,
+  request body, or query string.
+
+### Changed
+
+- **The person's address behind a proxy.** Requests from `PINAX_TRUSTED_PROXIES` are logged and audited, and
+  sign-in sessions recorded, with the person's own address from `X-Forwarded-For`, worked out by Pinax rather
+  than uvicorn.
+
 ### Fixed
 
 - Two Pinax processes opening a new SQLite catalog at the same moment could fail with "database is locked".
+- The age map of a whole filesystem now marks top-level folders that are tagged, or hold tagged folders.
 
 ## 0.9.0 (2026-10-29)
 

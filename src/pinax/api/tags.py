@@ -123,9 +123,11 @@ def here(fs: str, path: str, identity: Identity = Depends(current_identity), ses
 
 
 @router.get("/tags/below")
-def below(fs: str, path: str, identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
-    """The tagged folders at or below a folder, for marking the age map's tiles."""
-    return {"tagged": tags.tagged_below(session, identity, _fs(session, fs), path)}
+def below(fs: str, path: str = "", identity: Identity = Depends(current_identity),
+          session: Session = Depends(get_session)):
+    """The tagged folders at or below a folder (the filesystem's root by default), for marking the age map's tiles."""
+    fsys = _fs(session, fs)
+    return {"tagged": tags.tagged_below(session, identity, fsys, path or fsys.root)}
 
 
 @router.get("/tags/filters")

@@ -65,6 +65,17 @@ class Settings(BaseSettings):
     # Capacity: a filesystem that fills within this many months at its trend is flagged on the overview.
     fill_warning_months: int = Field(12, ge=1, le=120)
 
+    # Logs (logs.py): text for the journal or JSON lines for a log collector, to standard error or LOG_FILE (which
+    # `logrotate` can move; Pinax reopens it). One line per request to the API unless LOG_REQUESTS is false; a
+    # request slower than SLOW_REQUEST_SECONDS is a warning (0: never). Audit events are logged too, and also
+    # written to AUDIT_LOG, as JSON lines, if it is set.
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    log_format: Literal["text", "json"] = "text"
+    log_file: Path | None = None
+    log_requests: bool = True
+    slow_request_seconds: float = Field(5.0, ge=0)
+    audit_log: Path | None = None
+
     # Identity. "demo" uses a persona cookie: anyone picks anyone, for showing Pinax with the seeded people (refused
     # when ENVIRONMENT=prod). "local": people sign in with a password Pinax keeps, for sites without single sign-on.
     # "header" trusts a username header (X-Remote-User by default) set by a single sign-on proxy, and only on

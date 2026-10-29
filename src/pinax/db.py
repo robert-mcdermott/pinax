@@ -18,6 +18,7 @@ from sqlalchemy import MetaData, create_engine, event, inspect, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
+from . import logs  # noqa: F401 - logs each audit event once its change is committed
 from .config import get_settings
 
 # Constraints and indexes named by rule, so a migration can name what it changes on every database.

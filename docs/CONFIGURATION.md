@@ -61,12 +61,23 @@ Settings are `PINAX_*` environment variables, or a `.env` file in the folder you
 |---|---|---|
 | `PINAX_AUTH_MODE` | `demo` | How people sign in. `demo`: a persona switcher, anyone can be anyone, for showing Pinax with the seeded people (refused when `PINAX_ENVIRONMENT=prod`). `local`: usernames and passwords Pinax keeps, for sites without single sign-on. `header`: trust the username in `AUTH_HEADER`, set by a single sign-on proxy such as oauth2-proxy in front of Entra ID |
 | `PINAX_AUTH_HEADER` | `X-Remote-User` | The header the proxy sets the username in; behind oauth2-proxy, `X-Forwarded-Preferred-Username`, `X-Forwarded-Email`, or `X-Forwarded-User` |
-| `PINAX_TRUSTED_PROXIES` | `["127.0.0.1", "::1"]` | In header mode, the addresses or networks (a JSON list, such as `'["10.1.2.3", "10.8.0.0/16"]'`) the header is believed from; from anywhere else a request gets 401 |
+| `PINAX_TRUSTED_PROXIES` | `["127.0.0.1", "::1"]` | The proxies in front of Pinax, as addresses or networks (a JSON list, such as `'["10.1.2.3", "10.8.0.0/16"]'`). In header mode, the header is believed only from them; from anywhere else a request gets 401. In every mode, a request from one of them is logged and audited with the person's own address from `X-Forwarded-For`, and keeps the proxy's `X-Request-ID` |
 | `PINAX_SESSION_HOURS` | `12` | Local sign-in: how long a session lasts from signing in |
 | `PINAX_LOGIN_MAX_FAILURES` | `5` | Local sign-in: failed sign-ins in a row that lock an account |
 | `PINAX_LOGIN_LOCKOUT_MINUTES` | `15` | Local sign-in: how long a locked account stays locked (a new temporary password unlocks it at once) |
 | `PINAX_PASSWORD_MIN_LENGTH` | `12` | Local sign-in: the shortest password allowed (it also may not contain the username) |
 | `PINAX_COOKIE_SECURE` | unset | Local sign-in: mark the session cookie Secure, so it is sent only over HTTPS. Unset means yes when `PINAX_ENVIRONMENT=prod`, no otherwise |
+
+## Logs
+
+| Setting | Default | What it does |
+|---|---|---|
+| `PINAX_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, or `ERROR` |
+| `PINAX_LOG_FORMAT` | `text` | `text`, for the journal, or `json`: one JSON object per line, for a log collector, with the request's ID, person, and address, and each request's and audit event's details as fields of their own ([Logs](DEPLOYMENT.md#logs)) |
+| `PINAX_LOG_FILE` | unset | A file to write the log to instead of standard error (the journal, under systemd). Pinax opens it again when `logrotate` moves it (`deploy/logrotate/pinax`) |
+| `PINAX_LOG_REQUESTS` | `true` | One line for each request to the API (method, path without its query string, status, time taken, time in index queries, person, address, request ID). `false` keeps only slow and failed requests |
+| `PINAX_SLOW_REQUEST_SECONDS` | `5` | A request that takes this long or longer is logged as a warning, marked *slow*; 0 never |
+| `PINAX_AUDIT_LOG` | unset | A file to write every audit event to as well, as JSON lines, once its change is committed: for a site's security monitoring. Audit events are always in the catalog and in the log too |
 
 ## Dimensions
 

@@ -61,6 +61,8 @@ src/pinax/
   db.py            catalog engine and sessions (SQLite in WAL mode, or PostgreSQL)
   migrate.py       the catalog's migrations: upgrading at start-up, `pinax db`; revisions in migrations/versions/
   dbcopy.py        `pinax db copy`: a whole catalog into another, empty database
+  logs.py          system and audit logs: a line per request with its ID, person, and address; audit events logged
+                   once committed; text or JSON
   models.py        catalog schema: people, labs, folder ownership, filesystems, snapshots, folder history, capacity,
                    marked folders, audit
   categories.py    file categories, type normalization, age buckets
@@ -121,6 +123,10 @@ tests/             pytest suite; scanfix.py writes exact fs-inventory-shaped sca
   and one added, and a new column on existing rows needs a server default or `nullable=True`. Never change a
   revision that has been released. `tests/test_migrations.py` checks that the migrations make the models' schema;
   run it on PostgreSQL too ([Tests on PostgreSQL](#tests-on-postgresql)).
+- **Logging**: `log = logging.getLogger("pinax.<module>")`; the request's ID, person, and address are added to every
+  line on their own. Never log a query string, a request body, a password, or a token, and name the catalog with
+  `migrate.describe` (which hides its password). An audit event needs nothing more: adding an `AuditEvent` logs it
+  once committed.
 - **New settings**: add the field to `config.py`, and document it in `docs/CONFIGURATION.md` and `.env.example`.
 
 ## HTTP API

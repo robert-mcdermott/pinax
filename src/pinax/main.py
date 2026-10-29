@@ -10,11 +10,12 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__, jobs
+from . import __version__, jobs, migrate
 from .api import router as api_router
 from .config import get_settings, unsafe
-from .db import init_db
+from .db import get_engine, init_db
 from .limits import BUSY, GONE, QueryBudget, Stopped
+from .logs import RequestLog
 from .snapshots import indexes
 
 STATIC = Path(__file__).parent / "static"
@@ -23,12 +24,16 @@ log = logging.getLogger("pinax")
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    if problem := unsafe(get_settings()):
+    settings = get_settings()
+    if problem := unsafe(settings):
         raise RuntimeError(f"Refusing to start: {problem}")
     init_db()
     jobs.recover()
+    log.info("Pinax %s started: environment %s, sign-in %s, catalog %s, data in %s", __version__, settings.environment,
+             settings.auth_mode, migrate.describe(get_engine()), settings.var_root)
     yield
     indexes.clear()
+    log.info("Pinax stopped")
 
 
 app = FastAPI(title="Pinax", version=__version__, lifespan=lifespan, docs_url="/api/docs",
@@ -85,8 +90,9 @@ async def unhandled(_request: Request, exc: Exception):
     return JSONResponse({"detail": "Internal error"}, status_code=500)
 
 
-# Outermost, so each GET's time limit covers everything below it (limits.py).
+# Each GET's time limit covers everything below it (limits.py); outermost of all, each request's ID and log line.
 app.add_middleware(QueryBudget)
+app.add_middleware(RequestLog)
 
 
 @app.get("/app", include_in_schema=False)

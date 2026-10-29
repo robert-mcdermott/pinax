@@ -1111,8 +1111,8 @@ who changed what, and metrics that a site's monitoring can trend and alert on. N
 | --- | --- | --- | --- |
 | 1 | The catalog on PostgreSQL, with migrations (P7) | Migrations (Alembic) create and upgrade the catalog on SQLite and PostgreSQL, replacing the columns added at start-up; a catalog from 0.9.0 or earlier is adopted in place; `pinax db status` and `pinax db upgrade`; the PostgreSQL driver is an optional extra; the whole test suite passes on both, PostgreSQL in a container; the migrations' schema equals the models' on both | Done |
 | 2 | Moving a catalog to PostgreSQL (P7) | `pinax db copy` copies every table of one catalog into another, empty one at the same version, in batches, then sets PostgreSQL's sequences and checks every table's count; a demo catalog copied to PostgreSQL serves the demo the same | Done |
-| 3 | System and audit logs (O5) | Logs as text (the journal) or JSON lines (a log collector), to standard error or a file that `logrotate` can rotate; one line per request with a request ID (also returned to the browser), the person, their address, the route, the status, and the time taken; slow requests flagged; every audit event also logged once its change is committed, optionally to a file of its own; the address of the person, not the proxy, behind a trusted proxy; a start-up line with the version and the catalog (never its password); never a password, token, or session | Next |
-| 4 | Prometheus metrics (O4, O5) | `/metrics` in Prometheus's format, off until a token is set and then only with it; scans and ingests by filesystem (when each last succeeded and failed, how long it took, the watcher's heartbeat), filesystem totals and capacity, Pinax's own disk, requests by route and their times, stopped queries, whole-filesystem query turns, background searches, sign-ins; filesystems named, never labs, people, or paths; a scrape configuration and alert rules in `deploy/prometheus/` | To come |
+| 3 | System and audit logs (O5) | Logs as text (the journal) or JSON lines (a log collector), to standard error or a file that `logrotate` can rotate; one line per request with a request ID (also returned to the browser), the person, their address, the route, the status, and the time taken; slow requests flagged; every audit event also logged once its change is committed, optionally to a file of its own; the address of the person, not the proxy, behind a trusted proxy; a start-up line with the version and the catalog (never its password); never a password, token, or session | Done |
+| 4 | Prometheus metrics (O4, O5) | `/metrics` in Prometheus's format, off until a token is set and then only with it; scans and ingests by filesystem (when each last succeeded and failed, how long it took, the watcher's heartbeat), filesystem totals and capacity, Pinax's own disk, requests by route and their times, stopped queries, whole-filesystem query turns, background searches, sign-ins; filesystems named, never labs, people, or paths; a scrape configuration and alert rules in `deploy/prometheus/` | Next |
 | 5 | Demo and release 0.10.0 | The demo unchanged on SQLite, and checked once on PostgreSQL; the deployment guide's PostgreSQL, logs, and monitoring sections; version 0.10.0, changelog, pull request, tag, release | To come |
 
 ### Decisions for wave 10
@@ -1168,6 +1168,30 @@ who changed what, and metrics that a site's monitoring can trend and alert on. N
    - *Done*: a copy of the 0.9.0 demo catalog (made before migrations) was refused until `pinax db upgrade` adopted
      it, then copied into PostgreSQL (358 rows in 18 tables); served from PostgreSQL, eight of the API's reports
      answered exactly as the SQLite demo did.
+3. **System and audit logs (O5).**
+   - `logs.py`. `configure` sets up every command's logs (replacing `basicConfig`): text with the request's
+     context, or JSON lines; standard error or `PINAX_LOG_FILE` (a `WatchedFileHandler`, so `logrotate` needs no
+     signal; its folder is made, and a file Pinax cannot write is a plain error). `pinax serve` gives uvicorn no
+     logging of its own and no access log.
+   - `RequestLog`, the outermost middleware: a request ID (a trusted proxy's `X-Request-ID`, or a new one),
+     returned as `X-Request-ID`; the person's address (`client_address`: behind `PINAX_TRUSTED_PROXIES`, the nearest
+     untrusted hop in `X-Forwarded-For`, now also used for sign-in sessions and their audit, and uvicorn's own
+     proxy headers turned off so the sign-on header's check sees the proxy); the person, from `auth`; and each
+     index query's time, from `limits.guard`. One line per request to the API with the route's template
+     (`route_of`, since included routers know only their part of the path), at warning when slow or failed;
+     pages, scripts, and `/api/health` at debug.
+   - Audit: SQLAlchemy session events collect each `AuditEvent` at flush and log it after commit (forgotten on
+     rollback), with the request's context, or the command line's account; `PINAX_AUDIT_LOG` writes them to a file
+     of their own as JSON lines. A start-up line names the version, sign-in, and catalog (without its password).
+   - `deploy/logrotate/pinax`, and `LogsDirectory=pinax` in the systemd units.
+   - Found on the way: since wave 8, the age map of a whole filesystem asked for its tagged folders without a path
+     and was refused (422), so its top-level tiles lost their tag marks; the path now defaults to the root.
+   - Tests (`tests/test_logs.py`): a line per request with its route, status, person, request ID, and index
+     queries, and without the query string; routes as templates; the load balancer's checks and static files
+     quiet; slow requests a warning; another's request ID refused; the person's address behind proxies; audit
+     events logged once committed, never when rolled back, and from the command line with its account; JSON lines
+     and an audit file; text lines with the context; a password, wrong or right, and the session token never
+     logged.
 
 ## Later waves (outlined)
 

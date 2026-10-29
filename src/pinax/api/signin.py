@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from .. import signin
+from .. import logs, signin
 from ..auth import Identity, current_identity
 from ..config import get_settings
 from ..db import get_session
@@ -21,7 +21,9 @@ def _local() -> None:
 
 
 def _address(request: Request) -> str:
-    return request.client.host if request.client else ""
+    """The person's address, behind a trusted proxy too (logs.client_address)."""
+    info = logs.current.get()
+    return info.address if info else (request.client.host if request.client else "")
 
 
 class Credentials(BaseModel):

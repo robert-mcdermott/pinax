@@ -16,6 +16,7 @@ from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from . import logs
 from .config import get_settings
 from .db import get_session
 from .models import Lab, LabFolder, LabMembership, User
@@ -79,6 +80,7 @@ def current_identity(request: Request, session: Session = Depends(get_session)) 
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Unknown user")
     if not user.active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "This account has been deactivated")
+    logs.set_user(user.username)
     return identity_for(user)
 
 

@@ -2,7 +2,6 @@
 """Command line: `uv run pinax <command>`."""
 
 import argparse
-import logging
 import sys
 from pathlib import Path
 
@@ -113,8 +112,14 @@ def main() -> None:
     db_revision.add_argument("message", help="What it changes, such as \"Add the audit event's address\"")
 
     args = parser.parse_args()
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-    logging.getLogger("alembic").setLevel(logging.WARNING)  # Pinax says what it applied; Alembic's steps are noise
+    from .config import get_settings
+    from .logs import LogError, configure
+
+    try:
+        configure(get_settings())
+    except LogError as e:
+        print(f"error: {e}", file=sys.stderr)
+        sys.exit(2)
 
     from .migrate import CatalogError
 
@@ -129,7 +134,10 @@ def main() -> None:
                 print(f"error: {problem}", file=sys.stderr)
                 sys.exit(2)
             init_db()  # here, so a catalog that cannot be used is reported plainly
-            uvicorn.run("pinax.main:app", host=args.host, port=args.port, log_level="info")
+            # Pinax's own logs (logs.py) and its own line per request; the person's address is worked out by Pinax
+            # from PINAX_TRUSTED_PROXIES rather than by uvicorn, so the sign-on header's check sees the proxy itself.
+            uvicorn.run("pinax.main:app", host=args.host, port=args.port, log_config=None, access_log=False,
+                        proxy_headers=False, log_level=get_settings().log_level.lower())
         elif args.command == "user":
             _user(args)
         elif args.command == "seed":

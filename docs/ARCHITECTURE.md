@@ -586,6 +586,11 @@ the month shows at once; adding up the ranges overstates the range); storage no 
   administrator always remains, and nobody can remove their own administrator role or deactivate themselves
   (`people.py`, shared by *People and access* and `pinax import`).
 - Pinax never reads file contents or writes to the file system it reports on; it reads scan output.
+- **Logs** (`logs.py`): one line for each request to the API, with a request ID (returned as `X-Request-ID`), the
+  person, and their address (behind a trusted proxy, from `X-Forwarded-For`), and every audit event once its change
+  is committed (a SQLAlchemy event on the session, so every place that audits is covered), optionally to a file of
+  its own as JSON lines. Never a password, session token, request body, or query string; the catalog's address is
+  logged without its password.
 
 ## Measured performance
 
