@@ -31,7 +31,7 @@ from pathlib import Path
 import duckdb
 from sqlalchemy import select
 
-from . import capacity, costs
+from . import capacity, costs, plans
 from .config import Settings, get_settings
 from .db import Base, get_engine, reset_engine, session_scope
 from .models import AuditEvent, Filesystem, Lab, LabFolder, LabMembership, User
@@ -410,8 +410,17 @@ def month_files(rng: random.Random, now: float, scale: float, n: int) -> dict[st
 
 
 # What is done to the demo filesystems before a scan, besides writing new files (relative to a filesystem root).
-REMOVED = {2: [("fast", "chen_l/tmp"), ("fast", "haddad_n/models/checkpoints")]}
-MOVED = {3: [("fast", "bennett_k/imaging/2024_lightsheet", "haddad_n/datasets/2024_lightsheet_bennett")]}
+REMOVED = {2: [("fast", "chen_l/tmp"), ("fast", "haddad_n/models/checkpoints")],
+           6: [("fast", "dasgupta_r/sequencing/2016_cohort_A")]}
+MOVED = {3: [("fast", "bennett_k/imaging/2024_lightsheet", "haddad_n/datasets/2024_lightsheet_bennett")],
+         6: [("fast", "dasgupta_r/manuscripts/2021_draft", "dasgupta_r/manuscripts/2021_published")]}
+# The Dasgupta Lab's cleanup plan, made after the fifth scan: the sixth shows one folder deleted, one renamed rather
+# than removed (so nothing was freed), and one still to do. (folder, action, note)
+DEMO_PLAN = ("dasgupta_r", "rdasgupta", [
+    ("sequencing/2016_cohort_A", "delete", "Deposited in SRA in 2017; the consensus calls are in the paper's supplement"),
+    ("manuscripts/2021_draft", "delete", "Superseded by the published version"),
+    ("sequencing/2018_cohort_B", "delete", "Ask the sequencing core whether the run folders are still needed"),
+])
 COMPRESSED = {5: [("fast", "lindqvist_h/wgs/2024_germline/fastq_uncompressed", "lindqvist_h/wgs/2024_germline/fastq")]}
 
 # The six months in a sentence each, printed by the seed (and listed in docs/DEMO.md).
@@ -420,7 +429,8 @@ MONTHS = {
     3: "a light-sheet project moves from the Bennett Lab to the Haddad Lab",
     4: "the Quintero Lab joins, with data from the PI's previous institution",
     5: "the Lindqvist Lab compresses its uncompressed FASTQ files",
-    6: "the Fujimoto Lab writes its atlas; the Kowalski Lab's 2024 TMT project is now past two years",
+    6: "the Fujimoto Lab writes its atlas; the Kowalski Lab's 2024 TMT project is now past two years; the Dasgupta "
+       "Lab deletes its 2016 cohort, as its cleanup plan says, and renames a manuscript folder it planned to delete",
 }
 
 
@@ -455,6 +465,21 @@ def simulate_month(n: int, roots: dict[str, Path], trees: dict[str, TreeBuilder]
             p = roots[fs] / f.path
             if f.hot and p.exists():
                 os.utime(p, (now - rng.uniform(0, 14) * 86400, f.mtime))
+
+
+def demo_plan(when: float) -> None:
+    """The Dasgupta Lab's cleanup plan (DEMO_PLAN), made by its PI on `when`."""
+    from .auth import identity_for
+    from .snapshots import cold_bucket
+
+    lab_slug, username, rows = DEMO_PLAN
+    with session_scope() as s:
+        fs = s.scalar(select(Filesystem).where(Filesystem.slug == "fast"))
+        ident = identity_for(s.scalar(select(User).where(User.username == username)))
+        for rel, action, note in rows:
+            item = plans.add(s, ident, fs, f"{fs.root.rstrip('/')}/{lab_slug}/{rel}", action, note=note,
+                             cold_from=cold_bucket())
+            item.added_at = datetime.fromtimestamp(when, UTC).replace(tzinfo=None)
 
 
 # ---------- Owners (demo only) ----------
@@ -682,4 +707,6 @@ def run_seed(scale: float = 1.0) -> None:
                 last[fs] = snap.files
                 print(f"  snapshot {snap.id}: {snap.files:,} files, {snap.bytes / TB:,.1f} TB logical, "
                       f"index built in {snap.build_seconds}s")
+        if n == SCANS - 1:
+            demo_plan(taken[n - 1] + 9 * 86400)
     print(f"Done: {sum(last.values()):,} demo files across {len(fs_roots)} filesystems. Run `uv run pinax serve`.")

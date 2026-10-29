@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.7.0 (2026-10-29)
+
+Seventh release (wave 7, "cleanup plans"): what a lab could free, and what it would save. From a folder's panel on
+the age map, a lab's PI or delegate marks folders to delete, move to cheaper storage, or compress, and sees the space
+it would free and how much the lab's monthly charge would fall. Pinax suggests folders worth adding, and later scans
+show what was done, following a folder that was renamed rather than removed by its inode. Pinax itself deletes,
+moves, and compresses nothing. Next are folder tags (0.8.0). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+
+Upgrading from 0.6.0: indexes are now version 6 (each directory's inode, and workflow working folders); older ones
+still answer, but their marked folders are found by path only and they offer no workflow folders, so run
+`pinax rebuild --outdated`. The catalog gains `marked_folder`, `marked_folder_stat`, and `cleanup_item` tables,
+created at start-up. No new settings.
+
+### Added
+
+- **Marked folders, followed across scans.** Folders marked for a cleanup plan (and, later, a tag) are kept by
+  path with their directory's inode. Each scan finds them at their path, or at another path with the same inode
+  (a rename or a move, offered to a person to confirm, since inodes are reused), or gone, and records their
+  totals, so their history outlasts the snapshots' indexes.
+- **Cleanup plans.** From a folder's panel on the age map, a lab's PI or delegate (or an administrator) adds it to
+  the lab's cleanup plan: to delete it, move it to another filesystem, or compress it, with a note. *Cleanup plans*
+  lists each lab's folders with what to do, their size when added and now, and who added them; a folder that moved
+  is offered to confirm. Pinax deletes, moves, and compresses nothing: a plan records what the lab means to do.
+- **What a plan saves.** Each plan shows the space it would free and the fall in the lab's monthly charge, at
+  today's prices and free tiers, for each folder and filesystem and in all, with the yearly figure. A move is
+  charged on the filesystem it goes to; compression is estimated from the types of file in the folder; a lab within
+  its free tier is told that freeing storage saves nothing.
+- **Progress from scans.** Each scan after a folder was added shows whether it is done (gone, or compressed by
+  most of its estimate), partly done (smaller), moved (nothing freed), or still to do. *Cleanup plans* lists what
+  is to do and what is done, by which scan, with the space freed so far and what it saves a month, and each plan
+  downloads as CSV.
+- **Suggestions for a plan.** *Cleanup plans* suggests folders to add, each with what it would free and save a
+  month: workflow working folders and package caches (Nextflow `work/`, Snakemake `.snakemake/`, Cromwell
+  executions, conda `pkgs/`, Singularity and Apptainer caches, found when the index is built), the largest cold
+  folders, and the folders with the most uncompressed sequencing data. *Add* opens the dialog with the suggested
+  action chosen.
+- **Every lab's plan, for administrators.** *Cleanup plans* without a lab chosen shows what every plan would free
+  and save, what is done, totals by filesystem, the largest folders still to do, and each lab's plan, with one CSV
+  of every folder for the storage team.
+
+### Changed
+
+- **Index version 6** keeps each directory's device and inode. Older indexes still answer, but their marked folders
+  are found by path only; `pinax rebuild --outdated` adds the inodes.
+
 ## 0.6.0 (2026-10-28)
 
 Sixth release (wave 6, "where storage is heading"): forecasts. Every history carries a forecast of its size for

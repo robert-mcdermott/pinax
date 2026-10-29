@@ -1,6 +1,6 @@
 [project]
 name = "pinax"
-version = "0.6.0"
+version = "0.7.0"
 description = "Pinax: explore your data. File system reporting for research storage, built on fs-inventory scans."
 authors = [
     { name = "Robert McDermott", email = "robert.c.mcdermott@gmail.com" }

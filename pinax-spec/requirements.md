@@ -25,7 +25,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | P2 | Apache-2.0; `LICENSE` and `NOTICE`; SPDX headers in source files | done (wave 1, slice 1) |
 | P3 | Read-only: never opens, moves, or changes a file on the storage it reports on; reads only fs-inventory scans | done (wave 1, slice 2) |
 | P4 | Light and dark themes, keyboard-reachable charts, WCAG AA text contrast, a table view for every chart, chart colors validated in both themes | done (wave 1, slices 1 and 4: age and share ramps pass the ordinal checks in both themes; checked at 375 px) |
-| P5 | A demo that builds in one command with real fs-inventory scans of realistic data | done (wave 1, slice 7: about 34,000 sparse files, 117 TB logical, two scans per filesystem, about ten seconds; wave 3, slice 2: six scans per filesystem a month apart, with a story in each month, about 35,000 files and 123 TB, about fifteen seconds; wave 6: capacities, one filesystem filling within the year) |
+| P5 | A demo that builds in one command with real fs-inventory scans of realistic data | done (wave 1, slice 7: about 34,000 sparse files, 117 TB logical, two scans per filesystem, about ten seconds; wave 3, slice 2: six scans per filesystem a month apart, with a story in each month, about 35,000 files and 123 TB, about fifteen seconds; wave 6: capacities, one filesystem filling within the year; wave 7: a cleanup plan, partly done and with a folder renamed by the last scan) |
 | P6 | Service files for the web app and ingest; a container image | partial (wave 2, slice 6: systemd units in `deploy/`; wave 10: container) |
 | P7 | PostgreSQL catalog with migrations | planned (wave 10) |
 
@@ -42,7 +42,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | S7 | Say when totals are lower bounds (folders not read completely) | done (wave 1, slices 2 and 4) |
 | S8 | Explore any retained snapshot, not only the latest | done (wave 1: the API takes a snapshot; wave 3, slice 6: a scan picker on every report, by day, kept by links; pruned scans open History) |
 | S9 | The change in every directory between two scans of a filesystem: size, space on disk, files, folders, and age mix, with new and removed folders; checked against an independent computation | partial (wave 3, slice 1: since the previous scan, at ingest, checked against two scans' fs-inventory rollups; slices 4 and 5: any two retained scans) |
-| S10 | Follow a folder renamed or moved within a filesystem by its directory's inode, so a marked folder keeps its tags and plan | planned (wave 7) |
+| S10 | Follow a folder renamed or moved within a filesystem by its directory's inode, so a marked folder keeps its tags and plan | done (wave 7, slice 1: index version 6 keeps inodes; a moved folder is offered to a person to confirm, since inodes are reused; tested with renames, deletions, and a reused inode) |
 
 ## Exploration
 
@@ -78,11 +78,11 @@ validation that shows it. Requirement IDs are stable and never reused.
 
 | # | Requirement | Status |
 | --- | --- | --- |
-| C1 | A lab's PI and delegates, and administrators, mark folders to delete, move to another filesystem, or compress, while exploring; Pinax changes nothing on storage (P3) | planned (wave 7) |
-| C2 | What a plan saves: the space freed and the fall in the lab's monthly charge, with free tiers and the destination's price | planned (wave 7) |
-| C3 | Progress from later scans: done, partly done, moved (no saving), or still to do, and what was actually freed | planned (wave 7) |
-| C4 | Suggested folders, each with its saving: cold folders, uncompressed sequencing data, workflow working folders | planned (wave 7) |
-| C5 | Every lab's plan for administrators, planned and freed per filesystem, with CSV | planned (wave 7) |
+| C1 | A lab's PI and delegates, and administrators, mark folders to delete, move to another filesystem, or compress, while exploring; Pinax changes nothing on storage (P3) | done (wave 7, slice 2: from the age map's panel; *Cleanup plans*; nested folders counted once; audited) |
+| C2 | What a plan saves: the space freed and the fall in the lab's monthly charge, with free tiers and the destination's price | done (wave 7, slice 3: tested against the charges worked out after a later scan shows the folder gone) |
+| C3 | Progress from later scans: done, partly done, moved (no saving), or still to do, and what was actually freed | done (wave 7, slice 4: with the scan that showed it, what is freed and saved so far, and a CSV) |
+| C4 | Suggested folders, each with its saving: cold folders, uncompressed sequencing data, workflow working folders | done (wave 7, slice 5: on *Cleanup plans*; workflow folders found at build) |
+| C5 | Every lab's plan for administrators, planned and freed per filesystem, with CSV | done (wave 7, slice 6) |
 
 ## Tags
 

@@ -33,6 +33,10 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
   *Storage charges* shows what each of their labs pays each month, by filesystem and folder, how each charge is
   worked out, and the months before; this month's is an estimate, and a figure on *My data*. The next twelve
   months are estimated at the trend of each lab's folders, with the prices and free tiers as scheduled.
+- **Cleanup plans**: from a folder's panel on the age map, a lab marks folders to delete, move to cheaper storage,
+  or compress, and sees the space it would free and how much its monthly charge would fall. Pinax suggests folders
+  (workflow working folders, cold data, uncompressed sequencing data), and later scans show what was done, following
+  a folder that was renamed rather than removed. Pinax itself deletes, moves, and compresses nothing.
 - **For IT**: an overview of every filesystem, the largest folders and biggest changes, unmapped folders,
   storage health (scan errors, very large directories, small-file hotspots, problem file names, deleted
   owners), the scan history, each filesystem's capacity and the month it fills at its trend, and people and

@@ -114,12 +114,13 @@ The age color of a folder comes from those totals: the *average age* is weighted
 
 | Table or file | One row per | Holds | Sorted by |
 |---|---|---|---|
-| `dirs` | directory | Subtree totals: files, folders, bytes, allocated bytes; files and bytes per age bucket by modification time; bytes per age bucket by access time; files and bytes per category; oldest and newest modification, newest access and change; size-weighted time sums for mean ages; count of folders not read completely. Plus the directory's own files (count, bytes, times) and its entry count and any scan error. | `(depth, path)` |
+| `dirs` | directory | Subtree totals: files, folders, bytes, allocated bytes; files and bytes per age bucket by modification time; bytes per age bucket by access time; files and bytes per category; oldest and newest modification, newest access and change; size-weighted time sums for mean ages; count of folders not read completely. Plus the directory's own files (count, bytes, times), its entry count and any scan error, and its device and inode (from index version 6). | `(depth, path)` |
 | `dir_ext` | directory and file type | Totals over the directory's *own* files of that type | `path` |
 | `dir_owner` | directory and owner (uid) | Totals over the directory's *own* files of that owner | `path` |
 | `top_ext`, `top_owner` | top-level folder and type / owner | The same, summed per top-level folder | `top_id` |
 | `changes` | directory of this scan or the filesystem's previous one | Both scans' subtree totals (files, folders, bytes, allocated bytes, size-weighted time sum, files and bytes per age bucket), each scan's own ages, and whether the directory is in each: what changed, new and removed folders included. Only when there was a previous scan | `(depth, path)` |
 | `file_changes` | file new since the previous scan, or removed since | `change` (`new` or `removed`), then the file's path, name, type, category, kind, size, allocated bytes, owner, group, times, links, and name flags (a removed file's from the previous scan). Only when there was a previous scan, from index version 5 | `(change, path)` |
+| `work_dirs` | workflow working folder or package cache | Its path and kind: a Nextflow `work/` (beside a `.nextflow`), Snakemake `.snakemake/`, Cromwell `cromwell-executions/`, conda `pkgs/` (in a conda installation), or a Singularity or Apptainer `cache/`. From index version 6 | `path` |
 | `cold_units` | age threshold and cold folder | For each threshold (90 days to 10 years), the largest folders in which every file is at least that old and whose parent has a newer one: path, depth, files, bytes | `(bucket, path)` |
 | `tops`, `file_parts` | top-level folder | Name, path, ID; file count and bytes | |
 | `users`, `groups` | uid / gid | Names from the scan (`--resolve-ids`); a missing name is a deleted account | |
@@ -375,6 +376,62 @@ How much each filesystem holds, and when it fills at its trend (`capacity.py`, *
 A filesystem's history carries its capacity, drawn as a line on *Size by age* where it fits the scale (no more
 than twice the data). That chart shows the files' size, while the date it fills uses the measure above, so the
 two can differ by what the size does not count.
+
+## Marked folders
+
+Cleanup plans (wave 7) and tags (wave 8) are about particular folders, which outlive any one scan, so the catalog
+keeps them as **marked folders** (`marks.py`, `marked_folder`): a filesystem, a path as the index has it, and the
+directory's device and inode, which every fs-inventory scan records and index version 6 keeps. With each scan of
+the filesystem, ingest looks for every marked folder:
+
+- at its path: it is *here*, and its totals for that scan are recorded (`marked_folder_stat`: size, space on disk,
+  files, folders, cold bytes, mean age, and bytes per age bucket);
+- else at another path with the same inode, since a rename or a move within the filesystem keeps it: it is
+  offered as *moved*, for a person to confirm (the mark then follows it) or dismiss. It is not followed on its own,
+  because a deleted directory's inode can be given to a new one;
+- else it is *gone*.
+
+Only the filesystem's latest scan changes where a mark is; an older scan found late adds to its history. A new
+mark's history starts with the snapshots kept in full, and from then on it has every scan, so it outlasts the
+indexes, as folder history does for top-level folders. An index before version 6 has no inodes, so its marked
+folders are found by path only. At a million files (244,000 folders), finding 1,000 marked folders by path takes
+25 ms, and 100 by inode 4 ms (a pass over every folder's inode); the inodes take under 1 MB of the 126 MB index.
+
+### Cleanup plans
+
+A lab's **cleanup plan** (`plans.py`, `cleanup_item`) lists folders it means to free space from, and how: delete
+it, move it to another filesystem (whose price sets the saving), or compress it, with a note. Pinax does none of
+it, and reads and changes nothing on the storage: a plan records what a lab means to do, the lab's people (or the
+storage team, with the plan's CSV) do it, and later scans show what happened. A planned folder is a marked folder,
+so it is followed across scans, and its size when it was added is kept. A lab's PI and delegates add to its plan
+directly, as do administrators; the folder must be in a top-level folder the lab owns; every change is audited. A
+folder inside another planned folder of the same lab is listed, but counted once, as part of the outermost.
+
+**What a plan saves** is the fall in the lab's monthly charge, at today's prices and free tiers: on each filesystem,
+the lab's whole size there (its folders in the latest scan) charged as charges are, before and after. A folder
+deleted frees its size; one moved frees it and is charged on the filesystem it goes to; one compressed frees an
+estimate, from the types in it and what compressing each typically frees (`plans.COMPRESSION`: about three quarters
+of uncompressed FASTQ or SAM, half of BAM as CRAM, more of VCF and pileups). A lab within its free tier saves
+nothing by freeing storage there, which is why the saving is not size times price. Each folder's saving on its own
+is shown too; with free tiers, those need not add up to the plan's.
+
+**Progress** comes from the scans after a folder was added: one gone (and not moved) is done; one compressed is
+done once it has shrunk by nine tenths of its estimate (recorded when it was added); one smaller than when added
+is partly done; one at another path with its inode freed nothing. What is done is shown with the scan that showed
+it, and what it saves a month now: what the freed space would cost the lab if it were back, less what a moved folder
+costs where it went. What a plan would still save counts only what is not done. A plan downloads as CSV, a row per
+folder, for the lab or the storage team.
+
+**Suggestions** for a lab's plan come from the latest scan of each of its folders: workflow working folders and
+package caches (`work_dirs`, found at build: what running the workflow makes again), the largest cold folders at the
+cold threshold (`cold_units`), and the folders with the most uncompressed sequencing data (`dir_ext`, estimated as
+for compression). Each comes with what it would free and save a month on its own; a folder planned or inside one is
+left out, a folder suggested twice is suggested for the larger saving, and one inside another suggested folder is
+left to it. On a million-file synthetic scan, the three queries take 8, 38, and 9 ms for a top-level folder.
+
+Administrators see **every lab's plan** (`/api/plans/all`, *Cleanup plans* without a lab chosen): what all of them
+would free and save, and what is done; per filesystem, what is to be freed, moved in, and freed so far; the largest
+folders still to do; each lab's plan; and one CSV of every folder, for the storage team.
 
 ## Costs
 

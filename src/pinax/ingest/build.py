@@ -6,9 +6,9 @@ directory level is precomputed once per scan, so no page ever reads per-file row
 
     <index>/index.duckdb       dirs        one row per directory: its subtree totals (files, bytes,
                                            allocated bytes, age histograms, bytes and files by
-                                           category, oldest/newest times, byte-weighted mean age),
-                                           ordered by (depth, path) so a directory's children are one
-                                           contiguous range
+                                           category, oldest/newest times, byte-weighted mean age) and
+                                           its device and inode, ordered by (depth, path) so a
+                                           directory's children are one contiguous range
                                dir_ext     per directory and file type: totals over the directory's
                                            *own* files, ordered by path, so any subtree's breakdown
                                            is one contiguous range scan
@@ -22,6 +22,9 @@ directory level is precomputed once per scan, so no page ever reads per-file row
                                file_changes
                                            every file new since the previous scan or removed since,
                                            ordered by (change, path)
+                               work_dirs   workflow working folders and package caches (Nextflow
+                                           work/, Snakemake .snakemake/, Cromwell executions, conda
+                                           pkgs/, Singularity or Apptainer caches), by path
                                tops, users, groups, errors, name_flags, meta
     <index>/files/gNNNNNN/*.parquet        every non-directory entry, in at most 64 groups of
                                            top-level folders, each sorted by path (so any folder,
@@ -50,7 +53,7 @@ from ..categories import AGE_BUCKETS, CATEGORIES, COMPRESSION_SUFFIXES, OTHER, b
 
 log = logging.getLogger("pinax.build")
 
-INDEX_VERSION = 5
+INDEX_VERSION = 6
 # Files are staged and sorted in at most this many groups of top-level folders. A partitioned write keeps a
 # file open and buffered for each partition, so one per top-level folder does not scale to thousands of them.
 FILE_GROUPS = 64
@@ -206,6 +209,31 @@ def _direct_aggregates() -> str:
     cols += [f"count(*) FILTER (WHERE cat = {i})::BIGINT AS cf{i}" for i in range(NC)]
     cols += [f"coalesce(sum(size) FILTER (WHERE cat = {i}), 0)::BIGINT AS cb{i}" for i in range(NC)]
     return ",\n  ".join(cols)
+
+
+# Folders that workflow managers and package managers fill with what can be made again (suggested for cleanup
+# plans): a name, and for some the folder it must be in, or a folder beside it.
+CONDA_ROOTS = ("miniconda3", "anaconda3", "miniforge3", "mambaforge", "micromamba", ".conda")
+CONTAINER_ROOTS = (".singularity", ".apptainer")
+
+
+def _work_dirs() -> str:
+    names = ", ".join(_sql_str(n) for n in (".snakemake", "cromwell-executions", "work", "pkgs", "cache"))
+    conda = ", ".join(_sql_str(n) for n in CONDA_ROOTS)
+    containers = ", ".join(_sql_str(n) for n in CONTAINER_ROOTS)
+    return f"""
+        WITH c AS (SELECT dir_id, parent_id, depth, top_id, path, name FROM s.dirbase WHERE name IN ({names})),
+             nf AS (SELECT DISTINCT parent_id FROM s.dirbase WHERE name = '.nextflow'),
+             k AS (
+               SELECT c.path, c.depth, c.top_id, CASE
+                 WHEN c.name = '.snakemake' THEN 'snakemake'
+                 WHEN c.name = 'cromwell-executions' THEN 'cromwell'
+                 WHEN c.name = 'work' AND c.parent_id IN (SELECT parent_id FROM nf) THEN 'nextflow'
+                 WHEN c.name = 'pkgs' AND p.name IN ({conda}) THEN 'conda'
+                 WHEN c.name = 'cache' AND p.name IN ({containers}) THEN 'containers'
+               END AS kind
+               FROM c LEFT JOIN s.dirbase p ON p.dir_id = c.parent_id)
+        SELECT path, depth, top_id, kind FROM k WHERE kind IS NOT NULL"""
 
 
 def _cold_units() -> str:
@@ -440,11 +468,16 @@ def build_index(
 
     # ---- Directories ----
     say("Reading directories")
+    # Each directory's device and inode, which a rename or a move within the filesystem keeps (marks.py).
+    columns = {r[0] for r in con.execute("DESCRIBE entries").fetchall()}
+    identity = ("e.dev::UBIGINT AS dev, e.ino::UBIGINT AS ino" if {"dev", "ino"} <= columns
+                else "NULL::UBIGINT AS dev, NULL::UBIGINT AS ino")
     step("dirbase", f"""
         CREATE TABLE s.dirbase AS
         SELECT e.dir_id, e.parent_id, e.depth::INTEGER AS depth,
                CASE WHEN e.depth = 0 THEN 0 ELSE coalesce(t.top_id, 0) END::INTEGER AS top_id,
                e.path, e.name, e.uid, e.gid, {us('e.mtime', 'self_mtime')}, e.error, e.is_mount_point, e.dir_entries,
+               {identity},
                -- Not read completely: an error, or never listed (a mount point not entered, --max-depth). A
                -- revisit (--detect-cycles) isn't missing anything: its contents are counted where first found.
                (NOT coalesce(starts_with(e.error, 'revisit'), false)
@@ -574,13 +607,16 @@ def build_index(
     step("dirs", f"""
         CREATE TABLE dirs AS
         SELECT b.dir_id, b.parent_id, b.depth, b.top_id, b.path, b.name, b.uid, b.gid, b.self_mtime, b.error,
-               b.is_mount_point, b.dir_entries,
+               b.is_mount_point, b.dir_entries, b.dev, b.ino,
                coalesce(x.files, 0) AS d_files, coalesce(x.bytes, 0) AS d_bytes,
                x.mtime_min AS d_mtime_min, x.mtime_max AS d_mtime_max, x.atime_max AS d_atime_max,
                u.dirs, u.incomplete, {", ".join(f"u.{c}" for c in ADDITIVE)}, {", ".join(f"u.{c}" for c in EXTREMES)}
         FROM s.dirbase b JOIN s.sub u USING (dir_id) LEFT JOIN s.direct x USING (dir_id)
         ORDER BY b.depth, b.path
     """)
+
+    say("Finding workflow working folders")
+    step("work_dirs", f"CREATE TABLE work_dirs AS {_work_dirs()} ORDER BY path")
 
     say("Finding cold folders")
     step("cold", f"CREATE TABLE cold_units AS SELECT * FROM ({_cold_units()}) ORDER BY bucket, path")

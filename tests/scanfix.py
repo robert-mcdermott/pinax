@@ -36,13 +36,14 @@ def _ext(name: str) -> str | None:
 def write_scan(out: Path, root: str, files: list[dict], *, started: datetime | None = None, status: str = "complete",
                errors: dict[str, str] | None = None, users: dict[int, str | None] | None = None,
                dirs_only: list[str] | None = None, mounts: set[str] | None = None,
-               revisits: set[str] | None = None, time_unit: str = "us") -> dict:
+               revisits: set[str] | None = None, time_unit: str = "us", inodes: dict[str, int] | None = None) -> dict:
     """`files`: dicts with `path` (relative to root), `size`, `age_days` (since `started`), and optional
     `atime_days`, `uid`, `name_flags`, `kind`. Directories are inferred, plus any in `dirs_only` (which may be
     empty); `errors` maps relative directory paths to an error string (the directory is recorded as
     unreadable). `mounts` are mount points not entered and `revisits` directories reached twice under
     `--detect-cycles`; neither is listed. With `time_unit="ns"`, times are nanoseconds (`--time-unit ns`), and a
-    file's `extra_ns` adds nanoseconds below the microsecond."""
+    file's `extra_ns` adds nanoseconds below the microsecond. `inodes` gives directories (by relative path) inode
+    numbers of their own, as a renamed or moved directory keeps its inode; the others' are their position."""
     started = started or datetime(2026, 10, 1, tzinfo=UTC)
     # Times are whole microseconds, as fs-inventory writes them, so ages can sit exactly on a bucket edge.
     ref = (started - datetime(1970, 1, 1, tzinfo=UTC)) // timedelta(microseconds=1)
@@ -75,7 +76,7 @@ def write_scan(out: Path, root: str, files: list[dict], *, started: datetime | N
         rows.append({
             "path": full(rel), "parent_path": full(parent) if rel else "", "name": rel.rsplit("/", 1)[-1] if rel else root.rsplit("/", 1)[-1],
             "extension": None, "kind": "dir", "depth": 0 if not rel else rel.count("/") + 1, "dir_id": did,
-            "parent_id": dirs[parent] if rel else 0, "ino": did, "uid": 1000, "gid": 1000, "mode": 0o40755, "size": 4096,
+            "parent_id": dirs[parent] if rel else 0, "ino": (inodes or {}).get(rel, did), "uid": 1000, "gid": 1000, "mode": 0o40755, "size": 4096,
             "alloc_bytes": 4096, "mtime": ago(1), "atime": ago(1),
             "dir_entries": len(kids) + len(kfiles) if listed else None, "error": err, "name_flags": 0,
             "is_mount_point": rel in mounts, "extra_ns": 0,

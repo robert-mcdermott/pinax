@@ -16,13 +16,13 @@ decisions taken are recorded here. Later waves are outlined at the end.
 **Progress** is marked here as each slice is committed: done, next or to come. Each requirement's status is
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
-**Where things stand:** waves 1 to 6 are released as 0.1.0 to 0.6.0 (tags on `main`). Besides forecasts, 0.6.0
+**Where things stand:** waves 1 to 7 are released as 0.1.0 to 0.7.0 (tags on `main`). Besides forecasts, 0.6.0
 has what was merged since 0.5.0:
 - labs and departments can be added, changed, and deactivated in the app, so a site needs no CSV files at all;
 - guidance for operating Pinax;
 - time limits for requests, and new and removed files recorded at ingest, for filesystems of two billion files.
 
-Next come cleanup plans (wave 7) and folder tags (wave 8). The production pilot needs production storage, which
+Next come folder tags (wave 8). The production pilot needs production storage, which
 will not be reachable for some time, so it waits as wave 9. If production storage becomes reachable sooner, the
 pilot becomes the next wave and the waves after it are renumbered. Ideas kept for later but not planned are in the
 [parking lot](#parking-lot).
@@ -756,22 +756,21 @@ Settled within the wave:
 What a lab could free, and what it would save. While exploring the age map, a PI or delegate marks folders to
 delete, move to cheaper storage, or compress, and sees the space it would free and how much the lab's monthly
 charge would fall. Later scans show what was done and what it saved. Pinax still changes nothing on the storage it
-reports on (P3): a plan records what a lab means to do, and the scans show what happened. Planned; the slices are
-confirmed when the wave starts.
+reports on (P3): a plan records what a lab means to do, and the scans show what happened.
 
 ### Wave 7 sequence
 
 | Slice | Scope and requirements | Acceptance before the next slice | Status |
 | --- | --- | --- | --- |
-| 1 | Marked folders, followed across scans (S10) | The catalog records a marked folder by filesystem and path; index version 6 keeps each directory's inode from the scan; at each ingest, every marked folder is found at its path, found at another path with the same inode (proposed as a move, not applied, since inodes are reused), or gone; its totals are recorded for that scan, so a marked folder's history outlasts its snapshot; tested with renames, moves, deletions, and a reused inode; the added build time and index size measured at 100 million files | To come |
-| 2 | Marking folders for cleanup (C1) | From the age map (a folder's own panel and each tile's actions, reachable by keyboard), *Cold folders*, and *What changed*: add a folder to its lab's cleanup plan to delete, move to another filesystem, or compress, with a note; by the lab's PI and delegates, and by administrators; a folder inside one already planned counts once; the plan's total shown while exploring; audited; both themes and 375 pixels | To come |
-| 3 | What a plan saves (C2) | For each folder and the whole plan: the space freed, and the lab's monthly charge now and after, per filesystem, with free tiers (data within a free tier saves nothing, and the page says so) and the destination's price for a move; compression estimated from typical ratios for each type, and labeled as an estimate; tested against the charges worked out on the reduced sizes | To come |
-| 4 | Progress from scans (C3) | With each new scan, each folder is done (gone, and not moved), partly done (smaller), moved (no saving), or still to do; the space freed and the fall in the charge since the plan began; a *Cleanup plan* page for each lab with what is to do and what was done, and when; CSV for the lab or the storage team | To come |
-| 5 | Suggestions (C4) | Folders worth adding, each with its saving, added in one click: cold folders (R3), uncompressed sequencing data (R6) to compress, and workflow working folders (Nextflow `work/`, Snakemake `.snakemake/`, Cromwell `cromwell-executions/`, conda and container caches), found when the index is built; within Q3 for a lab folder at 100 million files | To come |
-| 6 | Plans across labs (C5) | For administrators: every lab's plan, planned and freed per filesystem, the largest folders planned, and a CSV | To come |
-| 7 | Demo and release 0.7.0 | A demo lab with a plan made before the demo's last scan, partly done by it, with one folder renamed rather than removed; the README demo script; version 0.7.0, changelog, pull request, tag, release | To come |
+| 1 | Marked folders, followed across scans (S10) | The catalog records a marked folder by filesystem and path; index version 6 keeps each directory's inode from the scan; at each ingest, every marked folder is found at its path, found at another path with the same inode (proposed as a move, not applied, since inodes are reused), or gone; its totals are recorded for that scan, so a marked folder's history outlasts its snapshot; tested with renames, moves, deletions, and a reused inode; the added build time and index size measured at 100 million files | Done |
+| 2 | Marking folders for cleanup (C1) | From the age map (a folder's own panel and each tile's actions, reachable by keyboard), *Cold folders*, and *What changed*: add a folder to its lab's cleanup plan to delete, move to another filesystem, or compress, with a note; by the lab's PI and delegates, and by administrators; a folder inside one already planned counts once; the plan's total shown while exploring; audited; both themes and 375 pixels | Done |
+| 3 | What a plan saves (C2) | For each folder and the whole plan: the space freed, and the lab's monthly charge now and after, per filesystem, with free tiers (data within a free tier saves nothing, and the page says so) and the destination's price for a move; compression estimated from typical ratios for each type, and labeled as an estimate; tested against the charges worked out on the reduced sizes | Done |
+| 4 | Progress from scans (C3) | With each new scan, each folder is done (gone, and not moved), partly done (smaller), moved (no saving), or still to do; the space freed and the fall in the charge since the plan began; a *Cleanup plan* page for each lab with what is to do and what was done, and when; CSV for the lab or the storage team | Done |
+| 5 | Suggestions (C4) | Folders worth adding, each with its saving, added in one click: cold folders (R3), uncompressed sequencing data (R6) to compress, and workflow working folders (Nextflow `work/`, Snakemake `.snakemake/`, Cromwell `cromwell-executions/`, conda and container caches), found when the index is built; within Q3 for a lab folder at 100 million files | Done |
+| 6 | Plans across labs (C5) | For administrators: every lab's plan, planned and freed per filesystem, the largest folders planned, and a CSV | Done |
+| 7 | Demo and release 0.7.0 | A demo lab with a plan made before the demo's last scan, partly done by it, with one folder renamed rather than removed; the README demo script; version 0.7.0, changelog, pull request, tag, release | Done |
 
-### Decisions for wave 7 (proposed)
+### Decisions for wave 7
 
 - **A plan is not made of tags.** A planned folder has an action, an estimate, and a state that changes as scans
   arrive; tags (wave 8) describe what a folder is, and last. Both rest on the same marked folders.
@@ -785,9 +784,121 @@ confirmed when the wave starts.
 - **What a plan page warns about.** Storage snapshots keep deleted data on disk until they expire, so capacity
   comes back later than the charge falls; and a hard-linked file (R7) frees nothing until its last link is gone.
 
-Open within the wave: whether a delegate's additions need the PI's approval; the compression ratios for each type
-(FASTQ, SAM, BAM to CRAM), from published figures and the site's own, and whether compression is in the first
-version; whether a move names its destination folder or only its filesystem.
+Settled with the maintainer when the wave started:
+- A lab's delegates add folders to its plan directly, as its PI does; each folder shows who added it, and every
+  change is audited. Pinax deletes, moves, and compresses nothing: a plan records what a lab means to do.
+- Compression is in the first version, its saving estimated from typical ratios for each type, labeled as an
+  estimate.
+
+Settled within the wave:
+- A move names the filesystem it goes to (whose price sets the saving), with a note for where on it.
+- Plan actions are kept open, so an *archive* action can join them (see *Archiving with Tundra* in the parking lot).
+- The build time and index size of the inodes were measured at a million files rather than 100 million, keeping
+  to small datasets on the laptop; the pilot measures them at production size.
+
+Open within the wave: the compression ratios for each type (FASTQ, SAM, BAM to CRAM), from published figures and
+the site's own.
+
+### Slices as built
+
+1. **Marked folders, followed across scans (S10).**
+   - Index version 6 keeps each directory's device and inode in `dirs` (from the scan's `dev` and `ino`; none for a
+     scan without them). `SnapshotIndex.nodes` finds directories by path with their inode, and `paths_of` by
+     inode, in one pass over the folders.
+   - `marked_folder` and `marked_folder_stat` tables, and `marks.py`: a mark is made on a folder in the latest
+     scan, with its history from the snapshots kept in full; at each ingest, every mark of the filesystem is found
+     at its path (*here*), at another path with its inode (*moved*, to confirm or dismiss, audited), or *gone*, and
+     its totals recorded; only the latest scan moves a mark.
+   - Tests (`tests/test_marks.py`): the index's inodes; a mark's first totals; a folder renamed, one deleted whose
+     inode went to a new folder (offered, not applied), one unchanged, one smaller; confirming and dismissing a
+     move, and following the confirmed path after; an older scan found late; history after the indexes are
+     pruned; an index without inodes. `tests/scanfix.py` can give directories inodes of their own.
+   - *Done*: on a million-file synthetic scan (244,000 folders), the build took 10 s on a busy laptop, of which
+     reading the directories with their inodes 0.17 s and writing the directory table 0.6 s; the inodes take
+     at most four 256 KiB blocks of the 126 MB index (the index file is the same size as at version 5); finding
+     1,000 marked folders by path takes 25 ms, and 100 by inode 4 ms.
+2. **Marking folders for cleanup (C1).**
+   - `cleanup_item` table and `plans.py`: a folder in the plan of the lab that owns its top-level folder, to
+     delete, move to another (active) filesystem, or compress, with a note, who added it, and its size then (from
+     its mark); added by the lab's PI and delegates directly, or by administrators; others' folders answer 404, and
+     a folder no lab owns has no plan; a folder inside another planned one is counted once, in the outermost; every
+     addition, change, and removal audited.
+   - `/api/plans` (a person's labs' plans; any lab's for administrators), `/api/plans/here` (a folder's place in its
+     lab's plan, for the age map), adding, changing, and taking out, and confirming or dismissing a move.
+   - The age map's panel has a *Cleanup plan* box: the folder's action and who added it, the folder it is inside
+     if that is planned, or *Add to cleanup plan* (a dialog: delete, move to a filesystem, or compress, and a
+     note), with the lab's plan so far. *Cleanup plans* (`js/plans.js`, in the sidebar) lists each lab's folders:
+     what to do, size when added and now, who added them, a moved folder to confirm or dismiss, and changing or
+     taking one out. Adding from a tile is a click into it and its panel; adding straight from *Cold folders*
+     comes with the suggestions (slice 5).
+   - Tests (`tests/test_plans.py`): a PI adds a folder, once; a delegate adds directly; no one plans others'
+     folders, the root, a path with `..`, a folder not in the scan, or a folder no lab owns; moves name another
+     filesystem; nested folders counted once, and the age map's view of it; changing and removing, by whom, and
+     audited; a folder that has not moved cannot be confirmed moved.
+   - *Done*: checked in the browser as a PI on the demo (adding from the panel, the panel after, *Cleanup plans*).
+3. **What a plan saves (C2).**
+   - `plans.savings`: for each filesystem a plan touches, the lab's size there in the latest scan, and its monthly
+     charge at today's price and free tier before and after (`plans.monthly`, as charges work it out); freed by a
+     delete or a move, added by a move on its destination, estimated for compression from the folder's types
+     (`plans.COMPRESSION`); each folder's saving on its own; the plan's monthly and yearly saving, worked out
+     exactly and rounded once.
+   - *Cleanup plans* shows the saving per folder (*about*, for an estimate), per filesystem (the charge now and
+     after, or that the lab is within its free tier there), and for the plan, with its yearly figure; the age map's
+     box shows the plan's saving.
+   - Tests: the charge now equals the charges' own for a month after the scan, and the charge after equals the
+     charges' own once a later scan shows the folder deleted; within the free tier nothing is saved; compression
+     estimated from a SAM beside an already gzipped FASTQ; a move freeing on one filesystem and charged on the
+     other; nested folders counted once.
+   - *Done*: checked on the demo (a 10.4 GiB folder at $22 per TB saves $0.25 a month).
+4. **Progress from scans (C3).**
+   - `plans.progress`: from the marked folder's totals in the scans after it was added: done (gone and not moved;
+     or, for compression, shrunk by nine tenths of the estimate kept when it was added), partly done (smaller),
+     moved (nothing freed), or to do; the space freed and the scan that showed it. The plan's *done so far*: the
+     space freed, and what it saves a month now (what it would cost back, less a moved folder's cost where it
+     went). What a plan would still save leaves out what is done.
+   - *Cleanup plans*: *To do* (with partly done folders and moves to confirm) and *Done* (what was done, freed, and
+     by which scan), the plan's *done so far*, and a CSV per plan.
+   - Tests: a folder deleted and one compressed fully by a later scan, done, with what they free and save, and
+     nothing left to save; one compressed partly; one renamed, which freed nothing. Later test scans give their
+     directories stable inodes, since numbering them by position hands a deleted folder's inode to another (the
+     reuse that makes a move something to confirm).
+   - *Done*: checked on the demo's *Cleanup plans* (a folder to do; progress waits for the demo's scans, slice 7).
+5. **Suggestions (C4).**
+   - Index version 6 (unreleased, so not bumped again) gains `work_dirs`: Nextflow `work/` beside a `.nextflow`,
+     Snakemake `.snakemake/`, Cromwell `cromwell-executions/`, conda `pkgs/` in a conda installation, and
+     Singularity or Apptainer `cache/`; `SnapshotIndex.work_dirs` lists the outermost in a folder, and
+     `compressible` the folders with the most files of given types directly in them.
+   - `plans.suggestions` and `/api/plans/suggestions`: for each folder a lab owns, its workflow folders (to delete),
+     largest cold folders at the cold threshold (to move, or delete with one filesystem), and folders with the most
+     uncompressed sequencing data (to compress, estimated), each with what it frees and saves a month on its own;
+     planned folders and those inside them left out; a folder suggested twice kept for the larger saving; one inside
+     another suggested folder left to it.
+   - *Cleanup plans* shows them under each plan, loaded after it; *Add* opens the dialog with the action chosen.
+     Adding from *Cold folders* itself is left out: its folders are among the suggestions.
+   - Tests: the workflow folders the index finds (and a `work` folder that is not Nextflow's); the suggestions for a
+     lab, with a FASTQ to compress, a cold folder, a cold SAM suggested for the larger saving, compression inside a
+     work folder left to it, planned folders no longer suggested, and other labs refused.
+   - *Done*: on a million-file synthetic scan, finding workflow folders added 0.01 s to the build, and the three
+     queries took 8, 38, and 9 ms for a top-level folder of 5,000 files; 100 million files wait for the pilot.
+6. **Plans across labs (C5).**
+   - `plans.overview` and `/api/plans/all` (administrators only): every lab's plan, what all of them would free and
+     save and have done, per filesystem what is to be freed, moved in, and freed so far, and the 20 largest folders
+     still to do.
+   - *Cleanup plans* for an administrator without a lab chosen: those figures, a table each, a link to each lab's
+     plan, and one CSV of every folder.
+   - Test: an administrator sees two labs' plans, a folder done, a compression and a move to do, by filesystem and
+     largest first; others are refused.
+   - *Done*: checked in the browser as an administrator on the demo.
+7. **Demo and release 0.7.0.**
+   - `pinax seed` makes the Dasgupta Lab's cleanup plan after the fifth scan (`seed.DEMO_PLAN`, by its PI): three
+     folders to delete. Month 6 deletes one (`2016_cohort_A`, done) and renames another (`manuscripts/2021_draft`
+     to `2021_published`, found by its inode, since the demo's scans are the real fs-inventory's: offered as
+     moved), and leaves the third to do.
+   - `docs/DEMO.md`: the plan in the months table and a walk-through step as Rohan Dasgupta; the README describes
+     cleanup plans.
+   - Version 0.7.0 in `pyproject.toml`, `pinax.__version__`, and `uv.lock`; `CHANGELOG.md` dated, with notes on
+     upgrading from 0.6.0 (index version 6, three catalog tables).
+   - Pull request to `main`, then tag `v0.7.0` and the release.
 
 ## 0.8.0: folder tags (wave 8)
 
@@ -867,6 +978,7 @@ Ideas kept for later, and not on a path to be built. An idea leaves the parking 
 
 | Idea | Notes |
 | --- | --- |
+| Archiving with Tundra: folders marked *archive* in a cleanup plan, or tagged for archiving (wave 8), sent to [Tundra](https://github.com/robert-mcdermott/tundra) as archive requests, for IT to review, package, upload, and verify there | Tundra is a proof of concept; Pinax shares its model of labs, people, and folder ownership, so who may ask matches. Removing the primary copy stays with the data owner; Pinax's later scans show when it is gone, and Tundra's catalog that the archive is verified. Plan actions are kept open (wave 7) so an *archive* action can join them |
 | Likely duplicates: files of the same name and size in several places | Grouping two billion files by name and size at every build is a large job; limited to large files (say 1 GiB and up) it is small. fs-inventory records no checksums, so these would be candidates, not proof |
 | Recognizing data by its folder names: sequencing runs, cryo-EM sessions, imaging plates | Partly covered by the *Source* tag (wave 8) |
 | Searching files within a collection | Within a lab, as fast as Find in a folder; across the organization, a whole-filesystem search under the time limits |

@@ -289,6 +289,73 @@ class FolderStat(Base):
     cat_bytes: Mapped[dict[str, int]] = mapped_column(JSON, default=dict)  # bytes per file category
 
 
+class MarkedFolder(Base):
+    """A folder someone marked, for a cleanup plan or a tag, followed from scan to scan (marks.py): at its path
+    (`here`), at another path with the same inode, offered as a move (`moved`, to `moved_to`), or `gone`."""
+
+    __tablename__ = "marked_folder"
+    __table_args__ = (UniqueConstraint("filesystem_id", "path"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    filesystem_id: Mapped[int] = mapped_column(ForeignKey("filesystem.id", ondelete="CASCADE"), index=True)
+    path: Mapped[str] = mapped_column(String(4096))  # as the index has it
+    dev: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    ino: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), default="here")
+    moved_to: Mapped[str | None] = mapped_column(String(4096), nullable=True)
+    seen_snapshot_id: Mapped[int | None] = mapped_column(ForeignKey("snapshot.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    filesystem: Mapped[Filesystem] = relationship()
+
+
+class MarkedFolderStat(Base):
+    """A marked folder's totals in one scan, recorded at ingest, so its history outlasts the snapshot's index."""
+
+    __tablename__ = "marked_folder_stat"
+    __table_args__ = (UniqueConstraint("mark_id", "snapshot_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    mark_id: Mapped[int] = mapped_column(ForeignKey("marked_folder.id", ondelete="CASCADE"), index=True)
+    snapshot_id: Mapped[int] = mapped_column(ForeignKey("snapshot.id", ondelete="CASCADE"), index=True)
+    taken_at: Mapped[datetime] = mapped_column(DateTime)
+    present: Mapped[bool] = mapped_column(Boolean, default=True)  # at its path in this scan
+    bytes: Mapped[int] = mapped_column(BigInteger, default=0)
+    alloc_bytes: Mapped[int] = mapped_column(BigInteger, default=0)
+    files: Mapped[int] = mapped_column(BigInteger, default=0)
+    dirs: Mapped[int] = mapped_column(BigInteger, default=0)
+    cold_bytes: Mapped[int] = mapped_column(BigInteger, default=0)
+    mean_age_days: Mapped[float | None] = mapped_column(Float, nullable=True)
+    age_bytes: Mapped[list[int]] = mapped_column(JSON, default=list)
+
+
+class CleanupItem(Base):
+    """A folder in a lab's cleanup plan (plans.py): what the lab means to do with it (`action`: delete, move to
+    another filesystem, or compress), with a note, who added it, and its size then. Pinax does none of it; later
+    scans show what happened."""
+
+    __tablename__ = "cleanup_item"
+    __table_args__ = (UniqueConstraint("lab_id", "mark_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    lab_id: Mapped[int] = mapped_column(ForeignKey("lab.id", ondelete="CASCADE"), index=True)
+    mark_id: Mapped[int] = mapped_column(ForeignKey("marked_folder.id", ondelete="CASCADE"), index=True)
+    action: Mapped[str] = mapped_column(String(16))
+    target_filesystem_id: Mapped[int | None] = mapped_column(ForeignKey("filesystem.id", ondelete="SET NULL"),
+                                                             nullable=True)  # where a move goes
+    note: Mapped[str] = mapped_column(Text, default="")
+    added_by: Mapped[int | None] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    added_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    baseline_snapshot_id: Mapped[int | None] = mapped_column(ForeignKey("snapshot.id", ondelete="SET NULL"),
+                                                             nullable=True)
+    baseline_bytes: Mapped[int] = mapped_column(BigInteger, default=0)  # its size when it was added
+    baseline_files: Mapped[int] = mapped_column(BigInteger, default=0)
+    baseline_estimate: Mapped[int | None] = mapped_column(BigInteger, nullable=True)  # compression's, when added
+
+    lab: Mapped["Lab"] = relationship()
+    mark: Mapped[MarkedFolder] = relationship()
+
+
 class Heartbeat(Base):
     """The latest word from a long-running process, such as `pinax ingest --watch`, so the interface can say
     whether it is running."""
