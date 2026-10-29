@@ -60,6 +60,7 @@ src/pinax/
   config.py        settings (see docs/CONFIGURATION.md)
   db.py            catalog engine and sessions (SQLite in WAL mode, or PostgreSQL)
   migrate.py       the catalog's migrations: upgrading at start-up, `pinax db`; revisions in migrations/versions/
+  dbcopy.py        `pinax db copy`: a whole catalog into another, empty database
   models.py        catalog schema: people, labs, folder ownership, filesystems, snapshots, folder history, capacity,
                    marked folders, audit
   categories.py    file categories, type normalization, age buckets

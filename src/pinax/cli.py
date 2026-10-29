@@ -103,6 +103,11 @@ def main() -> None:
     db_upgrade = db_sub.add_parser("upgrade", help="Bring the catalog up to date (back it up first)")
     db_upgrade.add_argument("--sql", action="store_true",
                             help="Print the SQL instead of running it, for a database administrator to apply")
+    db_copy = db_sub.add_parser("copy", help="Copy the whole catalog into another, empty database, such as SQLite into "
+                                             "PostgreSQL (stop Pinax first)")
+    db_copy.add_argument("target", help="The database to copy into, such as postgresql://pinax@db.example.org/pinax "
+                                        "(its password in ~/.pgpass)")
+    db_copy.add_argument("--from", dest="source", help="The catalog to copy (default: this one, PINAX_DATABASE_URL)")
     db_revision = db_sub.add_parser("revision", help="For developers: write a migration for what changed in models.py "
                                                      "(against an up-to-date catalog)")
     db_revision.add_argument("message", help="What it changes, such as \"Add the audit event's address\"")
@@ -182,6 +187,8 @@ def _db(args: argparse.Namespace) -> int:
         print(f"Revision: {rev or 'none'} ({_DB_STATES[found]})")
         print(f"Newest:   {migrate.head()}")
         return 0 if found == "current" else 1
+    if args.db_command == "copy":
+        return _db_copy(engine, args)
     if args.db_command == "revision":
         path = migrate.revision(engine, args.message)
         print(f"Wrote {path}: read it, then run the migration tests (on PostgreSQL too).")
@@ -193,6 +200,29 @@ def _db(args: argparse.Namespace) -> int:
     ensure_defaults()
     print(f"Upgraded the catalog to revision {migrate.head()} (applied {', '.join(applied)})." if applied
           else f"The catalog is up to date (revision {migrate.head()}).")
+    return 0
+
+
+def _db_copy(engine, args: argparse.Namespace) -> int:
+    from . import dbcopy, migrate
+    from .config import Settings
+    from .db import make_engine
+
+    def url(given: str) -> str:  # PostgreSQL's own form of URL, with Pinax's driver, as for PINAX_DATABASE_URL
+        return Settings(database_url=given).db_url
+
+    source = make_engine(url(args.source)) if args.source else engine
+    target = make_engine(url(args.target))
+    print(f"Copying {migrate.describe(source)} into {migrate.describe(target)}")
+    try:
+        copied = dbcopy.copy(source, target)
+    except dbcopy.CopyError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    finally:
+        target.dispose()
+    print(f"Copied {sum(copied.values()):,} rows in {sum(1 for n in copied.values() if n)} tables, and every count "
+          f"matches. Set PINAX_DATABASE_URL to the target (without its password) and start Pinax.")
     return 0
 
 

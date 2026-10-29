@@ -393,7 +393,24 @@ starts), and `pinax db status` should say *up to date*. Each Pinax process keeps
 (10) connections open, and as many more at busy times; the web app, the watcher, and commands each have their own.
 Connections show as `pinax` in `pg_stat_activity`.
 
-A site that already runs Pinax on SQLite moves its catalog with `pinax db copy` (wave 10, slice 2).
+### Moving a catalog from SQLite to PostgreSQL
+
+`pinax db copy` copies every table of the catalog into an empty database, in one transaction, then sets
+PostgreSQL's id sequences past the copied rows and compares every table's count. Indexes and scans stay where they
+are. With the PostgreSQL database and role made, the driver installed, and the password in `~/.pgpass` (above):
+
+```bash
+sudo systemctl stop pinax-web pinax-ingest
+```
+
+```bash
+sudo -u pinax /opt/pinax/.venv/bin/pinax db copy postgresql://pinax@db.example.org/pinax?sslmode=verify-full
+```
+
+Then set `PINAX_DATABASE_URL` to the same URL in `/etc/pinax/pinax.env` and start the services again; keep
+`pinax.db` until PostgreSQL has been backed up. A catalog from 0.9.0 or earlier is upgraded first
+(`pinax db upgrade`), and the copy refuses a database that is not empty, or a source that is not up to date. The
+copy works the other way too, from PostgreSQL into a new SQLite file (`--from` names the source).
 
 ## Backups
 

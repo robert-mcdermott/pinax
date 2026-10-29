@@ -1110,8 +1110,8 @@ who changed what, and metrics that a site's monitoring can trend and alert on. N
 | Slice | Scope and requirements | Acceptance before the next slice | Status |
 | --- | --- | --- | --- |
 | 1 | The catalog on PostgreSQL, with migrations (P7) | Migrations (Alembic) create and upgrade the catalog on SQLite and PostgreSQL, replacing the columns added at start-up; a catalog from 0.9.0 or earlier is adopted in place; `pinax db status` and `pinax db upgrade`; the PostgreSQL driver is an optional extra; the whole test suite passes on both, PostgreSQL in a container; the migrations' schema equals the models' on both | Done |
-| 2 | Moving a catalog to PostgreSQL (P7) | `pinax db copy` copies every table of one catalog into another, empty one at the same version, in batches, then sets PostgreSQL's sequences and checks every table's count; a demo catalog copied to PostgreSQL serves the demo the same | Next |
-| 3 | System and audit logs (O5) | Logs as text (the journal) or JSON lines (a log collector), to standard error or a file that `logrotate` can rotate; one line per request with a request ID (also returned to the browser), the person, their address, the route, the status, and the time taken; slow requests flagged; every audit event also logged once its change is committed, optionally to a file of its own; the address of the person, not the proxy, behind a trusted proxy; a start-up line with the version and the catalog (never its password); never a password, token, or session | To come |
+| 2 | Moving a catalog to PostgreSQL (P7) | `pinax db copy` copies every table of one catalog into another, empty one at the same version, in batches, then sets PostgreSQL's sequences and checks every table's count; a demo catalog copied to PostgreSQL serves the demo the same | Done |
+| 3 | System and audit logs (O5) | Logs as text (the journal) or JSON lines (a log collector), to standard error or a file that `logrotate` can rotate; one line per request with a request ID (also returned to the browser), the person, their address, the route, the status, and the time taken; slow requests flagged; every audit event also logged once its change is committed, optionally to a file of its own; the address of the person, not the proxy, behind a trusted proxy; a start-up line with the version and the catalog (never its password); never a password, token, or session | Next |
 | 4 | Prometheus metrics (O4, O5) | `/metrics` in Prometheus's format, off until a token is set and then only with it; scans and ingests by filesystem (when each last succeeded and failed, how long it took, the watcher's heartbeat), filesystem totals and capacity, Pinax's own disk, requests by route and their times, stopped queries, whole-filesystem query turns, background searches, sign-ins; filesystems named, never labs, people, or paths; a scrape configuration and alert rules in `deploy/prometheus/` | To come |
 | 5 | Demo and release 0.10.0 | The demo unchanged on SQLite, and checked once on PostgreSQL; the deployment guide's PostgreSQL, logs, and monitoring sections; version 0.10.0, changelog, pull request, tag, release | To come |
 
@@ -1157,6 +1157,17 @@ who changed what, and metrics that a site's monitoring can trend and alert on. N
    - *Done*: the whole suite on PostgreSQL 16 in a container (295 passed, the one about SQLite catalogs skipped, in
      3.5 minutes) and on SQLite; the models needed no change for PostgreSQL. The demo seeded into PostgreSQL (34,854
      files, the same as on SQLite) and served the same.
+2. **Moving a catalog to PostgreSQL (P7).**
+   - `dbcopy.py`, `pinax db copy TARGET [--from SOURCE]`: the source must be up to date; the target is brought to
+     the same revision (its tables made if it is empty) and must hold no rows. Every table is copied in the order
+     its foreign keys need, 5,000 rows at a time, in one transaction, so a failed copy leaves the target empty;
+     on PostgreSQL each table's id sequence is then set past the copied ids. Every table's count is compared with
+     the source's, which also catches a Pinax left running.
+   - Tests (`tests/test_dbcopy.py`): the test catalog copied row for row into SQLite and, on PostgreSQL runs, from
+     there into PostgreSQL, with new rows taking the next ids; only into an empty, different database; the command.
+   - *Done*: a copy of the 0.9.0 demo catalog (made before migrations) was refused until `pinax db upgrade` adopted
+     it, then copied into PostgreSQL (358 rows in 18 tables); served from PostgreSQL, eight of the API's reports
+     answered exactly as the SQLite demo did.
 
 ## Later waves (outlined)
 

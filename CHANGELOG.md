@@ -13,6 +13,8 @@
   administrator (`--sql`). `pinax db status` says whether the catalog is up to date. Processes that start together
   take turns, and a catalog that a newer Pinax upgraded is refused. A catalog from 0.9.0 or earlier is adopted
   in place. `pinax db revision` writes a new migration, for developers.
+- **`pinax db copy`** moves a catalog into another, empty database, such as SQLite into PostgreSQL: every table in
+  one transaction, PostgreSQL's id sequences set past the copied rows, and every count compared.
 
 ### Fixed
 
