@@ -429,6 +429,10 @@ for compression). Each comes with what it would free and save a month on its own
 left out, a folder suggested twice is suggested for the larger saving, and one inside another suggested folder is
 left to it. On a million-file synthetic scan, the three queries take 8, 38, and 9 ms for a top-level folder.
 
+Administrators see **every lab's plan** (`/api/plans/all`, *Cleanup plans* without a lab chosen): what all of them
+would free and save, and what is done; per filesystem, what is to be freed, moved in, and freed so far; the largest
+folders still to do; each lab's plan; and one CSV of every folder, for the storage team.
+
 ## Costs
 
 What storage costs is kept in the catalog as two schedules per filesystem (`costs.py`):

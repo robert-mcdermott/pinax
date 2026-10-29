@@ -413,3 +413,34 @@ def suggestions(session: Session, lab: Lab, *, limit: int = 10) -> list[dict]:
            if not any(o is not s and o["fs"] == s["fs"] and _inside(s["path"], o["path"]) for o in found.values())]
     out.sort(key=lambda s: -s["freed"])
     return [s for k in ("workflow", "compress", "cold") for s in out if s["kind"] == k][: 3 * limit]
+
+
+# ---------- Every lab's plan (C5) ----------
+
+def overview(session: Session) -> dict:
+    """For administrators: every lab's plan with what it saves and what is done, totals by filesystem, and the
+    largest folders planned."""
+    from decimal import Decimal
+
+    labs = session.scalars(select(Lab).where(Lab.id.in_(select(CleanupItem.lab_id))).order_by(Lab.name)).all()
+    plans_ = [lab_plan(session, lab) for lab in labs]
+    by_fs: dict[str, dict] = {}
+    for p in plans_:
+        for f in p["savings"]["filesystems"]:
+            row = by_fs.setdefault(f["fs"], {"fs": f["fs"], "fs_name": f["fs_name"], "to_free": 0, "moved_in": 0})
+            row["to_free"] += f["freed"]
+            row["moved_in"] += f["added"]
+    for p in plans_:
+        for i in p["items"]:
+            if i["inside"] is None and i["progress"]["freed"]:
+                by_fs.setdefault(i["fs"], {"fs": i["fs"], "fs_name": i["fs_name"], "to_free": 0, "moved_in": 0})
+                by_fs[i["fs"]]["freed"] = by_fs[i["fs"]].get("freed", 0) + i["progress"]["freed"]
+    largest = sorted((dict(i, lab_name=p["lab"]["name"]) for p in plans_ for i in p["items"]
+                      if i["inside"] is None and i["progress"]["status"] != DONE),
+                     key=lambda i: -(i["saving"]["freed"] if i["saving"] else 0))[:20]
+    zero = Decimal(0)
+    return {"currency": get_settings().currency, "labs": plans_, "largest": largest,
+            "filesystems": sorted(({"freed": 0, **r} for r in by_fs.values()), key=lambda r: r["fs_name"]),
+            "monthly": str(sum((Decimal(p["savings"]["monthly"]) for p in plans_), zero)),
+            "done": {"freed": sum(p["savings"]["done"]["freed"] for p in plans_),
+                     "monthly": str(sum((Decimal(p["savings"]["done"]["monthly"]) for p in plans_), zero))}}

@@ -112,6 +112,7 @@ them, the person's home), and `lab` to limit home to one lab:
 | `GET`, `PUT /api/admin/labs/{slug}`, `POST /api/admin/labs`, `POST /api/admin/labs/{slug}/deactivate` and `/reactivate` | A lab or department, with its record; adding, changing, and deactivating one |
 | `GET /api/charges?month=&lab=&history=` | A person's labs' charges for a month, with their past months and the next twelve at their trend (`ahead`) |
 | `GET /api/plans?lab=`, `/api/plans/here?fs=&path=`; `POST /api/plans`, `PUT`, `DELETE /api/plans/{id}`, `POST /api/plans/{id}/moved` | A person's labs' cleanup plans; a folder's place in its lab's plan; adding, changing, and taking out a folder; confirming or dismissing a move |
+| `GET /api/plans/suggestions?lab=`, `/api/plans/all` | Folders worth adding to a lab's plan; every lab's plan, for administrators |
 | `GET /api/admin/costs`, `/api/admin/costs/charges?month=&fmt=csv`, `/api/admin/costs/ahead` | Prices and free tiers; every lab's charges for a month, or its CSV statement; every lab's next twelve months, added up |
 | `GET /api/admin/capacity`, `POST /api/admin/capacity/{fs}`, `DELETE /api/admin/capacity/{fs}/{id}` | Each filesystem's capacity, its schedule, and when it fills; setting and removing a capacity from a day on |
 

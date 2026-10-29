@@ -113,8 +113,9 @@ export async function viewPlans(el, query) {
   state.place = null;
   renderSidebar();
   const q = parseQuery(query);
-  const data = await api("plans", { query: { lab: q.lab } });
   const admin = state.me.is_admin;
+  if (admin && !q.lab) return everyPlan(el);
+  const data = await api("plans", { query: { lab: q.lab } });
   mount(el, html`
     <div class="page-head"><div><div class="eyebrow">Overview</div><h1>Cleanup plans</h1>
       <p>The folders ${admin ? "a lab or department" : "your labs"} mean${admin ? "s" : ""} to delete, move to cheaper storage, or compress. Pinax does none of
@@ -242,4 +243,46 @@ export function planCsv(p) {
     p.items.map((i) => [p.lab.slug, i.fs, i.path, i.action, i.to?.slug ?? "", i.note, i.added_by ?? "", i.added_at, i.baseline.bytes,
       i.now?.present ? i.now.bytes : "", i.progress.status, i.progress.freed, i.progress.since ?? "", i.saving?.saves ?? "",
       i.saving?.estimate ? "yes" : "", p.savings.currency]));
+}
+
+// ---------- Every lab's plan, for administrators ----------
+async function everyPlan(el) {
+  const [all, choices] = await Promise.all([api("plans/all"), api("plans")]);
+  const cur = all.currency;
+  const toFree = all.filesystems.reduce((t, f) => t + f.to_free, 0);
+  mount(el, html`
+    <div class="page-head"><div><div class="eyebrow">Overview</div><h1>Cleanup plans</h1>
+      <p>Every lab's and department's cleanup plan: what they mean to delete, move, or compress, what it would free and save, and what later
+        scans show is done. Pinax does none of it.</p></div>
+      <div class="actions toolbar"><label class="ctl"><span>Lab or department</span><select class="select sm" id="p-lab">
+        <option value="">Every lab</option>${choices.choices.map((c) => html`<option value="${c.slug}">${c.name}</option>`)}</select></label>
+        ${all.labs.length ? html`<button class="btn btn-primary btn-sm" id="p-csv">${icon("download")}Download CSV</button>` : ""}</div></div>
+    <div class="kpis">
+      <div class="kpi"><div class="label">Planned to free</div><div class="value">${bytes(toFree)}</div><div class="sub">${num(all.labs.length)} lab${all.labs.length === 1 ? "" : "s"} with a plan</div></div>
+      <div class="kpi" style="--kpi-accent:var(--fh-teal)"><div class="label">Would save a month</div><div class="value">${charge(all.monthly, cur)}</div><div class="sub">At today's prices and free tiers</div></div>
+      <div class="kpi" style="--kpi-accent:var(--strong)"><div class="label">Done so far</div><div class="value">${bytes(all.done.freed)}</div><div class="sub">Saving ${charge(all.done.monthly, cur)} a month</div></div>
+    </div>
+    ${all.labs.length ? html`<div class="stack">
+      <div class="card flush"><div class="card-head"><h2>By filesystem</h2></div><div class="table-wrap"><table class="table"><thead><tr><th>Filesystem</th>
+        <th class="num">To free</th><th class="num">Moved in</th><th class="num">Freed so far</th></tr></thead><tbody>
+        ${all.filesystems.map((f) => html`<tr><td><b>${f.fs_name}</b></td><td class="num">${bytes(f.to_free)}</td><td class="num">${f.moved_in ? bytes(f.moved_in) : "—"}</td>
+          <td class="num">${f.freed ? bytes(f.freed) : "—"}</td></tr>`)}</tbody></table></div></div>
+      <div class="card flush"><div class="card-head"><h2>Largest folders planned</h2><span class="small muted">Still to do, by what each would free</span></div><div class="table-wrap"><table class="table"><thead><tr><th>Folder</th>
+        <th class="hide-narrow">Lab or department</th><th>What to do</th><th class="num">Frees</th><th class="num">Saves a month</th></tr></thead><tbody>
+        ${all.largest.map((i) => html`<tr><td><a class="rowlink" href="${placeHash("explore", { fs: i.fs, path: i.path })}">${i.name}</a><div class="sub">${displayPath(i.fs, i.path)}</div></td>
+          <td class="hide-narrow">${i.lab_name}</td><td class="nowrap">${actionText(i)}</td>
+          <td class="num nowrap">${i.saving?.estimate ? "about " : ""}${bytes(i.saving?.freed || 0)}</td><td class="num nowrap">${i.saving?.saves != null ? charge(i.saving.saves, cur) : "—"}</td></tr>`)}</tbody></table></div></div>
+      <div class="card flush"><div class="card-head"><h2>Labs and departments</h2></div><div class="table-wrap"><table class="table"><thead><tr><th>Lab or department</th>
+        <th class="num">Folders</th><th class="num">Saves a month</th><th class="num">Freed so far</th></tr></thead><tbody>
+        ${all.labs.map((p) => html`<tr><td><a class="rowlink" href="${planHash(p.lab.slug)}">${p.lab.name}</a></td><td class="num">${num(p.total.folders)}</td>
+          <td class="num nowrap">${charge(p.savings.monthly, cur)}</td><td class="num">${p.savings.done.freed ? bytes(p.savings.done.freed) : "—"}</td></tr>`)}</tbody></table></div></div>
+    </div>` : html`<div class="card">${emptyState("archive", "No plans yet", "No lab or department has added a folder to a cleanup plan.")}</div>`}`);
+  $("#p-lab", el)?.addEventListener("change", (e) => { location.hash = planHash(e.target.value); });
+  $("#p-csv", el)?.addEventListener("click", () => {
+    const rows = all.labs.flatMap((p) => p.items.map((i) => ({ p, i })));
+    downloadCsv("pinax-cleanup-plans.csv",
+      ["lab", "filesystem", "path", "action", "to", "note", "added_by", "added_at", "bytes_when_added", "bytes_now", "status", "freed", "freed_by", "saves_a_month", "estimate", "currency"],
+      rows.map(({ p, i }) => [p.lab.slug, i.fs, i.path, i.action, i.to?.slug ?? "", i.note, i.added_by ?? "", i.added_at, i.baseline.bytes,
+        i.now?.present ? i.now.bytes : "", i.progress.status, i.progress.freed, i.progress.since ?? "", i.saving?.saves ?? "", i.saving?.estimate ? "yes" : "", cur]));
+  });
 }

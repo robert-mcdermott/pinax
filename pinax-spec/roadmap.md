@@ -768,7 +768,7 @@ confirmed when the wave starts.
 | 3 | What a plan saves (C2) | For each folder and the whole plan: the space freed, and the lab's monthly charge now and after, per filesystem, with free tiers (data within a free tier saves nothing, and the page says so) and the destination's price for a move; compression estimated from typical ratios for each type, and labeled as an estimate; tested against the charges worked out on the reduced sizes | Done |
 | 4 | Progress from scans (C3) | With each new scan, each folder is done (gone, and not moved), partly done (smaller), moved (no saving), or still to do; the space freed and the fall in the charge since the plan began; a *Cleanup plan* page for each lab with what is to do and what was done, and when; CSV for the lab or the storage team | Done |
 | 5 | Suggestions (C4) | Folders worth adding, each with its saving, added in one click: cold folders (R3), uncompressed sequencing data (R6) to compress, and workflow working folders (Nextflow `work/`, Snakemake `.snakemake/`, Cromwell `cromwell-executions/`, conda and container caches), found when the index is built; within Q3 for a lab folder at 100 million files | Done |
-| 6 | Plans across labs (C5) | For administrators: every lab's plan, planned and freed per filesystem, the largest folders planned, and a CSV | To come |
+| 6 | Plans across labs (C5) | For administrators: every lab's plan, planned and freed per filesystem, the largest folders planned, and a CSV | Done |
 | 7 | Demo and release 0.7.0 | A demo lab with a plan made before the demo's last scan, partly done by it, with one folder renamed rather than removed; the README demo script; version 0.7.0, changelog, pull request, tag, release | To come |
 
 ### Decisions for wave 7 (proposed)
@@ -881,6 +881,15 @@ the site's own.
      work folder left to it, planned folders no longer suggested, and other labs refused.
    - *Done*: on a million-file synthetic scan, finding workflow folders added 0.01 s to the build, and the three
      queries took 8, 38, and 9 ms for a top-level folder of 5,000 files; 100 million files wait for the pilot.
+6. **Plans across labs (C5).**
+   - `plans.overview` and `/api/plans/all` (administrators only): every lab's plan, what all of them would free and
+     save and have done, per filesystem what is to be freed, moved in, and freed so far, and the 20 largest folders
+     still to do.
+   - *Cleanup plans* for an administrator without a lab chosen: those figures, a table each, a link to each lab's
+     plan, and one CSV of every folder.
+   - Test: an administrator sees two labs' plans, a folder done, a compression and a move to do, by filesystem and
+     largest first; others are refused.
+   - *Done*: checked in the browser as an administrator on the demo.
 
 ## 0.8.0: folder tags (wave 8)
 

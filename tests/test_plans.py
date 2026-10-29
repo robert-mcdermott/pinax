@@ -334,3 +334,23 @@ def test_suggestions_for_a_lab(workflows):
     assert not any(s["path"].startswith(f"{ALPHA}/pipelines") for s in again)
     login(workflows, "ben")
     assert workflows.get("/api/plans/suggestions", params={"lab": "alpha"}).status_code == 404
+
+
+# ---------- Every lab's plan (C5) ----------
+
+def test_administrators_see_every_plan(priced, tmp_path):
+    _add(priced, "ada", f"{ALPHA}/projects/2015_old")
+    _add(priced, "ada", f"{ALPHA}/projects/2025_new", "compress")
+    _add(priced, "ben", f"{ROOT}/beta_lab/archive", "move", to="slow")
+    _later(tmp_path, "s1", _files(drop_old=True))
+    login(priced, "ada")
+    assert priced.get("/api/plans/all").status_code == 403
+    login(priced, "ivy")
+    every = priced.get("/api/plans/all").json()
+    assert [p["lab"]["slug"] for p in every["labs"]] == ["alpha", "beta"]
+    fast = next(f for f in every["filesystems"] if f["fs"] == "fast")
+    assert fast["freed"] == 8050  # 2015_old, done
+    assert fast["to_free"] == 6750 + 8000  # the compression estimate, and the archive to move
+    assert next(f for f in every["filesystems"] if f["fs"] == "slow")["moved_in"] == 8000
+    assert [i["name"] for i in every["largest"]] == ["archive", "2025_new"]  # by what each would free
+    assert every["done"]["freed"] == 8050

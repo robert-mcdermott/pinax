@@ -25,6 +25,9 @@
   executions, conda `pkgs/`, Singularity and Apptainer caches, found when the index is built), the largest cold
   folders, and the folders with the most uncompressed sequencing data. *Add* opens the dialog with the suggested
   action chosen.
+- **Every lab's plan, for administrators.** *Cleanup plans* without a lab chosen shows what every plan would free
+  and save, what is done, totals by filesystem, the largest folders still to do, and each lab's plan, with one CSV
+  of every folder for the storage team.
 
 ### Changed
 

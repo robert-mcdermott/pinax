@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import marks, plans
-from ..auth import Identity, current_identity
+from ..auth import Identity, current_identity, require_admin
 from ..db import get_session
 from ..models import CleanupItem, Filesystem, Lab
 from ..snapshots import cold_bucket
@@ -61,6 +61,12 @@ def lab_plans(lab: str | None = None, identity: Identity = Depends(current_ident
         raise HTTPException(404, "No such lab or department")
     return {"labs": [plans.lab_plan(session, c) for c in shown],
             "choices": [{"slug": c.slug, "name": c.name} for c in choices]}
+
+
+@router.get("/all")
+def every_plan(_: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+    """For administrators: every lab's plan, totals by filesystem, and the largest folders planned."""
+    return plans.overview(session)
 
 
 @router.get("/suggestions")

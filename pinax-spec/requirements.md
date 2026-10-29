@@ -82,7 +82,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | C2 | What a plan saves: the space freed and the fall in the lab's monthly charge, with free tiers and the destination's price | done (wave 7, slice 3: tested against the charges worked out after a later scan shows the folder gone) |
 | C3 | Progress from later scans: done, partly done, moved (no saving), or still to do, and what was actually freed | done (wave 7, slice 4: with the scan that showed it, what is freed and saved so far, and a CSV) |
 | C4 | Suggested folders, each with its saving: cold folders, uncompressed sequencing data, workflow working folders | done (wave 7, slice 5: on *Cleanup plans*; workflow folders found at build) |
-| C5 | Every lab's plan for administrators, planned and freed per filesystem, with CSV | planned (wave 7) |
+| C5 | Every lab's plan for administrators, planned and freed per filesystem, with CSV | done (wave 7, slice 6) |
 
 ## Tags
 
