@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- **Totals count a hard-linked file once.** A file with several hard links counts its size at its first link by
+  path; its other links are files with no size, in every total and so in charges. The age map's panel says what a
+  folder's extra links hold. *Find files* still lists every link. `pinax check` stays equal to `fs-inventory
+  rollup`, which it now runs on a copy of a hard-linked scan with the extra links' sizes taken out.
+- **Index version 7** keeps each folder's extra hard links. Older indexes still answer, counting every link;
+  `pinax rebuild --outdated` counts them once.
+- **The roadmap.** Action comes next as wave 9 (0.9.0), before the production pilot (now wave 10) and reach (now
+  wave 11), since the pilot is still out of reach.
+
 ## 0.8.0 (2026-10-29)
 
 Eighth release (wave 8, "folder tags"): folders described in terms a lab and IT share. Administrators keep a list of

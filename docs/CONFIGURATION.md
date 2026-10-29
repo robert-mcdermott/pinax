@@ -17,7 +17,7 @@ Settings are `PINAX_*` environment variables, or a `.env` file in the folder you
 | `PINAX_VAR_ROOT` | `var/` | The catalog database (`pinax.db`) and snapshot indexes (`snapshots/`) |
 | `PINAX_SCAN_ROOT` | `scans/` | Where `pinax scan` writes fs-inventory output, as `<filesystem>/<UTC time>/`, and where the watcher looks. Scans made elsewhere can live anywhere. Pinax never deletes scans ([what to keep](ARCHITECTURE.md#what-pinax-keeps)) |
 | `PINAX_DEMO_ROOT` | `demo/` | Demo filesystems and scans written by `pinax seed` |
-| `PINAX_DATABASE_URL` | SQLite in `VAR_ROOT` | SQLAlchemy URL of the catalog. Production uses the SQLite default until PostgreSQL and migrations arrive in wave 10; a PostgreSQL URL (`postgresql+psycopg://pinax@db/pinax`, with the `psycopg` driver added) works for a fresh catalog, untested ([The catalog database](ARCHITECTURE.md#the-catalog-database)) |
+| `PINAX_DATABASE_URL` | SQLite in `VAR_ROOT` | SQLAlchemy URL of the catalog. Production uses the SQLite default until PostgreSQL and migrations arrive in wave 11; a PostgreSQL URL (`postgresql+psycopg://pinax@db/pinax`, with the `psycopg` driver added) works for a fresh catalog, untested ([The catalog database](ARCHITECTURE.md#the-catalog-database)) |
 
 ## Scanning
 

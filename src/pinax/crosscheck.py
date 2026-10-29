@@ -61,6 +61,35 @@ def scan_depth(scan_dir: Path) -> int:
     return int(depth or 0)
 
 
+def _shadow_entries(scan_dir: Path, shadow: Path) -> None:
+    """The shadow's entries: the scan's own, or, when it has hard-linked files, a copy in which every link of a file
+    after its first (by path, for its device and inode) has no size, since rollup counts every link and Pinax counts
+    a file once (R7). The rule is written here again, not taken from the build, so the check stays independent."""
+    source = parquet_source(scan_parts(scan_dir, read_manifest(scan_dir), "entries"))
+    with duckdb.connect() as con:
+        cols = {r[0] for r in con.execute(f"DESCRIBE SELECT * FROM {source}").fetchall()}
+        linked = {"dev", "ino", "nlink"} <= cols and con.execute(
+            f"SELECT count(*) FROM {source} WHERE kind <> 'dir' AND nlink > 1").fetchone()[0]
+        if not linked:
+            (shadow / "entries").symlink_to(scan_dir / "entries", target_is_directory=True)
+            return
+        (shadow / "entries").mkdir()
+        con.execute(f"""
+            COPY (
+              WITH later AS (
+                SELECT path FROM (SELECT path, row_number() OVER (PARTITION BY dev, ino ORDER BY path) AS n
+                                  FROM {source} WHERE kind <> 'dir' AND nlink > 1) WHERE n > 1)
+              SELECT * REPLACE (CASE WHEN path IN (SELECT path FROM later) THEN 0 ELSE size END AS size,
+                                CASE WHEN path IN (SELECT path FROM later) THEN 0 ELSE alloc_bytes END AS alloc_bytes)
+              FROM {source}
+            ) TO {_sql_str(str(shadow / "entries" / "part-shadow.parquet"))} (FORMAT parquet)
+        """)
+        # rollup reads the parts the manifest lists: the shadow's lists its one part.
+        manifest = json.loads((shadow / "manifest.json").read_text())
+        manifest.setdefault("parts", {})["entries"] = [{"file": "entries/part-shadow.parquet"}]
+        (shadow / "manifest.json").write_text(json.dumps(manifest))
+
+
 def run_rollup(scan_dir: Path, work_dir: Path, *, binary: str, age_depth: int) -> Path:
     """Run `fs-inventory rollup` on a shadow of `scan_dir` in `work_dir`; returns the shadow folder,
     which holds `rollup/` and `rollup_ages/`."""
@@ -70,7 +99,7 @@ def run_rollup(scan_dir: Path, work_dir: Path, *, binary: str, age_depth: int) -
         shutil.rmtree(shadow)
     shadow.mkdir(parents=True)
     shutil.copyfile(scan_dir / "manifest.json", shadow / "manifest.json")
-    (shadow / "entries").symlink_to(scan_dir / "entries", target_is_directory=True)
+    _shadow_entries(scan_dir, shadow)
     cmd = [binary, "rollup", "--age-buckets", rollup_edges(), "--age-depth", str(age_depth), str(shadow)]
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, check=False)

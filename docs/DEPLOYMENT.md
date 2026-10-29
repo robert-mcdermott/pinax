@@ -3,7 +3,7 @@
 Installing Pinax on a Linux server: the services, single sign-on, scans and keeping them, upgrades, sizing, backups,
 charges and statements, and operations.
 The files this guide installs are in `deploy/`. This guide is checked against the tests and a local run; the
-pilot installation (wave 9 in `pinax-spec/roadmap.md`) will confirm it on a real server.
+pilot installation (wave 10 in `pinax-spec/roadmap.md`) will confirm it on a real server.
 
 ## Shape of a deployment
 
@@ -292,7 +292,7 @@ fails. The web app opens rebuilt indexes without a restart. `pinax rebuild SNAPS
 one whose index was lost. Rebuilding needs the snapshot's scan: a snapshot whose scan folder was deleted keeps its
 old index, without what the new format adds, and the rebuild says so.
 
-The catalog has no migrations yet (they come with PostgreSQL, in wave 10): new tables are created at start-up,
+The catalog has no migrations yet (they come with PostgreSQL, in wave 11): new tables are created at start-up,
 and so are new columns of existing tables (each new column is nullable or has a default); a release that changes
 anything else says so, and pilot catalogs are then re-created from the import files.
 
@@ -343,7 +343,7 @@ The catalog is SQLite in WAL mode, `/var/lib/pinax/pinax.db`: a file the Pinax p
 database server to run, which suits one server running the web app and the watcher. It holds everything that
 cannot be made again (see [What Pinax keeps](ARCHITECTURE.md#what-pinax-keeps)), so back it up.
 
-Wave 10 moves it to PostgreSQL with migrations, so that any schema change can upgrade a production catalog in
+Wave 11 moves it to PostgreSQL with migrations, so that any schema change can upgrade a production catalog in
 place, more than one machine can run Pinax against one catalog, and IT's usual database backups and replication
 apply ([The catalog database](ARCHITECTURE.md#the-catalog-database)). Until then production uses SQLite;
 `PINAX_DATABASE_URL` can point at PostgreSQL for a fresh catalog (with the `psycopg` driver added), untested and

@@ -23,6 +23,11 @@ from . import limits
 from .categories import AGE_BUCKETS, CATEGORIES, CATEGORY_KEYS
 from .ingest.build import ADDITIVE, EXTREMES, NB, NC, file_folders
 
+# A folder's extra hard links and their bytes (index version 7) are read on their own (`links`), so the queries
+# below stay the same for indexes without them.
+LINK_COLUMNS = ("hl_files", "hl_bytes")
+QUERY_ADDITIVE = [c for c in ADDITIVE if c not in LINK_COLUMNS]
+
 DAY = 86400.0
 # Comparing two scans' files, groups of top-level folders are compared together up to this many files, and a larger
 # group alone: few queries for a small filesystem, and memory bounded by a group's files for a large one.
@@ -38,7 +43,7 @@ def dir_columns(alias: str = "") -> str:
         f"{a}dir_id, {a}parent_id, {a}depth, {a}top_id, {a}path, {a}name, {a}error, {a}is_mount_point, "
         f"{a}dir_entries, {a}d_files, {a}d_bytes, epoch({a}d_mtime_min) AS d_mtime_min, "
         f"epoch({a}d_mtime_max) AS d_mtime_max, epoch({a}d_atime_max) AS d_atime_max, {a}dirs, {a}incomplete, "
-        + ", ".join(f"{a}{c}" for c in ADDITIVE) + ", "
+        + ", ".join(f"{a}{c}" for c in QUERY_ADDITIVE) + ", "
         + ", ".join(f"epoch({a}{c}) AS {c}" for c in EXTREMES)
     )
 
@@ -46,9 +51,9 @@ def dir_columns(alias: str = "") -> str:
 DIR_COLUMNS = dir_columns()
 ROW_KEYS = (
     ["dir_id", "parent_id", "depth", "top_id", "path", "name", "error", "is_mount_point", "dir_entries", "d_files",
-     "d_bytes", "d_mtime_min", "d_mtime_max", "d_atime_max", "dirs", "incomplete"] + ADDITIVE + list(EXTREMES)
+     "d_bytes", "d_mtime_min", "d_mtime_max", "d_atime_max", "dirs", "incomplete"] + QUERY_ADDITIVE + list(EXTREMES)
 )
-SUM_KEYS = ["dirs", "incomplete"] + ADDITIVE
+SUM_KEYS = ["dirs", "incomplete"] + QUERY_ADDITIVE
 
 FILE_COLUMNS = ("path, name, ext, cat, kind, size, alloc_bytes, uid, gid, epoch(mtime) AS mtime, epoch(atime) AS atime, "
                 "nlink, name_flags")
@@ -204,6 +209,9 @@ class SnapshotIndex:
         self.previous: dict | None = meta.get("previous") if self.has_changes else None
         # And the files new and removed since then (index version 5).
         self.has_file_changes = "file_changes" in tables
+        # Each folder's extra hard links (index version 7), counted once in its totals.
+        self.has_links = bool(self._con.execute(
+            "SELECT count(*) FROM duckdb_columns() WHERE table_name = 'dirs' AND column_name = 'hl_files'").fetchone()[0])
         # Workflow working folders (index version 6), suggested for cleanup plans.
         self.has_work_dirs = "work_dirs" in tables
         # Each directory's device and inode (index version 6), to follow a marked folder that moved (marks.py).
@@ -276,6 +284,14 @@ class SnapshotIndex:
         rows = self._rows(f"SELECT {DIR_COLUMNS} FROM dirs WHERE depth = ? AND path = ?",
                           [self.depth_of(path), path], ROW_KEYS)
         return rows[0] if rows else None
+
+    def links(self, path: str) -> dict | None:
+        """A folder's extra hard links (each a file whose size is counted at its first link), and the bytes they
+        would have counted again; None for an index without them."""
+        if not self.has_links:
+            return None
+        row = self._one("SELECT hl_files, hl_bytes FROM dirs WHERE depth = ? AND path = ?", [self.depth_of(path), path])
+        return {"files": int(row[0]), "bytes": int(row[1])} if row else None
 
     def nodes(self, paths: list[str]) -> dict[str, dict]:
         """The directories at `paths` that are in this scan, each with its device and inode (None before index

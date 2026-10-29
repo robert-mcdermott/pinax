@@ -79,7 +79,7 @@ def test_the_index_keeps_each_directorys_inode(fast):
     from pinax.index import SnapshotIndex
     from pinax.ingest.build import INDEX_VERSION
 
-    assert INDEX_VERSION == 6
+    assert INDEX_VERSION >= 6  # directories keep their inodes from version 6
     idx = SnapshotIndex(_index_dir())
     try:
         assert idx.has_inodes

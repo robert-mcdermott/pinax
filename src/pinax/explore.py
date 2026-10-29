@@ -255,6 +255,7 @@ def _tree_dir(session: Session, ident: Identity, place: Place, metric: str, dept
         "stats": stats.json(idx.ref_day),
         "direct": tile_stats(_direct(row, ch["all"]), idx.ref_day),
         "subdirs": int(ch["all"]["n"] or 0),
+        "links": idx.links(place.path),  # extra hard links, counted once (R7)
     }
     return {"node": node, "tiles": tiles, "breadcrumbs": _breadcrumbs(ident, place),
             "snapshots": [_snap_brief(place.snap)], "as_of": iso(place.snap.started_at), "metric": metric,
