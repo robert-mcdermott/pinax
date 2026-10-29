@@ -200,7 +200,7 @@ h2:hover .anchor, h3:hover .anchor, .anchor:focus { opacity: 1; }
 .anchor-target { display: block; position: relative; top: -90px; visibility: hidden; }
 .code { position: relative; margin: 16px 0; }
 .code pre { margin: 0; background: var(--code-bg); color: var(--code-text); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 52px 14px 16px; overflow-x: auto; font: 13.5px/1.6 var(--font-mono); }
-.code pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+.code pre code { background: none; color: inherit; padding: 0; font-size: inherit; overflow-wrap: normal; }
 .cta .code pre { background: rgba(0, 0, 0, 0.28); border-color: rgba(255, 255, 255, 0.16); color: #FFFFFF; }
 .copy-button { position: absolute; top: 8px; right: 8px; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); cursor: pointer; }
 .copy-button svg { width: 16px; height: 16px; }
