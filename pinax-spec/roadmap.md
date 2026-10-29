@@ -16,13 +16,13 @@ decisions taken are recorded here. Later waves are outlined at the end.
 **Progress** is marked here as each slice is committed: done, next or to come. Each requirement's status is
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
-**Where things stand:** waves 1 to 6 are released as 0.1.0 to 0.6.0 (tags on `main`). Besides forecasts, 0.6.0
+**Where things stand:** waves 1 to 7 are released as 0.1.0 to 0.7.0 (tags on `main`). Besides forecasts, 0.6.0
 has what was merged since 0.5.0:
 - labs and departments can be added, changed, and deactivated in the app, so a site needs no CSV files at all;
 - guidance for operating Pinax;
 - time limits for requests, and new and removed files recorded at ingest, for filesystems of two billion files.
 
-Next come cleanup plans (wave 7) and folder tags (wave 8). The production pilot needs production storage, which
+Next come folder tags (wave 8). The production pilot needs production storage, which
 will not be reachable for some time, so it waits as wave 9. If production storage becomes reachable sooner, the
 pilot becomes the next wave and the waves after it are renumbered. Ideas kept for later but not planned are in the
 [parking lot](#parking-lot).
@@ -756,8 +756,7 @@ Settled within the wave:
 What a lab could free, and what it would save. While exploring the age map, a PI or delegate marks folders to
 delete, move to cheaper storage, or compress, and sees the space it would free and how much the lab's monthly
 charge would fall. Later scans show what was done and what it saved. Pinax still changes nothing on the storage it
-reports on (P3): a plan records what a lab means to do, and the scans show what happened. Planned; the slices are
-confirmed when the wave starts.
+reports on (P3): a plan records what a lab means to do, and the scans show what happened.
 
 ### Wave 7 sequence
 
@@ -769,9 +768,9 @@ confirmed when the wave starts.
 | 4 | Progress from scans (C3) | With each new scan, each folder is done (gone, and not moved), partly done (smaller), moved (no saving), or still to do; the space freed and the fall in the charge since the plan began; a *Cleanup plan* page for each lab with what is to do and what was done, and when; CSV for the lab or the storage team | Done |
 | 5 | Suggestions (C4) | Folders worth adding, each with its saving, added in one click: cold folders (R3), uncompressed sequencing data (R6) to compress, and workflow working folders (Nextflow `work/`, Snakemake `.snakemake/`, Cromwell `cromwell-executions/`, conda and container caches), found when the index is built; within Q3 for a lab folder at 100 million files | Done |
 | 6 | Plans across labs (C5) | For administrators: every lab's plan, planned and freed per filesystem, the largest folders planned, and a CSV | Done |
-| 7 | Demo and release 0.7.0 | A demo lab with a plan made before the demo's last scan, partly done by it, with one folder renamed rather than removed; the README demo script; version 0.7.0, changelog, pull request, tag, release | To come |
+| 7 | Demo and release 0.7.0 | A demo lab with a plan made before the demo's last scan, partly done by it, with one folder renamed rather than removed; the README demo script; version 0.7.0, changelog, pull request, tag, release | Done |
 
-### Decisions for wave 7 (proposed)
+### Decisions for wave 7
 
 - **A plan is not made of tags.** A planned folder has an action, an estimate, and a state that changes as scans
   arrive; tags (wave 8) describe what a folder is, and last. Both rest on the same marked folders.
@@ -890,6 +889,16 @@ the site's own.
    - Test: an administrator sees two labs' plans, a folder done, a compression and a move to do, by filesystem and
      largest first; others are refused.
    - *Done*: checked in the browser as an administrator on the demo.
+7. **Demo and release 0.7.0.**
+   - `pinax seed` makes the Dasgupta Lab's cleanup plan after the fifth scan (`seed.DEMO_PLAN`, by its PI): three
+     folders to delete. Month 6 deletes one (`2016_cohort_A`, done) and renames another (`manuscripts/2021_draft`
+     to `2021_published`, found by its inode, since the demo's scans are the real fs-inventory's: offered as
+     moved), and leaves the third to do.
+   - `docs/DEMO.md`: the plan in the months table and a walk-through step as Rohan Dasgupta; the README describes
+     cleanup plans.
+   - Version 0.7.0 in `pyproject.toml`, `pinax.__version__`, and `uv.lock`; `CHANGELOG.md` dated, with notes on
+     upgrading from 0.6.0 (index version 6, three catalog tables).
+   - Pull request to `main`, then tag `v0.7.0` and the release.
 
 ## 0.8.0: folder tags (wave 8)
 

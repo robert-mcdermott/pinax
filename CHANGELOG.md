@@ -1,6 +1,17 @@
 # Changelog
 
-## Unreleased
+## 0.7.0 (2026-10-29)
+
+Seventh release (wave 7, "cleanup plans"): what a lab could free, and what it would save. From a folder's panel on
+the age map, a lab's PI or delegate marks folders to delete, move to cheaper storage, or compress, and sees the space
+it would free and how much the lab's monthly charge would fall. Pinax suggests folders worth adding, and later scans
+show what was done, following a folder that was renamed rather than removed by its inode. Pinax itself deletes,
+moves, and compresses nothing. Next are folder tags (0.8.0). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+
+Upgrading from 0.6.0: indexes are now version 6 (each directory's inode, and workflow working folders); older ones
+still answer, but their marked folders are found by path only and they offer no workflow folders, so run
+`pinax rebuild --outdated`. The catalog gains `marked_folder`, `marked_folder_stat`, and `cleanup_item` tables,
+created at start-up. No new settings.
 
 ### Added
 

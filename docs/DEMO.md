@@ -71,7 +71,7 @@ Genomics Shared Resource delivers two Illumina runs and a nanopore run, the Fuji
 | 3 | A light-sheet project moves from the Bennett Lab to the Haddad Lab (`haddad_n/datasets/2024_lightsheet_bennett`) |
 | 4 | The Quintero Lab joins, mostly with data from the PI's previous institution: new here, but years old |
 | 5 | The Lindqvist Lab compresses its uncompressed FASTQ files (`wgs/2024_germline/fastq_uncompressed` becomes `fastq`) |
-| 6 | The Fujimoto Lab writes its atlas |
+| 6 | The Fujimoto Lab writes its atlas; the Dasgupta Lab deletes its 2016 cohort, as the cleanup plan it made after scan 5 says, and renames the manuscript folder it planned to delete (`manuscripts/2021_draft` becomes `2021_published`) |
 
 Meanwhile nobody touches the Kowalski Lab's `raw/2024_tmt_plex`, which ages past two years: the lab's cold share
 climbs from 64% to 100% at the same size. *History* shows all of it, the *Change map* where each change is, and
@@ -117,7 +117,13 @@ files are sparse, on a laptop's disk), so the capacities are set, and use is mea
    16th, and the lab's own 5 TB free tier started on the 10th, so the month is worked out in three parts, each its
    average size less what was free, at its price, for its days. *Past months* lists the months since the first
    scan, and *The next 12 months* what the lab will pay if it keeps growing as it has, with a range.
-7. **Switch to Priya Natarajan** (storage administrator). *All data* shows both filesystems, the largest
+7. **Cleanup plans.** Switch to *Rohan Dasgupta*. *Cleanup plans* shows the plan his lab made after the fifth
+   scan. The sixth shows `2016_cohort_A` done, under *Done so far* with what it frees and saves a month;
+   `2021_draft` no longer at its path, but a folder with its inode is at `2021_published`: it was renamed, so nothing
+   was freed (*It moved there* makes the plan follow it); and `2018_cohort_B` still to do, with what it would save.
+   *Suggestions* lists folders worth adding. Open the age map at a folder of the lab: its panel's *Cleanup plan* box
+   adds it to the plan.
+8. **Switch to Priya Natarajan** (storage administrator). *All data* shows both filesystems, the largest
    folders, the biggest changes since the previous scan (a batch of samples and an atlas in `fujimoto_a`,
    sequencing runs in `gsr_illumina`), and
    three unmapped folders. Open the age map of *Fast*: `scratch_legacy` is a large, very old, unmapped tile.
@@ -129,9 +135,9 @@ files are sparse, on a laptop's disk), so the capacities are set, and use is mea
    *What changed* for *Fast* since the first scan lists the Fujimoto project and the sequencing runs where it grew, the
    moved project and the compressed FASTQ among new and removed folders, and the largest new files (Cell Ranger
    BAMs); each list downloads as CSV.
-8. **Folders and labs.** Tick *Unmapped only*, then map `shared_reference` to the Genomics Shared Resource.
+9. **Folders and labs.** Tick *Unmapped only*, then map `shared_reference` to the Genomics Shared Resource.
    Switch to *Casey Morgan*: the folder now appears in their data.
-9. **Costs and Chargeback.** Back as Priya, *Costs* shows each filesystem's prices and free tiers, with the
+10. **Costs and Chargeback.** Back as Priya, *Costs* shows each filesystem's prices and free tiers, with the
    Lindqvist Lab's exception. *Chargeback* for last month lists every lab's and department's charge, the most
    first (the Genomics Shared Resource, a department, has nothing free), the totals by filesystem, and the
    storage no one owns, most of it `scratch_legacy`; *Download CSV* is the statement for finance. This month,
@@ -140,22 +146,22 @@ files are sparse, on a laptop's disk), so the capacities are set, and use is mea
    *Capacity*: *Fast* is 89% used and fills in about nine months at its trend, a month or two before the expansion
    scheduled for eleven months on, so *All data* flags it under *Needs attention*. Its *History* draws the capacity
    above the columns.
-10. **Storage health.** An unreadable folder, a very large directory (12,000 PNG tiles), problem file names
+11. **Storage health.** An unreadable folder, a very large directory (12,000 PNG tiles), problem file names
     (a newline, a leading dash, a Windows-reserved character, a name that is not NFC), and files owned by
     accounts that no longer exist.
-11. **Find files.** Search `*.bam`, older than five years, largest first; download the CSV.
-12. **Scans.** Six snapshots of each filesystem, a month apart, each with its full index (`PINAX_KEEP_SNAPSHOTS`
+12. **Find files.** Search `*.bam`, older than five years, largest first; download the CSV.
+13. **Scans.** Six snapshots of each filesystem, a month apart, each with its full index (`PINAX_KEEP_SNAPSHOTS`
     keeps six), and whether automatic ingest is watching for new scans. Click a date to open that scan: the
     header says it is an older one, every report and link stays on it, and *Back to the latest* returns. Choose
     another scan beside the date on any report.
-13. **People and access.** *Add person*: a username, a name, an email, and a lab; the panel shows the folders
+14. **People and access.** *Add person*: a username, a name, an email, and a lab; the panel shows the folders
     they will see. Grant or remove the storage administrator role. *Deactivate* them, and they cannot sign in (their
     access is kept, unused); *Reactivate* restores it. Each change is in the person's record and the audit log.
     On the *Labs and departments* tab, each lab's folders and members; *Add lab or department* adds one (a slug, a
     name, and whether it is a lab or a department, which decides its free tier), and its page changes its details
     or deactivates it: its members stop seeing its folders, which stay its own (and charged to it) until they are
     moved.
-14. **Import from CSV.** In a terminal, `uv run pinax import examples/import` lists the 14 changes the example
+15. **Import from CSV.** In a terminal, `uv run pinax import examples/import` lists the 14 changes the example
     files would make: two departments, a lab, three people, their memberships, and owners for the three unmapped
     folders. Add `--apply`, and *Folders and labs* shows no unmapped folders; every change is in the audit log.
 

@@ -184,7 +184,7 @@ function planCard(p) {
     ${s.done.freed ? html`<p class="callout" style="margin:0 22px 14px">${icon("check")} <b>Done so far: ${bytes(s.done.freed)} freed</b>,
       saving ${charge(s.done.monthly, s.currency)} a month, as later scans show.</p>` : ""}
     ${todo.length ? html`<h3 style="margin:0;padding:0 22px 6px">To do</h3><div class="table-wrap"><table class="table"><thead><tr><th>Folder</th><th>What to do</th>
-        <th class="num">Size when added</th><th class="num">Now</th><th class="num">Saves a month</th><th class="hide-narrow">Added</th><th></th></tr></thead><tbody>
+        <th class="num hide-narrow">Size when added</th><th class="num">Now</th><th class="num">Saves a month</th><th class="hide-narrow">Added</th><th></th></tr></thead><tbody>
       ${todo.map((i) => html`<tr>
         <td><a class="rowlink" href="${placeHash("explore", { fs: i.fs, path: i.path })}">${i.name}</a>
           <div class="sub">${displayPath(i.fs, i.path)}</div>
@@ -196,7 +196,7 @@ function planCard(p) {
             <div class="toolbar" style="margin-top:6px"><button class="btn btn-secondary btn-sm" data-moved="${i.id}" data-accept="1">It moved there</button>
             <button class="btn btn-ghost btn-sm" data-moved="${i.id}" data-accept="0">It is not the same folder</button></div></div></div>` : ""}</td>
         <td class="nowrap">${actionText(i)}</td>
-        <td class="num nowrap">${bytes(i.baseline.bytes)}</td>
+        <td class="num nowrap hide-narrow">${bytes(i.baseline.bytes)}</td>
         <td class="num nowrap">${i.mark.status === "here" && i.now ? bytes(i.now.bytes) : html`<span class="muted">Moved?</span>`}</td>
         <td class="num nowrap">${i.action === "compress" && i.saving && !i.saving.freed ? html`<span class="muted">—</span><div class="sub">nothing in it typically compresses</div>`
           : i.saving?.saves != null ? html`${i.saving.estimate ? "about " : ""}${charge(i.saving.saves, s.currency)}${i.saving.estimate
