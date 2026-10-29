@@ -37,11 +37,11 @@ const formValues = (wrap) => {
   return { action: f.action, to: f.action === "move" ? f.to : null, note: f.note || "" };
 };
 
-/** Add a folder to its lab's plan; resolves to the new item, or null. */
-export function addToPlan(fs, path, here) {
+/** Add a folder to its lab's plan (with an action chosen to start with); resolves to the new item, or null. */
+export function addToPlan(fs, path, here, action = "delete") {
   return modal({
     title: `Add ${path.split("/").pop()} to the ${here.lab.name}'s cleanup plan`,
-    body: itemForm(here.targets), confirm: "Add to plan",
+    body: itemForm(here.targets, { action }), confirm: "Add to plan",
     onConfirm: async (wrap) => {
       const item = await api("plans", { method: "POST", body: { fs, path, ...formValues(wrap) } });
       toast("Added to the cleanup plan");
@@ -134,6 +134,24 @@ export async function viewPlans(el, query) {
     if (done) viewPlans(el, query);
   }));
   $$("[data-csv]", el).forEach((b) => b.addEventListener("click", () => planCsv(data.labs.find((p) => p.lab.slug === b.dataset.csv))));
+  // Suggestions read each lab's latest scans, so they follow the plans.
+  data.labs.forEach(async (p) => {
+    const box = $(`[data-suggest="${p.lab.slug}"]`, el);
+    if (!box) return;
+    let got;
+    try {
+      got = (await api("plans/suggestions", { query: { lab: p.lab.slug }, quiet: true })).suggestions;
+    } catch (e) {
+      if (e.name !== "AbortError") mount(box, "");
+      return;
+    }
+    mount(box, suggestionsTable(got, p.savings.currency));
+    $$("[data-suggestion]", box).forEach((b) => b.addEventListener("click", async () => {
+      const s = got[Number(b.dataset.suggestion)];
+      const here = await api("plans/here", { query: { fs: s.fs, path: s.path } });
+      if (await addToPlan(s.fs, s.path, here, s.action)) viewPlans(el, query);
+    }));
+  });
   $$("[data-moved]", el).forEach((b) => b.addEventListener("click", async () => {
     try {
       await api(`plans/${b.dataset.moved}/moved`, { method: "POST", body: { accept: b.dataset.accept === "1" } });
@@ -194,9 +212,26 @@ function planCard(p) {
         <td class="hide-narrow nowrap">${date(i.added_at)}<div class="sub">${i.added_by || ""}</div></td>
         <td class="right"><button class="icon-btn" title="Take it out" aria-label="Take ${i.name} out of the plan" data-item="${i.id}" data-do="remove">${icon("x")}</button></td></tr>`)}
       </tbody></table></div>` : ""}
-    ${!p.items.length ? html`<div style="padding:0 22px 18px">${emptyState("archive", "Nothing planned yet", "Open a folder on the age map and add it from its panel.")}</div>`
+    ${!p.items.length ? html`<div style="padding:0 22px 18px">${emptyState("archive", "Nothing planned yet", "Open a folder on the age map and add it from its panel, or add a suggestion below.")}</div>`
       : html`<div class="toolbar" style="padding:0 22px 16px"><button class="btn btn-ghost btn-sm" data-csv="${p.lab.slug}">${icon("download")}Download CSV</button></div>`}
+    <div data-suggest="${p.lab.slug}"><p class="small muted" style="padding:0 22px 16px;margin:0">Looking for folders to suggest…</p></div>
   </section>`;
+}
+
+const SUGGESTED = { workflow: "Made again by running the workflow", compress: "Compresses well", cold: "Could go to cheaper storage" };
+
+/** Folders worth adding to the plan, each with what it would free and save on its own. */
+function suggestionsTable(list, currency) {
+  if (!list.length) return html`<p class="small muted" style="padding:0 22px 16px;margin:0">No suggestions: no workflow working folders, uncompressed sequencing data, or large cold folders outside the plan.</p>`;
+  return html`<h3 style="margin:0;padding:4px 22px 6px">Suggestions</h3><div class="table-wrap"><table class="table"><thead><tr><th>Folder</th><th>Why</th>
+      <th class="num">Size</th><th class="num">Frees</th><th class="num">Saves a month</th><th></th></tr></thead><tbody>
+    ${list.map((s, i) => html`<tr><td><a class="rowlink" href="${placeHash("explore", { fs: s.fs, path: s.path })}">${s.name}</a><div class="sub">${displayPath(s.fs, s.path)}</div></td>
+      <td>${s.what}<div class="sub">${SUGGESTED[s.kind]}</div></td><td class="num nowrap">${bytes(s.bytes)}</td>
+      <td class="num nowrap">${s.estimate ? "about " : ""}${bytes(s.freed)}</td>
+      <td class="num nowrap">${s.saves == null ? html`<span class="muted">no price</span>` : `${s.estimate ? "about " : s.action === "move" ? "up to " : ""}${charge(s.saves, currency)}`}</td>
+      <td class="right"><button class="btn btn-secondary btn-sm" data-suggestion="${i}">${icon("plus")}Add</button></td></tr>`)}
+    </tbody></table></div>
+    <p class="small muted" style="margin:0;padding:8px 22px 16px">Each saving is the folder's on its own, at today's prices; moving cold data saves less than deleting it, by what it costs where it goes.</p>`;
 }
 
 /** A plan as CSV, for the lab or the storage team. */

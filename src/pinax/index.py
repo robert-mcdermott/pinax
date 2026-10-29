@@ -204,6 +204,8 @@ class SnapshotIndex:
         self.previous: dict | None = meta.get("previous") if self.has_changes else None
         # And the files new and removed since then (index version 5).
         self.has_file_changes = "file_changes" in tables
+        # Workflow working folders (index version 6), suggested for cleanup plans.
+        self.has_work_dirs = "work_dirs" in tables
         # Each directory's device and inode (index version 6), to follow a marked folder that moved (marks.py).
         self.has_inodes = bool(self._con.execute(
             "SELECT count(*) FROM duckdb_columns() WHERE table_name = 'dirs' AND column_name = 'ino'").fetchone()[0])
@@ -287,6 +289,28 @@ class SnapshotIndex:
                                   [*ROW_KEYS, "dev", "ino"]):
                 out[row["path"]] = row
         return out
+
+    def work_dirs(self, path: str, *, limit: int = 20) -> list[dict]:
+        """Workflow working folders and package caches at or below `path`, the largest first, each with its totals
+        and kind; one inside another is left out."""
+        if not self.has_work_dirs:
+            return []
+        lo, hi = child_range(path)
+        rows = self._rows(f"SELECT {dir_columns('d')}, w.kind FROM work_dirs w JOIN dirs d ON d.depth = w.depth AND d.path = w.path "
+                          "WHERE w.path = ? OR (w.path >= ? AND w.path < ?) ORDER BY d.path", [path, lo, hi], [*ROW_KEYS, "kind"])
+        top = [r for i, r in enumerate(rows) if not any(r["path"].startswith(o["path"] + "/") for o in rows[:i])]
+        return sorted(top, key=lambda r: -r["bytes"])[:limit]
+
+    def compressible(self, path: str, exts: list[str], *, limit: int = 20) -> list[dict]:
+        """The folders at or below `path` holding the most files of these types directly, with their bytes by type."""
+        lo, hi = child_range(path)
+        marks = ", ".join("?" * len(exts))
+        rows = self._raw(f"SELECT path, ext, sum(bytes)::BIGINT FROM dir_ext WHERE (path = ? OR (path >= ? AND path < ?)) "
+                         f"AND ext IN ({marks}) GROUP BY path, ext", [path, lo, hi, *exts])
+        by: dict[str, dict[str, int]] = {}
+        for p, ext, b in rows:
+            by.setdefault(p, {})[ext] = int(b)
+        return [{"path": p, "types": t} for p, t in sorted(by.items(), key=lambda kv: -sum(kv[1].values()))[:limit]]
 
     def paths_of(self, inodes: list[tuple[int, int]]) -> dict[tuple[int, int], str]:
         """Where the directories with these (device, inode) are in this scan. A full pass over the directories,

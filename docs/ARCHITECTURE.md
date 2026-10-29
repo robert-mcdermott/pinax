@@ -120,6 +120,7 @@ The age color of a folder comes from those totals: the *average age* is weighted
 | `top_ext`, `top_owner` | top-level folder and type / owner | The same, summed per top-level folder | `top_id` |
 | `changes` | directory of this scan or the filesystem's previous one | Both scans' subtree totals (files, folders, bytes, allocated bytes, size-weighted time sum, files and bytes per age bucket), each scan's own ages, and whether the directory is in each: what changed, new and removed folders included. Only when there was a previous scan | `(depth, path)` |
 | `file_changes` | file new since the previous scan, or removed since | `change` (`new` or `removed`), then the file's path, name, type, category, kind, size, allocated bytes, owner, group, times, links, and name flags (a removed file's from the previous scan). Only when there was a previous scan, from index version 5 | `(change, path)` |
+| `work_dirs` | workflow working folder or package cache | Its path and kind: a Nextflow `work/` (beside a `.nextflow`), Snakemake `.snakemake/`, Cromwell `cromwell-executions/`, conda `pkgs/` (in a conda installation), or a Singularity or Apptainer `cache/`. From index version 6 | `path` |
 | `cold_units` | age threshold and cold folder | For each threshold (90 days to 10 years), the largest folders in which every file is at least that old and whose parent has a newer one: path, depth, files, bytes | `(bucket, path)` |
 | `tops`, `file_parts` | top-level folder | Name, path, ID; file count and bytes | |
 | `users`, `groups` | uid / gid | Names from the scan (`--resolve-ids`); a missing name is a deleted account | |
@@ -420,6 +421,13 @@ is partly done; one at another path with its inode freed nothing. What is done i
 it, and what it saves a month now: what the freed space would cost the lab if it were back, less what a moved folder
 costs where it went. What a plan would still save counts only what is not done. A plan downloads as CSV, a row per
 folder, for the lab or the storage team.
+
+**Suggestions** for a lab's plan come from the latest scan of each of its folders: workflow working folders and
+package caches (`work_dirs`, found at build: what running the workflow makes again), the largest cold folders at the
+cold threshold (`cold_units`), and the folders with the most uncompressed sequencing data (`dir_ext`, estimated as
+for compression). Each comes with what it would free and save a month on its own; a folder planned or inside one is
+left out, a folder suggested twice is suggested for the larger saving, and one inside another suggested folder is
+left to it. On a million-file synthetic scan, the three queries take 8, 38, and 9 ms for a top-level folder.
 
 ## Costs
 

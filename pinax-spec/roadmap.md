@@ -767,7 +767,7 @@ confirmed when the wave starts.
 | 2 | Marking folders for cleanup (C1) | From the age map (a folder's own panel and each tile's actions, reachable by keyboard), *Cold folders*, and *What changed*: add a folder to its lab's cleanup plan to delete, move to another filesystem, or compress, with a note; by the lab's PI and delegates, and by administrators; a folder inside one already planned counts once; the plan's total shown while exploring; audited; both themes and 375 pixels | Done |
 | 3 | What a plan saves (C2) | For each folder and the whole plan: the space freed, and the lab's monthly charge now and after, per filesystem, with free tiers (data within a free tier saves nothing, and the page says so) and the destination's price for a move; compression estimated from typical ratios for each type, and labeled as an estimate; tested against the charges worked out on the reduced sizes | Done |
 | 4 | Progress from scans (C3) | With each new scan, each folder is done (gone, and not moved), partly done (smaller), moved (no saving), or still to do; the space freed and the fall in the charge since the plan began; a *Cleanup plan* page for each lab with what is to do and what was done, and when; CSV for the lab or the storage team | Done |
-| 5 | Suggestions (C4) | Folders worth adding, each with its saving, added in one click: cold folders (R3), uncompressed sequencing data (R6) to compress, and workflow working folders (Nextflow `work/`, Snakemake `.snakemake/`, Cromwell `cromwell-executions/`, conda and container caches), found when the index is built; within Q3 for a lab folder at 100 million files | To come |
+| 5 | Suggestions (C4) | Folders worth adding, each with its saving, added in one click: cold folders (R3), uncompressed sequencing data (R6) to compress, and workflow working folders (Nextflow `work/`, Snakemake `.snakemake/`, Cromwell `cromwell-executions/`, conda and container caches), found when the index is built; within Q3 for a lab folder at 100 million files | Done |
 | 6 | Plans across labs (C5) | For administrators: every lab's plan, planned and freed per filesystem, the largest folders planned, and a CSV | To come |
 | 7 | Demo and release 0.7.0 | A demo lab with a plan made before the demo's last scan, partly done by it, with one folder renamed rather than removed; the README demo script; version 0.7.0, changelog, pull request, tag, release | To come |
 
@@ -864,6 +864,23 @@ the site's own.
      directories stable inodes, since numbering them by position hands a deleted folder's inode to another (the
      reuse that makes a move something to confirm).
    - *Done*: checked on the demo's *Cleanup plans* (a folder to do; progress waits for the demo's scans, slice 7).
+5. **Suggestions (C4).**
+   - Index version 6 (unreleased, so not bumped again) gains `work_dirs`: Nextflow `work/` beside a `.nextflow`,
+     Snakemake `.snakemake/`, Cromwell `cromwell-executions/`, conda `pkgs/` in a conda installation, and
+     Singularity or Apptainer `cache/`; `SnapshotIndex.work_dirs` lists the outermost in a folder, and
+     `compressible` the folders with the most files of given types directly in them.
+   - `plans.suggestions` and `/api/plans/suggestions`: for each folder a lab owns, its workflow folders (to delete),
+     largest cold folders at the cold threshold (to move, or delete with one filesystem), and folders with the most
+     uncompressed sequencing data (to compress, estimated), each with what it frees and saves a month on its own;
+     planned folders and those inside them left out; a folder suggested twice kept for the larger saving; one inside
+     another suggested folder left to it.
+   - *Cleanup plans* shows them under each plan, loaded after it; *Add* opens the dialog with the action chosen.
+     Adding from *Cold folders* itself is left out: its folders are among the suggestions.
+   - Tests: the workflow folders the index finds (and a `work` folder that is not Nextflow's); the suggestions for a
+     lab, with a FASTQ to compress, a cold folder, a cold SAM suggested for the larger saving, compression inside a
+     work folder left to it, planned folders no longer suggested, and other labs refused.
+   - *Done*: on a million-file synthetic scan, finding workflow folders added 0.01 s to the build, and the three
+     queries took 8, 38, and 9 ms for a top-level folder of 5,000 files; 100 million files wait for the pilot.
 
 ## 0.8.0: folder tags (wave 8)
 

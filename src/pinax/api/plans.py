@@ -63,6 +63,15 @@ def lab_plans(lab: str | None = None, identity: Identity = Depends(current_ident
             "choices": [{"slug": c.slug, "name": c.name} for c in choices]}
 
 
+@router.get("/suggestions")
+def suggestions(lab: str, identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
+    """Folders of a lab worth adding to its plan, each with what it would free and save."""
+    found = session.scalar(select(Lab).where(Lab.slug == lab))
+    if found is None or not (identity.is_admin or found.id in identity.lab_roles):
+        raise HTTPException(404, "No such lab or department")
+    return {"lab": found.slug, "suggestions": plans.suggestions(session, found)}
+
+
 @router.get("/here")
 def here(fs: str, path: str, identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
     """For the age map's panel: whether this folder can go in a plan, and its lab's plan so far."""

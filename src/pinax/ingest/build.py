@@ -22,6 +22,9 @@ directory level is precomputed once per scan, so no page ever reads per-file row
                                file_changes
                                            every file new since the previous scan or removed since,
                                            ordered by (change, path)
+                               work_dirs   workflow working folders and package caches (Nextflow
+                                           work/, Snakemake .snakemake/, Cromwell executions, conda
+                                           pkgs/, Singularity or Apptainer caches), by path
                                tops, users, groups, errors, name_flags, meta
     <index>/files/gNNNNNN/*.parquet        every non-directory entry, in at most 64 groups of
                                            top-level folders, each sorted by path (so any folder,
@@ -206,6 +209,31 @@ def _direct_aggregates() -> str:
     cols += [f"count(*) FILTER (WHERE cat = {i})::BIGINT AS cf{i}" for i in range(NC)]
     cols += [f"coalesce(sum(size) FILTER (WHERE cat = {i}), 0)::BIGINT AS cb{i}" for i in range(NC)]
     return ",\n  ".join(cols)
+
+
+# Folders that workflow managers and package managers fill with what can be made again (suggested for cleanup
+# plans): a name, and for some the folder it must be in, or a folder beside it.
+CONDA_ROOTS = ("miniconda3", "anaconda3", "miniforge3", "mambaforge", "micromamba", ".conda")
+CONTAINER_ROOTS = (".singularity", ".apptainer")
+
+
+def _work_dirs() -> str:
+    names = ", ".join(_sql_str(n) for n in (".snakemake", "cromwell-executions", "work", "pkgs", "cache"))
+    conda = ", ".join(_sql_str(n) for n in CONDA_ROOTS)
+    containers = ", ".join(_sql_str(n) for n in CONTAINER_ROOTS)
+    return f"""
+        WITH c AS (SELECT dir_id, parent_id, depth, top_id, path, name FROM s.dirbase WHERE name IN ({names})),
+             nf AS (SELECT DISTINCT parent_id FROM s.dirbase WHERE name = '.nextflow'),
+             k AS (
+               SELECT c.path, c.depth, c.top_id, CASE
+                 WHEN c.name = '.snakemake' THEN 'snakemake'
+                 WHEN c.name = 'cromwell-executions' THEN 'cromwell'
+                 WHEN c.name = 'work' AND c.parent_id IN (SELECT parent_id FROM nf) THEN 'nextflow'
+                 WHEN c.name = 'pkgs' AND p.name IN ({conda}) THEN 'conda'
+                 WHEN c.name = 'cache' AND p.name IN ({containers}) THEN 'containers'
+               END AS kind
+               FROM c LEFT JOIN s.dirbase p ON p.dir_id = c.parent_id)
+        SELECT path, depth, top_id, kind FROM k WHERE kind IS NOT NULL"""
 
 
 def _cold_units() -> str:
@@ -586,6 +614,9 @@ def build_index(
         FROM s.dirbase b JOIN s.sub u USING (dir_id) LEFT JOIN s.direct x USING (dir_id)
         ORDER BY b.depth, b.path
     """)
+
+    say("Finding workflow working folders")
+    step("work_dirs", f"CREATE TABLE work_dirs AS {_work_dirs()} ORDER BY path")
 
     say("Finding cold folders")
     step("cold", f"CREATE TABLE cold_units AS SELECT * FROM ({_cold_units()}) ORDER BY bucket, path")

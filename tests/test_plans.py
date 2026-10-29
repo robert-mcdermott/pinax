@@ -259,3 +259,78 @@ def test_partly_done_and_moved(priced, tmp_path):
     assert p["2025_new"] == {"status": "partly done", "freed": 4000, "since": p["2025_new"]["since"]}
     assert p["2015_old"] == {"status": "moved", "freed": 0, "since": None}  # renamed: nothing freed
     assert p["_done"]["freed"] == 4000
+
+
+# ---------- Suggestions (C4) ----------
+
+WORKFLOW_FILES = [
+    {"path": "alpha_lab/pipelines/run1/.nextflow/history", "size": 10, "age_days": 30},
+    {"path": "alpha_lab/pipelines/run1/work/ab/12cd/sample.bam", "size": 6000, "age_days": 30},
+    {"path": "alpha_lab/pipelines/run1/work/ef/34ab/sample.sam", "size": 4000, "age_days": 30},
+    {"path": "alpha_lab/pipelines/run2/.snakemake/log/run.log", "size": 500, "age_days": 40},
+    {"path": "alpha_lab/tools/miniconda3/pkgs/numpy-1.26.tar.bz2", "size": 3000, "age_days": 200},
+    {"path": "alpha_lab/home/.singularity/cache/oci/blob1", "size": 2500, "age_days": 100},
+    {"path": "alpha_lab/notes/work/ideas.txt", "size": 5, "age_days": 1},  # a "work" folder, not Nextflow's
+    {"path": "alpha_lab/sequencing/run7/S7_R1.fastq", "size": 8000, "age_days": 10},
+]
+
+
+@pytest.fixture
+def workflows(env, tmp_path):
+    from conftest import FILES
+    from fastapi.testclient import TestClient
+    from scanfix import write_scan
+
+    from pinax.db import session_scope
+    from pinax.main import app
+    from pinax.models import Filesystem, Lab, LabFolder, LabMembership, User
+    from pinax.snapshots import ingest_scan
+
+    with session_scope() as s:
+        fs = Filesystem(slug="fast", name="Fast", root=ROOT)
+        alpha, ada = Lab(slug="alpha", name="Alpha Lab"), User(username="ada", display_name="Ada", email="ada@example.org")
+        s.add_all([fs, alpha, ada, User(username="ben", display_name="Ben", email="ben@example.org")])
+        s.flush()
+        s.add_all([LabFolder(lab_id=alpha.id, filesystem_id=fs.id, path="alpha_lab"),
+                   LabMembership(user_id=ada.id, lab_id=alpha.id, role="pi")])
+    write_scan(tmp_path / "scan", ROOT, FILES + WORKFLOW_FILES)
+    with session_scope() as s:
+        ingest_scan(s, tmp_path / "scan", progress=lambda m: None)
+    with TestClient(app) as c:
+        yield c
+
+
+def test_the_index_finds_workflow_working_folders(workflows):
+    from pinax.db import session_scope
+    from pinax.snapshots import indexes, latest_snapshot
+
+    with session_scope() as s:
+        from pinax.models import Filesystem
+
+        idx = indexes.get(latest_snapshot(s, s.query(Filesystem).one()))
+        rows = idx.work_dirs(ALPHA)
+    assert {(r["path"].removeprefix(ALPHA + "/"), r["kind"], r["bytes"]) for r in rows} == {
+        ("pipelines/run1/work", "nextflow", 10000), ("pipelines/run2/.snakemake", "snakemake", 500),
+        ("tools/miniconda3/pkgs", "conda", 3000), ("home/.singularity/cache", "containers", 2500)}
+
+
+def test_suggestions_for_a_lab(workflows):
+    login(workflows, "ada")
+    got = workflows.get("/api/plans/suggestions", params={"lab": "alpha"}).json()["suggestions"]
+    by = {(s["kind"], s["path"].removeprefix(ALPHA + "/")): s for s in got}
+    assert by[("workflow", "pipelines/run1/work")]["what"] == "Nextflow work folder"
+    assert by[("workflow", "pipelines/run1/work")]["action"] == "delete"
+    assert not any(p.startswith("notes/") for _, p in by)  # not a Nextflow work folder
+    fastq = by[("compress", "sequencing/run7")]
+    assert fastq["freed"] == 6000 and fastq["estimate"] and fastq["action"] == "compress"
+    assert by[("cold", "projects/2015_old")]["freed"] == 8050  # cold for ten years: one unit
+    # The 2014 SAM could be compressed (6,750 freed) or, being cold, moved or deleted (9,000): the larger.
+    assert by[("cold", "projects/2025_new/legacy")]["freed"] == 9000 and ("compress", "projects/2025_new/legacy") not in by
+    # The work folder's BAM and SAM compress too, but the work folder itself is suggested.
+    assert not any(k == "compress" and p.startswith("pipelines/") for k, p in by)
+    # Planned folders, and folders inside them, are no longer suggested.
+    workflows.post("/api/plans", json={"fs": "fast", "path": f"{ALPHA}/pipelines", "action": "delete"})
+    again = workflows.get("/api/plans/suggestions", params={"lab": "alpha"}).json()["suggestions"]
+    assert not any(s["path"].startswith(f"{ALPHA}/pipelines") for s in again)
+    login(workflows, "ben")
+    assert workflows.get("/api/plans/suggestions", params={"lab": "alpha"}).status_code == 404

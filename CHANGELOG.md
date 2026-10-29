@@ -20,6 +20,11 @@
   most of its estimate), partly done (smaller), moved (nothing freed), or still to do. *Cleanup plans* lists what
   is to do and what is done, by which scan, with the space freed so far and what it saves a month, and each plan
   downloads as CSV.
+- **Suggestions for a plan.** *Cleanup plans* suggests folders to add, each with what it would free and save a
+  month: workflow working folders and package caches (Nextflow `work/`, Snakemake `.snakemake/`, Cromwell
+  executions, conda `pkgs/`, Singularity and Apptainer caches, found when the index is built), the largest cold
+  folders, and the folders with the most uncompressed sequencing data. *Add* opens the dialog with the suggested
+  action chosen.
 
 ### Changed
 

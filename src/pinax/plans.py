@@ -356,3 +356,60 @@ def here(session: Session, ident: Identity, fs: Filesystem, path: str) -> dict:
             "item": item_json(session, mine, items) if mine else None,
             "inside": item_json(session, outer, items) if outer else None,
             "targets": [{"slug": t.slug, "name": t.name} for t in targets]}
+
+
+# ---------- Suggestions (C4) ----------
+
+WORKFLOW = {"nextflow": "Nextflow work folder", "snakemake": "Snakemake working folder",
+            "cromwell": "Cromwell executions", "conda": "Conda package cache", "containers": "Container image cache"}
+
+
+def suggestions(session: Session, lab: Lab, *, limit: int = 10) -> list[dict]:
+    """Folders of the lab worth adding to its plan, each with what it would free and save a month on its own:
+    workflow working folders and package caches (made again by running the workflow), the largest cold folders
+    (to move to cheaper storage), and the folders with the most uncompressed sequencing data (to compress). Folders
+    already planned, or inside one, are left out; a folder suggested twice is suggested for the larger saving, and
+    one inside another suggested folder is left to it."""
+    from .snapshots import cold_bucket, indexes, latest_snapshot
+
+    currency = get_settings().currency
+    day = utcnow().date()
+    items = lab_items(session, lab)
+    planned = {(i.mark.filesystem_id, i.mark.path) for i in items}
+    found: dict[tuple[int, str], dict] = {}
+    others = {f.id for f in session.scalars(select(Filesystem).where(Filesystem.active.is_(True)))}
+    for lf in session.scalars(select(LabFolder).where(LabFolder.lab_id == lab.id)):
+        fs = session.get(Filesystem, lf.filesystem_id)
+        snap = latest_snapshot(session, fs) if fs.active else None
+        if snap is None:
+            continue
+        idx = indexes.get(snap)
+        top = f"{fs.root.rstrip('/')}/{lf.path}"
+        size = lab_size(session, lab, fs)
+
+        def offer(kind: str, row_path: str, what: str, size_: int, frees: int, action: str, *, fs=fs, size=size) -> None:
+            key = (fs.id, row_path)
+            if key in planned or _outermost(items, fs.id, row_path) or frees <= 0:
+                return
+            now = monthly(session, fs, lab, size, day)
+            saves = None if now is None else now - monthly(session, fs, lab, max(0, size - frees), day)
+            if key not in found or found[key]["freed"] < frees:
+                found[key] = {"kind": kind, "what": what, "fs": fs.slug, "fs_name": fs.name, "path": row_path,
+                              "name": row_path.rsplit("/", 1)[-1], "bytes": size_, "freed": frees, "action": action,
+                              "estimate": kind == "compress",
+                              "saves": str(money(saves, currency)) if saves is not None else None}
+
+        for r in idx.work_dirs(top, limit=limit):
+            offer("workflow", r["path"], WORKFLOW[r["kind"]], r["bytes"], r["bytes"], "delete")
+        cold = cold_bucket()
+        for r in idx.cold_dirs(top, cold, limit=limit)["rows"]:
+            offer("cold", r["path"], "Unchanged for years", r["bytes"], r["bytes"], "move" if len(others) > 1 else "delete")
+        rows = [(c["path"], sum(c["types"].values()), compressible([{"ext": e, "bytes": b} for e, b in c["types"].items()]))
+                for c in idx.compressible(top, list(COMPRESSION), limit=5 * limit)]
+        for p, b, est in sorted(rows, key=lambda r: -r[2])[:limit]:
+            offer("compress", p, "Uncompressed sequencing data", b, est, "compress")
+    # One inside another (compressing inside a work folder suggested for deletion) is left to the outer one.
+    out = [s for s in found.values()
+           if not any(o is not s and o["fs"] == s["fs"] and _inside(s["path"], o["path"]) for o in found.values())]
+    out.sort(key=lambda s: -s["freed"])
+    return [s for k in ("workflow", "compress", "cold") for s in out if s["kind"] == k][: 3 * limit]
