@@ -16,15 +16,14 @@ decisions taken are recorded here. Later waves are outlined at the end.
 **Progress** is marked here as each slice is committed: done, next or to come. Each requirement's status is
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
-**Where things stand:** waves 1 to 9 are released as 0.1.0 to 0.9.0 (tags on `main`). Besides forecasts, 0.6.0
+**Where things stand:** waves 1 to 10 are released as 0.1.0 to 0.10.0 (tags on `main`). Besides forecasts, 0.6.0
 has what was merged since 0.5.0:
 - labs and departments can be added, changed, and deactivated in the app, so a site needs no CSV files at all;
 - guidance for operating Pinax;
 - time limits for requests, and new and removed files recorded at ingest, for filesystems of two billion files.
 
-Wave 10 (operations: a PostgreSQL catalog with migrations, system and audit logs, and Prometheus metrics) is
-being built. Next is the production pilot (wave 11), when production storage is reachable; until then, reach
-(wave 12) can come first. If production storage becomes reachable sooner, the pilot becomes the next wave and the
+Next is the production pilot (wave 11), when production storage is reachable; until then, reach (wave 12) can
+come first. If production storage becomes reachable sooner, the pilot becomes the next wave and the
 waves after it are renumbered. Ideas kept for later but not planned are in the [parking lot](#parking-lot).
 
 The order follows one principle:
@@ -293,7 +292,7 @@ in wave 11.
    - Tests: the health states; the header refused from untrusted addresses and accepted from trusted networks;
      demo sign-in off in header mode; every unit's command parsed by the CLI and every setting it names real;
      rebuilds (a lost index, the cache reopening, `--outdated`, a missing scan).
-   - *Done*, except what only a real server shows: the pilot installation in wave 10 confirms the guide and units
+   - *Done*, except what only a real server shows: the pilot installation in wave 11 confirms the guide and units
      (`systemd-analyze verify` and the sandboxing options cannot be run on the development Mac).
 7. **Release 0.2.0.**
    - The demo re-seeded with this wave's code: all four snapshots equal to rollup; the README demo script walked
@@ -378,7 +377,7 @@ Every change is checked against an independent computation, like every total.
      snapshots, 10 changes); evolved scans of a real demo scan and of the wide and deep shapes likewise. At one
      million files, `--evolve` takes 1.6 s, comparing 0.2 s of a 6 s build, and checking the change 1.1 s (all
      245,361 directories equal). Kept to small scans on the development laptop; the measurement with changed scans
-     at 100 million files waits for server-class hardware in wave 10.
+     at 100 million files waits for server-class hardware in wave 11.
 3. **History charts (E7).**
    - `explore.history` and `/api/history` take any place: a person's home, a lab or department, a filesystem, a
      top-level folder (every scan, from folder history), or a deeper folder (the retained snapshots, from their
@@ -427,7 +426,7 @@ Every change is checked against an independent computation, like every total.
      sums; sizing; access.
    - *Done*: checked in both themes and at 375 pixels on the demo. At one million synthetic files (three evolved
      generations), the root and a lab folder take 7–21 ms from `changes` and 12–31 ms joined with an older scan,
-     against 24 ms for the age map; the 100-million-file measurement waits for server-class hardware (wave 10).
+     against 24 ms for the age map; the 100-million-file measurement waits for server-class hardware (wave 11).
 5. **What changed (R9).**
    - `SnapshotIndex.change_units`: over a place's subtree in both scans (the stored changes, or an attached older
      index), the folders in both scans that grew and shrank most, leaving out a folder when one of its subfolders
@@ -444,7 +443,7 @@ Every change is checked against an independent computation, like every total.
      with a removed subfolder), from the stored previous scan and from an older scan; CSV, limits, and access.
    - *Done*: checked in both themes and at 375 pixels on the demo. At one million synthetic files (three evolved
      generations), a lab folder's report takes 70–90 ms and the whole filesystem's 0.5–0.6 s; the 100-million-file
-     measurement waits for server-class hardware (wave 10).
+     measurement waits for server-class hardware (wave 11).
    - Before slice 6, at the maintainer's request: the age scale changed from orange-to-red to hot-to-cold (red for
      data changed within two years, blue from then on), so cold data looks cold and a map of mostly old data no
      longer reads as alarming throughout. Each arm passes the ordinal checks in both themes.
@@ -471,7 +470,7 @@ Every change is checked against an independent computation, like every total.
    - Version 0.3.0 in `pyproject.toml`, `pinax.__version__`, and `uv.lock`; `CHANGELOG.md` dated, with upgrade
      notes; pull request `wave3` to `main`, then tag `v0.3.0` and the release.
    - Not measured: anything above a million files. The change map's Q3 and What changed's Q4 at 100 million files,
-     and changed scans at that size, wait for server-class hardware (wave 10).
+     and changed scans at that size, wait for server-class hardware (wave 11).
    - *Done*.
 
 ## 0.4.0: people and sign-in (wave 4)
@@ -511,7 +510,7 @@ maintainer's request, while production storage is out of reach, and merged in pu
    - Version 0.4.0 in `pyproject.toml`, `pinax.__version__`, and `uv.lock`; `CHANGELOG.md` dated, with notes on
      upgrading from 0.3.0 (new catalog columns added at start-up; the demo refused in production).
    - The roadmap re-planned: costs and chargeback, wanted by the maintainer and needing no production storage, move
-     up from the action wave to wave 5; the production pilot moves to wave 6 (since moved to wave 10), and the
+     up from the action wave to wave 5; the production pilot moves to wave 6 (since moved to wave 11), and the
      later waves follow.
    - Pull request to `main`, then tag `v0.4.0` and the release.
    - *Done*.
@@ -1113,7 +1112,7 @@ who changed what, and metrics that a site's monitoring can trend and alert on. N
 | 2 | Moving a catalog to PostgreSQL (P7) | `pinax db copy` copies every table of one catalog into another, empty one at the same version, in batches, then sets PostgreSQL's sequences and checks every table's count; a demo catalog copied to PostgreSQL serves the demo the same | Done |
 | 3 | System and audit logs (O5) | Logs as text (the journal) or JSON lines (a log collector), to standard error or a file that `logrotate` can rotate; one line per request with a request ID (also returned to the browser), the person, their address, the route, the status, and the time taken; slow requests flagged; every audit event also logged once its change is committed, optionally to a file of its own; the address of the person, not the proxy, behind a trusted proxy; a start-up line with the version and the catalog (never its password); never a password, token, or session | Done |
 | 4 | Prometheus metrics (O4, O5) | `/metrics` in Prometheus's format, off until a token is set and then only with it; scans and ingests by filesystem (when each last succeeded and failed, how long it took, the watcher's heartbeat), filesystem totals and capacity, Pinax's own disk, requests by route and their times, stopped queries, whole-filesystem query turns, background searches, sign-ins; filesystems named, never labs, people, or paths; a scrape configuration and alert rules in `deploy/prometheus/` | Done |
-| 5 | Demo and release 0.10.0 | The demo unchanged on SQLite, and checked once on PostgreSQL; the deployment guide's PostgreSQL, logs, and monitoring sections; version 0.10.0, changelog, pull request, tag, release | Next |
+| 5 | Demo and release 0.10.0 | The demo unchanged on SQLite, and checked once on PostgreSQL; the deployment guide's PostgreSQL, logs, and monitoring sections; version 0.10.0, changelog, pull request, tag, release | Done |
 
 ### Decisions for wave 10
 
@@ -1217,6 +1216,15 @@ who changed what, and metrics that a site's monitoring can trend and alert on. N
    - *Done*: scraped from the demo copied to PostgreSQL: both filesystems' figures, and Fast's earliest fill date
      (June 2027, as *Capacity* has it). The alert rules parse as YAML; `promtool` was not available to check their
      expressions.
+5. **Demo and release 0.10.0.**
+   - The demo is unchanged on SQLite. Seeded into PostgreSQL, it holds the same 34,854 files and serves the same
+     (slice 1); a copy of the 0.9.0 demo moved there answered as the SQLite demo did (slice 2).
+   - `docs/DEMO.md`: the demo on PostgreSQL, and a step for logs and metrics; the README describes them; the
+     deployment guide installs v0.10.0.
+   - Version 0.10.0 in `pyproject.toml`, `pinax.__version__`, and `uv.lock`; `CHANGELOG.md` dated, with notes on
+     upgrading from 0.9.0 (the catalog adopted by its first migration, two dependencies, uvicorn's proxy headers
+     off, nine settings, the units and proxy configuration to copy again).
+   - Pull request to `main`, then tag `v0.10.0` and the release.
 
 ## Later waves (outlined)
 

@@ -158,6 +158,7 @@ them, the person's home), and `lab` to limit home to one lab:
 | `GET`, `POST /api/views`; `PUT`, `DELETE /api/views/{id}` | A person's views and those shared with their labs; saving, renaming, sharing, deleting |
 | `GET /api/admin/costs`, `/api/admin/costs/charges?month=&fmt=csv`, `/api/admin/costs/ahead` | Prices and free tiers; every lab's charges for a month, or its CSV statement; every lab's next twelve months, added up |
 | `GET /api/admin/capacity`, `POST /api/admin/capacity/{fs}`, `DELETE /api/admin/capacity/{fs}/{id}` | Each filesystem's capacity, its schedule, and when it fills; setting and removing a capacity from a day on |
+| `GET /api/health`; `GET /metrics` | Health for load balancers (no sign-in); Prometheus metrics, only with `PINAX_METRICS_TOKEN` as a bearer token |
 
 ## Frontend conventions
 

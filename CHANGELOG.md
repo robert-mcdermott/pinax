@@ -1,6 +1,23 @@
 # Changelog
 
-## Unreleased
+## 0.10.0 (2026-10-29)
+
+Tenth release (wave 10, "operations"): what a production deployment needs from Pinax itself. The catalog can be
+PostgreSQL, with migrations that upgrade it in place (SQLite stays the default, with nothing to install); logs of
+every request and every audit event, as text or JSON; and Prometheus metrics to trend and alert on. It comes before
+the production pilot (now wave 11) and reach (now wave 12, with sign-in with Microsoft Entra ID in Pinax itself).
+See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+
+Upgrading from 0.9.0: back the catalog up first ([Backups](docs/DEPLOYMENT.md#backups)). When Pinax starts, the
+first migration adopts the catalog in place, adding nothing it already has; `PINAX_DB_AUTO_UPGRADE=false` leaves
+that to `pinax db upgrade`. Indexes are unchanged (version 7). Two new dependencies, Alembic and prometheus-client,
+come with `uv sync`; PostgreSQL's driver comes with `uv sync --extra postgres`. `pinax serve` now works out the
+person's address behind a proxy itself, from `PINAX_TRUSTED_PROXIES` and `X-Forwarded-For`, instead of uvicorn
+(which trusted `127.0.0.1`, or `FORWARDED_ALLOW_IPS`). New settings: `PINAX_DB_AUTO_UPGRADE`,
+`PINAX_DATABASE_POOL_SIZE`, `PINAX_LOG_LEVEL`, `PINAX_LOG_FORMAT`, `PINAX_LOG_FILE`, `PINAX_LOG_REQUESTS`,
+`PINAX_SLOW_REQUEST_SECONDS`, `PINAX_AUDIT_LOG`, and `PINAX_METRICS_TOKEN` (`/metrics` is off until it is set).
+The systemd units gain `LogsDirectory=pinax`, and oauth2-proxy's configuration lets `GET /metrics` through; copy
+both from `deploy/` again.
 
 ### Added
 
@@ -15,7 +32,6 @@
   in place. `pinax db revision` writes a new migration, for developers.
 - **`pinax db copy`** moves a catalog into another, empty database, such as SQLite into PostgreSQL: every table in
   one transaction, PostgreSQL's id sequences set past the copied rows, and every count compared.
-
 - **Logs.** One line for each request to the API, with its status, the time taken and the part of it in index
   queries, the person, their address, and a request ID (returned as `X-Request-ID`); slow and failed requests are
   warnings (`PINAX_SLOW_REQUEST_SECONDS`). Every audit event is logged as well, once its change is committed, with
@@ -37,6 +53,9 @@
 - **The person's address behind a proxy.** Requests from `PINAX_TRUSTED_PROXIES` are logged and audited, and
   sign-in sessions recorded, with the person's own address from `X-Forwarded-For`, worked out by Pinax rather
   than uvicorn.
+- **The roadmap.** Operations comes next as wave 10 (0.10.0), before the production pilot (now wave 11) and reach
+  (now wave 12), at the maintainer's request. Reach now plans sign-in with Microsoft Entra ID in Pinax itself, with
+  OpenID Connect, rather than behind an authenticating proxy.
 
 ### Fixed
 

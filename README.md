@@ -63,7 +63,11 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
   independent implementation, and reports any difference.
 - **Ready to run**: new scans are ingested automatically, labs and people are imported from CSV with a dry run
   first, and `deploy/` has systemd units and an oauth2-proxy configuration for single sign-on. The catalog is
-  SQLite, with nothing to install, or PostgreSQL for production; migrations upgrade either in place.
+  SQLite, with nothing to install, or PostgreSQL for production; migrations upgrade either in place, and
+  `pinax db copy` moves a catalog from one to the other.
+- **Logs and metrics**: a log line for each request, with who made it and from where, and every audit event, as
+  text for the journal or JSON lines for a log collector; Prometheus metrics for each filesystem's scans, size,
+  capacity, and fill date, and for Pinax itself, with alert rules to start from.
 - **Light and dark themes**, keyboard-reachable tiles, and a table view for every chart.
 
 ## Documentation
