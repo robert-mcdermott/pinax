@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.8.0 (2026-10-29)
+
+Eighth release (wave 8, "folder tags"): folders described in terms a lab and IT share. Administrators keep a list of
+standard tags (a default of nine to start), labs tag their folders with them and with tags of their own, and a tag
+applies to everything below its folder. *Collections* finds data by tag across filesystems, with its size, cost,
+history, and forecast; *Storage charges* splits a lab's month by grant or project; and *Legal hold* and *Keep until*
+keep folders out of cleanup plans. Next is the production pilot (0.9.0), when production storage is reachable. See
+[pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+
+Upgrading from 0.7.0: the catalog gains `tag` and `folder_tag` tables, created at start-up, and the default tags are
+added then. Indexes are unchanged (version 6). No new settings.
 
 ### Added
 

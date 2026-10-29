@@ -535,7 +535,7 @@ def _protecting(ft: FolderTag, today: date) -> bool:
 
 def _why(ft: FolderTag) -> dict:
     return {"tag": ft.tag.label, "value": ft.value, "path": ft.mark.path,
-            "text": f"kept until {ft.value}" if ft.tag.value_type == "date" else ft.tag.label.lower()}
+            "text": f"kept until {ft.value}" if ft.tag.value_type == "date" else f"on {ft.tag.label.lower()}"}
 
 
 def protection(session: Session, fs, path: str, today: date | None = None) -> dict | None:

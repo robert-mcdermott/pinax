@@ -37,6 +37,10 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
   or compress, and sees the space it would free and how much its monthly charge would fall. Pinax suggests folders
   (workflow working folders, cold data, uncompressed sequencing data), and later scans show what was done, following
   a folder that was renamed rather than removed. Pinax itself deletes, moves, and compresses nothing.
+- **Tags**: folders described in terms a lab and IT share (project, grant, data stage, source, classification, IRB
+  protocol, a public copy, keep until, legal hold), from a list administrators keep, plus labs' own; a tag applies to
+  everything below its folder. *Collections* finds data by tag across filesystems, with its size, cost, history, and
+  forecast; *Storage charges* splits a lab's charges by grant; protected folders stay out of cleanup plans.
 - **For IT**: an overview of every filesystem, the largest folders and biggest changes, unmapped folders,
   storage health (scan errors, very large directories, small-file hotspots, problem file names, deleted
   owners), the scan history, each filesystem's capacity and the month it fills at its trend, and people and

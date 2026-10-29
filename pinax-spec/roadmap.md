@@ -16,13 +16,13 @@ decisions taken are recorded here. Later waves are outlined at the end.
 **Progress** is marked here as each slice is committed: done, next or to come. Each requirement's status is
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
-**Where things stand:** waves 1 to 7 are released as 0.1.0 to 0.7.0 (tags on `main`). Besides forecasts, 0.6.0
+**Where things stand:** waves 1 to 8 are released as 0.1.0 to 0.8.0 (tags on `main`). Besides forecasts, 0.6.0
 has what was merged since 0.5.0:
 - labs and departments can be added, changed, and deactivated in the app, so a site needs no CSV files at all;
 - guidance for operating Pinax;
 - time limits for requests, and new and removed files recorded at ingest, for filesystems of two billion files.
 
-Next come folder tags (wave 8). The production pilot needs production storage, which
+Next is the production pilot needs production storage, which
 will not be reachable for some time, so it waits as wave 9. If production storage becomes reachable sooner, the
 pilot becomes the next wave and the waves after it are renumbered. Ideas kept for later but not planned are in the
 [parking lot](#parking-lot).
@@ -905,7 +905,7 @@ the site's own.
 Folders described in terms a lab and IT share: the project, the grant, the instrument, the stage of the data, how
 sensitive it is, and how long it must be kept. Administrators keep a list of standard tags; data owners tag their
 folders with them, or with tags of their own; people find data by tag across filesystems, see what it costs, and
-split their charges by grant. Planned; the slices are confirmed when the wave starts.
+split their charges by grant.
 
 ### Wave 8 sequence
 
@@ -916,7 +916,7 @@ split their charges by grant. Planned; the slices are confirmed when the wave st
 | 3 | Finding data by tag (T3) | A *Collections* page: folders by tag and value, combined (Source is cryo-EM and Data stage is raw), across filesystems, within what the person may see; each folder's size, files, cold share, average age, monthly cost, owner, and tags; nested folders counted once in the total; the collection's history and forecast from the recorded totals (waves 6 and 7); CSV; within Q3, reading only the catalog | Done |
 | 4 | Cost by tag (T4) | Charges split by a tag's values, such as by grant or project: each tagged folder's share of its lab's charge on its filesystem, time-weighted from the recorded totals, and what is untagged; on *Storage charges* and in the statement CSV; tested against brute force | Done |
 | 5 | Protection (T5) | A folder with a protecting tag (*Keep until*, before its date; *Legal hold*), and everything below it, cannot be added to a cleanup plan; folders already planned are flagged; suggestions leave them out | Done |
-| 6 | Demo and release 0.8.0 | Demo folders with standard and custom tags, charges split by grant, and a folder on legal hold; the README demo script; version 0.8.0, changelog, pull request, tag, release | To come |
+| 6 | Demo and release 0.8.0 | Demo folders with standard and custom tags, charges split by grant, and a folder on legal hold; the README demo script; version 0.8.0, changelog, pull request, tag, release | Done |
 
 The default tags, which a site changes on the *Tags* page:
 
@@ -932,7 +932,7 @@ The default tags, which a site changes on the *Tags* page:
 | Keep until | Date | Owners | Protects from cleanup until the date |
 | Legal hold | Flag | Administrators | Protects from cleanup |
 
-### Decisions for wave 8 (proposed)
+### Decisions for wave 8
 
 - **Tags are on folders and apply to everything below them**, not on files (see wave 7).
 - **Standard tags have types**, so their values compare: a date is a date, and a choice comes from its list, which
@@ -1010,6 +1010,16 @@ Settled when the wave started:
    - Tests: a folder kept until a later date, one inside it, and one holding it refused, one beside it not; a date
      past protects nothing; legal hold; a planned folder protected later is flagged; suggestions leave a protected
      cold folder out.
+6. **Demo and release 0.8.0.**
+   - `pinax seed` tags demo folders after the last scan (`seed.DEMO_TAGS`, each by the person who would): the
+     Fujimoto Lab's two projects with their grants and the lab's own *Atlas paper*, its 2018 pilot kept until 2030,
+     the Lindqvist Lab's sequencing with a grant and its tumor-normal study raw, restricted, and under an IRB
+     protocol, the Genomics Shared Resource's runs raw sequencing, and the Kowalski Lab's 2016 phosphoproteome on
+     legal hold.
+   - `docs/DEMO.md`: a walk-through step for tags, the grant split, and a collection; the README describes tags.
+   - Version 0.8.0 in `pyproject.toml`, `pinax.__version__`, and `uv.lock`; `CHANGELOG.md` dated, with notes on
+     upgrading from 0.7.0 (two catalog tables and the default tags, at start-up).
+   - Pull request to `main`, then tag `v0.8.0` and the release.
 
 ## Later waves (outlined)
 

@@ -57,6 +57,7 @@ def test_the_demo_months_tell_their_stories():
             assert not any(f.path.startswith(src + "/") for m in range(n, seed.SCANS + 1) for f in months[m][fs].files)
     lab, _, planned = seed.DEMO_PLAN  # the cleanup plan's folders are in the first scan
     assert all(under("fast", f"{lab}/{rel}") for rel, _, _ in planned)
+    assert all(under("fast", rel) for _, rel, _, _ in seed.DEMO_TAGS)  # and the tagged folders
     for fs, src, _dst in [c for cs in seed.COMPRESSED.values() for c in cs]:
         assert under(fs, src) and all(f.path.endswith(".fastq") for f in under(fs, src))
     # Not yet cold at the first scan, all past two years at the last.

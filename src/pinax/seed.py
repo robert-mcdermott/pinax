@@ -31,7 +31,7 @@ from pathlib import Path
 import duckdb
 from sqlalchemy import select
 
-from . import capacity, costs, plans
+from . import capacity, costs, plans, tags
 from .config import Settings, get_settings
 from .db import Base, get_engine, reset_engine, session_scope
 from .models import AuditEvent, Filesystem, Lab, LabFolder, LabMembership, User
@@ -103,6 +103,28 @@ def demo_capacity(now: float) -> list[tuple]:
     y, m = divmod(today.month - 1 + 11, 12)
     expansion = date(today.year + y, m + 1, 1)
     return [("fast", since, "125", "TiB"), ("fast", expansion, "250", "TiB"), ("secure", since, "1", "TiB")]
+
+
+# The demo's tags, put on after the last scan by who would: (username, folder, tag key, value). A lab's own tag is
+# "own:Label", made by that person first. Data classification and legal hold are for administrators.
+DEMO_TAGS = [
+    ("afujimoto", "fujimoto_a/projects/2022_tumor_atlas", "grant", "R01-CA000101"),
+    ("afujimoto", "fujimoto_a/projects/2022_tumor_atlas", "project", "Tumor atlas"),
+    ("afujimoto", "fujimoto_a/projects/2022_tumor_atlas", "source", "sequencing"),
+    ("afujimoto", "fujimoto_a/projects/2022_tumor_atlas", "stage", "processed"),
+    ("afujimoto", "fujimoto_a/projects/2022_tumor_atlas", "own:Atlas paper", None),
+    ("afujimoto", "fujimoto_a/projects/2025_immune_aging", "grant", "U01-AG000202"),
+    ("afujimoto", "fujimoto_a/projects/2025_immune_aging", "project", "Immune aging"),
+    ("afujimoto", "fujimoto_a/projects/2018_pilot", "keep_until", "2030-12-31"),
+    ("hlindqvist", "lindqvist_h/wgs", "grant", "R01-CA000303"),
+    ("hlindqvist", "lindqvist_h/wgs", "source", "sequencing"),
+    ("hlindqvist", "lindqvist_h/wgs/2019_tumor_normal", "irb", "IR-2019-0417"),
+    ("hlindqvist", "lindqvist_h/wgs/2019_tumor_normal", "stage", "raw"),
+    ("pnatarajan", "lindqvist_h/wgs/2019_tumor_normal", "classification", "restricted"),
+    ("cmorgan", "gsr_illumina/runs", "source", "sequencing"),
+    ("cmorgan", "gsr_illumina/runs", "stage", "raw"),
+    ("pnatarajan", "kowalski_d/raw/2016_phosphoproteome", "legal_hold", None),
+]
 
 
 # username, display name, title, admin, [(lab slug, role)]
@@ -467,6 +489,26 @@ def simulate_month(n: int, roots: dict[str, Path], trees: dict[str, TreeBuilder]
                 os.utime(p, (now - rng.uniform(0, 14) * 86400, f.mtime))
 
 
+def demo_tags() -> None:
+    """The demo's tags (DEMO_TAGS), each put on by the person named."""
+    from .auth import identity_for
+    from .models import Tag
+    from .snapshots import cold_bucket
+
+    with session_scope() as s:
+        fs = s.scalar(select(Filesystem).where(Filesystem.slug == "fast"))
+        for username, rel, key, value in DEMO_TAGS:
+            ident = identity_for(s.scalar(select(User).where(User.username == username)))
+            path = f"{fs.root.rstrip('/')}/{rel}"
+            if key.startswith("own:"):
+                lab = s.scalar(select(Lab).where(Lab.slug == rel.split("/", 1)[0]))
+                tag = s.scalar(select(Tag).where(Tag.lab_id == lab.id, Tag.label == key[4:])) or \
+                    tags.make_custom(s, ident, lab, key[4:])
+            else:
+                tag = s.scalar(select(Tag).where(Tag.lab_id.is_(None), Tag.key == key))
+            tags.apply(s, ident, fs, path, tag, value, cold_from=cold_bucket())
+
+
 def demo_plan(when: float) -> None:
     """The Dasgupta Lab's cleanup plan (DEMO_PLAN), made by its PI on `when`."""
     from .auth import identity_for
@@ -656,6 +698,7 @@ def run_seed(scale: float = 1.0) -> None:
     locked.chmod(0)  # unreadable: the scan records an error and carries on
 
     Base.metadata.create_all(get_engine())
+    tags.ensure_defaults()  # the default tags, as init_db adds them
     with session_scope() as s:
         fss = {}
         for slug, name, display, desc in FILESYSTEMS:
@@ -709,4 +752,5 @@ def run_seed(scale: float = 1.0) -> None:
                       f"index built in {snap.build_seconds}s")
         if n == SCANS - 1:
             demo_plan(taken[n - 1] + 9 * 86400)
+    demo_tags()
     print(f"Done: {sum(last.values()):,} demo files across {len(fs_roots)} filesystems. Run `uv run pinax serve`.")
