@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.9.0 (2026-10-29)
+
+Ninth release (wave 9, "action"): totals that count a hard-linked file once, views a person saves and shares with
+their labs, and searches of a whole filesystem that run in the background, past a page's time limit. It comes before
+the production pilot (now wave 10, 0.10.0), which still waits for production storage. See
+[pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+
+Upgrading from 0.8.0: indexes are now version 7; older ones still answer, counting every hard link, so run
+`pinax rebuild --outdated` (charges for storage in hard links fall when they are counted once). The catalog gains
+`saved_view` and `search_job` tables, created at start-up. New settings: `PINAX_JOB_TIMEOUT` (3600) and
+`PINAX_JOB_DAYS` (7); results of searches in the background are kept under `PINAX_VAR_ROOT/jobs`.
 
 ### Added
 

@@ -47,8 +47,10 @@ def _workers() -> ThreadPoolExecutor:
         return _pool
 
 
-def submit(session: Session, ident: Identity, fs_slug, path, flt, sort: str, *, scan=None, lab_slug=None) -> SearchJob:
-    """Check the search as a page would (the person may see the place), then queue it."""
+def submit(session: Session, ident: Identity, fs_slug, path, flt, sort: str, *, scan=None, lab_slug=None,
+           wait: bool = False) -> SearchJob:
+    """Check the search as a page would (the person may see the place), then queue it (or, with `wait`, run it
+    now, as the demo's seed does)."""
     from .explore import FILE_SORTS, resolve
 
     if sort not in FILE_SORTS:
@@ -59,7 +61,11 @@ def submit(session: Session, ident: Identity, fs_slug, path, flt, sort: str, *, 
     job = SearchJob(user_id=ident.user.id, request=request, status=QUEUED)
     session.add(job)
     session.commit()
-    _workers().submit(_run, job.id)
+    if wait:
+        _run(job.id)
+        session.refresh(job)
+    else:
+        _workers().submit(_run, job.id)
     return job
 
 

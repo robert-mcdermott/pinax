@@ -127,6 +127,17 @@ DEMO_TAGS = [
 ]
 
 
+# The Genomics Shared Resource delivers four FASTQ files of a 2024 run to the Lindqvist Lab as hard links, so they are
+# counted once: at the core's own path, which sorts first (R7). (from, to, how many)
+DEMO_LINKS = ("gsr_illumina/runs/2024_run_0110_A02/fastq", "lindqvist_h/wgs/2019_tumor_normal/from_core", 4)
+# A view each, saved after the last scan: (username, name, page, shared with)
+DEMO_VIEWS = [
+    ("afujimoto", "Tumor atlas, oldest data", "/explore?fs=fast&path={root}/fujimoto_a/projects/2022_tumor_atlas&color=oldest",
+     "fujimoto_a"),
+    ("pnatarajan", "Fast by number of files", "/explore?fs=fast&path={root}&size=files", None),
+]
+
+
 # username, display name, title, admin, [(lab slug, role)]
 PEOPLE = [
     ("malvarez", "Marisol Alvarez", "Principal Investigator", False, [("alvarez_m", "pi")]),
@@ -489,6 +500,30 @@ def simulate_month(n: int, roots: dict[str, Path], trees: dict[str, TreeBuilder]
                 os.utime(p, (now - rng.uniform(0, 14) * 86400, f.mtime))
 
 
+def demo_links(fast_root: Path) -> None:
+    """DEMO_LINKS: hard links from the core's run into a lab's folder."""
+    src, dst, count = DEMO_LINKS
+    target = fast_root / dst
+    target.mkdir(parents=True, exist_ok=True)
+    for f in sorted((fast_root / src).iterdir())[:count]:
+        os.link(f, target / f.name)
+
+
+def demo_views_and_search() -> None:
+    """DEMO_VIEWS, and a search of all of Fast for BAM files, run in the background by its administrator."""
+    from . import jobs, views
+    from .auth import identity_for
+    from .explore import FileFilter
+
+    with session_scope() as s:
+        fs = s.scalar(select(Filesystem).where(Filesystem.slug == "fast"))
+        for username, name, page, lab in DEMO_VIEWS:
+            ident = identity_for(s.scalar(select(User).where(User.username == username)))
+            views.save(s, ident, name, page.format(root=fs.root.rstrip("/")), lab)
+        admin = identity_for(s.scalar(select(User).where(User.username == "pnatarajan")))
+        jobs.submit(s, admin, "fast", fs.root, FileFilter(q="*.bam"), "size", wait=True)
+
+
 def demo_tags() -> None:
     """The demo's tags (DEMO_TAGS), each put on by the person named."""
     from .auth import identity_for
@@ -694,6 +729,7 @@ def run_seed(scale: float = 1.0) -> None:
     for fs, root in fs_roots.items():
         root.mkdir(parents=True, exist_ok=True)
         trees[fs].write(root)
+    demo_links(fs_roots["fast"])
     locked = fs_roots["fast"] / "kowalski_d" / "instrument_exports" / "locked"
     locked.chmod(0)  # unreadable: the scan records an error and carries on
 
@@ -753,4 +789,5 @@ def run_seed(scale: float = 1.0) -> None:
         if n == SCANS - 1:
             demo_plan(taken[n - 1] + 9 * 86400)
     demo_tags()
+    demo_views_and_search()
     print(f"Done: {sum(last.values()):,} demo files across {len(fs_roots)} filesystems. Run `uv run pinax serve`.")

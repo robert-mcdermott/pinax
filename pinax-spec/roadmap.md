@@ -16,15 +16,14 @@ decisions taken are recorded here. Later waves are outlined at the end.
 **Progress** is marked here as each slice is committed: done, next or to come. Each requirement's status is
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
-**Where things stand:** waves 1 to 8 are released as 0.1.0 to 0.8.0 (tags on `main`). Besides forecasts, 0.6.0
+**Where things stand:** waves 1 to 9 are released as 0.1.0 to 0.9.0 (tags on `main`). Besides forecasts, 0.6.0
 has what was merged since 0.5.0:
 - labs and departments can be added, changed, and deactivated in the app, so a site needs no CSV files at all;
 - guidance for operating Pinax;
 - time limits for requests, and new and removed files recorded at ingest, for filesystems of two billion files.
 
-Next is wave 9, action: totals that count hard-linked files once, saved and shared views, and searches of a whole
-filesystem as background jobs. The production pilot needs production storage, which will not be reachable for some
-time, so it waits as wave 10, and reach follows as wave 11. If production storage becomes reachable sooner, the
+Next is the production pilot (wave 10), when production storage is reachable; until then, reach (wave 11) can
+come first. If production storage becomes reachable sooner, the
 pilot becomes the next wave and the waves after it are renumbered. Ideas kept for later but not planned are in the
 [parking lot](#parking-lot).
 
@@ -1038,7 +1037,7 @@ the background rather than within a page's time limit.
 | 1 | Hard-link aware totals (R7, Q1) | A file with several hard links counts its size once, at its first link by path (of its device and inode); its other links count as files with no size, in every total (folders, ages, types, owners, charges); each folder records its extra links and what they would have counted again; index version 7; `pinax check` still equal to `fs-inventory rollup`, run on a copy of the scan whose extra links have no size; tested with links within a folder, across folders, and across top-level folders | Done |
 | 2 | Saved and shared views (E9) | A person saves the page they are on (a report, its place, and its settings) under a name, keeps it to themselves or shares it with one of their labs, and opens, renames, or deletes it; *My data* and *All data* list them; a shared view shows only what each member may see; audited | Done |
 | 3 | Searches as background jobs (R13) | A search of a whole filesystem can run in the background, beyond a page's time limit: at most `PINAX_WIDE_QUERIES` at once, each within `PINAX_JOB_TIMEOUT`; its results kept for `PINAX_JOB_DAYS`, listed on a *Searches* page with their CSV; a job left running when Pinax stops is marked as stopped; only its owner and administrators see it | Done |
-| 4 | Demo and release 0.9.0 | Hard links in the demo, a saved and a shared view, and a background search; the README demo script; version 0.9.0, changelog, pull request, tag, release | To come |
+| 4 | Demo and release 0.9.0 | Hard links in the demo, a saved and a shared view, and a background search; the README demo script; version 0.9.0, changelog, pull request, tag, release | Done |
 
 ### Decisions for wave 9
 
@@ -1087,6 +1086,15 @@ the background rather than within a page's time limit.
      deleting deletes its results; searches left running are stopped at start-up; one that runs too long is stopped
      at its limit; an unknown sort refused.
    - *Done*: checked in the browser on the demo (every BAM on *Fast*: 274 files, 20.3 TiB).
+4. **Demo and release 0.9.0.**
+   - `pinax seed` hard-links four of the core's FASTQ files into the Lindqvist Lab's tumor-normal study
+     (`seed.DEMO_LINKS`, counted once at the core, whose path sorts first), saves a view for Aiko Fujimoto shared
+     with her lab and one of Priya Natarajan's (`seed.DEMO_VIEWS`), and runs a search of all of *Fast* for BAM files
+     in the background, waiting for it (`jobs.submit(..., wait=True)`).
+   - `docs/DEMO.md`: the saved view, the search, and the hard links; the README describes them.
+   - Version 0.9.0 in `pyproject.toml`, `pinax.__version__`, and `uv.lock`; `CHANGELOG.md` dated, with notes on
+     upgrading from 0.8.0 (index version 7, two catalog tables, two settings).
+   - Pull request to `main`, then tag `v0.9.0` and the release.
 
 ## Later waves (outlined)
 
