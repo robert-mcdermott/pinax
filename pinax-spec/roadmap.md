@@ -23,7 +23,7 @@ has what was merged since 0.5.0:
 - time limits for requests, and new and removed files recorded at ingest, for filesystems of two billion files.
 
 Next is the production pilot (wave 11), when production storage is reachable; until then, reach (wave 12) can
-come first. If production storage becomes reachable sooner, the pilot becomes the next wave and the
+come first. Whichever comes next starts with the items [carried into the next wave](#carried-into-the-next-wave). If production storage becomes reachable sooner, the pilot becomes the next wave and the
 waves after it are renumbered. Ideas kept for later but not planned are in the [parking lot](#parking-lot).
 
 The order follows one principle:
@@ -1225,6 +1225,15 @@ who changed what, and metrics that a site's monitoring can trend and alert on. N
      upgrading from 0.9.0 (the catalog adopted by its first migration, two dependencies, uvicorn's proxy headers
      off, nine settings, the units and proxy configuration to copy again).
    - Pull request to `main`, then tag `v0.10.0` and the release.
+
+## Carried into the next wave
+
+Small items found since the last release. They are the first slice of whichever wave comes next, the pilot or
+reach, before its own slices.
+
+| Item | Requirements | What is needed |
+| --- | --- | --- |
+| Folding a lab's own tag into a standard one from *Tags* | T2 | Wave 8 built the fold (`tags.merge`, `POST /api/admin/tags/{id}/merge`: each folder with the lab's tag gets the standard tag, with a value given, or the lab tag's own, and the lab's tag is retired), but no button for it. Each row of *Labs' own tags* gets *Fold into a standard tag*: the standard tag, a value if it takes one, how many folders it changes, and a confirmation; then the row shows it retired. Tested through the page's API calls; the administration guide's *Tags* section and its screenshot updated |
 
 ## Later waves (outlined)
 
