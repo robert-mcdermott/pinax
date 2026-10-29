@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **PostgreSQL for the catalog.** `PINAX_DATABASE_URL` can point at PostgreSQL (`postgresql://pinax@host/pinax`),
+  with Pinax installed with its `postgres` extra, for a catalog that IT runs, backs up, and replicates as it does
+  its other databases. SQLite in `PINAX_VAR_ROOT` stays the default, with nothing to install. The whole test suite
+  runs on both.
+- **Migrations.** The catalog is created and upgraded by migrations (Alembic), on either database, when Pinax
+  starts; `PINAX_DB_AUTO_UPGRADE=false` leaves that to `pinax db upgrade`, which can print its SQL for a database
+  administrator (`--sql`). `pinax db status` says whether the catalog is up to date. Processes that start together
+  take turns, and a catalog that a newer Pinax upgraded is refused. A catalog from 0.9.0 or earlier is adopted
+  in place. `pinax db revision` writes a new migration, for developers.
+
+### Fixed
+
+- Two Pinax processes opening a new SQLite catalog at the same moment could fail with "database is locked".
+
 ## 0.9.0 (2026-10-29)
 
 Ninth release (wave 9, "action"): totals that count a hard-linked file once, views a person saves and shares with

@@ -29,7 +29,7 @@ snapshot index that makes it fast, how it is built and queried, security, and me
                                                      │     files/gNNNNNN/  per-file Parquet, by     │
                                                      │                     group of top folders     │
                                                      │                                              │
-                                                     │ catalog (SQLite; PostgreSQL in wave 11)      │
+                                                     │ catalog (SQLite, or PostgreSQL)              │
                                                      │   people, labs, folder ownership,            │
                                                      │   filesystems, snapshots, folder history     │
                                                      │                                              │
@@ -45,7 +45,7 @@ snapshot index that makes it fast, how it is built and queried, security, and me
 | Crawler | fs-inventory 1.0.0 | Built for this: parallel, bounded memory, resumable, lossless names, about 40 bytes per entry in Parquet (measured at 100 million files) |
 | Index engine | DuckDB (embedded) | Columnar, vectorized, spills to disk, reads Parquet natively; no server to run |
 | Per-file store | Parquet, split by top-level folder and sorted by path | Compact; a lab's queries read only its files; a subfolder is a contiguous range |
-| Catalog | SQLAlchemy on SQLite; PostgreSQL planned (wave 11) | Small, transactional data: who owns what, which snapshots exist, folder history, prices, the audit log |
+| Catalog | SQLAlchemy on SQLite by default, or PostgreSQL; Alembic migrations | Small, transactional data: who owns what, which snapshots exist, folder history, prices, the audit log |
 | Web | FastAPI and plain JavaScript modules | Same stack and patterns as Tundra; nothing to build |
 
 ## What Pinax keeps
@@ -84,17 +84,25 @@ labs.
 
 ### The catalog database
 
-The catalog is SQLite in WAL mode, a file opened by the Pinax processes themselves, with no database server to
-run. Many readers work at once; ingests take turns under a lock in `PINAX_VAR_ROOT`. That suits one server running
-the web app and the watcher, as [DEPLOYMENT.md](DEPLOYMENT.md) installs it.
+The catalog is SQLite by default: a file in `PINAX_VAR_ROOT` in WAL mode, opened by the Pinax processes themselves,
+with nothing to install and no database server to run. Many readers work at once; ingests take turns under a lock in
+`PINAX_VAR_ROOT`. That suits one server running the web app and the watcher, as [DEPLOYMENT.md](DEPLOYMENT.md)
+installs it, and every demo and trial.
 
-The catalog has no migrations yet: each release creates new tables and adds new columns (each nullable or with a
-default) at start-up, so an older catalog keeps working, but a change to an existing column or table cannot be
-applied to it. Wave 11 moves the catalog to PostgreSQL with migrations, for three reasons: schema changes of any
-kind can then upgrade a production catalog in place; the web app and ingest can run on more than one machine
-against one catalog; and IT's usual database backups, replication, and monitoring apply. The indexes stay
-DuckDB and Parquet files. Until then, `PINAX_DATABASE_URL` can point at PostgreSQL for a fresh catalog (with the
-`psycopg` driver added), untested and without migrations; production uses SQLite.
+For production, `PINAX_DATABASE_URL` can point at PostgreSQL instead (with Pinax's `postgres` extra installed): a
+database that IT runs, backs up, replicates, and monitors as it does others, and whose writers do not wait on one
+file's lock. Pinax is still one server: indexes and background searches are on its disk. The whole test suite runs
+on both.
+
+**Migrations** (Alembic, in `src/pinax/migrations`, `migrate.py`) create the catalog and upgrade it in place. They
+run when Pinax starts, as new tables and columns were added before, unless `PINAX_DB_AUTO_UPGRADE=false` leaves them
+to `pinax db upgrade`, which can also print its SQL for a database administrator. Processes that start together
+take turns (a lock on PostgreSQL, a lock file beside a SQLite catalog), and a catalog that a newer Pinax has
+upgraded is refused rather than used. The first revision (`0001`) is the catalog as 0.9.0 left it, written out
+rather than taken from the models so it stays fixed; on a catalog made before migrations it adds only the tables and
+columns that catalog lacks, as Pinax did at start-up until then. Constraints and indexes are named by a rule
+(`db.NAMING`), so later revisions can name what they change on either database. A test compares the schema the
+migrations make with the models', on both.
 
 ## The key idea: totals per directory, computed once per scan
 
@@ -238,7 +246,7 @@ folder must still exist for this part of the check. At 100 million files (2.44 m
 nearly all of it the two rollups, and every directory was equal (between two synthetic scans with the same
 contents). Between changed scans from `synth_scan.py --evolve` at one million files, comparing takes 0.2 seconds
 of a six-second build and checking it 1.1 seconds, every directory equal; changed scans at 100 million files wait
-for server-class hardware (wave 10).
+for server-class hardware (wave 11).
 
 ## Real filesystems
 
@@ -266,7 +274,7 @@ A real scan was checked the same way: the maintainer's documents folder on a lap
 builds in 0.8 s and every query takes under 25 ms. It also showed common types that were counted as *other*:
 camera photo and video formats, macro-enabled spreadsheets, diagrams, executables, and disk images, 35% of its
 bytes. With those added, *other* is 0.8% of its bytes, nearly all of it files without an extension. Production
-storage, with many owners and a billion files, is measured in wave 10.
+storage, with many owners and a billion files, is measured in wave 11.
 
 ## Querying
 
@@ -661,7 +669,7 @@ uv run python bench/bench_charges.py --folders 2000 --weeks 52
 |---|---|---|
 | `pinax seed` writes demo trees of sparse files and scans them with fs-inventory | Scheduled fs-inventory scans on storage nodes or scan hosts | Pinax ingests any complete Parquet scan |
 | Demo owners rewritten to fictional accounts, and demo scans dated a month apart | Real owners and times from the scan | Only `seed.py` rewrites scans, only its own demo scans |
-| SQLite catalog | SQLite on one server; PostgreSQL in wave 11 | SQLAlchemy models; migrations still to add ([The catalog database](#the-catalog-database)) |
+| SQLite catalog | SQLite on one server, or PostgreSQL | Migrations upgrade either in place ([The catalog database](#the-catalog-database)) |
 | Demo identity switcher | Single sign-on proxy, `PINAX_AUTH_MODE=header` | Checked behind oauth2-proxy 7.15 with a stand-in identity provider |
 | People, labs, and folder mappings managed in the app | The same, fed from the authoritative source; until then imported from CSV (`pinax import`) | Same model as Tundra |
 | One server | Web and ingest can run on separate hosts sharing `var/snapshots` | Indexes are replaced, never changed in place; keep every ingest on one host, since the ingest lock is a file lock in `PINAX_VAR_ROOT` |

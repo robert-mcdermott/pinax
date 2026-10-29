@@ -3,7 +3,7 @@
 Installing Pinax on a Linux server: the services, single sign-on, scans and keeping them, upgrades, sizing, backups,
 charges and statements, and operations.
 The files this guide installs are in `deploy/`. This guide is checked against the tests and a local run; the
-pilot installation (wave 10 in `pinax-spec/roadmap.md`) will confirm it on a real server.
+pilot installation (wave 11 in `pinax-spec/roadmap.md`) will confirm it on a real server.
 
 ## Shape of a deployment
 
@@ -292,9 +292,18 @@ fails. The web app opens rebuilt indexes without a restart. `pinax rebuild SNAPS
 one whose index was lost. Rebuilding needs the snapshot's scan: a snapshot whose scan folder was deleted keeps its
 old index, without what the new format adds, and the rebuild says so.
 
-The catalog has no migrations yet (they come with PostgreSQL, in wave 11): new tables are created at start-up,
-and so are new columns of existing tables (each new column is nullable or has a default); a release that changes
-anything else says so, and pilot catalogs are then re-created from the import files.
+The catalog is upgraded by migrations, when the web app or the watcher starts: `CHANGELOG.md` says when a release
+has one, and `journalctl -u pinax-web` shows `Upgraded the catalog to revision ...`. Back the catalog up first
+([Backups](#backups)). Processes that start together take turns, and a catalog from 0.9.0 or earlier (made before
+migrations) is adopted the same way. Where database changes go through a database administrator, set
+`PINAX_DB_AUTO_UPGRADE=false`: Pinax then refuses to start with a catalog that is behind and says so, and
+
+```bash
+sudo -u pinax /opt/pinax/.venv/bin/pinax db upgrade --sql
+```
+
+prints the SQL to review and apply, or `pinax db upgrade` applies it. A catalog that a newer release has upgraded is
+refused by an older one: to go back to an older release, restore a backup made before the upgrade.
 
 ## Sizing
 
@@ -339,15 +348,52 @@ request Pinax stopped (`Stopped /api/files: timeout after 180 s`).
 
 ## Catalog database
 
-The catalog is SQLite in WAL mode, `/var/lib/pinax/pinax.db`: a file the Pinax processes open themselves, with no
-database server to run, which suits one server running the web app and the watcher. It holds everything that
-cannot be made again (see [What Pinax keeps](ARCHITECTURE.md#what-pinax-keeps)), so back it up.
+The catalog is SQLite in WAL mode by default, `/var/lib/pinax/pinax.db`: a file the Pinax processes open
+themselves, with no database server to run, which suits one server running the web app and the watcher. It holds
+everything that cannot be made again (see [What Pinax keeps](ARCHITECTURE.md#what-pinax-keeps)), so back it up.
+PostgreSQL is the choice when IT would rather run the catalog as one of its databases, backed up, replicated, and
+monitored as the others are ([The catalog database](ARCHITECTURE.md#the-catalog-database)).
 
-Wave 11 moves it to PostgreSQL with migrations, so that any schema change can upgrade a production catalog in
-place, more than one machine can run Pinax against one catalog, and IT's usual database backups and replication
-apply ([The catalog database](ARCHITECTURE.md#the-catalog-database)). Until then production uses SQLite;
-`PINAX_DATABASE_URL` can point at PostgreSQL for a fresh catalog (with the `psycopg` driver added), untested and
-without migrations.
+`pinax db status` names the catalog (never its password) and says whether it is up to date. Releases that change the
+catalog do it with migrations, applied when Pinax starts ([Upgrading](#upgrading)).
+
+### PostgreSQL
+
+PostgreSQL 14 or later. Pinax needs one database and a role that owns it:
+
+```bash
+sudo -u postgres createuser --pwprompt pinax
+```
+
+```bash
+sudo -u postgres createdb --owner pinax pinax
+```
+
+Install Pinax with its PostgreSQL driver (step 2 of [Install](#install), with `--extra postgres`):
+
+```bash
+cd /opt/pinax && sudo env UV_PYTHON_INSTALL_DIR=/opt/pinax/.python uv sync --frozen --no-dev --extra postgres
+```
+
+Point Pinax at it in `/etc/pinax/pinax.env`, without the password, and with TLS when the database is on another host:
+
+```bash
+PINAX_DATABASE_URL=postgresql://pinax@db.example.org/pinax?sslmode=verify-full
+```
+
+Put the password in the `pinax` user's `~/.pgpass`, which only that user may read (PostgreSQL's driver refuses it
+otherwise):
+
+```bash
+echo 'db.example.org:5432:pinax:pinax:THE-PASSWORD' | sudo -u pinax tee /var/lib/pinax/.pgpass >/dev/null && sudo chmod 0600 /var/lib/pinax/.pgpass
+```
+
+Then `sudo -u pinax /opt/pinax/.venv/bin/pinax db upgrade` creates the catalog (Pinax would also do it when it
+starts), and `pinax db status` should say *up to date*. Each Pinax process keeps up to `PINAX_DATABASE_POOL_SIZE`
+(10) connections open, and as many more at busy times; the web app, the watcher, and commands each have their own.
+Connections show as `pinax` in `pg_stat_activity`.
+
+A site that already runs Pinax on SQLite moves its catalog with `pinax db copy` (wave 10, slice 2).
 
 ## Backups
 
@@ -366,6 +412,15 @@ without migrations.
 
   Then copy the backup off the server. To restore, stop `pinax-web` and `pinax-ingest`, put the backup in place
   of `pinax.db`, delete `pinax.db-wal` and `pinax.db-shm`, and start them again. Keep the import files too.
+
+  On PostgreSQL, the database's own backups apply, IT's or `pg_dump`, which is safe while Pinax runs:
+
+  ```bash
+  sudo -u pinax pg_dump --format=custom --file=/var/lib/pinax/backup/pinax-$(date +%F).dump pinax
+  ```
+
+  To restore, stop `pinax-web` and `pinax-ingest`, restore into an empty database with `pg_restore --no-owner
+  --role=pinax --dbname=pinax`, and start them again.
 - **Indexes**: optional; `pinax rebuild` makes each again from its snapshot's scan, if that is kept.
 - **Scans**: keep those of snapshots that still have their index ([Scans](#scans)); the rest can be deleted.
 - A catalog backup holds top-level folder names and people's names and emails; copies of indexes or scans hold

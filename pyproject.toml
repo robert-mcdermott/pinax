@@ -10,6 +10,7 @@ license-files = ["LICENSE", "NOTICE"]
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "alembic>=1.16",
     "duckdb>=2.0.0",
     "fastapi>=0.161.1",
     "pydantic-settings>=2.16.1",
@@ -19,6 +20,11 @@ dependencies = [
 
 [project.scripts]
 pinax = "pinax:main"
+
+[project.optional-dependencies]
+postgres = [
+    "psycopg[binary]>=3.2",
+]
 
 [build-system]
 requires = ["uv_build>=0.13.1,<0.14.0"]

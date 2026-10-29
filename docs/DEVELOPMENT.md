@@ -33,12 +33,33 @@ Use `uv` for everything: `uv add <package>` for dependencies and `uv run` for sc
 temporary catalog and snapshot folders and never touch the demo. The end-to-end test and the rollup
 cross-check tests run the real fs-inventory binary and are skipped when it is not installed.
 
+### Tests on PostgreSQL
+
+The catalog runs on SQLite or PostgreSQL, and the whole suite runs on both. With `PINAX_TEST_DATABASE_URL` set, each
+test gets a schema of its own in that database, dropped afterwards. A throwaway PostgreSQL in a container, with its
+data in memory:
+
+```bash
+podman run -d --name pinax-pg-test -e POSTGRES_USER=pinax -e POSTGRES_PASSWORD=pinax-test -e POSTGRES_DB=pinax -p 127.0.0.1:55432:5432 --tmpfs /var/lib/postgresql/data docker.io/library/postgres:16 -c fsync=off -c max_connections=200
+```
+
+```bash
+uv sync --extra postgres
+```
+
+```bash
+PINAX_TEST_DATABASE_URL=postgresql://pinax:pinax-test@127.0.0.1:55432/pinax uv run pytest
+```
+
+`docker` takes the same arguments. Tests about SQLite catalogs only (`conftest.sqlite_only`) are skipped there.
+
 ## Code layout
 
 ```text
 src/pinax/
   config.py        settings (see docs/CONFIGURATION.md)
-  db.py            catalog engine and sessions (SQLite in WAL mode)
+  db.py            catalog engine and sessions (SQLite in WAL mode, or PostgreSQL)
+  migrate.py       the catalog's migrations: upgrading at start-up, `pinax db`; revisions in migrations/versions/
   models.py        catalog schema: people, labs, folder ownership, filesystems, snapshots, folder history, capacity,
                    marked folders, audit
   categories.py    file categories, type normalization, age buckets
@@ -93,8 +114,12 @@ tests/             pytest suite; scanfix.py writes exact fs-inventory-shaped sca
 - **Age buckets use whole microseconds** (`epoch_us`), never fractional days, so a file exactly on an edge is
   in the older bucket, as in fs-inventory rollup.
 - **Times** come out of DuckDB as epoch seconds (`epoch(...)`), never as timezone-aware values.
-- **Schema changes** to the catalog: edit `models.py`, then re-seed (`uv run pinax seed`). There are no
-  migrations yet; Alembic must be added before production data exists.
+- **Schema changes** to the catalog are migrations (Alembic, `src/pinax/migrations/versions/`): edit `models.py`,
+  bring a catalog up to date (`uv run pinax db upgrade`), then `uv run pinax db revision "What it changes"` writes
+  the next revision from the difference. Read it before keeping it: Alembic sees a renamed column as one dropped
+  and one added, and a new column on existing rows needs a server default or `nullable=True`. Never change a
+  revision that has been released. `tests/test_migrations.py` checks that the migrations make the models' schema;
+  run it on PostgreSQL too ([Tests on PostgreSQL](#tests-on-postgresql)).
 - **New settings**: add the field to `config.py`, and document it in `docs/CONFIGURATION.md` and `.env.example`.
 
 ## HTTP API

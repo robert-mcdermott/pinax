@@ -23,7 +23,13 @@ class Settings(BaseSettings):
     var_root: Path = PROJECT_ROOT / "var"
     scan_root: Path = PROJECT_ROOT / "scans"
     demo_root: Path = PROJECT_ROOT / "demo"
+    # The catalog: SQLite in VAR_ROOT by default, or PostgreSQL (`postgresql://user@host/db`, with the `postgres`
+    # extra installed) for production. Migrations bring it up to date at start-up, unless DB_AUTO_UPGRADE is false
+    # and `pinax db upgrade` is left to whoever runs the database. DATABASE_POOL_SIZE: PostgreSQL connections kept
+    # open per process, and as many more at busy times.
     database_url: str = ""
+    db_auto_upgrade: bool = True
+    database_pool_size: int = Field(10, ge=1, le=100)
 
     # fs-inventory. Defaults to bin/fs-inventory (scripts/install-fs-inventory.sh), then the PATH.
     fs_inventory: str = ""
@@ -81,7 +87,11 @@ class Settings(BaseSettings):
 
     @property
     def db_url(self) -> str:
-        return self.database_url or f"sqlite:///{self.var_root / 'pinax.db'}"
+        url = self.database_url or f"sqlite:///{self.var_root / 'pinax.db'}"
+        for plain in ("postgresql://", "postgres://"):  # PostgreSQL's own form of URL, with Pinax's driver
+            if url.startswith(plain):
+                return "postgresql+psycopg://" + url.removeprefix(plain)
+        return url
 
     @property
     def snapshot_root(self) -> Path:

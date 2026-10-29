@@ -22,26 +22,29 @@ has what was merged since 0.5.0:
 - guidance for operating Pinax;
 - time limits for requests, and new and removed files recorded at ingest, for filesystems of two billion files.
 
-Next is the production pilot (wave 10), when production storage is reachable; until then, reach (wave 11) can
-come first. If production storage becomes reachable sooner, the
-pilot becomes the next wave and the waves after it are renumbered. Ideas kept for later but not planned are in the
-[parking lot](#parking-lot).
+Wave 10 (operations: a PostgreSQL catalog with migrations, system and audit logs, and Prometheus metrics) is
+being built. Next is the production pilot (wave 11), when production storage is reachable; until then, reach
+(wave 12) can come first. If production storage becomes reachable sooner, the pilot becomes the next wave and the
+waves after it are renumbered. Ideas kept for later but not planned are in the [parking lot](#parking-lot).
 
 The order follows one principle:
 1. **Trust first.** Totals that agree with an independent computation on every directory, and that say when
    they are lower bounds.
 2. **Then real storage at real scale.** First everything a production deployment needs, checked on real local
-   scans and on synthetic data at scale (wave 2); then production storage itself and a pilot (wave 10).
+   scans and on synthetic data at scale (wave 2); then production storage itself and a pilot (wave 11).
 3. **Then change over time.** Where the growth comes from, and whether data is ageing. It comes before the pilot
    (wave 3) because it can be built and checked without production storage, which is not yet reachable.
 4. **Then what a site needs to run Pinax, and to charge for storage.** People managed in the app, and sign-in
    without single sign-on (wave 4); costs and chargeback (wave 5). Both come before the pilot for the same reason.
 5. **Then action.** Where storage is heading, what a lab could free and what that would save, and folders
    described in terms a lab and IT share (waves 6 to 8). These come before the pilot for the same reason.
-6. **Then reach.** Everyone in the organization, signed in, with access kept in step with the directory (wave 11).
+6. **Then reach.** Everyone in the organization, signed in, with access kept in step with the directory (wave 12).
 
 Wave 9 (action: hard links, saved views, background searches) came before the pilot and reach once the pilot was
-still out of reach after wave 8, as this plan allowed; the waves after it were renumbered.
+still out of reach after wave 8, as this plan allowed; the waves after it were renumbered. Wave 10 (operations)
+is the part of reach that a production deployment needs before it has many users: a catalog on PostgreSQL that
+migrations upgrade in place, logs a site can collect, and metrics its monitoring can trend and alert on. It came
+next at the maintainer's request, and the pilot and the rest of reach were renumbered after it.
 
 Work that needs a system Pinax has no access to, such as a mail service, a chat workspace, or a storage system's
 own interface, is kept in the [parking lot](#parking-lot) rather than planned.
@@ -141,7 +144,7 @@ recorded below as built. Merged to `main` in pull request #1 and released as v0.
 Everything a first production deployment needs, built and checked without production storage: every number
 checked against an independent tool, the shapes of real filesystems handled, 100 million files indexed, scans
 ingested as they arrive, labs onboarded in bulk, and a deployment kit. Production storage and the pilot follow
-in wave 10.
+in wave 11.
 
 ### Wave 2 sequence
 
@@ -152,7 +155,7 @@ in wave 10.
 | 3 | Scale to 100 million (S3, R3, Q3–Q5) | A 100-million-file synthetic scan, built and queried on the development laptop, meets Q3–Q5; whole-filesystem cold folders precomputed per age threshold at build time and answered within Q3; build memory and threads tuned and documented | Done |
 | 4 | Automatic ingest (S4, O4) | `pinax ingest --watch` (or a timer) ingests each new verified scan under a folder once, skipping incomplete and already-ingested scans, safe if two run at once; failures shown on *Scans* with the error; tests for each case | Done |
 | 5 | Bulk onboarding (A5) | Labs, people, memberships, and folder ownership imported from CSV with a dry run that lists every change, refusing ambiguous rows; changes audited; example files and docs | Done |
-| 6 | Deployment kit (P6, A4) | systemd units for the web app and ingest; header mode checked behind oauth2-proxy with a local test identity provider; a health endpoint; `docs/DEPLOYMENT.md` rewritten as an installation guide, confirmed by the pilot's installation in wave 10 | Done |
+| 6 | Deployment kit (P6, A4) | systemd units for the web app and ingest; header mode checked behind oauth2-proxy with a local test identity provider; a health endpoint; `docs/DEPLOYMENT.md` rewritten as an installation guide, confirmed by the pilot's installation in wave 11 | Done |
 | 7 | Release 0.2.0 | README demo script updated; version 0.2.0, changelog, pull request, tag, release | Done |
 
 ### Decisions for wave 2
@@ -163,12 +166,12 @@ in wave 10.
   one of them until explained.
 - Production storage is out of reach while wave 2 is built (decided 2026-10-26). The real scan in slice 2 is the
   maintainer's `~/Documents`: real names and shapes, but one owner on a laptop disk. Owners and labs are covered by
-  the demo seed and synthetic scans; production scans, server hardware, and the pilot are wave 10.
+  the demo seed and synthetic scans; production scans, server hardware, and the pilot are wave 11.
 - Pinax records only counts, timings, and checksums from real scans, never paths or names, in the repository;
   the scans themselves stay outside it and are deleted after measuring.
 - Watching polls a folder on a timer instead of relying on file-change notifications, which network filesystems
   do not deliver reliably.
-- Bulk onboarding is a stop-gap until the authoritative source of folder ownership is decided (wave 11); the import
+- Bulk onboarding is a stop-gap until the authoritative source of folder ownership is decided (wave 12); the import
   format is documented so that source can produce it.
 - No catalog migrations yet: waves 2 and 3 may still change the catalog schema, so pilot catalogs are re-created
   from the import files. Snapshot indexes are rebuilt from scans when `INDEX_VERSION` changes.
@@ -214,7 +217,7 @@ in wave 10.
      video formats, macro-enabled spreadsheets, diagrams, executables, and disk images were added to their
      categories, leaving 0.8%. The scan and its indexes were deleted after measuring.
    - *Done*: the real local scan and the wide and deep synthetic scan equal to rollup on every directory, with
-     the shapes above handled. Measuring production storage moved to wave 10.
+     the shapes above handled. Measuring production storage moved to wave 11.
 3. **Scale to 100 million (S3, R3, Q3–Q5).**
    - A synthetic scan of 100 million files in 2.44 million folders under 2,000 top-level folders, generated in
      155 s (3.8 GB).
@@ -232,7 +235,7 @@ in wave 10.
      file); directory-level queries 1–50 ms; lab searches 22 ms, whole-filesystem searches 2.8 s; every
      directory equal to rollup. With 17 GB and all ten threads the build was no faster (133 s), so the default
      stays 8 GB.
-   - *Done*: Q3–Q5 met at 100 million synthetic files on the laptop; server hardware and production are wave 10.
+   - *Done*: Q3–Q5 met at 100 million synthetic files on the laptop; server hardware and production are wave 11.
 4. **Automatic ingest (S4, O4).**
    - `watch.py` and `pinax ingest --watch [FOLDER] [--interval N] [--once] [--no-verify] [--allow-incomplete]`: each
      pass finds scan folders up to three levels down, oldest first; complete scans are verified with
@@ -1096,15 +1099,74 @@ the background rather than within a page's time limit.
      upgrading from 0.8.0 (index version 7, two catalog tables, two settings).
    - Pull request to `main`, then tag `v0.9.0` and the release.
 
+## 0.10.0: operations (wave 10)
+
+What a production deployment needs from Pinax itself, before it has many users: a catalog on PostgreSQL that
+migrations upgrade in place (SQLite stays the default, with nothing to install), logs of what the system did and of
+who changed what, and metrics that a site's monitoring can trend and alert on. None of it needs production storage.
+
+### Wave 10 sequence
+
+| Slice | Scope and requirements | Acceptance before the next slice | Status |
+| --- | --- | --- | --- |
+| 1 | The catalog on PostgreSQL, with migrations (P7) | Migrations (Alembic) create and upgrade the catalog on SQLite and PostgreSQL, replacing the columns added at start-up; a catalog from 0.9.0 or earlier is adopted in place; `pinax db status` and `pinax db upgrade`; the PostgreSQL driver is an optional extra; the whole test suite passes on both, PostgreSQL in a container; the migrations' schema equals the models' on both | Done |
+| 2 | Moving a catalog to PostgreSQL (P7) | `pinax db copy` copies every table of one catalog into another, empty one at the same version, in batches, then sets PostgreSQL's sequences and checks every table's count; a demo catalog copied to PostgreSQL serves the demo the same | Next |
+| 3 | System and audit logs (O5) | Logs as text (the journal) or JSON lines (a log collector), to standard error or a file that `logrotate` can rotate; one line per request with a request ID (also returned to the browser), the person, their address, the route, the status, and the time taken; slow requests flagged; every audit event also logged once its change is committed, optionally to a file of its own; the address of the person, not the proxy, behind a trusted proxy; a start-up line with the version and the catalog (never its password); never a password, token, or session | To come |
+| 4 | Prometheus metrics (O4, O5) | `/metrics` in Prometheus's format, off until a token is set and then only with it; scans and ingests by filesystem (when each last succeeded and failed, how long it took, the watcher's heartbeat), filesystem totals and capacity, Pinax's own disk, requests by route and their times, stopped queries, whole-filesystem query turns, background searches, sign-ins; filesystems named, never labs, people, or paths; a scrape configuration and alert rules in `deploy/prometheus/` | To come |
+| 5 | Demo and release 0.10.0 | The demo unchanged on SQLite, and checked once on PostgreSQL; the deployment guide's PostgreSQL, logs, and monitoring sections; version 0.10.0, changelog, pull request, tag, release | To come |
+
+### Decisions for wave 10
+
+- **SQLite stays the default**, with nothing to install or run; PostgreSQL is for production, with its driver as an
+  optional extra (`uv sync --extra postgres`). Both are tested with the whole suite.
+- **Migrations with Alembic**, shipped inside the package. They run at start-up, as new tables and columns did
+  before, unless `PINAX_DB_AUTO_UPGRADE=false`, for sites whose database administrators apply changes themselves
+  (`pinax db upgrade`); a catalog that is behind then stops Pinax from starting, and says why.
+- **Still one Pinax server.** Indexes and background searches live on its disk. PostgreSQL brings a database that
+  IT runs, backs up, and replicates, and writers that do not wait on one file's lock.
+- **Metrics name filesystems only**, never labs, people, or paths: Pinax's own pages trend labs, for those who may
+  see them. They are off until `PINAX_METRICS_TOKEN` is set.
+- **Audit events stay in the catalog**, where Pinax's pages read them; the log gets a copy of each once its change is
+  committed, for a site's log collector or security monitoring.
+- **Sign-in with Microsoft Entra ID in Pinax itself**, with OpenID Connect, rather than behind an authenticating
+  proxy, is for reach (wave 12), with roles from Entra ID groups or app roles. Header mode behind a proxy stays, for
+  other identity providers.
+
+### Slices as built
+
+1. **The catalog on PostgreSQL, with migrations (P7).**
+   - Alembic, inside the package (`src/pinax/migrations`, no `alembic.ini`), run by `migrate.py`. The first revision
+     (`0001`) writes out the catalog as 0.9.0 left it rather than taking it from the models, so it stays fixed: on
+     a new catalog it creates every table, and on one made before migrations it adds the tables and columns that
+     catalog lacks, as start-up did until now (`add_missing_columns` moved there). Constraints and indexes are named
+     by a rule (`db.NAMING`). `pinax db revision` writes the next revision from the models' changes, for developers.
+   - `init_db` upgrades when Pinax starts, unless `PINAX_DB_AUTO_UPGRADE=false`; then a catalog that is behind
+     stops Pinax with a message naming `pinax db upgrade`. Processes take turns: `pg_advisory_xact_lock` on
+     PostgreSQL, and on SQLite a lock file beside the catalog, held until the upgrade is committed. A catalog at a
+     revision this Pinax does not know is refused. `pinax db status`, `pinax db upgrade`, and `--sql` (Alembic's
+     offline mode, for a database administrator).
+   - PostgreSQL through psycopg 3, an optional extra (`postgres`); `postgresql://` URLs get that driver; a pool of
+     `PINAX_DATABASE_POOL_SIZE` connections per process, named `pinax` in `pg_stat_activity`; a message naming the
+     extra when the driver is missing. `pinax seed` resets either database (`db.reset_catalog`).
+   - Found on the way: two processes turning a new SQLite catalog to WAL at once could fail with "database is
+     locked", since SQLite does not wait for that; they now try again for a few seconds.
+   - Tests (`tests/test_migrations.py`): the migrations make the models' schema (Alembic's comparison, empty), a
+     0.3.0 catalog adopted, a newer catalog refused, upgrading left to an administrator (`db status`, `--sql`,
+     `upgrade`), two processes at once, and a new revision holding what the catalog lacks. With
+     `PINAX_TEST_DATABASE_URL`, every test runs in a schema of its own in PostgreSQL.
+   - *Done*: the whole suite on PostgreSQL 16 in a container (295 passed, the one about SQLite catalogs skipped, in
+     3.5 minutes) and on SQLite; the models needed no change for PostgreSQL. The demo seeded into PostgreSQL (34,854
+     files, the same as on SQLite) and served the same.
+
 ## Later waves (outlined)
 
 | Wave | Release | Theme | Main content |
 | --- | --- | --- | --- |
-| 10 | 0.10.0 | Production pilot | The largest production scan available ingests and passes `pinax check`; build time, index size, and query times measured on production replace the extrapolations in `docs/ARCHITECTURE.md`; 100 million files on server-class hardware, including the change map, what changed, and changed scans at that size, and the folder counts of production (two billion files may mean 50 to 200 million folders, which every report that reads all folders grows with); the time limits and whole-filesystem query turns set for production; installation on a pilot server from the deployment kit, scanning on a schedule; IT and a few pilot labs use it, and what they find is fixed or recorded |
-| 11 | 0.11.0 | Reach | PostgreSQL and migrations (P7), replacing the columns added at start-up; single sign-on with roles from directory groups and membership synced from the directory (A6); recertification report (A7); CI, container image (P6); metrics and structured logs, including a metric that the site's monitoring can alert on when a scan or ingest fails (O4, O5); for local sign-in, two-factor codes, limits per network address, and the person's own address behind a proxy; security review |
-| 12 | 1.0.0 | Hardening | Budgets met at a billion files in production; accessibility audit; documentation complete; pilot and early-user feedback addressed |
+| 11 | 0.11.0 | Production pilot | The largest production scan available ingests and passes `pinax check`; build time, index size, and query times measured on production replace the extrapolations in `docs/ARCHITECTURE.md`; 100 million files on server-class hardware, including the change map, what changed, and changed scans at that size, and the folder counts of production (two billion files may mean 50 to 200 million folders, which every report that reads all folders grows with); the time limits and whole-filesystem query turns set for production; installation on a pilot server from the deployment kit, scanning on a schedule; IT and a few pilot labs use it, and what they find is fixed or recorded |
+| 12 | 0.12.0 | Reach | Sign-in with Microsoft Entra ID in Pinax itself (OpenID Connect, the authorization code flow with PKCE), with roles from Entra ID groups or app roles and lab membership synced from the directory (A6); recertification report (A7); CI, container image (P6); for local sign-in, two-factor codes and limits per network address; security review |
+| 13 | 1.0.0 | Hardening | Budgets met at a billion files in production; accessibility audit; documentation complete; pilot and early-user feedback addressed |
 
-Wave 11 needs no production storage either: if the pilot is still out of reach after wave 9, parts of it can come
+Wave 12 needs no production storage either: if the pilot is still out of reach after wave 10, parts of it can come
 first.
 
 ## Parking lot
@@ -1116,7 +1178,7 @@ Ideas kept for later, and not on a path to be built. An idea leaves the parking 
 | Idea | What it needs |
 | --- | --- |
 | Monthly digests for PIs: their storage, what changed, their charges, and their cleanup plan (was in wave 8) | A mail service |
-| Alerts by email, Slack, or Teams when a scan or ingest fails (wave 11 keeps a metric that the site's monitoring can alert on) | A mail service or a chat workspace |
+| Alerts by email, Slack, or Teams when a scan or ingest fails (wave 10 keeps a metric that the site's monitoring can alert on) | A mail service or a chat workspace |
 | Slack or Teams messages, such as a plan's progress or a filesystem filling | A chat workspace and an app registered in it |
 | Cleanup plans sent as tickets to the storage team | The ticketing system's interface (ServiceNow, Jira) |
 | Quotas beside folders (was in wave 8) | The storage system's quota interface |
@@ -1139,8 +1201,8 @@ Ideas kept for later, and not on a path to be built. An idea leaves the parking 
 ## Decisions still open
 
 - The authoritative source of folder ownership (which lab owns each top-level folder), and how Pinax stays in step
-  with it (wave 11).
+  with it (wave 12).
 - Which filesystems record access time reliably enough to show it by default.
 - Scan cadence and snapshot retention for each filesystem.
-- When production storage becomes reachable for wave 10, and which filesystem and labs the pilot uses.
+- When production storage becomes reachable for wave 11, and which filesystem and labs the pilot uses.
 - Who may see unmapped folders besides storage administrators (for example division data managers).

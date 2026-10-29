@@ -4,7 +4,6 @@ passwords, temporary passwords that must be changed, lockout, sessions, the firs
 line, and refusing the demo's sign-in-as-anyone in production."""
 
 import json
-import sqlite3
 import sys
 from datetime import timedelta
 
@@ -287,31 +286,6 @@ def test_the_command_line_follows_the_same_rules(local, monkeypatch, capsys):
     with pytest.raises(SystemExit) as done:
         cli.main()
     assert done.value.code == 1 and "differs only in case" in capsys.readouterr().err
-
-
-# ---------- Upgrading a catalog ----------
-
-def test_an_older_catalog_gains_the_new_columns(env, tmp_path):
-    """A 0.3.0 catalog has no sign-in columns: starting Pinax adds them, with their defaults."""
-    from pinax import db
-    from pinax.models import User
-
-    path = env.var_root / "pinax.db"
-    db.reset_engine()
-    path.unlink()
-    for suffix in ("-wal", "-shm"):
-        (env.var_root / f"pinax.db{suffix}").unlink(missing_ok=True)
-    con = sqlite3.connect(path)
-    con.execute('CREATE TABLE "user" (id INTEGER PRIMARY KEY, username VARCHAR(64) UNIQUE, display_name VARCHAR(200), '
-                "email VARCHAR(200), title VARCHAR(200), is_admin BOOLEAN, active BOOLEAN, created_at DATETIME)")
-    con.execute("INSERT INTO \"user\" VALUES (1, 'old', 'Old Timer', 'old@example.org', '', 1, 1, '2026-01-01')")
-    con.commit()
-    con.close()
-    db.init_db()
-    with db.session_scope() as s:
-        u = s.scalar(select(User).where(User.username == "old"))
-        assert (u.password_hash, u.must_change_password, u.failed_logins, u.locked_until) == (None, False, 0, None)
-    assert db.add_missing_columns(db.get_engine()) == []  # nothing left to add
 
 
 # ---------- Passwords ----------

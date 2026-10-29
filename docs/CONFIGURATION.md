@@ -17,7 +17,9 @@ Settings are `PINAX_*` environment variables, or a `.env` file in the folder you
 | `PINAX_VAR_ROOT` | `var/` | The catalog database (`pinax.db`) and snapshot indexes (`snapshots/`) |
 | `PINAX_SCAN_ROOT` | `scans/` | Where `pinax scan` writes fs-inventory output, as `<filesystem>/<UTC time>/`, and where the watcher looks. Scans made elsewhere can live anywhere. Pinax never deletes scans ([what to keep](ARCHITECTURE.md#what-pinax-keeps)) |
 | `PINAX_DEMO_ROOT` | `demo/` | Demo filesystems and scans written by `pinax seed` |
-| `PINAX_DATABASE_URL` | SQLite in `VAR_ROOT` | SQLAlchemy URL of the catalog. Production uses the SQLite default until PostgreSQL and migrations arrive in wave 11; a PostgreSQL URL (`postgresql+psycopg://pinax@db/pinax`, with the `psycopg` driver added) works for a fresh catalog, untested ([The catalog database](ARCHITECTURE.md#the-catalog-database)) |
+| `PINAX_DATABASE_URL` | SQLite in `VAR_ROOT` | The catalog's database. Empty for SQLite in `VAR_ROOT`, or a PostgreSQL URL such as `postgresql://pinax@db.example.org/pinax?sslmode=verify-full`, with Pinax installed with its `postgres` extra ([PostgreSQL](DEPLOYMENT.md#postgresql)). Leave the password out: PostgreSQL's driver reads it from `~/.pgpass` or `PGPASSWORD` |
+| `PINAX_DB_AUTO_UPGRADE` | `true` | Upgrade the catalog when Pinax starts, if a release needs it. `false` leaves that to `pinax db upgrade` (which can print its SQL), and Pinax refuses to start with a catalog that is behind ([The catalog database](ARCHITECTURE.md#the-catalog-database)) |
+| `PINAX_DATABASE_POOL_SIZE` | `10` | PostgreSQL connections each Pinax process keeps open, with as many more at busy times |
 
 ## Scanning
 

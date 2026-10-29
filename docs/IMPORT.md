@@ -19,7 +19,7 @@ The folder holds any of `labs.csv`, `people.csv`, `memberships.csv`, and `folder
 `--labs`, `--people`, `--memberships`, and `--folders`. The examples in `examples/import/` fit the demo: they add
 two departments and a lab, three people, and owners for the demo's three unmapped folders.
 
-This is a stop-gap until the authoritative source of folder ownership is chosen (wave 11 in
+This is a stop-gap until the authoritative source of folder ownership is chosen (wave 12 in
 `pinax-spec/roadmap.md`). That source, or a script reading it, can write these files.
 
 ## How an import works
