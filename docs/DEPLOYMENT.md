@@ -176,9 +176,12 @@ From then on, administrators add people and give them temporary passwords under 
 makes each password up and shows it once. A forgotten password, or an account locked after five failed sign-ins
 (for 15 minutes), needs a new temporary password from an administrator, or `pinax user password USERNAME` on the
 server. Sessions last 12 hours and end on signing out, on deactivation, and when a password is set or changed.
-Every sign-in, failure, lock, and password change is in the audit log, never the passwords. Two limits: behind a
-reverse proxy the log records the proxy's address rather than the person's, and failures lock an account rather
-than slowing down an address.
+Every sign-in, failure, lock, and password change is in the audit log, never the passwords. Add the reverse
+proxy's address to `PINAX_TRUSTED_PROXIES`, so the log, the audit, and each session record the person's own address
+from `X-Forwarded-For` rather than the proxy's. One limit: failures lock an account rather than slowing down an
+address.
+
+![The sign-in page with local sign-in](images/sign-in-light.webp "Local sign-in: a username and a password Pinax keeps.")
 
 To move to single sign-on later, set `PINAX_AUTH_MODE=header` and follow step 6. People, labs, and memberships
 stay; passwords are no longer used. Usernames must then be what the proxy sends (with Entra ID, usually the user
@@ -299,7 +302,7 @@ migrations) is adopted the same way. Where database changes go through a databas
 `PINAX_DB_AUTO_UPGRADE=false`: Pinax then refuses to start with a catalog that is behind and says so, and
 
 ```bash
-sudo -u pinax /opt/pinax/.venv/bin/pinax db upgrade --sql
+pinax db upgrade --sql
 ```
 
 prints the SQL to review and apply, or `pinax db upgrade` applies it. A catalog that a newer release has upgraded is
@@ -388,7 +391,7 @@ otherwise):
 echo 'db.example.org:5432:pinax:pinax:THE-PASSWORD' | sudo -u pinax tee /var/lib/pinax/.pgpass >/dev/null && sudo chmod 0600 /var/lib/pinax/.pgpass
 ```
 
-Then `sudo -u pinax /opt/pinax/.venv/bin/pinax db upgrade` creates the catalog (Pinax would also do it when it
+Then `pinax db upgrade` (the shell function from [step 3](#3-settings)) creates the catalog (Pinax would also do it when it
 starts), and `pinax db status` should say *up to date*. Each Pinax process keeps up to `PINAX_DATABASE_POOL_SIZE`
 (10) connections open, and as many more at busy times; the web app, the watcher, and commands each have their own.
 Connections show as `pinax` in `pg_stat_activity`.
@@ -404,7 +407,7 @@ sudo systemctl stop pinax-web pinax-ingest
 ```
 
 ```bash
-sudo -u pinax /opt/pinax/.venv/bin/pinax db copy postgresql://pinax@db.example.org/pinax?sslmode=verify-full
+pinax db copy postgresql://pinax@db.example.org/pinax?sslmode=verify-full
 ```
 
 Then set `PINAX_DATABASE_URL` to the same URL in `/etc/pinax/pinax.env` and start the services again; keep

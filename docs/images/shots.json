@@ -1,0 +1,162 @@
+{
+ "age-map": {
+  "width": 2000,
+  "height": 1250
+ },
+ "age-map-access": {
+  "width": 2000,
+  "height": 1250
+ },
+ "age-map-filesystem": {
+  "width": 2000,
+  "height": 1250
+ },
+ "age-map-table": {
+  "width": 2000,
+  "height": 1250
+ },
+ "age-map-tooltip": {
+  "width": 2000,
+  "height": 1250
+ },
+ "age-report": {
+  "width": 2000,
+  "height": 1250
+ },
+ "all-data": {
+  "width": 2000,
+  "height": 1250
+ },
+ "all-data-attention": {
+  "width": 2000,
+  "height": 1250
+ },
+ "capacity": {
+  "width": 2000,
+  "height": 1250
+ },
+ "change-map": {
+  "width": 2000,
+  "height": 1250
+ },
+ "chargeback": {
+  "width": 2000,
+  "height": 1250
+ },
+ "charges": {
+  "width": 2000,
+  "height": 1250
+ },
+ "charges-ahead": {
+  "width": 2000,
+  "height": 1250
+ },
+ "charges-split": {
+  "width": 2000,
+  "height": 1250
+ },
+ "cleanup-plan": {
+  "width": 2000,
+  "height": 1250
+ },
+ "cold-data": {
+  "width": 2000,
+  "height": 1250
+ },
+ "collections": {
+  "width": 2000,
+  "height": 1250
+ },
+ "costs": {
+  "width": 2000,
+  "height": 1250
+ },
+ "demo-sign-in": {
+  "width": 2000,
+  "height": 1250
+ },
+ "every-plan": {
+  "width": 2000,
+  "height": 1250
+ },
+ "file-types": {
+  "width": 2000,
+  "height": 1250
+ },
+ "find-files": {
+  "width": 2000,
+  "height": 1250
+ },
+ "folder-panel": {
+  "width": 460,
+  "height": 1684
+ },
+ "folders": {
+  "width": 2000,
+  "height": 1250
+ },
+ "health": {
+  "width": 2000,
+  "height": 1250
+ },
+ "history": {
+  "width": 2000,
+  "height": 1250
+ },
+ "history-capacity": {
+  "width": 2000,
+  "height": 1250
+ },
+ "home": {
+  "width": 2000,
+  "height": 1250
+ },
+ "lab": {
+  "width": 2000,
+  "height": 1250
+ },
+ "labs": {
+  "width": 2000,
+  "height": 1250
+ },
+ "owners": {
+  "width": 2000,
+  "height": 1250
+ },
+ "people": {
+  "width": 2000,
+  "height": 1250
+ },
+ "person": {
+  "width": 2000,
+  "height": 1250
+ },
+ "plan-suggestions": {
+  "width": 2000,
+  "height": 1250
+ },
+ "saved-views": {
+  "width": 1660,
+  "height": 184
+ },
+ "scans": {
+  "width": 2000,
+  "height": 1250
+ },
+ "searches": {
+  "width": 2000,
+  "height": 1250
+ },
+ "sign-in": {
+  "width": 2000,
+  "height": 1250
+ },
+ "tags-admin": {
+  "width": 2000,
+  "height": 1250
+ },
+ "what-changed": {
+  "width": 2000,
+  "height": 1250
+ }
+}
