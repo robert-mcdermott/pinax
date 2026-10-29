@@ -1,16 +1,17 @@
 # SPDX-License-Identifier: Apache-2.0
 """FastAPI application: the JSON API under /api and the static interface."""
 
+import hmac
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__, jobs, migrate
+from . import __version__, jobs, metrics, migrate
 from .api import router as api_router
 from .config import get_settings, unsafe
 from .db import get_engine, init_db
@@ -69,6 +70,7 @@ async def security_headers(request: Request, call_next):
 
 @app.exception_handler(Stopped)
 async def stopped(request: Request, exc: Stopped):
+    metrics.STOPPED.labels(exc.reason).inc()
     if exc.reason == GONE:
         log.info("Stopped %s: the browser left", request.url.path)
         return JSONResponse({"detail": "The browser left before the answer was ready"}, status_code=503)
@@ -98,6 +100,19 @@ app.add_middleware(RequestLog)
 @app.get("/app", include_in_schema=False)
 def app_redirect():
     return RedirectResponse("/app/")
+
+
+@app.get("/metrics", include_in_schema=False)
+def prometheus(request: Request):
+    """Prometheus metrics (metrics.py): off (404) until PINAX_METRICS_TOKEN is set, then only with that token."""
+    token = get_settings().metrics_token
+    if token is None or not token.get_secret_value():
+        return JSONResponse({"detail": "Not Found"}, status_code=404)
+    given = request.headers.get("authorization", "").encode()
+    if not hmac.compare_digest(given, f"Bearer {token.get_secret_value()}".encode()):
+        return JSONResponse({"detail": "Send PINAX_METRICS_TOKEN as a bearer token"}, status_code=401,
+                            headers={"WWW-Authenticate": "Bearer"})
+    return Response(metrics.render(), media_type=metrics.CONTENT_TYPE)
 
 
 @app.get("/favicon.ico", include_in_schema=False)

@@ -79,6 +79,12 @@ Settings are `PINAX_*` environment variables, or a `.env` file in the folder you
 | `PINAX_SLOW_REQUEST_SECONDS` | `5` | A request that takes this long or longer is logged as a warning, marked *slow*; 0 never |
 | `PINAX_AUDIT_LOG` | unset | A file to write every audit event to as well, as JSON lines, once its change is committed: for a site's security monitoring. Audit events are always in the catalog and in the log too |
 
+## Metrics
+
+| Setting | Default | What it does |
+|---|---|---|
+| `PINAX_METRICS_TOKEN` | unset | Turns on `/metrics`, Prometheus's format, for requests that send it as `Authorization: Bearer <token>`; without it, `/metrics` answers 404. At least 16 characters (`openssl rand -hex 32` makes one); a shorter one stops Pinax from starting ([Metrics](DEPLOYMENT.md#metrics)) |
+
 ## Dimensions
 
 The age buckets and file categories are defined in `src/pinax/categories.py`, not in settings, because the

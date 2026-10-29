@@ -117,8 +117,8 @@ validation that shows it. Requirement IDs are stable and never reused.
 | O1 | Overview of every filesystem: totals, largest folders, biggest changes, unmapped folders, activity | done (wave 1, slice 6) |
 | O2 | Storage health: scan errors, folders not read, very large directories, small-file hotspots, problem names, deleted owners | done (wave 1, slice 6) |
 | O3 | Scans: every snapshot with its status, timings, and sizes | done (wave 1, slice 6) |
-| O4 | Alerts when a scan or ingest fails | partial (wave 2, slice 4: failed and skipped scans, and a watcher that stopped, shown on *Scans*; `--once` exits 1 on a failure; wave 10: a metric that monitoring can alert on; alerts by email or chat are in the roadmap's parking lot) |
-| O5 | Metrics, structured logs, slow-query logging | partial (wave 10, slice 3: a line per request with its ID, person, address, and time in index queries, slow requests flagged, audit events logged once committed, text or JSON; slice 4: metrics) |
+| O4 | Alerts when a scan or ingest fails | done (wave 2, slice 4: failed and skipped scans, and a watcher that stopped, shown on *Scans*; `--once` exits 1 on a failure; wave 10, slice 4: metrics that monitoring alerts on, and alert rules in `deploy/prometheus/`; alerts by email or chat are in the roadmap's parking lot) |
+| O5 | Metrics, structured logs, slow-query logging | done (wave 10, slice 3: a line per request with its ID, person, address, and time in index queries, slow requests flagged, audit events logged once committed, text or JSON; slice 4: Prometheus metrics at `/metrics`) |
 
 ## Quality and performance
 

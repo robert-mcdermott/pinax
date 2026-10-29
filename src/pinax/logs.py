@@ -34,6 +34,8 @@ from datetime import UTC, datetime
 from sqlalchemy import event
 from sqlalchemy.orm import Session
 
+from . import metrics
+
 log = logging.getLogger("pinax.request")
 audit_log = logging.getLogger("pinax.audit")
 REQUEST_ID = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
@@ -63,6 +65,8 @@ def count_query(seconds: float) -> None:
     if (info := current.get()) is not None:
         info.queries += 1
         info.query_seconds += seconds
+        metrics.QUERIES.inc()
+        metrics.QUERY_SECONDS.inc(seconds)
 
 
 def _trusted(addr: str, trusted: list[str]) -> bool:
@@ -126,6 +130,7 @@ class RequestLog:
             else uuid.uuid4().hex[:16]
         info = RequestInfo(id=rid, address=client_address(scope, settings.trusted_proxies))
         token = current.set(info)
+        metrics.IN_PROGRESS.inc()
         started = time.perf_counter()
         status, size = 500, 0
 
@@ -143,12 +148,14 @@ class RequestLog:
             await self.app(scope, receive, sending)
         finally:
             current.reset(token)
+            metrics.IN_PROGRESS.dec()
             seconds = time.perf_counter() - started
             path = scope.get("path", "")
             route = route_of(scope)
+            metrics.request_done(scope.get("method", ""), route, status, seconds)
             slow = settings.slow_request_seconds > 0 and seconds >= settings.slow_request_seconds
-            if path == "/api/health" or not (path.startswith("/api/") or path == "/metrics"):
-                level = logging.DEBUG  # pages, scripts, styles, and the load balancer's checks
+            if path == "/api/health" or path == "/metrics" or not path.startswith("/api/"):
+                level = logging.DEBUG  # pages, scripts, styles, and the load balancer's and Prometheus's checks
             elif slow or status >= 500:
                 level = logging.WARNING
             else:
@@ -273,6 +280,7 @@ def _write(session: Session) -> None:
         else:
             extra |= {"source": "cli", "os_user": _os_user()}
         audit_log.info("%s: %s", e["action"], e["summary"], extra=extra)
+        metrics.AUDIT.labels(e["action"]).inc()
 
 
 @event.listens_for(Session, "after_rollback")

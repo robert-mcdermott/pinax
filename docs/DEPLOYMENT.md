@@ -510,6 +510,53 @@ sudo install -m 0644 /opt/pinax/deploy/logrotate/pinax /etc/logrotate.d/pinax
 
 The audit log in a file is a copy: the catalog keeps every event, and *People and access* shows them.
 
+### Metrics
+
+`/metrics` answers in Prometheus's format, to trend Pinax and the storage it reports on and to alert when something
+goes wrong. It is off until `PINAX_METRICS_TOKEN` is set, and then answers only requests that send that token:
+
+```bash
+openssl rand -hex 32 | sudo tee /etc/prometheus/pinax-metrics-token
+```
+
+Put the same token in `/etc/pinax/pinax.env` as `PINAX_METRICS_TOKEN=...`, restart `pinax-web`, and add the scrape
+job in `deploy/prometheus/pinax-scrape.yml` to Prometheus. `/metrics` is served by the web app, so it is reached
+the way pages are: through the proxy in front of Pinax (`deploy/oauth2-proxy/pinax.cfg` lets `GET /metrics` through
+without signing in, as it does `/api/health`, and Pinax checks the token), or on Pinax's own port from the
+Prometheus host.
+
+The figures name filesystems, never labs, people, or paths. From the catalog, worked out when Prometheus asks (at
+most every 15 seconds), and so whichever process did the work:
+
+| Metric | What it is |
+|---|---|
+| `pinax_scan_last_success_timestamp_seconds`, `pinax_ingest_last_success_timestamp_seconds` | When each filesystem's newest ingested scan was taken, and when it was ingested |
+| `pinax_scan_last_failure_timestamp_seconds` | When its newest failed or skipped scan was taken: newer than the last success means the newest scan was not ingested |
+| `pinax_scan_duration_seconds`, `pinax_ingest_duration_seconds` | How long the newest scan took fs-inventory, and its ingest Pinax |
+| `pinax_filesystem_bytes`, `_allocated_bytes`, `_files`, `_directories`, `_cold_bytes`, `pinax_scan_errors` | The newest scan's totals: its size, space on disk, files, folders, data unchanged for `PINAX_COLD_DAYS`, and entries not read |
+| `pinax_filesystem_capacity_bytes`, `_used_bytes`, `_growth_bytes_per_month`, `_fill_timestamp_seconds`, `_fill_earliest_timestamp_seconds` | Capacity, use, its trend, when it fills at the trend, and when it could at the fast end of the trend's range (as on *Capacity*) |
+| `pinax_snapshots{status}`, `pinax_index_bytes` | Snapshots by state, and the size of the indexes kept |
+| `pinax_watcher_up`, `pinax_watcher_last_heartbeat_timestamp_seconds` | Whether automatic ingest is running and responding |
+| `pinax_search_jobs{status}`, `pinax_users{state}`, `pinax_labs{state}`, `pinax_sessions_active` | Searches in the background, people, labs and departments, and local sign-in sessions |
+| `pinax_var_size_bytes`, `pinax_var_free_bytes` | Pinax's own disk, `PINAX_VAR_ROOT` |
+| `pinax_catalog_up`, `pinax_info{version,database}` | Whether the catalog can be read, and Pinax's version |
+
+From the web app itself, since it started (with `rate()` for rates):
+
+| Metric | What it is |
+|---|---|
+| `pinax_http_requests_total{method,route,status}`, `pinax_http_request_duration_seconds{method,route}` | Requests by route (its template, such as `/api/views/{view_id}`) and status, and how long they took |
+| `pinax_index_queries_total`, `pinax_index_query_seconds_total` | Index queries for requests, and their time |
+| `pinax_queries_stopped_total{reason}` | Requests stopped: `timeout`, `busy` (no whole-filesystem turn in time), or `gone` (the browser left) |
+| `pinax_wide_queries{state}` | Whole-filesystem file queries running, and waiting for a turn |
+| `pinax_search_jobs_finished_total{status}` | Searches in the background finished: done, failed, or stopped |
+| `pinax_audit_events_total{action}` | Audit events, by action: `auth.signed_in`, `auth.sign_in_failed`, and `auth.locked` are sign-ins |
+
+and, on Linux, the process's own memory, CPU, and open files (`process_*`). `deploy/prometheus/pinax-alerts.yml` has alert rules
+to start from: Pinax or its catalog down, a scan not ingested, a filesystem with no new scan for eight days,
+automatic ingest stopped, a filesystem filling within 90 days or 90% full, Pinax's own disk 90% full, slow pages,
+server errors, searches turned away for want of a turn, and many failed sign-ins.
+
 ### Tasks
 
 | Task | How |

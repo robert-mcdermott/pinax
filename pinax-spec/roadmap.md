@@ -1112,8 +1112,8 @@ who changed what, and metrics that a site's monitoring can trend and alert on. N
 | 1 | The catalog on PostgreSQL, with migrations (P7) | Migrations (Alembic) create and upgrade the catalog on SQLite and PostgreSQL, replacing the columns added at start-up; a catalog from 0.9.0 or earlier is adopted in place; `pinax db status` and `pinax db upgrade`; the PostgreSQL driver is an optional extra; the whole test suite passes on both, PostgreSQL in a container; the migrations' schema equals the models' on both | Done |
 | 2 | Moving a catalog to PostgreSQL (P7) | `pinax db copy` copies every table of one catalog into another, empty one at the same version, in batches, then sets PostgreSQL's sequences and checks every table's count; a demo catalog copied to PostgreSQL serves the demo the same | Done |
 | 3 | System and audit logs (O5) | Logs as text (the journal) or JSON lines (a log collector), to standard error or a file that `logrotate` can rotate; one line per request with a request ID (also returned to the browser), the person, their address, the route, the status, and the time taken; slow requests flagged; every audit event also logged once its change is committed, optionally to a file of its own; the address of the person, not the proxy, behind a trusted proxy; a start-up line with the version and the catalog (never its password); never a password, token, or session | Done |
-| 4 | Prometheus metrics (O4, O5) | `/metrics` in Prometheus's format, off until a token is set and then only with it; scans and ingests by filesystem (when each last succeeded and failed, how long it took, the watcher's heartbeat), filesystem totals and capacity, Pinax's own disk, requests by route and their times, stopped queries, whole-filesystem query turns, background searches, sign-ins; filesystems named, never labs, people, or paths; a scrape configuration and alert rules in `deploy/prometheus/` | Next |
-| 5 | Demo and release 0.10.0 | The demo unchanged on SQLite, and checked once on PostgreSQL; the deployment guide's PostgreSQL, logs, and monitoring sections; version 0.10.0, changelog, pull request, tag, release | To come |
+| 4 | Prometheus metrics (O4, O5) | `/metrics` in Prometheus's format, off until a token is set and then only with it; scans and ingests by filesystem (when each last succeeded and failed, how long it took, the watcher's heartbeat), filesystem totals and capacity, Pinax's own disk, requests by route and their times, stopped queries, whole-filesystem query turns, background searches, sign-ins; filesystems named, never labs, people, or paths; a scrape configuration and alert rules in `deploy/prometheus/` | Done |
+| 5 | Demo and release 0.10.0 | The demo unchanged on SQLite, and checked once on PostgreSQL; the deployment guide's PostgreSQL, logs, and monitoring sections; version 0.10.0, changelog, pull request, tag, release | Next |
 
 ### Decisions for wave 10
 
@@ -1192,6 +1192,31 @@ who changed what, and metrics that a site's monitoring can trend and alert on. N
      events logged once committed, never when rolled back, and from the command line with its account; JSON lines
      and an audit file; text lines with the context; a password, wrong or right, and the session token never
      logged.
+4. **Prometheus metrics (O4, O5).**
+   - `metrics.py`, with `prometheus-client` and a registry of Pinax's own (with the process, platform, and garbage
+     collector figures, and no `_created` series). `/metrics` (`main.py`) answers 404 until `PINAX_METRICS_TOKEN` is
+     set, then only a request with that bearer token (compared in constant time); a token under 16 characters stops
+     Pinax from starting.
+   - From the catalog, at most every 15 seconds (`CatalogCollector`): for each active filesystem, its newest
+     ingested scan's time, ingest time, durations, size, space on disk, files, folders, cold data, and scan errors;
+     its newest failed or skipped scan's time; snapshots by state; the size of its kept indexes; its capacity, use,
+     growth, and fill dates (at the trend and at the fast end of its range, from `capacity.summary`); the watcher's
+     heartbeat; searches in the background, people, labs, and unexpired sessions; Pinax's own disk; and whether the
+     catalog could be read.
+   - From the web app: requests by method, route template, and status, and their times (a histogram, from
+     `RequestLog`); index queries and their time; stopped queries by reason; whole-filesystem query turns running
+     and waiting (`limits.wide_state`); background searches finished; audit events by action.
+   - `deploy/prometheus/`: a scrape job (bearer token from a file) and 13 alert rules (Pinax or its catalog down, a
+     scan not ingested, no new scan for eight days, automatic ingest stopped, a filesystem filling within 90 days,
+     could fill within a year, or 90% full, Pinax's own disk, slow pages, server errors, searches turned away,
+     failed sign-ins). oauth2-proxy lets `GET /metrics` through to Pinax, which checks the token. `/metrics` is
+     logged at debug, like `/api/health`.
+   - Tests (`tests/test_metrics.py`): off, then only with the token; a short token refused; each filesystem's
+     scans and size equal to the catalog's; a skipped scan newer than the last success; the web app's requests,
+     queries, and audit events counted; capacity and use; no lab, person, or path named.
+   - *Done*: scraped from the demo copied to PostgreSQL: both filesystems' figures, and Fast's earliest fill date
+     (June 2027, as *Capacity* has it). The alert rules parse as YAML; `promtool` was not available to check their
+     expressions.
 
 ## Later waves (outlined)
 

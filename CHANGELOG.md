@@ -24,6 +24,13 @@
   (`PINAX_LOG_FORMAT`), to standard error or a file `logrotate` can rotate (`PINAX_LOG_FILE`,
   `deploy/logrotate/pinax`). A line when Pinax starts names its version and catalog. Never a password, token,
   request body, or query string.
+- **Prometheus metrics** at `/metrics`, off until `PINAX_METRICS_TOKEN` is set and then only with it: for each
+  filesystem, when its newest scan was taken, ingested, and failed, how long they took, its size, files, folders,
+  cold data, scan errors, capacity, use, growth, and fill date; automatic ingest's heartbeat; snapshots, indexes,
+  searches, people, labs, and sessions; Pinax's own disk; and from the web app, requests by route and status and
+  their times, index queries, stopped queries, whole-filesystem query turns, and audit events by action, sign-ins
+  among them. Filesystems are named, never labs, people, or paths. `deploy/prometheus/` has a scrape job and alert
+  rules to start from, and oauth2-proxy lets Prometheus through to `/metrics`.
 
 ### Changed
 

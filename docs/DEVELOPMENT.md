@@ -63,6 +63,8 @@ src/pinax/
   dbcopy.py        `pinax db copy`: a whole catalog into another, empty database
   logs.py          system and audit logs: a line per request with its ID, person, and address; audit events logged
                    once committed; text or JSON
+  metrics.py       Prometheus metrics at /metrics: each filesystem's scans, size, and capacity from the catalog, and
+                   the web app's requests, queries, and audit events
   models.py        catalog schema: people, labs, folder ownership, filesystems, snapshots, folder history, capacity,
                    marked folders, audit
   categories.py    file categories, type normalization, age buckets

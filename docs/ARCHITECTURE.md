@@ -591,6 +591,10 @@ the month shows at once; adding up the ranges overstates the range); storage no 
   is committed (a SQLAlchemy event on the session, so every place that audits is covered), optionally to a file of
   its own as JSON lines. Never a password, session token, request body, or query string; the catalog's address is
   logged without its password.
+- **Metrics** (`metrics.py`, `/metrics`): off until `PINAX_METRICS_TOKEN` is set, then only with it (compared in
+  constant time). They name filesystems, never labs, people, or paths. Figures from the catalog are worked out when
+  Prometheus asks, at most every 15 seconds, so they count whichever process did the work; the web app's own
+  (requests, index queries, stopped queries, audit events) are counted as it runs, on a registry of Pinax's own.
 
 ## Measured performance
 

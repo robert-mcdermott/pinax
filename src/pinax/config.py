@@ -6,7 +6,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -75,6 +75,9 @@ class Settings(BaseSettings):
     log_requests: bool = True
     slow_request_seconds: float = Field(5.0, ge=0)
     audit_log: Path | None = None
+    # Metrics (metrics.py): /metrics in Prometheus's format, only for requests with this token
+    # (`Authorization: Bearer ...`); unset, /metrics is off.
+    metrics_token: SecretStr | None = None
 
     # Identity. "demo" uses a persona cookie: anyone picks anyone, for showing Pinax with the seeded people (refused
     # when ENVIRONMENT=prod). "local": people sign in with a password Pinax keeps, for sites without single sign-on.
@@ -121,11 +124,18 @@ class Settings(BaseSettings):
             p.mkdir(parents=True, exist_ok=True)
 
 
+METRICS_TOKEN_LENGTH = 16
+
+
 def unsafe(settings: Settings) -> str | None:
     """Why these settings must not run, or None."""
     if settings.environment == "prod" and settings.auth_mode == "demo":
         return ("PINAX_AUTH_MODE=demo lets anyone sign in as anyone, so it is refused when PINAX_ENVIRONMENT=prod. "
                 "Use local (passwords Pinax keeps) or header (single sign-on), or a demo or dev environment.")
+    token = settings.metrics_token.get_secret_value() if settings.metrics_token else ""
+    if token and len(token) < METRICS_TOKEN_LENGTH:
+        return (f"PINAX_METRICS_TOKEN must be at least {METRICS_TOKEN_LENGTH} characters, since it is all that guards "
+                "/metrics: `openssl rand -hex 32` makes one.")
     return None
 
 
