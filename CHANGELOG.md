@@ -1,5 +1,67 @@
 # Changelog
 
+## 0.10.0 (2026-10-29)
+
+Tenth release (wave 10, "operations"): what a production deployment needs from Pinax itself. The catalog can be
+PostgreSQL, with migrations that upgrade it in place (SQLite stays the default, with nothing to install); logs of
+every request and every audit event, as text or JSON; and Prometheus metrics to trend and alert on. It comes before
+the production pilot (now wave 11) and reach (now wave 12, with sign-in with Microsoft Entra ID in Pinax itself).
+See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+
+Upgrading from 0.9.0: back the catalog up first ([Backups](docs/DEPLOYMENT.md#backups)). When Pinax starts, the
+first migration adopts the catalog in place, adding nothing it already has; `PINAX_DB_AUTO_UPGRADE=false` leaves
+that to `pinax db upgrade`. Indexes are unchanged (version 7). Two new dependencies, Alembic and prometheus-client,
+come with `uv sync`; PostgreSQL's driver comes with `uv sync --extra postgres`. `pinax serve` now works out the
+person's address behind a proxy itself, from `PINAX_TRUSTED_PROXIES` and `X-Forwarded-For`, instead of uvicorn
+(which trusted `127.0.0.1`, or `FORWARDED_ALLOW_IPS`). New settings: `PINAX_DB_AUTO_UPGRADE`,
+`PINAX_DATABASE_POOL_SIZE`, `PINAX_LOG_LEVEL`, `PINAX_LOG_FORMAT`, `PINAX_LOG_FILE`, `PINAX_LOG_REQUESTS`,
+`PINAX_SLOW_REQUEST_SECONDS`, `PINAX_AUDIT_LOG`, and `PINAX_METRICS_TOKEN` (`/metrics` is off until it is set).
+The systemd units gain `LogsDirectory=pinax`, and oauth2-proxy's configuration lets `GET /metrics` through; copy
+both from `deploy/` again.
+
+### Added
+
+- **PostgreSQL for the catalog.** `PINAX_DATABASE_URL` can point at PostgreSQL (`postgresql://pinax@host/pinax`),
+  with Pinax installed with its `postgres` extra, for a catalog that IT runs, backs up, and replicates as it does
+  its other databases. SQLite in `PINAX_VAR_ROOT` stays the default, with nothing to install. The whole test suite
+  runs on both.
+- **Migrations.** The catalog is created and upgraded by migrations (Alembic), on either database, when Pinax
+  starts; `PINAX_DB_AUTO_UPGRADE=false` leaves that to `pinax db upgrade`, which can print its SQL for a database
+  administrator (`--sql`). `pinax db status` says whether the catalog is up to date. Processes that start together
+  take turns, and a catalog that a newer Pinax upgraded is refused. A catalog from 0.9.0 or earlier is adopted
+  in place. `pinax db revision` writes a new migration, for developers.
+- **`pinax db copy`** moves a catalog into another, empty database, such as SQLite into PostgreSQL: every table in
+  one transaction, PostgreSQL's id sequences set past the copied rows, and every count compared.
+- **Logs.** One line for each request to the API, with its status, the time taken and the part of it in index
+  queries, the person, their address, and a request ID (returned as `X-Request-ID`); slow and failed requests are
+  warnings (`PINAX_SLOW_REQUEST_SECONDS`). Every audit event is logged as well, once its change is committed, with
+  who made it and from where (from the command line, the account that ran it), and optionally to a file of its own
+  (`PINAX_AUDIT_LOG`) for security monitoring. Text for the journal, or JSON lines for a log collector
+  (`PINAX_LOG_FORMAT`), to standard error or a file `logrotate` can rotate (`PINAX_LOG_FILE`,
+  `deploy/logrotate/pinax`). A line when Pinax starts names its version and catalog. Never a password, token,
+  request body, or query string.
+- **Prometheus metrics** at `/metrics`, off until `PINAX_METRICS_TOKEN` is set and then only with it: for each
+  filesystem, when its newest scan was taken, ingested, and failed, how long they took, its size, files, folders,
+  cold data, scan errors, capacity, use, growth, and fill date; automatic ingest's heartbeat; snapshots, indexes,
+  searches, people, labs, and sessions; Pinax's own disk; and from the web app, requests by route and status and
+  their times, index queries, stopped queries, whole-filesystem query turns, and audit events by action, sign-ins
+  among them. Filesystems are named, never labs, people, or paths. `deploy/prometheus/` has a scrape job and alert
+  rules to start from, and oauth2-proxy lets Prometheus through to `/metrics`.
+
+### Changed
+
+- **The person's address behind a proxy.** Requests from `PINAX_TRUSTED_PROXIES` are logged and audited, and
+  sign-in sessions recorded, with the person's own address from `X-Forwarded-For`, worked out by Pinax rather
+  than uvicorn.
+- **The roadmap.** Operations comes next as wave 10 (0.10.0), before the production pilot (now wave 11) and reach
+  (now wave 12), at the maintainer's request. Reach now plans sign-in with Microsoft Entra ID in Pinax itself, with
+  OpenID Connect, rather than behind an authenticating proxy.
+
+### Fixed
+
+- Two Pinax processes opening a new SQLite catalog at the same moment could fail with "database is locked".
+- The age map of a whole filesystem now marks top-level folders that are tagged, or hold tagged folders.
+
 ## 0.9.0 (2026-10-29)
 
 Ninth release (wave 9, "action"): totals that count a hard-linked file once, views a person saves and shares with

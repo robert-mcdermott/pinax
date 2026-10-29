@@ -12,12 +12,14 @@ others wait for a turn within their own time limit.
 
 import asyncio
 import threading
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager, nullcontext
 from contextvars import ContextVar
 
 import duckdb
 
+from . import logs
 from .config import get_settings
 
 TIMEOUT, BUSY, GONE = "timeout", "busy", "gone"
@@ -68,14 +70,33 @@ class Budget:
 _budget: ContextVar[Budget | None] = ContextVar("pinax_budget", default=None)
 
 
-def guard(cur: duckdb.DuckDBPyConnection):
-    """Run a query on `cur` within the current request's budget, if there is one."""
+@contextmanager
+def guard(cur: duckdb.DuckDBPyConnection) -> Iterator[None]:
+    """Run a query on `cur` within the current request's budget, if there is one, and count its time in the
+    request's log line."""
     budget = _budget.get()
-    return budget.running(cur) if budget is not None else nullcontext()
+    started = time.perf_counter()
+    try:
+        with budget.running(cur) if budget is not None else nullcontext():
+            yield
+    finally:
+        logs.count_query(time.perf_counter() - started)
 
 
 _slots: threading.BoundedSemaphore | None = None
 _slots_lock = threading.Lock()
+_turns = {"running": 0, "waiting": 0}  # for metrics.py
+
+
+def wide_state() -> tuple[int, int]:
+    """Whole-filesystem file queries running, and waiting for a turn."""
+    with _slots_lock:
+        return _turns["running"], _turns["waiting"]
+
+
+def _turn(state: str, by: int) -> None:
+    with _slots_lock:
+        _turns[state] += by
 
 
 @contextmanager
@@ -91,12 +112,18 @@ def wide() -> Iterator[None]:
             _slots = threading.BoundedSemaphore(limit)
         slots = _slots
     budget = _budget.get()
-    while not slots.acquire(timeout=0.2):
-        if budget is not None and budget.reason is not None:
-            raise Stopped(BUSY if budget.reason == TIMEOUT else budget.reason, budget.seconds)
+    _turn("waiting", 1)
+    try:
+        while not slots.acquire(timeout=0.2):
+            if budget is not None and budget.reason is not None:
+                raise Stopped(BUSY if budget.reason == TIMEOUT else budget.reason, budget.seconds)
+    finally:
+        _turn("waiting", -1)
+    _turn("running", 1)
     try:
         yield
     finally:
+        _turn("running", -1)
         slots.release()
 
 

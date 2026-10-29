@@ -1,7 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Isolated environments: every test gets its own catalog, snapshot folder, and scans."""
+"""Isolated environments: every test gets its own catalog, snapshot folder, and scans.
 
+The catalog is SQLite, or, with PINAX_TEST_DATABASE_URL set to a PostgreSQL database, a schema of its own there,
+dropped after the test (docs/DEVELOPMENT.md)."""
+
+import os
 import sys
+import uuid
 from pathlib import Path
 
 import pytest
@@ -40,6 +45,19 @@ def scan(tmp_path):
     return out
 
 
+POSTGRES = os.environ.get("PINAX_TEST_DATABASE_URL", "")
+sqlite_only = pytest.mark.skipif(bool(POSTGRES), reason="about SQLite catalogs")
+
+
+def _postgres(sql: str) -> None:
+    from sqlalchemy import create_engine, text
+
+    engine = create_engine(POSTGRES.replace("postgresql://", "postgresql+psycopg://", 1))
+    with engine.begin() as conn:
+        conn.execute(text(sql))
+    engine.dispose()
+
+
 @pytest.fixture
 def env(tmp_path, monkeypatch):
     """Settings pointed at a temporary folder, with a fresh catalog."""
@@ -48,6 +66,14 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setenv("PINAX_VAR_ROOT", str(tmp_path / "var"))
     monkeypatch.setenv("PINAX_SCAN_ROOT", str(tmp_path / "scans"))
     monkeypatch.setenv("PINAX_DEMO_ROOT", str(tmp_path / "demo"))
+    schema = None
+    if POSTGRES:
+        from sqlalchemy.engine import make_url
+
+        schema = f"test_{uuid.uuid4().hex[:16]}"
+        _postgres(f'CREATE SCHEMA "{schema}"')
+        url = make_url(POSTGRES).update_query_dict({"options": f"-csearch_path={schema}"})
+        monkeypatch.setenv("PINAX_DATABASE_URL", url.render_as_string(hide_password=False))
     config.get_settings.cache_clear()
     db.reset_engine()
     snapshots.indexes.clear()
@@ -56,6 +82,8 @@ def env(tmp_path, monkeypatch):
     snapshots.indexes.clear()
     db.reset_engine()
     config.get_settings.cache_clear()
+    if schema:
+        _postgres(f'DROP SCHEMA "{schema}" CASCADE')
 
 
 @pytest.fixture

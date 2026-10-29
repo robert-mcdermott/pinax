@@ -62,7 +62,12 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
 - **Numbers you can check**: `pinax check` compares every directory's totals with `fs-inventory rollup`, an
   independent implementation, and reports any difference.
 - **Ready to run**: new scans are ingested automatically, labs and people are imported from CSV with a dry run
-  first, and `deploy/` has systemd units and an oauth2-proxy configuration for single sign-on.
+  first, and `deploy/` has systemd units and an oauth2-proxy configuration for single sign-on. The catalog is
+  SQLite, with nothing to install, or PostgreSQL for production; migrations upgrade either in place, and
+  `pinax db copy` moves a catalog from one to the other.
+- **Logs and metrics**: a log line for each request, with who made it and from where, and every audit event, as
+  text for the journal or JSON lines for a log collector; Prometheus metrics for each filesystem's scans, size,
+  capacity, and fill date, and for Pinax itself, with alert rules to start from.
 - **Light and dark themes**, keyboard-reachable tiles, and a table view for every chart.
 
 ## Documentation
@@ -176,6 +181,7 @@ API documentation is served at `/api/docs`.
 ```text
 src/pinax/
   config.py, db.py, models.py      settings, catalog engine, catalog schema
+  migrate.py, migrations/          the catalog's migrations (Alembic), on SQLite or PostgreSQL
   categories.py                    file categories, type normalization, age buckets
   ingest/build.py                  scan -> snapshot index (DuckDB + Parquet)
   crosscheck.py                    an index against fs-inventory rollup, directory by directory

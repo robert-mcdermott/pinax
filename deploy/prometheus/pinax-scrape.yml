@@ -1,0 +1,12 @@
+# A scrape job for Pinax, to add under scrape_configs in prometheus.yml (docs/DEPLOYMENT.md, "Metrics").
+# The token is PINAX_METRICS_TOKEN, kept in a file only Prometheus can read.
+scrape_configs:
+  - job_name: pinax
+    scheme: https                      # through the proxy in front of Pinax; http to Pinax's own port on its host
+    metrics_path: /metrics
+    scrape_interval: 60s               # Pinax works its catalog figures out at most every 15 seconds
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/pinax-metrics-token
+    static_configs:
+      - targets: ["pinax.example.org"]

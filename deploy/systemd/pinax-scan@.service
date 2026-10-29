@@ -29,4 +29,7 @@ ProtectControlGroups=true
 RestrictSUIDSGID=true
 LockPersonality=true
 ReadWritePaths=/var/lib/pinax
+# /var/log/pinax, for PINAX_LOG_FILE and PINAX_AUDIT_LOG if they are set (the journal otherwise).
+LogsDirectory=pinax
+LogsDirectoryMode=0750
 UMask=0027

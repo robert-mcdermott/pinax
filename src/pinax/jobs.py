@@ -17,7 +17,7 @@ import duckdb
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import limits
+from . import limits, metrics
 from .auth import Identity
 from .config import get_settings
 from .db import session_scope, utcnow
@@ -117,6 +117,7 @@ def _run(job_id: int) -> None:
             return
         job.status, job.message, job.finished_at = status, message, utcnow()
         job.files, job.bytes = (files, size) if status == DONE else (None, None)
+    metrics.SEARCHES.labels(status).inc()
     if status != DONE:
         shutil.rmtree(out, ignore_errors=True)
 

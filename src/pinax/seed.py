@@ -33,7 +33,7 @@ from sqlalchemy import select
 
 from . import capacity, costs, plans, tags
 from .config import Settings, get_settings
-from .db import Base, get_engine, reset_engine, session_scope
+from .db import init_db, reset_catalog, reset_engine, session_scope
 from .models import AuditEvent, Filesystem, Lab, LabFolder, LabMembership, User
 from .snapshots import indexes, ingest_scan
 
@@ -715,12 +715,10 @@ def run_seed(scale: float = 1.0) -> None:
 
     print("Resetting demo data and the catalog")
     indexes.clear()
+    reset_catalog()
     reset_engine()
     _rmtree(settings.demo_root)
     _rmtree(settings.snapshot_root)
-    db_file = settings.var_root / "pinax.db"
-    for suffix in ("", "-wal", "-shm"):
-        Path(str(db_file) + suffix).unlink(missing_ok=True)
     fs_roots = {fs: settings.demo_root / "fs" / fs for fs, *_ in FILESYSTEMS}
 
     print("Writing demo filesystems (sparse files)")
@@ -733,8 +731,7 @@ def run_seed(scale: float = 1.0) -> None:
     locked = fs_roots["fast"] / "kowalski_d" / "instrument_exports" / "locked"
     locked.chmod(0)  # unreadable: the scan records an error and carries on
 
-    Base.metadata.create_all(get_engine())
-    tags.ensure_defaults()  # the default tags, as init_db adds them
+    init_db()  # the catalog's tables, and the default tags
     with session_scope() as s:
         fss = {}
         for slug, name, display, desc in FILESYSTEMS:

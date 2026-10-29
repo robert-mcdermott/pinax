@@ -6,7 +6,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -23,7 +23,13 @@ class Settings(BaseSettings):
     var_root: Path = PROJECT_ROOT / "var"
     scan_root: Path = PROJECT_ROOT / "scans"
     demo_root: Path = PROJECT_ROOT / "demo"
+    # The catalog: SQLite in VAR_ROOT by default, or PostgreSQL (`postgresql://user@host/db`, with the `postgres`
+    # extra installed) for production. Migrations bring it up to date at start-up, unless DB_AUTO_UPGRADE is false
+    # and `pinax db upgrade` is left to whoever runs the database. DATABASE_POOL_SIZE: PostgreSQL connections kept
+    # open per process, and as many more at busy times.
     database_url: str = ""
+    db_auto_upgrade: bool = True
+    database_pool_size: int = Field(10, ge=1, le=100)
 
     # fs-inventory. Defaults to bin/fs-inventory (scripts/install-fs-inventory.sh), then the PATH.
     fs_inventory: str = ""
@@ -59,6 +65,20 @@ class Settings(BaseSettings):
     # Capacity: a filesystem that fills within this many months at its trend is flagged on the overview.
     fill_warning_months: int = Field(12, ge=1, le=120)
 
+    # Logs (logs.py): text for the journal or JSON lines for a log collector, to standard error or LOG_FILE (which
+    # `logrotate` can move; Pinax reopens it). One line per request to the API unless LOG_REQUESTS is false; a
+    # request slower than SLOW_REQUEST_SECONDS is a warning (0: never). Audit events are logged too, and also
+    # written to AUDIT_LOG, as JSON lines, if it is set.
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    log_format: Literal["text", "json"] = "text"
+    log_file: Path | None = None
+    log_requests: bool = True
+    slow_request_seconds: float = Field(5.0, ge=0)
+    audit_log: Path | None = None
+    # Metrics (metrics.py): /metrics in Prometheus's format, only for requests with this token
+    # (`Authorization: Bearer ...`); unset, /metrics is off.
+    metrics_token: SecretStr | None = None
+
     # Identity. "demo" uses a persona cookie: anyone picks anyone, for showing Pinax with the seeded people (refused
     # when ENVIRONMENT=prod). "local": people sign in with a password Pinax keeps, for sites without single sign-on.
     # "header" trusts a username header (X-Remote-User by default) set by a single sign-on proxy, and only on
@@ -81,7 +101,11 @@ class Settings(BaseSettings):
 
     @property
     def db_url(self) -> str:
-        return self.database_url or f"sqlite:///{self.var_root / 'pinax.db'}"
+        url = self.database_url or f"sqlite:///{self.var_root / 'pinax.db'}"
+        for plain in ("postgresql://", "postgres://"):  # PostgreSQL's own form of URL, with Pinax's driver
+            if url.startswith(plain):
+                return "postgresql+psycopg://" + url.removeprefix(plain)
+        return url
 
     @property
     def snapshot_root(self) -> Path:
@@ -100,11 +124,18 @@ class Settings(BaseSettings):
             p.mkdir(parents=True, exist_ok=True)
 
 
+METRICS_TOKEN_LENGTH = 16
+
+
 def unsafe(settings: Settings) -> str | None:
     """Why these settings must not run, or None."""
     if settings.environment == "prod" and settings.auth_mode == "demo":
         return ("PINAX_AUTH_MODE=demo lets anyone sign in as anyone, so it is refused when PINAX_ENVIRONMENT=prod. "
                 "Use local (passwords Pinax keeps) or header (single sign-on), or a demo or dev environment.")
+    token = settings.metrics_token.get_secret_value() if settings.metrics_token else ""
+    if token and len(token) < METRICS_TOKEN_LENGTH:
+        return (f"PINAX_METRICS_TOKEN must be at least {METRICS_TOKEN_LENGTH} characters, since it is all that guards "
+                "/metrics: `openssl rand -hex 32` makes one.")
     return None
 
 

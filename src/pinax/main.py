@@ -1,20 +1,22 @@
 # SPDX-License-Identifier: Apache-2.0
 """FastAPI application: the JSON API under /api and the static interface."""
 
+import hmac
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__, jobs
+from . import __version__, jobs, metrics, migrate
 from .api import router as api_router
 from .config import get_settings, unsafe
-from .db import init_db
+from .db import get_engine, init_db
 from .limits import BUSY, GONE, QueryBudget, Stopped
+from .logs import RequestLog
 from .snapshots import indexes
 
 STATIC = Path(__file__).parent / "static"
@@ -23,12 +25,16 @@ log = logging.getLogger("pinax")
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    if problem := unsafe(get_settings()):
+    settings = get_settings()
+    if problem := unsafe(settings):
         raise RuntimeError(f"Refusing to start: {problem}")
     init_db()
     jobs.recover()
+    log.info("Pinax %s started: environment %s, sign-in %s, catalog %s, data in %s", __version__, settings.environment,
+             settings.auth_mode, migrate.describe(get_engine()), settings.var_root)
     yield
     indexes.clear()
+    log.info("Pinax stopped")
 
 
 app = FastAPI(title="Pinax", version=__version__, lifespan=lifespan, docs_url="/api/docs",
@@ -64,6 +70,7 @@ async def security_headers(request: Request, call_next):
 
 @app.exception_handler(Stopped)
 async def stopped(request: Request, exc: Stopped):
+    metrics.STOPPED.labels(exc.reason).inc()
     if exc.reason == GONE:
         log.info("Stopped %s: the browser left", request.url.path)
         return JSONResponse({"detail": "The browser left before the answer was ready"}, status_code=503)
@@ -85,13 +92,27 @@ async def unhandled(_request: Request, exc: Exception):
     return JSONResponse({"detail": "Internal error"}, status_code=500)
 
 
-# Outermost, so each GET's time limit covers everything below it (limits.py).
+# Each GET's time limit covers everything below it (limits.py); outermost of all, each request's ID and log line.
 app.add_middleware(QueryBudget)
+app.add_middleware(RequestLog)
 
 
 @app.get("/app", include_in_schema=False)
 def app_redirect():
     return RedirectResponse("/app/")
+
+
+@app.get("/metrics", include_in_schema=False)
+def prometheus(request: Request):
+    """Prometheus metrics (metrics.py): off (404) until PINAX_METRICS_TOKEN is set, then only with that token."""
+    token = get_settings().metrics_token
+    if token is None or not token.get_secret_value():
+        return JSONResponse({"detail": "Not Found"}, status_code=404)
+    given = request.headers.get("authorization", "").encode()
+    if not hmac.compare_digest(given, f"Bearer {token.get_secret_value()}".encode()):
+        return JSONResponse({"detail": "Send PINAX_METRICS_TOKEN as a bearer token"}, status_code=401,
+                            headers={"WWW-Authenticate": "Bearer"})
+    return Response(metrics.render(), media_type=metrics.CONTENT_TYPE)
 
 
 @app.get("/favicon.ico", include_in_schema=False)

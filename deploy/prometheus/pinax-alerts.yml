@@ -1,0 +1,105 @@
+# Alert rules for Pinax (docs/DEPLOYMENT.md, "Metrics"), for rule_files in prometheus.yml. Thresholds are starting
+# points: set the scan age to the filesystems' own schedule, and the rest to what the site sees as normal.
+groups:
+  - name: pinax
+    rules:
+      - alert: PinaxDown
+        expr: up{job="pinax"} == 0
+        for: 5m
+        labels: {severity: critical}
+        annotations:
+          summary: "Pinax does not answer at {{ $labels.instance }}"
+          description: "Prometheus cannot read /metrics: check `systemctl status pinax-web`, the proxy, and the token."
+
+      - alert: PinaxCatalogUnreadable
+        expr: pinax_catalog_up == 0
+        for: 5m
+        labels: {severity: critical}
+        annotations:
+          summary: "Pinax cannot read its catalog"
+          description: "The catalog database does not answer; /api/health says 503. Check the database, its disk, and `journalctl -u pinax-web`."
+
+      - alert: PinaxScanNotIngested
+        expr: pinax_scan_last_failure_timestamp_seconds > (pinax_scan_last_success_timestamp_seconds or (pinax_scan_last_failure_timestamp_seconds * 0))
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "The newest scan of {{ $labels.filesystem }} failed or was skipped"
+          description: "Its reports still show the scan before. *Scans* says why; fix the cause and run `pinax ingest` on the scan."
+
+      - alert: PinaxScanOld
+        expr: time() - pinax_scan_last_success_timestamp_seconds > 8 * 86400
+        for: 1h
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.filesystem }} has had no new scan for {{ $value | humanizeDuration }}"
+          description: "Scans are expected weekly: check its scan timer (`systemctl list-timers 'pinax-scan@*'`) and automatic ingest."
+
+      - alert: PinaxWatcherDown
+        expr: pinax_watcher_up == 0
+        for: 15m
+        labels: {severity: warning}
+        annotations:
+          summary: "Automatic ingest has stopped or stopped responding"
+          description: "New scans are not being ingested: `systemctl status pinax-ingest` and its journal."
+
+      - alert: PinaxFilesystemFillsSoon
+        expr: pinax_filesystem_fill_timestamp_seconds - time() < 90 * 86400
+        for: 1h
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.filesystem }} fills within 90 days at its trend"
+          description: "See *Capacity* in Pinax for its trend, range, and schedule."
+
+      - alert: PinaxFilesystemCouldFillThisYear
+        expr: pinax_filesystem_fill_earliest_timestamp_seconds - time() < 365 * 86400
+        for: 1h
+        labels: {severity: info}
+        annotations:
+          summary: "{{ $labels.filesystem }} could fill within a year, at the fast end of its trend's range"
+          description: "Its trend alone does not fill it so soon; see *Capacity* in Pinax before planning more."
+
+      - alert: PinaxFilesystemNearlyFull
+        expr: pinax_filesystem_used_bytes / pinax_filesystem_capacity_bytes > 0.9
+        for: 1h
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.filesystem }} is {{ $value | humanizePercentage }} full"
+
+      - alert: PinaxDiskLow
+        expr: pinax_var_free_bytes / pinax_var_size_bytes < 0.1
+        for: 30m
+        labels: {severity: warning}
+        annotations:
+          summary: "Pinax's own disk (PINAX_VAR_ROOT) is {{ $value | humanizePercentage }} free"
+          description: "Indexes and search results live there, and a build needs room for one more index: lower PINAX_KEEP_SNAPSHOTS or add space."
+
+      - alert: PinaxSlowPages
+        expr: histogram_quantile(0.95, sum by (le) (rate(pinax_http_request_duration_seconds_bucket{route=~"/api/.*"}[15m]))) > 5
+        for: 15m
+        labels: {severity: warning}
+        annotations:
+          summary: "One request to Pinax's API in 20 takes more than {{ $value | humanizeDuration }}"
+          description: "Look for lines marked (slow) in its log; see Sizing in docs/DEPLOYMENT.md."
+
+      - alert: PinaxErrors
+        expr: sum(rate(pinax_http_requests_total{status=~"5.."}[15m])) / sum(rate(pinax_http_requests_total[15m])) > 0.05
+        for: 15m
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $value | humanizePercentage }} of Pinax's answers are server errors"
+          description: "`journalctl -u pinax-web -p warning` shows them, each with its request ID."
+
+      - alert: PinaxWholeFilesystemQueriesWaiting
+        expr: increase(pinax_queries_stopped_total{reason="busy"}[1h]) > 10
+        labels: {severity: info}
+        annotations:
+          summary: "Searches of whole filesystems are being turned away for want of a turn"
+          description: "Raise PINAX_WIDE_QUERIES if the server has the cores and memory."
+
+      - alert: PinaxManyFailedSignIns
+        expr: sum(increase(pinax_audit_events_total{action="auth.sign_in_failed"}[15m])) > 20
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $value }} failed sign-ins to Pinax in 15 minutes"
+          description: "With local sign-in: the audit log (pinax.audit) names each account and address."

@@ -132,6 +132,8 @@ def test_a_pi_tags_a_folder_and_what_is_below_inherits_it(client):
     login(client, "ada")
     tagged = client.get("/api/tags/below", params={"fs": "fast", "path": ALPHA}).json()["tagged"]
     assert sorted(tagged[f"{ALPHA}/projects"]) == ["Project: Atlas", "Project: Cohort"]
+    at_root = client.get("/api/tags/below", params={"fs": "fast"})  # the age map of a whole filesystem
+    assert at_root.status_code == 200 and at_root.json()["tagged"] == tagged
 
 
 def test_who_may_tag_what(client):

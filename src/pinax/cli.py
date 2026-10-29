@@ -2,7 +2,6 @@
 """Command line: `uv run pinax <command>`."""
 
 import argparse
-import logging
 import sys
 from pathlib import Path
 
@@ -97,50 +96,142 @@ def main() -> None:
     user_password.add_argument("username")
     user_sub.add_parser("list", help="List people, their role, and whether they can sign in")
 
+    db = sub.add_parser("db", help="The catalog's database: whether it is up to date, and upgrading it")
+    db_sub = db.add_subparsers(dest="db_command", required=True)
+    db_sub.add_parser("status", help="Show the catalog's database and its revision (exits 1 unless up to date)")
+    db_upgrade = db_sub.add_parser("upgrade", help="Bring the catalog up to date (back it up first)")
+    db_upgrade.add_argument("--sql", action="store_true",
+                            help="Print the SQL instead of running it, for a database administrator to apply")
+    db_copy = db_sub.add_parser("copy", help="Copy the whole catalog into another, empty database, such as SQLite into "
+                                             "PostgreSQL (stop Pinax first)")
+    db_copy.add_argument("target", help="The database to copy into, such as postgresql://pinax@db.example.org/pinax "
+                                        "(its password in ~/.pgpass)")
+    db_copy.add_argument("--from", dest="source", help="The catalog to copy (default: this one, PINAX_DATABASE_URL)")
+    db_revision = db_sub.add_parser("revision", help="For developers: write a migration for what changed in models.py "
+                                                     "(against an up-to-date catalog)")
+    db_revision.add_argument("message", help="What it changes, such as \"Add the audit event's address\"")
+
     args = parser.parse_args()
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    from .config import get_settings
+    from .logs import LogError, configure
 
-    if args.command == "serve":
-        import uvicorn
+    try:
+        configure(get_settings())
+    except LogError as e:
+        print(f"error: {e}", file=sys.stderr)
+        sys.exit(2)
 
-        from .config import get_settings, unsafe
+    from .migrate import CatalogError
 
-        if problem := unsafe(get_settings()):
-            print(f"error: {problem}", file=sys.stderr)
-            sys.exit(2)
-        uvicorn.run("pinax.main:app", host=args.host, port=args.port, log_level="info")
-    elif args.command == "user":
-        _user(args)
-    elif args.command == "seed":
-        from .config import get_settings
-        from .seed import run_seed
+    try:
+        if args.command == "serve":
+            import uvicorn
 
-        env = get_settings().environment
-        if env != "demo":  # a dev or prod catalog holds real data, which seeding would delete
-            print(f"error: pinax seed deletes the catalog and indexes in PINAX_VAR_ROOT, so it runs only when "
-                  f"PINAX_ENVIRONMENT=demo, not {env}", file=sys.stderr)
-            sys.exit(2)
-        run_seed(scale=args.scale)
-    elif args.command == "filesystem":
-        sys.exit(_filesystem(args))
-    elif args.command == "scan":
-        sys.exit(_scan(args))
-    elif args.command == "ingest":
-        if args.watch:
-            sys.exit(_watch(args))
-        if args.scan_dir is None:
-            parser.error("ingest needs a scan folder, or --watch")
-        sys.exit(_ingest(args.scan_dir, args.fs_slug, args.allow_incomplete))
-    elif args.command == "snapshots":
-        _snapshots()
-    elif args.command == "check":
-        sys.exit(_check(args))
-    elif args.command == "import":
-        sys.exit(_import(args))
-    elif args.command == "tags":
-        sys.exit(_tags_import(args))
-    elif args.command == "rebuild":
-        sys.exit(_rebuild(args))
+            from .config import get_settings, unsafe
+            from .db import init_db
+
+            if problem := unsafe(get_settings()):
+                print(f"error: {problem}", file=sys.stderr)
+                sys.exit(2)
+            init_db()  # here, so a catalog that cannot be used is reported plainly
+            # Pinax's own logs (logs.py) and its own line per request; the person's address is worked out by Pinax
+            # from PINAX_TRUSTED_PROXIES rather than by uvicorn, so the sign-on header's check sees the proxy itself.
+            uvicorn.run("pinax.main:app", host=args.host, port=args.port, log_config=None, access_log=False,
+                        proxy_headers=False, log_level=get_settings().log_level.lower())
+        elif args.command == "user":
+            _user(args)
+        elif args.command == "seed":
+            from .config import get_settings
+            from .seed import run_seed
+
+            env = get_settings().environment
+            if env != "demo":  # a dev or prod catalog holds real data, which seeding would delete
+                print(f"error: pinax seed deletes the catalog and indexes in PINAX_VAR_ROOT, so it runs only when "
+                      f"PINAX_ENVIRONMENT=demo, not {env}", file=sys.stderr)
+                sys.exit(2)
+            run_seed(scale=args.scale)
+        elif args.command == "filesystem":
+            sys.exit(_filesystem(args))
+        elif args.command == "scan":
+            sys.exit(_scan(args))
+        elif args.command == "ingest":
+            if args.watch:
+                sys.exit(_watch(args))
+            if args.scan_dir is None:
+                parser.error("ingest needs a scan folder, or --watch")
+            sys.exit(_ingest(args.scan_dir, args.fs_slug, args.allow_incomplete))
+        elif args.command == "snapshots":
+            _snapshots()
+        elif args.command == "check":
+            sys.exit(_check(args))
+        elif args.command == "import":
+            sys.exit(_import(args))
+        elif args.command == "tags":
+            sys.exit(_tags_import(args))
+        elif args.command == "db":
+            sys.exit(_db(args))
+        elif args.command == "rebuild":
+            sys.exit(_rebuild(args))
+    except CatalogError as e:
+        print(f"error: {e}", file=sys.stderr)
+        sys.exit(2)
+
+
+_DB_STATES = {"current": "up to date", "behind": "behind: `pinax db upgrade` brings it up to date",
+              "new": "empty: `pinax db upgrade` creates it", "ahead": "newer than this Pinax",
+              "legacy": "made before migrations (Pinax 0.9.0 or earlier): `pinax db upgrade` adopts it"}
+
+
+def _db(args: argparse.Namespace) -> int:
+    from . import migrate
+    from .db import get_engine
+    from .tags import ensure_defaults
+
+    engine = get_engine()
+    if args.db_command == "status":
+        with engine.connect() as conn:
+            found, rev = migrate.state(conn)
+        print(f"Catalog:  {migrate.describe(engine)}")
+        print(f"Revision: {rev or 'none'} ({_DB_STATES[found]})")
+        print(f"Newest:   {migrate.head()}")
+        return 0 if found == "current" else 1
+    if args.db_command == "copy":
+        return _db_copy(engine, args)
+    if args.db_command == "revision":
+        path = migrate.revision(engine, args.message)
+        print(f"Wrote {path}: read it, then run the migration tests (on PostgreSQL too).")
+        return 0
+    if args.sql:
+        print(migrate.sql(engine), end="")
+        return 0
+    applied = migrate.upgrade(engine)
+    ensure_defaults()
+    print(f"Upgraded the catalog to revision {migrate.head()} (applied {', '.join(applied)})." if applied
+          else f"The catalog is up to date (revision {migrate.head()}).")
+    return 0
+
+
+def _db_copy(engine, args: argparse.Namespace) -> int:
+    from . import dbcopy, migrate
+    from .config import Settings
+    from .db import make_engine
+
+    def url(given: str) -> str:  # PostgreSQL's own form of URL, with Pinax's driver, as for PINAX_DATABASE_URL
+        return Settings(database_url=given).db_url
+
+    source = make_engine(url(args.source)) if args.source else engine
+    target = make_engine(url(args.target))
+    print(f"Copying {migrate.describe(source)} into {migrate.describe(target)}")
+    try:
+        copied = dbcopy.copy(source, target)
+    except dbcopy.CopyError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    finally:
+        target.dispose()
+    print(f"Copied {sum(copied.values()):,} rows in {sum(1 for n in copied.values() if n)} tables, and every count "
+          f"matches. Set PINAX_DATABASE_URL to the target (without its password) and start Pinax.")
+    return 0
 
 
 def _filesystem(args: argparse.Namespace) -> int:

@@ -3,7 +3,7 @@
 Installing Pinax on a Linux server: the services, single sign-on, scans and keeping them, upgrades, sizing, backups,
 charges and statements, and operations.
 The files this guide installs are in `deploy/`. This guide is checked against the tests and a local run; the
-pilot installation (wave 10 in `pinax-spec/roadmap.md`) will confirm it on a real server.
+pilot installation (wave 11 in `pinax-spec/roadmap.md`) will confirm it on a real server.
 
 ## Shape of a deployment
 
@@ -57,7 +57,7 @@ sudo git clone https://github.com/robert-mcdermott/pinax.git /opt/pinax
 ```
 
 ```bash
-cd /opt/pinax && sudo git checkout v0.5.0 && sudo env UV_PYTHON_INSTALL_DIR=/opt/pinax/.python uv sync --frozen --no-dev
+cd /opt/pinax && sudo git checkout v0.10.0 && sudo env UV_PYTHON_INSTALL_DIR=/opt/pinax/.python uv sync --frozen --no-dev
 ```
 
 ```bash
@@ -292,9 +292,18 @@ fails. The web app opens rebuilt indexes without a restart. `pinax rebuild SNAPS
 one whose index was lost. Rebuilding needs the snapshot's scan: a snapshot whose scan folder was deleted keeps its
 old index, without what the new format adds, and the rebuild says so.
 
-The catalog has no migrations yet (they come with PostgreSQL, in wave 11): new tables are created at start-up,
-and so are new columns of existing tables (each new column is nullable or has a default); a release that changes
-anything else says so, and pilot catalogs are then re-created from the import files.
+The catalog is upgraded by migrations, when the web app or the watcher starts: `CHANGELOG.md` says when a release
+has one, and `journalctl -u pinax-web` shows `Upgraded the catalog to revision ...`. Back the catalog up first
+([Backups](#backups)). Processes that start together take turns, and a catalog from 0.9.0 or earlier (made before
+migrations) is adopted the same way. Where database changes go through a database administrator, set
+`PINAX_DB_AUTO_UPGRADE=false`: Pinax then refuses to start with a catalog that is behind and says so, and
+
+```bash
+sudo -u pinax /opt/pinax/.venv/bin/pinax db upgrade --sql
+```
+
+prints the SQL to review and apply, or `pinax db upgrade` applies it. A catalog that a newer release has upgraded is
+refused by an older one: to go back to an older release, restore a backup made before the upgrade.
 
 ## Sizing
 
@@ -339,15 +348,69 @@ request Pinax stopped (`Stopped /api/files: timeout after 180 s`).
 
 ## Catalog database
 
-The catalog is SQLite in WAL mode, `/var/lib/pinax/pinax.db`: a file the Pinax processes open themselves, with no
-database server to run, which suits one server running the web app and the watcher. It holds everything that
-cannot be made again (see [What Pinax keeps](ARCHITECTURE.md#what-pinax-keeps)), so back it up.
+The catalog is SQLite in WAL mode by default, `/var/lib/pinax/pinax.db`: a file the Pinax processes open
+themselves, with no database server to run, which suits one server running the web app and the watcher. It holds
+everything that cannot be made again (see [What Pinax keeps](ARCHITECTURE.md#what-pinax-keeps)), so back it up.
+PostgreSQL is the choice when IT would rather run the catalog as one of its databases, backed up, replicated, and
+monitored as the others are ([The catalog database](ARCHITECTURE.md#the-catalog-database)).
 
-Wave 11 moves it to PostgreSQL with migrations, so that any schema change can upgrade a production catalog in
-place, more than one machine can run Pinax against one catalog, and IT's usual database backups and replication
-apply ([The catalog database](ARCHITECTURE.md#the-catalog-database)). Until then production uses SQLite;
-`PINAX_DATABASE_URL` can point at PostgreSQL for a fresh catalog (with the `psycopg` driver added), untested and
-without migrations.
+`pinax db status` names the catalog (never its password) and says whether it is up to date. Releases that change the
+catalog do it with migrations, applied when Pinax starts ([Upgrading](#upgrading)).
+
+### PostgreSQL
+
+PostgreSQL 14 or later. Pinax needs one database and a role that owns it:
+
+```bash
+sudo -u postgres createuser --pwprompt pinax
+```
+
+```bash
+sudo -u postgres createdb --owner pinax pinax
+```
+
+Install Pinax with its PostgreSQL driver (step 2 of [Install](#install), with `--extra postgres`):
+
+```bash
+cd /opt/pinax && sudo env UV_PYTHON_INSTALL_DIR=/opt/pinax/.python uv sync --frozen --no-dev --extra postgres
+```
+
+Point Pinax at it in `/etc/pinax/pinax.env`, without the password, and with TLS when the database is on another host:
+
+```bash
+PINAX_DATABASE_URL=postgresql://pinax@db.example.org/pinax?sslmode=verify-full
+```
+
+Put the password in the `pinax` user's `~/.pgpass`, which only that user may read (PostgreSQL's driver refuses it
+otherwise):
+
+```bash
+echo 'db.example.org:5432:pinax:pinax:THE-PASSWORD' | sudo -u pinax tee /var/lib/pinax/.pgpass >/dev/null && sudo chmod 0600 /var/lib/pinax/.pgpass
+```
+
+Then `sudo -u pinax /opt/pinax/.venv/bin/pinax db upgrade` creates the catalog (Pinax would also do it when it
+starts), and `pinax db status` should say *up to date*. Each Pinax process keeps up to `PINAX_DATABASE_POOL_SIZE`
+(10) connections open, and as many more at busy times; the web app, the watcher, and commands each have their own.
+Connections show as `pinax` in `pg_stat_activity`.
+
+### Moving a catalog from SQLite to PostgreSQL
+
+`pinax db copy` copies every table of the catalog into an empty database, in one transaction, then sets
+PostgreSQL's id sequences past the copied rows and compares every table's count. Indexes and scans stay where they
+are. With the PostgreSQL database and role made, the driver installed, and the password in `~/.pgpass` (above):
+
+```bash
+sudo systemctl stop pinax-web pinax-ingest
+```
+
+```bash
+sudo -u pinax /opt/pinax/.venv/bin/pinax db copy postgresql://pinax@db.example.org/pinax?sslmode=verify-full
+```
+
+Then set `PINAX_DATABASE_URL` to the same URL in `/etc/pinax/pinax.env` and start the services again; keep
+`pinax.db` until PostgreSQL has been backed up. A catalog from 0.9.0 or earlier is upgraded first
+(`pinax db upgrade`), and the copy refuses a database that is not empty, or a source that is not up to date. The
+copy works the other way too, from PostgreSQL into a new SQLite file (`--from` names the source).
 
 ## Backups
 
@@ -366,6 +429,15 @@ without migrations.
 
   Then copy the backup off the server. To restore, stop `pinax-web` and `pinax-ingest`, put the backup in place
   of `pinax.db`, delete `pinax.db-wal` and `pinax.db-shm`, and start them again. Keep the import files too.
+
+  On PostgreSQL, the database's own backups apply, IT's or `pg_dump`, which is safe while Pinax runs:
+
+  ```bash
+  sudo -u pinax pg_dump --format=custom --file=/var/lib/pinax/backup/pinax-$(date +%F).dump pinax
+  ```
+
+  To restore, stop `pinax-web` and `pinax-ingest`, restore into an empty database with `pg_restore --no-owner
+  --role=pinax --dbname=pinax`, and start them again.
 - **Indexes**: optional; `pinax rebuild` makes each again from its snapshot's scan, if that is kept.
 - **Scans**: keep those of snapshots that still have their index ([Scans](#scans)); the rest can be deleted.
 - A catalog backup holds top-level folder names and people's names and emails; copies of indexes or scans hold
@@ -395,8 +467,97 @@ How a charge is worked out is in [ARCHITECTURE.md](ARCHITECTURE.md#costs).
 ## Monitoring and operations
 
 `/api/health` needs no sign-in and names nothing: it answers `ok`; `degraded` when a ready snapshot's index is
-missing or automatic ingest has stopped or stopped responding; and 503 when the catalog cannot be read. Logs go
-to the journal (`journalctl -u pinax-web -u pinax-ingest`).
+missing or automatic ingest has stopped or stopped responding; and 503 when the catalog cannot be read.
+
+### Logs
+
+Logs go to the journal (`journalctl -u pinax-web -u pinax-ingest`), as text:
+
+```text
+2026-10-28 20:32:50 INFO pinax: Pinax 0.10.0 started: environment prod, sign-in header, catalog postgresql+psycopg://pinax@db.example.org/pinax, data in /var/lib/pinax
+2026-10-28 20:32:57 INFO pinax.request: GET /api/tree 200 in 122 ms, 6 index queries 27 ms [user=fujimoto_a address=10.20.4.17 request=c4b8784fe19b4890]
+2026-10-28 20:33:02 INFO pinax.audit: view.saved: View 'Tumor atlas' saved, shared with the Fujimoto Lab [user=fujimoto_a address=10.20.4.17 request=51d0c2a7e3b94b11]
+```
+
+- **Requests**: one line for each request to the API, with the method, the path (never the query string, which
+  can name files), the status, the time taken and the part of it in index queries, and the person, their address,
+  and the request's ID. The ID is also the response's `X-Request-ID`, so a person's report of a problem can be
+  found; a trusted proxy's own `X-Request-ID` is kept, so its log and Pinax's match. Behind a proxy in
+  `PINAX_TRUSTED_PROXIES`, the address is the person's own, from `X-Forwarded-For`. A request slower than
+  `PINAX_SLOW_REQUEST_SECONDS` (5) is a warning marked *slow*, and a failed one is a warning too. Pages, scripts,
+  and `/api/health` are not logged.
+- **Audit**: every audit event (each change in the app, by import, and from the command line, and each sign-in and
+  failed sign-in with local sign-in) is logged by `pinax.audit` once its change is committed, with who made it and
+  from where; from the command line, with the account that ran it.
+- **Never logged**: passwords, session cookies and tokens, request bodies, query strings, or the catalog's password.
+
+For a log collector (Splunk, Elastic, Loki, or the like), `PINAX_LOG_FORMAT=json` writes one JSON object per line,
+with `ts` (UTC), `level`, `logger`, `message`, `request_id`, `user`, and `address`, and the details of each request
+(`http`: method, path, route, status, ms, bytes, queries, query_ms, slow) and audit event (`audit`: id, action,
+actor_id, detail) as fields of their own. To write to files rather than the journal, and to keep every audit event
+in a file of its own for security monitoring:
+
+```bash
+PINAX_LOG_FILE=/var/log/pinax/pinax.log
+PINAX_AUDIT_LOG=/var/log/pinax/audit.log
+```
+
+The services' units make `/var/log/pinax`; `deploy/logrotate/pinax` rotates the files daily and keeps 90 days:
+
+```bash
+sudo install -m 0644 /opt/pinax/deploy/logrotate/pinax /etc/logrotate.d/pinax
+```
+
+The audit log in a file is a copy: the catalog keeps every event, and *People and access* shows them.
+
+### Metrics
+
+`/metrics` answers in Prometheus's format, to trend Pinax and the storage it reports on and to alert when something
+goes wrong. It is off until `PINAX_METRICS_TOKEN` is set, and then answers only requests that send that token:
+
+```bash
+openssl rand -hex 32 | sudo tee /etc/prometheus/pinax-metrics-token
+```
+
+Put the same token in `/etc/pinax/pinax.env` as `PINAX_METRICS_TOKEN=...`, restart `pinax-web`, and add the scrape
+job in `deploy/prometheus/pinax-scrape.yml` to Prometheus. `/metrics` is served by the web app, so it is reached
+the way pages are: through the proxy in front of Pinax (`deploy/oauth2-proxy/pinax.cfg` lets `GET /metrics` through
+without signing in, as it does `/api/health`, and Pinax checks the token), or on Pinax's own port from the
+Prometheus host.
+
+The figures name filesystems, never labs, people, or paths. From the catalog, worked out when Prometheus asks (at
+most every 15 seconds), and so whichever process did the work:
+
+| Metric | What it is |
+|---|---|
+| `pinax_scan_last_success_timestamp_seconds`, `pinax_ingest_last_success_timestamp_seconds` | When each filesystem's newest ingested scan was taken, and when it was ingested |
+| `pinax_scan_last_failure_timestamp_seconds` | When its newest failed or skipped scan was taken: newer than the last success means the newest scan was not ingested |
+| `pinax_scan_duration_seconds`, `pinax_ingest_duration_seconds` | How long the newest scan took fs-inventory, and its ingest Pinax |
+| `pinax_filesystem_bytes`, `_allocated_bytes`, `_files`, `_directories`, `_cold_bytes`, `pinax_scan_errors` | The newest scan's totals: its size, space on disk, files, folders, data unchanged for `PINAX_COLD_DAYS`, and entries not read |
+| `pinax_filesystem_capacity_bytes`, `_used_bytes`, `_growth_bytes_per_month`, `_fill_timestamp_seconds`, `_fill_earliest_timestamp_seconds` | Capacity, use, its trend, when it fills at the trend, and when it could at the fast end of the trend's range (as on *Capacity*) |
+| `pinax_snapshots{status}`, `pinax_index_bytes` | Snapshots by state, and the size of the indexes kept |
+| `pinax_watcher_up`, `pinax_watcher_last_heartbeat_timestamp_seconds` | Whether automatic ingest is running and responding |
+| `pinax_search_jobs{status}`, `pinax_users{state}`, `pinax_labs{state}`, `pinax_sessions_active` | Searches in the background, people, labs and departments, and local sign-in sessions |
+| `pinax_var_size_bytes`, `pinax_var_free_bytes` | Pinax's own disk, `PINAX_VAR_ROOT` |
+| `pinax_catalog_up`, `pinax_info{version,database}` | Whether the catalog can be read, and Pinax's version |
+
+From the web app itself, since it started (with `rate()` for rates):
+
+| Metric | What it is |
+|---|---|
+| `pinax_http_requests_total{method,route,status}`, `pinax_http_request_duration_seconds{method,route}` | Requests by route (its template, such as `/api/views/{view_id}`) and status, and how long they took |
+| `pinax_index_queries_total`, `pinax_index_query_seconds_total` | Index queries for requests, and their time |
+| `pinax_queries_stopped_total{reason}` | Requests stopped: `timeout`, `busy` (no whole-filesystem turn in time), or `gone` (the browser left) |
+| `pinax_wide_queries{state}` | Whole-filesystem file queries running, and waiting for a turn |
+| `pinax_search_jobs_finished_total{status}` | Searches in the background finished: done, failed, or stopped |
+| `pinax_audit_events_total{action}` | Audit events, by action: `auth.signed_in`, `auth.sign_in_failed`, and `auth.locked` are sign-ins |
+
+and, on Linux, the process's own memory, CPU, and open files (`process_*`). `deploy/prometheus/pinax-alerts.yml` has alert rules
+to start from: Pinax or its catalog down, a scan not ingested, a filesystem with no new scan for eight days,
+automatic ingest stopped, a filesystem filling within 90 days or 90% full, Pinax's own disk 90% full, slow pages,
+server errors, searches turned away for want of a turn, and many failed sign-ins.
+
+### Tasks
 
 | Task | How |
 |---|---|
@@ -404,13 +565,13 @@ to the journal (`journalctl -u pinax-web -u pinax-ingest`).
 | A failed or skipped scan | *Scans* shows the error; fix the cause and run `pinax ingest` on the scan |
 | Automatic ingest *not responding* | `systemctl status pinax-ingest` and its journal |
 | Too little disk for indexes | Lower `PINAX_KEEP_SNAPSHOTS`; pruning runs after every ingest. A build needs room for one more index while it runs ([Sizing](#sizing)) |
-| People see "Pinax stopped this after 180 seconds" | A search or comparison of a whole filesystem read for longer than `PINAX_QUERY_TIMEOUT`: search within a folder, or narrow it by name, type, size, or age. To allow longer, raise `PINAX_QUERY_TIMEOUT` and the proxy's timeout with it. The journal names each one (`Stopped /api/files: timeout after 180 s`) |
+| People see "Pinax stopped this after 180 seconds" | A search or comparison of a whole filesystem read for longer than `PINAX_QUERY_TIMEOUT`: search within a folder, or narrow it by name, type, size, or age. To allow longer, raise `PINAX_QUERY_TIMEOUT` and the proxy's timeout with it. The log names each one (`Stopped /api/files: timeout after 180 s`) |
 | People see "Pinax is already running as many searches of whole filesystems as it allows" | Others ran meanwhile: raise `PINAX_WIDE_QUERIES` if the server has the cores and memory |
 | Pages are slow while a large search runs | Set `PINAX_QUERY_THREADS` below the number of cores |
 | Scan folders filling the disk | Pinax never deletes them: delete the folders of pruned snapshots (`pinax snapshots` lists each one's status and folder) |
 | An index was lost or damaged | `pinax rebuild SNAPSHOT_ID`, from its scan; `/api/health` is `degraded` and counts `indexes_missing` while one is missing |
 | Someone forgot their password, or is locked out (local sign-in) | Their page under *People and access*, *Set a new temporary password*; or `pinax user password USERNAME` |
-| Read the audit log | Each person's and lab's page shows its recent changes, and *All data* the latest under *Recent activity*; the whole log is the catalog's `audit_event` table (below) |
+| Read the audit log | Each person's and lab's page shows its recent changes, and *All data* the latest under *Recent activity*; every event is in the log too (`pinax.audit`, and `PINAX_AUDIT_LOG` if set), and the whole log is the catalog's `audit_event` table (below) |
 | A lab asks why a past month's charge changed | See [Charges and statements](#charges-and-statements) |
 | Someone cannot see their lab's data | Check *People and access* (membership) and *Folders and labs* (the folder is mapped to their lab) |
 | Someone gets *401* after signing in | Their username (the header named by `PINAX_AUTH_HEADER`) is not an active person in the catalog |
@@ -422,4 +583,10 @@ sign-in with local sign-in; never a password):
 
 ```bash
 sudo -u pinax sqlite3 /var/lib/pinax/pinax.db "SELECT ts, action, summary FROM audit_event ORDER BY ts DESC LIMIT 100"
+```
+
+On PostgreSQL, the same query with `psql`:
+
+```bash
+sudo -u pinax psql "postgresql://pinax@db.example.org/pinax" -c "SELECT ts, action, summary FROM audit_event ORDER BY ts DESC LIMIT 100"
 ```

@@ -1,24 +1,34 @@
 # SPDX-License-Identifier: Apache-2.0
 """Catalog database engine and session factory.
 
-SQLite (WAL mode) for the proof of concept. Point PINAX_DATABASE_URL at PostgreSQL for production.
+SQLite (WAL mode) by default, a file in VAR_ROOT with nothing to install; PostgreSQL for production
+(PINAX_DATABASE_URL). Migrations (migrate.py) create the catalog and keep it up to date on both.
 The catalog holds people, labs, folder mappings, filesystems, snapshots, and folder history; the
 per-file data lives in each snapshot's DuckDB index and Parquet files (see index.py).
 """
 
+import sqlite3
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
+from pathlib import Path
 
-from sqlalchemy import create_engine, event, inspect, text
+from sqlalchemy import MetaData, create_engine, event, inspect, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
+from . import logs  # noqa: F401 - logs each audit event once its change is committed
 from .config import get_settings
+
+# Constraints and indexes named by rule, so a migration can name what it changes on every database.
+NAMING = {"ix": "ix_%(column_0_label)s", "uq": "uq_%(table_name)s_%(column_0_N_name)s",
+          "ck": "ck_%(table_name)s_%(constraint_name)s", "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+          "pk": "pk_%(table_name)s"}
 
 
 class Base(DeclarativeBase):
-    pass
+    metadata = MetaData(naming_convention=NAMING)
 
 
 def utcnow() -> datetime:
@@ -29,21 +39,38 @@ _engine: Engine | None = None
 _SessionLocal: sessionmaker[Session] | None = None
 
 
-def _make_engine(url: str) -> Engine:
+def make_engine(url: str) -> Engine:
     if url.startswith("sqlite"):
         engine = create_engine(url, connect_args={"check_same_thread": False, "timeout": 30})
 
         @event.listens_for(engine, "connect")
         def _sqlite_pragmas(dbapi_conn, _record):
             cur = dbapi_conn.cursor()
-            cur.execute("PRAGMA journal_mode=WAL")
+            cur.execute("PRAGMA busy_timeout=30000")
+            # Turning a new catalog to WAL needs it to itself, and SQLite does not wait for that: processes that
+            # start together (the web app and the watcher) try again for a few seconds.
+            for attempt in range(100):
+                try:
+                    cur.execute("PRAGMA journal_mode=WAL")
+                    break
+                except sqlite3.OperationalError as e:
+                    if "locked" not in str(e) or attempt == 99:
+                        raise
+                    time.sleep(0.05)
             cur.execute("PRAGMA synchronous=NORMAL")
             cur.execute("PRAGMA foreign_keys=ON")
-            cur.execute("PRAGMA busy_timeout=30000")
             cur.close()
 
         return engine
-    return create_engine(url, pool_pre_ping=True)
+    connect_args = {}
+    if url.startswith("postgresql") and "application_name" not in url:
+        connect_args["application_name"] = "pinax"  # so the database's own views say who is connected
+    pool = get_settings().database_pool_size
+    try:
+        return create_engine(url, pool_pre_ping=True, pool_size=pool, max_overflow=pool, connect_args=connect_args)
+    except ModuleNotFoundError as e:
+        raise RuntimeError(f"The catalog's database needs a driver that is not installed ({e.name}); for PostgreSQL, "
+                           "install Pinax with its postgres extra: uv sync --extra postgres") from e
 
 
 def get_engine() -> Engine:
@@ -51,7 +78,7 @@ def get_engine() -> Engine:
     if _engine is None:
         settings = get_settings()
         settings.ensure_dirs()
-        _engine = _make_engine(settings.db_url)
+        _engine = make_engine(settings.db_url)
         _SessionLocal = sessionmaker(bind=_engine, expire_on_commit=False)
     return _engine
 
@@ -95,36 +122,32 @@ def get_session() -> Iterator[Session]:
 
 
 def init_db() -> None:
-    from . import models  # noqa: F401 - register tables
+    """Bring the catalog up to date (or, with PINAX_DB_AUTO_UPGRADE=false, check that it is), then add the default
+    tags if they were never added."""
+    from . import migrate
 
-    engine = get_engine()
-    Base.metadata.create_all(engine)
-    add_missing_columns(engine)
+    if get_settings().db_auto_upgrade:
+        migrate.upgrade(get_engine())
+    else:
+        migrate.ensure_current(get_engine())
     from .tags import ensure_defaults
 
     ensure_defaults()
 
 
-def add_missing_columns(engine: Engine) -> list[str]:
-    """Add columns that a newer version of a table has and the catalog's copy lacks (create_all adds only whole
-    tables), with their server defaults, so an existing catalog keeps working after an upgrade. Until migrations
-    arrive (Alembic, with PostgreSQL), new columns are nullable or have a server default."""
-    added = []
-    have_tables = set(inspect(engine).get_table_names())
-    prep = engine.dialect.identifier_preparer
+def reset_catalog() -> None:
+    """Delete everything in the catalog (`pinax seed`, which runs only in the demo environment)."""
+    from . import models  # noqa: F401 - register tables
+
+    engine = get_engine()
+    if engine.dialect.name == "sqlite":
+        path = engine.url.database
+        reset_engine()
+        if path and path != ":memory:":
+            for suffix in ("", "-wal", "-shm", ".lock"):
+                Path(path + suffix).unlink(missing_ok=True)
+        return
     with engine.begin() as conn:
-        for table in Base.metadata.sorted_tables:
-            if table.name not in have_tables:
-                continue
-            have = {c["name"] for c in inspect(conn).get_columns(table.name)}
-            for col in table.columns:
-                if col.name in have:
-                    continue
-                ddl = f"ALTER TABLE {prep.quote(table.name)} ADD COLUMN {prep.quote(col.name)} {col.type.compile(engine.dialect)}"
-                if col.server_default is not None:
-                    arg = col.server_default.arg
-                    default = arg if isinstance(arg, str) else arg.compile(dialect=engine.dialect)
-                    ddl += f" DEFAULT {default}"
-                conn.execute(text(ddl))
-                added.append(f"{table.name}.{col.name}")
-    return added
+        Base.metadata.drop_all(conn)
+        if inspect(conn).has_table("alembic_version"):
+            conn.execute(text("DROP TABLE alembic_version"))

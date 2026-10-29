@@ -34,6 +34,10 @@ about fifteen seconds. Run it again at any time to start over: it resets `var/` 
 undoes whatever you changed during a demo. `--scale 0.5` writes about half as many files (the walk-through's
 numbers are for the default).
 
+The demo's catalog is SQLite in `var/`, with nothing else to run. It runs the same on PostgreSQL: with the driver
+installed (`uv sync --extra postgres`) and `PINAX_DATABASE_URL` pointing at an empty database, `pinax seed` fills it
+and `pinax serve` uses it ([PostgreSQL](DEPLOYMENT.md#postgresql)).
+
 Sign-in in the demo is a persona switcher (`PINAX_AUTH_MODE=demo`, the default): anyone can be anyone, and
 *Switch identity* (top right) changes who you are. That is fine on a laptop and wrong anywhere else, so Pinax
 refuses to start in demo mode when `PINAX_ENVIRONMENT=prod`. And since seeding deletes the catalog, `pinax seed`
@@ -176,6 +180,21 @@ files are sparse, on a laptop's disk), so the capacities are set, and use is mea
 17. **Import from CSV.** In a terminal, `uv run pinax import examples/import` lists the 14 changes the example
     files would make: two departments, a lab, three people, their memberships, and owners for the three unmapped
     folders. Add `--apply`, and *Folders and labs* shows no unmapped folders; every change is in the audit log.
+
+18. **Logs and metrics.** The terminal running `pinax serve` has a line for each request, with who made it, from
+    where, how long it took, and its request ID; each change made above is there too, as a `pinax.audit` line. Stop
+    the server, and start it again with metrics on:
+
+    ```bash
+    PINAX_METRICS_TOKEN=demo-metrics-token-0123456789 uv run pinax serve
+    ```
+
+    ```bash
+    curl -s -H "Authorization: Bearer demo-metrics-token-0123456789" http://127.0.0.1:8001/metrics | grep '^pinax_filesystem'
+    ```
+
+    Each filesystem's size, files, cold data, capacity, use, and growth, and the day *Fast* could fill at the fast
+    end of its trend. `uv run pinax db status` says the catalog is up to date.
 
 ## Afterwards
 

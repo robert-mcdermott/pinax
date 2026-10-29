@@ -1,0 +1,11 @@
+# /etc/logrotate.d/pinax: Pinax's log files, when PINAX_LOG_FILE and PINAX_AUDIT_LOG write to /var/log/pinax
+# (docs/DEPLOYMENT.md, "Logs"). Pinax reopens a file that has been moved, so no copytruncate and no signal.
+/var/log/pinax/*.log {
+    daily
+    rotate 90
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 pinax pinax
+}
