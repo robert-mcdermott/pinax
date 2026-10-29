@@ -911,7 +911,7 @@ split their charges by grant. Planned; the slices are confirmed when the wave st
 
 | Slice | Scope and requirements | Acceptance before the next slice | Status |
 | --- | --- | --- | --- |
-| 1 | The tag list (T1) | Standard tags kept by administrators on a *Tags* page: added, changed, and retired (a tag in use is retired, not deleted); each with a type (a flag, text, a date, or a choice from a list), who may apply it (owners, or administrators only), and whether it protects a folder from cleanup; the default list below at start-up, for a site to change; audited | To come |
+| 1 | The tag list (T1) | Standard tags kept by administrators on a *Tags* page: added, changed, and retired (a tag in use is retired, not deleted); each with a type (a flag, text, a date, or a choice from a list), who may apply it (owners, or administrators only), and whether it protects a folder from cleanup; the default list below at start-up, for a site to change; audited | Done |
 | 2 | Tagging folders (T2) | From the age map's folder panel and tile actions: a folder's own tags, and those it inherits from the folders above it; a lab's PI and delegates tag its folders, administrators any folder; a lab makes custom tags of its own, seen by its members and administrators; administrators merge a custom tag into a standard one; `pinax import` takes tags in bulk; tiles that are or hold tagged folders are marked, with their tags in tooltips and the table view; audited; both themes and 375 pixels | To come |
 | 3 | Finding data by tag (T3) | A *Collections* page: folders by tag and value, combined (Source is cryo-EM and Data stage is raw), across filesystems, within what the person may see; each folder's size, files, cold share, average age, monthly cost, owner, and tags; nested folders counted once in the total; the collection's history and forecast from the recorded totals (waves 6 and 7); CSV; within Q3, reading only the catalog | To come |
 | 4 | Cost by tag (T4) | Charges split by a tag's values, such as by grant or project: each tagged folder's share of its lab's charge on its filesystem, time-weighted from the recorded totals, and what is untagged; on *Storage charges* and in the statement CSV; tested against brute force | To come |
@@ -943,8 +943,24 @@ The default tags, which a site changes on the *Tags* page:
 - **Collections read only the catalog**, from the totals recorded for marked folders at each ingest (wave 7), so
   finding data by tag takes milliseconds however many filesystems it spans.
 
-Open within the wave: who sets *Data classification*; whether new top-level folders must have some tags; whether a
-folder can drop a tag it inherits.
+Settled when the wave started:
+- *Data classification* is applied by administrators by default; each tag's *applied by* is the site's to change.
+- New top-level folders need no tags: required tags wait for a site that wants them.
+- A folder cannot drop a tag it inherits; the tag is taken off the folder that has it.
+
+### Slices as built
+
+1. **The tag list (T1).**
+   - `tag` and `folder_tag` tables, and `tags.py`: standard tags (no lab) and labs' own; a type (flag, text, date,
+     choice with its list), more than one value or not, applied by owners or administrators, and protecting (a flag
+     or a date); values checked by type. The default list is added by `init_db` when the catalog has no standard tag
+     at all, so a site's removals stay. Adding, changing (not the type; not taking away a choice in use), retiring
+     and bringing back, and deleting an unused tag, each audited.
+   - `/api/admin/tags` and *Tags* (`js/tags.js`, under *Administration*): the standard tags and labs' own, with how
+     many folders have each.
+   - Tests (`tests/test_tags.py`): the default list, added once; adding and changing, and what is refused; a tag in
+     use retired, not deleted, and its choices kept; administrators only; values by type.
+   - *Done*: checked in the browser on the demo.
 
 ## Later waves (outlined)
 

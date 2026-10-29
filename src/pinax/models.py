@@ -356,6 +356,49 @@ class CleanupItem(Base):
     mark: Mapped[MarkedFolder] = relationship()
 
 
+class Tag(Base):
+    """A tag folders can have (tags.py): a standard one, kept by administrators, or a lab's own (`lab_id`). Its
+    type says what a value is (`flag`: none; `text`; `date`; `choice`, one of `choices`); `many` lets a folder have
+    more than one value; `applied_by` says who may tag (`owners`: a lab's PI and delegates, and administrators; or
+    `admins`); `protects` keeps a folder out of cleanup plans (a date tag until its date). A tag in use is retired,
+    not deleted."""
+
+    __tablename__ = "tag"
+    __table_args__ = (UniqueConstraint("lab_id", "key"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    key: Mapped[str] = mapped_column(String(64))
+    label: Mapped[str] = mapped_column(String(100))
+    description: Mapped[str] = mapped_column(Text, default="")
+    lab_id: Mapped[int | None] = mapped_column(ForeignKey("lab.id", ondelete="CASCADE"), nullable=True, index=True)
+    value_type: Mapped[str] = mapped_column(String(16), default="flag")
+    choices: Mapped[list[str]] = mapped_column(JSON, default=list)
+    many: Mapped[bool] = mapped_column(Boolean, default=False)
+    applied_by: Mapped[str] = mapped_column(String(16), default="owners")
+    protects: Mapped[bool] = mapped_column(Boolean, default=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    lab: Mapped["Lab | None"] = relationship()
+
+
+class FolderTag(Base):
+    """A tag on a marked folder (and so on everything below it), with its value."""
+
+    __tablename__ = "folder_tag"
+    __table_args__ = (UniqueConstraint("tag_id", "mark_id", "value"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tag_id: Mapped[int] = mapped_column(ForeignKey("tag.id", ondelete="CASCADE"), index=True)
+    mark_id: Mapped[int] = mapped_column(ForeignKey("marked_folder.id", ondelete="CASCADE"), index=True)
+    value: Mapped[str] = mapped_column(String(200), default="")
+    added_by: Mapped[int | None] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    added_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    tag: Mapped[Tag] = relationship()
+    mark: Mapped[MarkedFolder] = relationship()
+
+
 class Heartbeat(Base):
     """The latest word from a long-running process, such as `pinax ingest --watch`, so the interface can say
     whether it is running."""

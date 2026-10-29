@@ -433,6 +433,17 @@ Administrators see **every lab's plan** (`/api/plans/all`, *Cleanup plans* witho
 would free and save, and what is done; per filesystem, what is to be freed, moved in, and freed so far; the largest
 folders still to do; each lab's plan; and one CSV of every folder, for the storage team.
 
+## Tags
+
+Folders are described with **tags** (`tags.py`, `tag` and `folder_tag`). Administrators keep the standard tags on
+*Tags*: each has a type (a flag, text, a date, or a choice from the site's own list), says who may apply it (a
+lab's PI and delegates, or administrators only), whether a folder may have more than one value, and whether it
+protects a folder from cleanup plans (a flag, or a date until it). A default list is added the first time the
+catalog is set up, and never again, so a site's changes stay: Project, Grant or award, Data stage, Source, Data
+classification (administrators only), IRB protocol, Shared in a repository, Keep until, and Legal hold. A tag in use
+is retired rather than deleted (folders keep it; it can no longer be applied), its type cannot change, and a choice
+in use cannot be taken away. Every change is audited.
+
 ## Costs
 
 What storage costs is kept in the catalog as two schedules per filesystem (`costs.py`):

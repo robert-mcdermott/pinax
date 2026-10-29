@@ -10,6 +10,7 @@ import { charge, viewChargeback, viewCharges } from "/js/charges.js";
 import { viewCapacity } from "/js/capacity.js";
 import { viewCosts } from "/js/costs.js";
 import { viewPlans } from "/js/plans.js";
+import { viewTags } from "/js/tags.js";
 import { viewChanges } from "/js/changes.js";
 import { viewExplore } from "/js/explore.js";
 import { viewHistory } from "/js/history.js";
@@ -79,6 +80,7 @@ const routes = [
   [/^#\/costs$/, viewCosts],
   [/^#\/capacity$/, viewCapacity],
   [/^#\/plans(\?.*)?$/, viewPlans],
+  [/^#\/tags$/, viewTags],
   [/^#\/charges(\?.*)?$/, viewCharges],
   [/^#\/chargeback(\?.*)?$/, viewChargeback],
   [/^#\/access(\?.*)?$/, viewAccess],

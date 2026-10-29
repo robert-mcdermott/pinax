@@ -88,7 +88,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 
 | # | Requirement | Status |
 | --- | --- | --- |
-| T1 | Standard tags kept by administrators, typed (flag, text, date, choice), with a default list a site changes | planned (wave 8) |
+| T1 | Standard tags kept by administrators, typed (flag, text, date, choice), with a default list a site changes | done (wave 8, slice 1) |
 | T2 | Data owners and administrators tag folders, and tags apply to everything below; labs make custom tags, which administrators can merge into standard ones | planned (wave 8) |
 | T3 | Find folders by tag and value across filesystems, with their totals, history, and forecast; CSV | planned (wave 8) |
 | T4 | Charges split by a tag's values, such as by grant or project | planned (wave 8) |

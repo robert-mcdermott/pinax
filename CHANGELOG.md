@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Tags.** *Tags* (for administrators) keeps the standard tags folders can have: each a flag, text, a date, or a
+  choice from the site's own list, applied by lab PIs and delegates or by administrators only, with one value or
+  more, and some protecting a folder from cleanup plans. A default list is added once: Project, Grant or award, Data
+  stage, Source, Data classification, IRB protocol, Shared in a repository, Keep until, and Legal hold. A tag in use
+  is retired rather than deleted; every change is audited.
+
 ## 0.7.0 (2026-10-29)
 
 Seventh release (wave 7, "cleanup plans"): what a lab could free, and what it would save. From a folder's panel on
