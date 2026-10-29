@@ -7,6 +7,9 @@
 - **Saved views.** *Save view* on any report keeps the page as it is (the report, the folder, and the settings)
   under a name, to oneself or shared with one of one's labs; *My data* and *All data* list them, with who sees each.
   A view is only a page's address, so whoever opens it sees only what they may.
+- **Searches in the background.** A search of a whole filesystem on *Find files* can run in the background, past a
+  page's time limit: every match is kept, as a table and a CSV, on *Searches* for `PINAX_JOB_DAYS` (7), each search
+  within `PINAX_JOB_TIMEOUT` (an hour), at most `PINAX_WIDE_QUERIES` at once. For administrators.
 
 ### Changed
 

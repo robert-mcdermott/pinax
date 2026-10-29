@@ -49,6 +49,8 @@ Settings are `PINAX_*` environment variables, or a `.env` file in the folder you
 | `PINAX_EXPORT_MAX_ROWS` | `100000` | Most files a CSV download contains |
 | `PINAX_COLD_DAYS` | `730` | When data counts as cold, in days since its last change. Rounded to the age bucket that starts nearest (two years by default) |
 | `PINAX_CURRENCY` | `USD` | The currency prices are in (an ISO 4217 code such as `EUR`), shown in each viewer's own number format. Prices and free tiers themselves are set on *Costs*, not here |
+| `PINAX_JOB_TIMEOUT` | `3600` | How long, in seconds, a search in the background may run (see *Searches*); at least 60 |
+| `PINAX_JOB_DAYS` | `7` | How many days the results of a search in the background are kept |
 | `PINAX_FILL_WARNING_MONTHS` | `12` | A filesystem that fills within this many months at its trend is flagged on the overview and on *Capacity*. Capacities themselves are set on *Capacity*, or come from what `pinax scan` records |
 
 ## Identity

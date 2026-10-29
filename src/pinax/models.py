@@ -416,6 +416,26 @@ class SavedView(Base):
     lab: Mapped["Lab | None"] = relationship()
 
 
+class SearchJob(Base):
+    """A file search run in the background (jobs.py): what was asked (`request`), its state (`queued`, `running`,
+    `done`, `failed`, `stopped`), and how many files it found; its results are a Parquet file under VAR_ROOT/jobs."""
+
+    __tablename__ = "search_job"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), index=True)
+    request: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    status: Mapped[str] = mapped_column(String(16), default="queued", index=True)
+    message: Mapped[str] = mapped_column(Text, default="")
+    files: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    user: Mapped[User] = relationship()
+
+
 class Heartbeat(Base):
     """The latest word from a long-running process, such as `pinax ingest --watch`, so the interface can say
     whether it is running."""

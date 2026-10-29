@@ -1037,7 +1037,7 @@ the background rather than within a page's time limit.
 | --- | --- | --- | --- |
 | 1 | Hard-link aware totals (R7, Q1) | A file with several hard links counts its size once, at its first link by path (of its device and inode); its other links count as files with no size, in every total (folders, ages, types, owners, charges); each folder records its extra links and what they would have counted again; index version 7; `pinax check` still equal to `fs-inventory rollup`, run on a copy of the scan whose extra links have no size; tested with links within a folder, across folders, and across top-level folders | Done |
 | 2 | Saved and shared views (E9) | A person saves the page they are on (a report, its place, and its settings) under a name, keeps it to themselves or shares it with one of their labs, and opens, renames, or deletes it; *My data* and *All data* list them; a shared view shows only what each member may see; audited | Done |
-| 3 | Searches as background jobs (R13) | A search of a whole filesystem can run in the background, beyond a page's time limit: at most `PINAX_WIDE_QUERIES` at once, each within `PINAX_JOB_TIMEOUT`; its results kept for `PINAX_JOB_DAYS`, listed on a *Searches* page with their CSV; a job left running when Pinax stops is marked as stopped; only its owner and administrators see it | To come |
+| 3 | Searches as background jobs (R13) | A search of a whole filesystem can run in the background, beyond a page's time limit: at most `PINAX_WIDE_QUERIES` at once, each within `PINAX_JOB_TIMEOUT`; its results kept for `PINAX_JOB_DAYS`, listed on a *Searches* page with their CSV; a job left running when Pinax stops is marked as stopped; only its owner and administrators see it | Done |
 | 4 | Demo and release 0.9.0 | Hard links in the demo, a saved and a shared view, and a background search; the README demo script; version 0.9.0, changelog, pull request, tag, release | To come |
 
 ### Decisions for wave 9
@@ -1074,6 +1074,19 @@ the background rather than within a page's time limit.
    - Tests (`tests/test_views.py`): kept to oneself until shared, seen by the lab, unshared; only one's own labs and
      pages of Pinax; only whoever saved a view changes it; the audit.
    - *Done*: checked in the browser (saving an age map view, listed on *All data*).
+3. **Searches as background jobs (R13).**
+   - `search_job` table and `jobs.py`: a search checked as a page would check it, then queued with the scans the
+     person saw; worker threads (as many as `PINAX_WIDE_QUERIES`, and the same turns as pages) run it within
+     `PINAX_JOB_TIMEOUT` and write every match in order (`SnapshotIndex.files_to`) to Parquet under
+     `VAR_ROOT/jobs`; stopping and deleting; at start-up, jobs left queued or running are marked stopped and results
+     older than `PINAX_JOB_DAYS` deleted.
+   - `/api/files/jobs`: start, list (one's own; every one's for administrators), one with a page of its results, its
+     CSV (written once), and stopping or deleting. *Find files* offers *Run in the background* for a search of a
+     whole filesystem (administrators); *Searches* follows them while they run.
+   - Tests (`tests/test_jobs.py`): a search to the end, its results in order, and its CSV; who may search and see;
+     deleting deletes its results; searches left running are stopped at start-up; one that runs too long is stopped
+     at its limit; an unknown sort refused.
+   - *Done*: checked in the browser on the demo (every BAM on *Fast*: 274 files, 20.3 TiB).
 
 ## Later waves (outlined)
 

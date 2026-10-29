@@ -74,7 +74,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | R10 | Forecasts of size: each filesystem, lab and department, home, and all data, 12 months ahead from the trend of its scans, with a range and a backtest | done (wave 6, slice 1: in every history, tested on synthetic histories with known growth, noise, steps, and gaps; 5 ms for a lab and 2 ms for all data on a year of weekly scans of 2,000 folders; slice 2: in *History*, with its range, backtest, and table) |
 | R11 | Each filesystem's capacity, and when it fills at its trend | done (wave 6, slice 3: recorded by `pinax scan` or set by administrators from a day on; the day it fills, with its range, tested against the trend worked out by hand) |
 | R12 | Each lab's and department's charges for the next 12 months at its trend, with the prices and free tiers as scheduled | done (wave 6, slice 4: on *Storage charges* and *Chargeback*, equal to the cent to an hour-by-hour charge on the forecast sizes) |
-| R13 | Searches of a whole filesystem as background jobs, with their results kept for a while | planned (wave 9) |
+| R13 | Searches of a whole filesystem as background jobs, with their results kept for a while | done (wave 9, slice 3) |
 
 ## Cleanup plans
 

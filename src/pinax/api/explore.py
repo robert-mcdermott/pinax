@@ -164,3 +164,88 @@ def _csv(rows: list[dict]) -> StreamingResponse:
 
     return StreamingResponse(gen(), media_type="text/csv",
                              headers={"Content-Disposition": 'attachment; filename="pinax-files.csv"'})
+
+
+# ---------- Searches in the background ----------
+
+@router.post("/files/jobs")
+def start_search(fs: str | None = None, path: str | None = None, flt: explore.FileFilter = Depends(_file_filter),
+                 sort: str = "size", snapshot: int | None = None, at: date | None = None, lab: str | None = None,
+                 identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
+    """Run a file search in the background, beyond a page's time limit: every match, kept for a while."""
+    from .. import jobs
+
+    try:
+        job = jobs.submit(session, identity, fs, path, flt, sort, scan=snapshot or at, lab_slug=lab)
+    except jobs.JobError as e:
+        raise HTTPException(e.status, str(e)) from e
+    return jobs.job_json(session, job)
+
+
+def _job(session: Session, identity: Identity, job_id: int):
+    from .. import jobs
+    from ..models import SearchJob
+
+    job = session.get(SearchJob, job_id)
+    if job is None or not jobs.can_see(identity, job):
+        raise HTTPException(404, "No such search")
+    return job
+
+
+@router.get("/files/jobs")
+def searches(identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
+    """A person's searches in the background (every one's, for administrators), newest first."""
+    from sqlalchemy import select
+
+    from .. import jobs
+    from ..models import SearchJob
+
+    q = select(SearchJob).order_by(SearchJob.created_at.desc())
+    if not identity.is_admin:
+        q = q.where(SearchJob.user_id == identity.user.id)
+    return {"searches": [jobs.job_json(session, j) for j in session.scalars(q.limit(200))],
+            "days": get_settings().job_days}
+
+
+@router.get("/files/jobs/{job_id}")
+def search(job_id: int, offset: int = Query(0, ge=0), limit: int = Query(500, ge=1, le=5000),
+           identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
+    """A search in the background, and a page of what it found."""
+    from .. import jobs
+
+    job = _job(session, identity, job_id)
+    rows = jobs.results(job, offset=offset, limit=limit)
+    fs = job.request.get("fs") or (job.request["places"][0]["fs"] if job.request.get("places") else None)
+    return {**jobs.job_json(session, job), "rows": [explore._file_json(fs, r) for r in rows], "offset": offset}
+
+
+@router.get("/files/jobs/{job_id}/csv")
+def search_csv(job_id: int, identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
+    """Everything a search in the background found, as CSV."""
+    import duckdb
+    from fastapi.responses import FileResponse
+
+    from .. import jobs
+
+    job = _job(session, identity, job_id)
+    parts = jobs.all_parts(job)
+    if job.status != "done" or not parts:
+        raise HTTPException(409, "That search has no results to download")
+    out = jobs.job_dir(job.id) / "results.csv"
+    if not out.exists():
+        source = "read_parquet([" + ", ".join("'" + str(p).replace("'", "''") + "'" for p in parts) + "])"
+        order = explore.FILE_SORTS[job.request["sort"]]
+        with duckdb.connect() as con:
+            con.execute(f"COPY (SELECT * FROM {source} ORDER BY {order}) TO '{out!s}' (HEADER, DELIMITER ',')")
+    return FileResponse(out, media_type="text/csv", filename=f"pinax-search-{job.id}.csv")
+
+
+@router.delete("/files/jobs/{job_id}")
+def delete_search(job_id: int, identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
+    """Stop a search that is running, or delete one and what it found."""
+    from .. import jobs
+
+    job = _job(session, identity, job_id)
+    jobs.stop_or_delete(session, job)
+    session.commit()
+    return {"deleted": job_id}

@@ -675,6 +675,28 @@ class SnapshotIndex:
             return self._rows(f"SELECT {FILE_COLUMNS} FROM {src} WHERE {' AND '.join(cond)} ORDER BY {order} LIMIT ?",
                               [*args, limit], FILE_KEYS)
 
+    def files_to(self, path: str, out: Path, *, where: str = "", params: list | None = None, order: str = "size DESC",
+                 direct_only: bool = False) -> tuple[int, int]:
+        """Every file `files` would find, written to the Parquet file `out` in order: for a search in the background
+        (jobs.py), which has no row limit. Returns how many files, and their bytes."""
+        src = self.file_sources(self.scope_tops(path))
+        if src is None:
+            return 0, 0
+        lo, hi = child_range(path)
+        cond, args = ["path >= ?", "path < ?"], [lo, hi]
+        if direct_only:
+            cond.append("depth = ?")
+            args.append(self.depth_of(path) + 1)
+        if where:
+            cond.append(where)
+            args.extend(params or [])
+        quoted = "'" + str(out).replace("'", "''") + "'"
+        with self._turn(path):
+            self._raw(f"COPY (SELECT {FILE_COLUMNS} FROM {src} WHERE {' AND '.join(cond)} ORDER BY {order}) "
+                      f"TO {quoted} (FORMAT parquet, COMPRESSION zstd)", args)
+            n, b = self._raw(f"SELECT count(*), coalesce(sum(size), 0) FROM read_parquet({quoted})", [])[0]
+        return int(n), int(b)
+
     def files_summary(self, path: str, *, where: str = "", params: list | None = None) -> dict:
         src = self.file_sources(self.scope_tops(path))
         if src is None:

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Reports over one place (or the person's home): ages, file types, cold folders, owners, and file search.
 import {
-  $, $$, ageText, api, bytes, date, displayPath, emptyState, html, icon, mount, num, parseQuery, pct, placeHash,
-  placeQuery, raw, state,
+  $, $$, ageText, api, bytes, date, displayPath, emptyState, fsInfo, html, icon, mount, num, parseQuery, pct, placeHash,
+  placeQuery, raw, state, toast,
 } from "/js/core.js";
 import { scopeHeader } from "/js/shell.js";
 import {
@@ -215,6 +215,8 @@ export async function viewFiles(el, query) {
   const limit = state.config.search_max_rows;
   const data = await api("files", { query: { ...params, limit, total: false } });
   const more = data.files.length >= limit;
+  // A search of a whole filesystem (or of all of them) can run in the background, past a page's time limit.
+  const wide = state.me.is_admin && (!place || !place.path || place.path === fsInfo(place.fs)?.root);
   const age = q.older ? `older:${q.older}` : q.newer ? `newer:${q.newer}` : "";
   const csv = `/api/files?${new URLSearchParams(Object.entries({ ...params, fmt: "csv", limit: state.config.export_max_rows })
     .filter(([, v]) => v !== undefined && v !== null && v !== ""))}`;
@@ -240,7 +242,8 @@ export async function viewFiles(el, query) {
     </form>
     <div class="card flush"><div class="card-head"><h2 id="files-total">${more ? html`<span class="muted">${num(limit)}+ files · counting…</span>`
         : totalText(data.files.length, data.files.reduce((t, f) => t + f.size, 0))}</h2>
-      <a class="btn btn-ghost btn-sm" href="${csv}">${icon("download")}Download CSV</a></div>
+      <div class="toolbar"><a class="btn btn-ghost btn-sm" href="${csv}">${icon("download")}Download CSV</a>
+        ${wide ? html`<button class="btn btn-secondary btn-sm" id="files-job">${icon("clock")}Run in the background</button>` : ""}</div></div>
       ${data.files.length ? html`<div class="table-wrap"><table class="table compact"><thead><tr><th>File</th><th class="num">Size</th><th>Last change</th><th>Last access</th><th>Type</th><th>Owner</th></tr></thead><tbody>
         ${data.files.map((f) => html`<tr><td><span class="title-cell">${f.name}</span><div class="sub path">${displayPath(f.fs, f.path)}</div></td>
           <td class="num nowrap">${bytes(f.size)}</td><td class="nowrap">${f.mtime ? date(f.mtime) : "—"}</td><td class="nowrap">${f.atime ? date(f.atime) : "—"}</td>
@@ -248,6 +251,13 @@ export async function viewFiles(el, query) {
           <td class="nowrap">${f.owner || html`uid ${f.uid}`}</td></tr>`)}</tbody></table></div>
         ${more ? html`<div class="card-foot">Showing the first ${num(data.files.length)}. Download the CSV for up to ${num(state.config.export_max_rows)}.</div>` : ""}`
         : emptyState("search", "No files match", "Try a shorter name, a wider age range, or another folder.")}</div>`);
+  $("#files-job", el)?.addEventListener("click", async () => {
+    try {
+      const job = await api(`files/jobs?${new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ""))}`, { method: "POST" });
+      toast(`Searching in the background: it is on Searches (number ${job.id})`);
+      location.hash = "#/searches";
+    } catch (e) { toast(e.message, "error"); }
+  });
   if (more) {
     const box = $("#files-total", el);
     api("files/count", { query: params }).then((t) => mount(box, totalText(t.files, t.bytes)), (e) => {

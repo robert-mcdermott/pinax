@@ -60,6 +60,7 @@ src/pinax/
   plans.py         cleanup plans: the folders each lab means to delete, move, or compress
   tags.py          folder tags: the standard list, labs' own tags, and tagging folders
   views.py         saved views: pages people keep and share with their labs
+  jobs.py          searches in the background: worker threads, results kept as Parquet
   auth.py          identity (demo cookie or SSO header) and folder access
   explore.py       explore and report services: resolving places, merging results across places
   serialize.py     JSON views of catalog objects
@@ -108,6 +109,7 @@ them, the person's home), and `lab` to limit home to one lab:
 | `GET /api/owners` | Bytes and files by owner, flagging deleted accounts |
 | `GET /api/cold?older=N` | Self-contained folders unchanged for at least age bucket N |
 | `GET /api/files?q=&category=&ext=&min_size=&older=&newer=&uid=&sort=&fmt=csv` | Files, with totals; CSV download |
+| `POST`, `GET /api/files/jobs`; `GET`, `DELETE /api/files/jobs/{id}`; `GET /api/files/jobs/{id}/csv` | A search in the background, the person's searches, one with a page of its results, stopping or deleting one, and its CSV |
 | `GET /api/home`, `GET /api/history?fs=&path=&lab=` | Folder cards and lab totals; a place's history, with the forecast of its size |
 | `GET /api/admin/overview`, `/health`, `/names`, `/snapshots`, `/labs`, `/people` | Administrator views |
 | `POST /api/admin/folders`, `POST /api/admin/labs/{slug}/members` | Folder ownership and membership changes |
@@ -140,6 +142,7 @@ The interface is plain HTML, CSS, and JavaScript modules with no framework or bu
   `api/tags.py`).
 - `js/collections.js`: *Collections*, finding data by tag.
 - `js/views.js`: *Save view* on every report's header, and the saved views on the home pages.
+- `js/searches.js`: *Searches*, searches run in the background.
 - `js/costs.js`: *Costs*, each filesystem's prices and free tiers (`costs.py`, `api/costs.py`).
 - `js/charges.js`: *Storage charges*, what a person's labs pay each month and how, and *Chargeback*, every lab's
   charges for a month, for administrators (`charges.py`, `api/costs.py`).

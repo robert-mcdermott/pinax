@@ -13,6 +13,7 @@ import { viewPlans } from "/js/plans.js";
 import { viewTags } from "/js/tags.js";
 import { bindSave, viewsCard } from "/js/views.js";
 import { viewCollections } from "/js/collections.js";
+import { viewSearches } from "/js/searches.js";
 import { viewChanges } from "/js/changes.js";
 import { viewExplore } from "/js/explore.js";
 import { viewHistory } from "/js/history.js";
@@ -86,6 +87,7 @@ const routes = [
   [/^#\/plans(\?.*)?$/, viewPlans],
   [/^#\/tags$/, viewTags],
   [/^#\/collections(\?.*)?$/, viewCollections],
+  [/^#\/searches(\?.*)?$/, viewSearches],
   [/^#\/charges(\?.*)?$/, viewCharges],
   [/^#\/chargeback(\?.*)?$/, viewChargeback],
   [/^#\/access(\?.*)?$/, viewAccess],

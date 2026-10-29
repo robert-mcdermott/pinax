@@ -32,6 +32,7 @@ export function renderSidebar() {
     ${link("cold", "snowflake", "Cold data")}
     ${link("owners", "users", "Owners")}
     ${link("files", "search", "Find files")}
+    ${state.me.is_admin ? link("searches", "clock", "Searches", false) : ""}
     ${admin ? html`<h4>ADMINISTRATION</h4>
       ${link("health", "heart", "Storage health", false)}
       ${link("scans", "database", "Scans", false)}

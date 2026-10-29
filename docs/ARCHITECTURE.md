@@ -333,6 +333,13 @@ a turn within their own limit, and a query of a folder never waits. Pinax's limi
 (oauth2-proxy waits five minutes in `deploy/oauth2-proxy/pinax.cfg`), so a long request ends with Pinax's
 explanation rather than a gateway error.
 
+**Searches in the background** (`jobs.py`, *Searches*) are for what a page cannot wait for: a search of a whole
+filesystem (for administrators, from *Find files*) runs in Pinax's own worker threads, at most `PINAX_WIDE_QUERIES`
+at once, taking the same turns as those of pages, each within `PINAX_JOB_TIMEOUT` (an hour), and writes every match,
+in order, to a Parquet file under `VAR_ROOT/jobs`, kept for `PINAX_JOB_DAYS` (7). A job searches the scans the
+person saw when they asked; only they and administrators see it, and its CSV is written once, when first asked
+for. A job left queued or running when Pinax stops is marked as stopped when it starts again.
+
 ## Forecasts
 
 Every history (`/api/history`) comes with a forecast of its size (`forecast.py`): where the place is heading over
