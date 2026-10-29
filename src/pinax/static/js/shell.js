@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Shared page chrome for Pinax views: the sidebar, the scope header (breadcrumbs, scan date, and
 // links to the same folder in every report), and folder cards.
+import { saveButton } from "/js/views.js";
 import { $, $$, api, bytes, date, displayPath, fsInfo, hashAt, html, icon, mount, num, pct, placeHash, raw, setActiveNav, state, when } from "/js/core.js";
 import { ageBar, thresholdText } from "/js/viz.js";
 
@@ -121,7 +122,7 @@ export function scopeHeader(route, place, { asOf, title, lede = "", actions = ""
     <div class="page-head"><div><div class="eyebrow">${REPORTS.find((r) => r[0] === route)?.[2] || ""}</div>
       <h1>${title || placeName(place, lab?.name)}</h1>
       ${path ? html`<p class="path clamp" title="${path}">${path}</p>` : lede ? html`<p>${lede}</p>` : ""}</div>
-      <div class="actions">${actions}</div></div>
+      <div class="actions">${actions}${saveButton()}</div></div>
     <div class="scope">
       <nav class="crumbs" aria-label="Folder path">${crumbs.map((c, i) => html`${i ? html`<span class="sep">${icon("chevronRight")}</span>` : ""}${
         i === last ? html`<span class="here" aria-current="page" title="${c.label}">${c.label}</span>`

@@ -486,6 +486,14 @@ it, out of cleanup plans (`tags.protection`): adding such a folder is refused, a
 one, since cleaning it up would take the protected folder too. A folder planned before it was protected is flagged
 on the plan; suggestions leave protected folders out.
 
+## Saved views
+
+A person saves the page they are on (`views.py`, `saved_view`): its address in the app (a report, its place, and
+its settings, such as `/explore?fs=fast&path=...&size=files`), under a name, kept to themselves or shared with one of
+their labs, whose members see it among their views on *My data* (*All data* for administrators). Only pages of
+Pinax are kept, and a view is only an address, so whoever opens it sees only what they may. Saving, changing,
+and deleting are audited; only whoever saved a view changes it.
+
 ## Costs
 
 What storage costs is kept in the catalog as two schedules per filesystem (`costs.py`):

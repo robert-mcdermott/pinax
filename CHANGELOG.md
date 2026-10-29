@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Added
+
+- **Saved views.** *Save view* on any report keeps the page as it is (the report, the folder, and the settings)
+  under a name, to oneself or shared with one of one's labs; *My data* and *All data* list them, with who sees each.
+  A view is only a page's address, so whoever opens it sees only what they may.
+
 ### Changed
 
 - **Totals count a hard-linked file once.** A file with several hard links counts its size at its first link by

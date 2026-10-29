@@ -6,6 +6,7 @@ import {
 } from "/js/core.js";
 import { fillChip, fillRange, fillShort } from "/js/capacity.js";
 import { renderSidebar } from "/js/shell.js";
+import { viewsCard } from "/js/views.js";
 import { ageBar, ageHistogram, bars, categories, coldBytes, thresholdText } from "/js/viz.js";
 
 const signed = (n) => (n ? `${n > 0 ? "+" : "−"}${bytes(Math.abs(n))}` : "—");
@@ -64,7 +65,9 @@ export async function viewOverview(el) {
         <div class="card"><div class="card-head"><h2>Recent activity</h2></div>
           <ul class="feed">${ov.activity.map((a) => html`<li><span class="when">${when(a.ts)}</span><span>${a.summary}</span></li>`)}</ul></div>
       </div>
-    </div>`);
+    </div>
+    <div id="home-views"></div>`);
+  viewsCard(el.querySelector("#home-views"));
 }
 
 function fsCard(f) {

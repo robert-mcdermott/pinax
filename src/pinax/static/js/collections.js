@@ -6,6 +6,7 @@ import { $, $$, api, bytes, displayPath, emptyState, html, icon, mount, num, par
 import { charge } from "/js/charges.js";
 import { downloadCsv } from "/js/reports.js";
 import { renderSidebar } from "/js/shell.js";
+import { saveButton } from "/js/views.js";
 import { niceTicks, renderTimeChart } from "/js/timechart.js";
 
 const wantedOf = (query) => new URLSearchParams(query || "").getAll("want");
@@ -31,7 +32,7 @@ export async function viewCollections(el, query) {
   mount(el, html`
     <div class="page-head"><div><div class="eyebrow">Overview</div><h1>Collections</h1>
       <p>Data found by its tags, wherever it is: every folder that has all of the tags below, on its own or from a folder above it${state.me.is_admin ? "" : ", among your labs' folders"}.
-        A folder inside another that matches is counted with it.</p></div></div>
+        A folder inside another that matches is counted with it.</p></div><div class="actions">${saveButton()}</div></div>
     <div class="card"><div id="coll-rows">${conditions.map(row)}</div>
       <div class="toolbar" style="margin-top:8px"><button class="btn btn-ghost btn-sm" id="coll-more">${icon("plus")}And another tag</button>
         <button class="btn btn-primary btn-sm" id="coll-find">${icon("search")}Find</button></div></div>

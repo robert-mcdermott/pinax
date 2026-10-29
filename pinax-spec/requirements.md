@@ -56,7 +56,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | E6 | Change over time: history charts, a change map, what changed between two scans | done (wave 3, slices 3 to 5) |
 | E7 | History charts of a folder, lab or department, and filesystem over its scans: size, files, cold share, mean age | done (wave 3, slice 3: every scan for homes, labs, filesystems, and top-level folders; the retained snapshots below the top level; a table and CSV) |
 | E8 | A change map: the treemap colored by growth or shrinkage since a chosen scan, drilling down like the age map | done (wave 3, slice 4: since any retained scan, new and removed folders drawn; 7–31 ms at a million files; wave 10: at 100 million) |
-| E9 | Saved views: a person saves a page with its place and settings, and shares it with their labs | planned (wave 9) |
+| E9 | Saved views: a person saves a page with its place and settings, and shares it with their labs | done (wave 9, slice 2) |
 
 ## Reports
 
