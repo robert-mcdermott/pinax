@@ -17,6 +17,7 @@ __pycache__/
 /scans/
 /demo/
 /data/
+product_research/
 
 # The built website (node docs/site/build.mjs)
 /site/
