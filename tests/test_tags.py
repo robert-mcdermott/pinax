@@ -171,6 +171,51 @@ def test_a_labs_own_tag_and_merging_it(client):
     assert not next(t for t in _tags(client)["custom"] if t["id"] == atlas)["active"]
 
 
+def test_folding_a_labs_tag_as_the_tags_page_does(client):
+    """The page's calls: the list (each lab tag's folders), then the fold, then the list again."""
+    from sqlalchemy import select
+
+    from pinax.db import session_scope
+    from pinax.models import AuditEvent
+
+    login(client, "ada")
+    seq = client.post("/api/tags/custom", json={"lab": "alpha", "label": "Seq run", "type": "text"}).json()["id"]
+    assert _tag(client, "ada", f"{ALPHA}/projects/2015_old", seq, "run 7").status_code == 200
+    assert _tag(client, "ada", f"{ALPHA}/projects/2025_new", seq, "run 9").status_code == 200
+    stage, hold, project = _id(client, "stage"), _id(client, "legal_hold"), _id(client, "project")
+    mine = next(t for t in _tags(client)["custom"] if t["id"] == seq)
+    assert mine["uses"] == 2 and mine["active"] and mine["lab"]["name"]
+
+    # Refused, with nothing changed: a value that is not one of a choice's, a retired tag, a standard tag folded.
+    refused = client.post(f"/api/admin/tags/{seq}/merge", json={"into": stage})
+    assert refused.status_code == 422 and "one of" in refused.json()["detail"]
+    client.post(f"/api/admin/tags/{project}/active", json={"active": False})
+    retired = client.post(f"/api/admin/tags/{seq}/merge", json={"into": project})
+    assert retired.status_code == 422 and "retired" in retired.json()["detail"]
+    client.post(f"/api/admin/tags/{project}/active", json={"active": True})
+    assert client.post(f"/api/admin/tags/{hold}/merge", json={"into": stage, "value": "raw"}).status_code == 422
+    assert next(t for t in _tags(client)["custom"] if t["id"] == seq) == mine
+    login(client, "ada")
+    assert client.post(f"/api/admin/tags/{seq}/merge", json={"into": stage, "value": "raw"}).status_code == 403
+
+    login(client, "ivy")
+    assert client.post(f"/api/admin/tags/{seq}/merge", json={"into": stage, "value": "raw"}).json() == {"folders": 2}
+    after = next(t for t in _tags(client)["custom"] if t["id"] == seq)
+    assert after["uses"] == 0 and not after["active"]  # the row shows it retired
+    for folder in ("2015_old", "2025_new"):
+        (tag,) = _here(client, "ada", f"{ALPHA}/projects/{folder}")["tags"]
+        assert tag["tag"]["key"] == "stage" and tag["value"] == "raw"
+    login(client, "ivy")
+    keep = client.post("/api/tags/custom", json={"lab": "alpha", "label": "Paper"}).json()["id"]
+    assert _tag(client, "ada", f"{ALPHA}/projects/2015_old", keep).status_code == 200
+    login(client, "ivy")
+    assert client.post(f"/api/admin/tags/{keep}/merge", json={"into": project}).json() == {"folders": 1}
+    tags = {t["tag"]["key"]: t["value"] for t in _here(client, "ada", f"{ALPHA}/projects/2015_old")["tags"]}
+    assert tags == {"stage": "raw", "project": "Paper"}  # a flag's value: its name
+    with session_scope() as s:
+        assert len(s.scalars(select(AuditEvent).where(AuditEvent.action == "tag.merged")).all()) == 2
+
+
 def test_untagging_and_the_audit(client):
     from sqlalchemy import select
 

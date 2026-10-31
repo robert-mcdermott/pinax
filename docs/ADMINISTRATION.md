@@ -174,10 +174,15 @@ tag can **protect** folders: a flag (*Legal hold*) or a date (*Keep until*) keep
   taken away).
 - **Retire** stops a tag from being applied; what was tagged stays tagged, and **Bring back** undoes it. An unused
   tag can be deleted (the cross).
-- **Labs' own tags** are listed below the standard ones: labs make them from a folder's panel on the age map. A lab's
-  tag can be folded into a standard one, so its folders carry the standard tag instead and the lab's is retired;
-  there is no button for this yet, so it is a request to the API (`POST /api/admin/tags/{id}/merge` with
-  `{"into": STANDARD_TAG_ID, "value": "..."}`, as an administrator).
+- **Labs' own tags** are listed below the standard ones: labs make them from a folder's panel on the age map.
+- **Fold into a standard tag**, on a lab's tag that folders have, is for a lab's tag that means what a standard one
+  does. Choose the standard tag and, if it takes a value, the value, or keep each folder's own (a flag gives its
+  name, which only text takes). Every folder with the lab's tag gets the standard tag instead, and the lab's tag is
+  retired. Where a folder already has a standard tag that takes one value, the folded value replaces its own. A value
+  the standard tag cannot take (one that is not among a choice's, or not a date) is refused and nothing changes, and
+  a retired standard tag cannot be folded into. The fold is audited.
+
+![Folding a lab's tag into a standard one](images/tags-fold-light.webp "Folding the Fujimoto Lab's Atlas paper into Project: its one folder gets Project, with Atlas paper as its value unless another is given.")
 
 To tag many folders at once, `pinax tags import` reads a CSV of filesystem, path, tag, and value, with a dry run
 first ([CLI.md](CLI.md#pinax-tags)).

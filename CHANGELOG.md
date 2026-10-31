@@ -12,6 +12,10 @@ Wave 11 ("deeper views"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
   around the folder, whose middle goes up a level. Folders under 0.25% of the place are left out. Hover a folder for
   its details and click it to open it, as on the map; saved views keep the view. `GET /api/depth` serves them
   ([Icicle and sunburst](docs/USER-GUIDE.md#icicle-and-sunburst)).
+- **Folding a lab's own tag into a standard one, from *Tags*.** Each lab tag that folders have gets *Fold into a
+  standard tag*: choose the standard tag and its value, or keep each folder's own; every folder with the lab's tag
+  gets the standard tag, and the lab's tag is retired. Until now this was a request to the API only. Folding into a
+  retired standard tag is refused ([Tags](docs/ADMINISTRATION.md#tags)).
 
 ### Changed
 

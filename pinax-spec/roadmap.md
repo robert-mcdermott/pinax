@@ -1240,7 +1240,7 @@ before the pilot at the maintainer's request.
 | Slice | Scope and requirements | Acceptance before the next slice | Status |
 | --- | --- | --- | --- |
 | 1 | The icicle and the sunburst (E10) | The age map's *View* adds *Icicle* and *Sunburst* beside the map and the table: a folder four, six, or eight levels deep at once, each folder spanning its share of the one it is in, sized and colored as on the map, leaving out folders under 0.25% of the place; hover, focus, and opening a folder as on the map, and the sunburst's middle goes up a level; every folder within the levels and over the floor, and no other, against sums worked out from the files, by size and by files; a lab's members see only its folders; within the directory-query budget (Q3) at 10 million files; both themes and a phone's width; the user guide, with screenshots | Done |
-| 2 | Folding a lab's own tag into a standard one from *Tags* (T2), carried from 0.10.0 | Wave 8 built the fold (`tags.merge`, `POST /api/admin/tags/{id}/merge`: each folder with the lab's tag gets the standard tag, with a value given, or the lab tag's own, and the lab's tag is retired), but no button for it. Each row of *Labs' own tags* gets *Fold into a standard tag*: the standard tag, a value if it takes one, how many folders it changes, and a confirmation; then the row shows it retired. Tested through the page's API calls; the administration guide's *Tags* section and its screenshot updated | Next |
+| 2 | Folding a lab's own tag into a standard one from *Tags* (T2), carried from 0.10.0 | Wave 8 built the fold (`tags.merge`, `POST /api/admin/tags/{id}/merge`: each folder with the lab's tag gets the standard tag, with a value given, or the lab tag's own, and the lab's tag is retired), but no button for it. Each row of *Labs' own tags* gets *Fold into a standard tag*: the standard tag, a value if it takes one, how many folders it changes, and a confirmation; then the row shows it retired. Tested through the page's API calls; the administration guide's *Tags* section and its screenshot updated | Done |
 
 ### Decisions for wave 11
 
@@ -1280,6 +1280,20 @@ before the pilot at the maintainer's request.
      `/var` are links to `/private`) ingests.
    - *Done*: checked in the browser in both themes, at a phone's width, and by keyboard; both views in the user
      guide, with screenshots.
+2. **Folding a lab's own tag into a standard one (T2).**
+   - *Tags*: each lab tag that folders have gets *Fold into a standard tag*, a dialog with how many folders it
+     changes, the active standard tags, and a value for one that takes it: each folder's own by default, or for a
+     lab's flag its name, offered only where the standard tag can take it (text, or a choice of that name), so a date
+     or another choice needs one. Below, the tag's description, whether it protects folders from cleanup plans, and,
+     for a tag with one value, that the folded value replaces a folder's own. Then the row shows the lab's tag retired.
+   - `tags.merge` refuses a retired standard tag. A value the standard tag cannot take is refused and the fold rolled
+     back, so nothing changes; the dialog stays open with why.
+   - Test (`tests/test_tags.py`): the page's calls in order: the list with the lab tag's folders; a value not among a
+     choice's, a retired tag, and a standard tag folded, each refused with nothing changed; a lab member refused; the
+     fold, after which the list shows the lab's tag retired on no folders and both folders have the standard tag with
+     the value given; a flag folded into text keeps its name as the value; both folds audited.
+   - *Done*: a fold on a copy of the demo in the browser; the administration guide's *Tags*, with a screenshot of
+     the dialog.
 
 ## Later waves (outlined)
 

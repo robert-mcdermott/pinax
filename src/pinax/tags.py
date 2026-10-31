@@ -332,6 +332,8 @@ def merge(session: Session, actor: User | None, custom: Tag, into: Tag, value: s
     custom tag's own value, or for a flag its name), and the lab's tag is retired. Returns how many folders."""
     if custom.lab_id is None or into.lab_id is not None:
         raise TagError("A lab's own tag is merged into a standard tag")
+    if not into.active:
+        raise TagError(f"{into.label} is retired, so it cannot be applied; bring it back first")
     moved = 0
     for ft in session.scalars(select(FolderTag).where(FolderTag.tag_id == custom.id)).all():
         v = valid_value(into, value if value is not None else (ft.value or custom.label))

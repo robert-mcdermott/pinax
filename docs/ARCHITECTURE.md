@@ -481,8 +481,8 @@ A tag is put on a folder (a marked folder, so it follows the folder across scans
 it**: a folder's tags are its own and those of the folders above it, which it cannot drop. A lab's PI and delegates
 tag its folders with the standard tags applied by owners and with the lab's own tags (a flag or text, made by them,
 seen by the lab's members and administrators); administrators tag any folder with any tag, and can fold a lab's tag
-into a standard one (each folder gets the standard tag, with a value given or the lab tag's own, and the lab's tag
-is retired). A tag with one value replaces the folder's value. The age map's panel shows a folder's tags and adds
+into a standard one from *Tags* (each folder gets the standard tag, with a value given or the lab tag's own, and the
+lab's tag is retired; in one transaction, so a value the standard tag cannot take changes nothing). A tag with one value replaces the folder's value. The age map's panel shows a folder's tags and adds
 them; tiles that are or hold tagged folders carry a dot, with their tags in the tooltip and the table view.
 `pinax tags import FILE` tags folders in bulk from a CSV (filesystem, path, tag, value; a lab's own tag as
 `lab:key`), as a dry run unless `--apply`, and changes nothing if any row is refused.

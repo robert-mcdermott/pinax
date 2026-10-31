@@ -222,6 +222,11 @@ const scenes = {
   async health() { await open('pnatarajan', '#/health'); },
   async capacity() { await open('pnatarajan', '#/capacity'); },
   async 'tags-admin'() { await open('pnatarajan', '#/tags'); },
+  async 'tags-fold'() {
+    await open('pnatarajan', '#/tags');
+    await js(`document.querySelector('[data-fold]').click()`);
+    await sleep(600);
+  },
   async costs() { await open('pnatarajan', '#/costs'); },
   async chargeback() { await open('pnatarajan', `#/chargeback?month=${facts.lastMonth}`); },
   async 'every-plan'() { await open('pnatarajan', '#/plans'); },
