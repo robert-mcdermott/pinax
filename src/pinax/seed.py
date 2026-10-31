@@ -776,7 +776,9 @@ def run_seed(scale: float = 1.0) -> None:
         for fs, root in fs_roots.items():
             out = scan_root / fs / f"scan-{n}"
             print(f"Scanning {fs} with fs-inventory (scan {n} of {SCANS}, dated {when})")
-            _scan(settings, root, out)
+            # Scanned by its real path, the filesystem's root, even where the demo is reached through a link
+            # (macOS's /tmp and /var are links to /private).
+            _scan(settings, root.resolve(), out)
             _make_demo_scan(out, fs, str(root.resolve()), owners, groups, taken[n - 1])
             with session_scope() as s:
                 snap = ingest_scan(s, out, fs_slug=fs, settings=settings, progress=lambda m: None)

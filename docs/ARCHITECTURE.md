@@ -246,7 +246,7 @@ folder must still exist for this part of the check. At 100 million files (2.44 m
 nearly all of it the two rollups, and every directory was equal (between two synthetic scans with the same
 contents). Between changed scans from `synth_scan.py --evolve` at one million files, comparing takes 0.2 seconds
 of a six-second build and checking it 1.1 seconds, every directory equal; changed scans at 100 million files wait
-for server-class hardware (wave 11).
+for server-class hardware (wave 12).
 
 ## Real filesystems
 
@@ -274,7 +274,7 @@ A real scan was checked the same way: the maintainer's documents folder on a lap
 builds in 0.8 s and every query takes under 25 ms. It also showed common types that were counted as *other*:
 camera photo and video formats, macro-enabled spreadsheets, diagrams, executables, and disk images, 35% of its
 bytes. With those added, *other* is 0.8% of its bytes, nearly all of it files without an extension. Production
-storage, with many owners and a billion files, is measured in wave 11.
+storage, with many owners and a billion files, is measured in wave 12.
 
 ## Querying
 
@@ -285,6 +285,13 @@ values from requests are bound as parameters; the only SQL fragments built in co
 - **Treemap** (`/api/tree`): the node, its largest 60 children by the chosen size metric, and for two levels
   each child's largest 12 children. The rest are summed into one "smaller folders" tile; a folder's own files
   are a "files in this folder" tile, computed as its subtree minus all of its subfolders.
+- **Icicle and sunburst** (`/api/depth`): every folder up to four, six, or eight levels below the node that holds at
+  least 0.25% of it by the size metric, in one scan of the depth range and the node's path range, with the floor as
+  a filter. A folder holds at least as much as any folder inside it, so the folders kept form a tree (each one's
+  parent is kept too), with at most 400 on a level; the browser lays them out. At 10 million files (265,000 folders)
+  it takes 4–7 ms anywhere, against 17–31 ms for the treemap's two levels. It reads every folder within the levels
+  below the node, about 2 ms per million on the laptop below, so at the root of a filesystem of 100 million folders
+  it grows to a few hundred milliseconds, like the other reports that read every folder (see below).
 - **Types and owners**: range sums over `dir_ext` / `dir_owner`, or the pre-summed per-folder tables.
 - **Cold folders**: directories whose newest file is older than the threshold while their parent has a newer
   change: each is a self-contained cold unit (folders inside it are not listed again). If the folder asked
@@ -474,8 +481,8 @@ A tag is put on a folder (a marked folder, so it follows the folder across scans
 it**: a folder's tags are its own and those of the folders above it, which it cannot drop. A lab's PI and delegates
 tag its folders with the standard tags applied by owners and with the lab's own tags (a flag or text, made by them,
 seen by the lab's members and administrators); administrators tag any folder with any tag, and can fold a lab's tag
-into a standard one (each folder gets the standard tag, with a value given or the lab tag's own, and the lab's tag
-is retired). A tag with one value replaces the folder's value. The age map's panel shows a folder's tags and adds
+into a standard one from *Tags* (each folder gets the standard tag, with a value given or the lab tag's own, and the
+lab's tag is retired; in one transaction, so a value the standard tag cannot take changes nothing). A tag with one value replaces the folder's value. The age map's panel shows a folder's tags and adds
 them; tiles that are or hold tagged folders carry a dot, with their tags in the tooltip and the table view.
 `pinax tags import FILE` tags folders in bulk from a CSV (filesystem, path, tag, value; a lab's own tag as
 `lab:key`), as a dry run unless `--apply`, and changes nothing if any row is refused.
@@ -631,8 +638,9 @@ with the filesystem; against an older scan, a whole filesystem's comparison grow
 million, so minutes at two billion, beyond the time limit), and is best asked of a folder. These are projections
 from synthetic data, which has about 41 files per folder; production filesystems often have fewer, so two billion
 files may mean 50 to 200 million folders, beyond anything measured so far. Reports that read every folder of a
-whole filesystem, like the folder lists of *What changed* (about 0.1 s per 250,000 folders here), grow with them.
-Wave 10 measures production storage.
+whole filesystem, like the folder lists of *What changed* (about 0.1 s per 250,000 folders here) and the icicle
+and sunburst of a filesystem's root (about 2 ms per million folders), grow with them. The pilot (wave 12) measures
+production storage.
 
 Index size is about 56 bytes per file, mostly the per-file Parquet (which is kept sorted and compressed). A
 billion-file snapshot needs about 56 GB; keeping six snapshots per file system (the default) needs about

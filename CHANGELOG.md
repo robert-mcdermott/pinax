@@ -1,5 +1,45 @@
 # Changelog
 
+## 0.11.0 (2026-10-31)
+
+Eleventh release (wave 11, "deeper views"): the age map as an icicle and a sunburst, to see a folder up to eight
+levels deep at once and find data deep in a chain of folders; and folding a lab's own tag into a standard one from
+*Tags*. The roadmap adds what a review of the capabilities a product like Pinax should have found missing: a
+setting for whether each filesystem's access times can be trusted, more roles, API tokens, the audit log in the app,
+and load tests. It comes before the production pilot (now wave 12), reach (now wave 13, with sign-in with Microsoft
+Entra ID optional), and hardening (wave 14, 1.0.0). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+
+Upgrading from 0.10.0: install the new version and restart Pinax ([Upgrading](docs/DEPLOYMENT.md#upgrading)). There
+is no migration, and no new setting or dependency. Browsers load the new pages on their next visit.
+
+### Added
+
+- **The icicle and the sunburst.** The age map's *View* adds *Icicle* and *Sunburst* beside the map and the table: a
+  folder four, six, or eight levels deep at once (*Levels*), each folder drawn beside the one it is in, as long as
+  its share of it, sized and colored as on the map. The icicle has a column per level; the sunburst a ring per level
+  around the folder, whose middle goes up a level. Folders under 0.25% of the place are left out. Hover a folder for
+  its details and click it to open it, as on the map; saved views keep the view. `GET /api/depth` serves them
+  ([Icicle and sunburst](docs/USER-GUIDE.md#icicle-and-sunburst)).
+- **Folding a lab's own tag into a standard one, from *Tags*.** Each lab tag that folders have gets *Fold into a
+  standard tag*: choose the standard tag and its value, or keep each folder's own; every folder with the lab's tag
+  gets the standard tag, and the lab's tag is retired. Until now this was a request to the API only. Folding into a
+  retired standard tag is refused ([Tags](docs/ADMINISTRATION.md#tags)).
+
+### Changed
+
+- **The roadmap.** Wave 11 is now deeper views (0.11.0), at the maintainer's request; the production pilot moves to
+  wave 12, reach to wave 13, and hardening to wave 14 (1.0.0). Folding a lab's own tag into a standard one, carried
+  from 0.10.0, is its second slice. Later waves gain: in the pilot, a setting for whether each filesystem's access
+  times can be trusted; in reach, more roles (finance, auditor, division head) decided before the Entra ID group
+  mapping, API tokens for scripts, and the audit log in the app; in hardening, load tests with many people at once.
+  Sign-in with Entra ID stays optional: local sign-in and header mode remain, for small organizations and
+  departments without access to their organization's Entra ID.
+
+### Fixed
+
+- `pinax seed` failed when the demo was reached through a link (as macOS's `/tmp` and `/var` are), since the scans
+  recorded a different root than the filesystem's; it now scans each demo filesystem by its real path.
+
 ## 0.10.0 (2026-10-29)
 
 Tenth release (wave 10, "operations"): what a production deployment needs from Pinax itself. The catalog can be

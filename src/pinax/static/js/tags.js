@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Tags, for administrators: the standard tags every lab can use (tags.py), with their types, choices, who applies
-// them, and whether they protect a folder from cleanup plans; and the labs' own tags. A tag in use is retired, not
-// deleted.
+// them, and whether they protect a folder from cleanup plans; and the labs' own tags, which can be folded into a
+// standard one. A tag in use is retired, not deleted.
 import { $, $$, api, emptyState, html, icon, modal, mount, num, raw, toast } from "/js/core.js";
 import { renderSidebar } from "/js/shell.js";
 
@@ -40,7 +40,8 @@ export async function viewTags(el) {
       <div class="sub">${t.description}</div></td>
     <td>${TYPE_TEXT[t.type]}${t.many ? ", more than one" : ""}${t.choices.length ? html`<div class="sub">${t.choices.join(", ")}</div>` : ""}</td>
     <td class="hide-narrow">${t.lab ? t.lab.name : BY_TEXT[t.applied_by]}</td><td class="num">${num(t.uses)}</td>
-    <td class="right nowrap">${t.lab ? "" : html`<button class="btn btn-ghost btn-sm" data-edit="${t.id}">Change</button>`}
+    <td class="right nowrap">${t.lab ? (t.uses ? html`<button class="btn btn-ghost btn-sm" data-fold="${t.id}">Fold into a standard tag</button>` : "")
+      : html`<button class="btn btn-ghost btn-sm" data-edit="${t.id}">Change</button>`}
       <button class="btn btn-ghost btn-sm" data-active="${t.id}" data-to="${t.active ? 0 : 1}">${t.active ? "Retire" : "Bring back"}</button>
       ${t.uses ? "" : html`<button class="icon-btn" title="Delete" aria-label="Delete ${t.label}" data-delete="${t.id}">${icon("x")}</button>`}</td></tr>`;
   const table = (list) => html`<div class="table-wrap"><table class="table"><thead><tr><th>Tag</th><th>Value</th><th class="hide-narrow">Applied by</th>
@@ -67,6 +68,15 @@ export async function viewTags(el) {
       onConfirm: (wrap) => api(`admin/tags/${t.id}`, { method: "PUT", body: formBody(wrap, false) }) });
     if (ok) { toast("Saved"); refresh(); }
   }));
+  $$("[data-fold]", el).forEach((b) => b.addEventListener("click", async () => {
+    const t = data.custom.find((x) => String(x.id) === b.dataset.fold);
+    const done = await foldTag(t, data.standard.filter((x) => x.active));
+    if (done) {
+      const one = done.folders === 1;
+      toast(`Folded: ${num(done.folders)} folder${one ? "" : "s"} now ${one ? "has" : "have"} ${done.into}, and ${t.label} is retired`);
+      refresh();
+    }
+  }));
   $$("[data-active]", el).forEach((b) => b.addEventListener("click", async () => {
     try {
       await api(`admin/tags/${b.dataset.active}/active`, { method: "POST", body: { active: b.dataset.to === "1" } });
@@ -81,6 +91,67 @@ export async function viewTags(el) {
       refresh();
     } catch (e) { toast(e.message, "error"); }
   }));
+}
+
+// Folding a lab's own tag into a standard one (tags.merge): every folder with it gets the standard tag, with the value
+// given, or each folder's own (a flag's: its name), and the lab's tag is retired.
+function foldValue(target, t) {
+  if (!target || target.type === "flag") return "";
+  // Without a value, each folder keeps its own; a flag has none, so it gives its name, which only text (or a choice
+  // of the same name) takes.
+  const keep = t.type === "flag" ? `Its name, ${t.label}` : "Each folder's own value";
+  const keeps = t.type !== "flag" || target.type === "text" || (target.type === "choice" && target.choices.includes(t.label));
+  if (target.type === "choice") {
+    return html`<span class="small">Value</span><select class="select" name="value">${keeps ? html`<option value="">${keep}</option>` : ""}
+      ${target.choices.map((c) => html`<option>${c}</option>`)}</select>`;
+  }
+  if (target.type === "date") {
+    return keeps ? html`<span class="small">Value (empty: ${keep.toLowerCase()})</span><input class="input" type="date" name="value">`
+      : html`<span class="small">Value</span><input class="input" type="date" name="value" required>`;
+  }
+  return html`<span class="small">Value</span><input class="input" name="value" maxlength="200" placeholder="${keep}">`;
+}
+
+function foldNote(target) {
+  if (!target) return "";
+  const about = target.description && !/[.!?]$/.test(target.description) ? `${target.description}.` : target.description;
+  return [about,
+    target.protects ? "These folders will be kept out of cleanup plans." : "",
+    target.many || target.type === "flag" ? "" : "A folder has one value of it: where a folder has it already, the folded value replaces its own."]
+    .filter(Boolean).join(" ");
+}
+
+function foldTag(t, standard) {
+  if (!standard.length) {
+    toast("There is no standard tag in use to fold it into", "error");
+    return Promise.resolve(null);
+  }
+  const n = `${num(t.uses)} folder${t.uses === 1 ? "" : "s"}`;
+  const body = html`<form class="stack" style="gap:10px">
+    <p style="margin:0">The ${t.lab.name}'s own tag <b>${t.label}</b> is on ${n}. ${t.uses === 1 ? "That folder gets" : "Each of them gets"}
+      the standard tag chosen here, and ${t.label} is retired.</p>
+    <label class="field"><span class="small">Standard tag</span><select class="select" name="into">
+      ${standard.map((x) => html`<option value="${x.id}">${x.label} (${TYPE_TEXT[x.type].toLowerCase()})</option>`)}</select></label>
+    <div class="field" id="fold-value">${foldValue(standard[0], t)}</div>
+    <p class="small muted" style="margin:0" id="fold-note">${foldNote(standard[0])}</p></form>`;
+  const pending = modal({ title: `Fold ${t.label} into a standard tag`, body, confirm: `Fold ${n}`,
+    onConfirm: async (wrap) => {
+      const f = new FormData($("form", wrap));
+      const into = standard.find((x) => String(x.id) === f.get("into"));
+      if ([...wrap.querySelectorAll("[required]")].some((i) => !i.value)) {
+        toast(`${into.label} needs a value`, "error");
+        return false;
+      }
+      const res = await api(`admin/tags/${t.id}/merge`, { method: "POST", body: { into: into.id, value: f.get("value") || null } });
+      return { folders: res.folders, into: into.label };
+    } });
+  const wrap = document.querySelector(".modal-backdrop:last-of-type");
+  $("select[name=into]", wrap)?.addEventListener("change", (e) => {
+    const target = standard.find((x) => String(x.id) === e.target.value);
+    mount($("#fold-value", wrap), foldValue(target, t));
+    $("#fold-note", wrap).textContent = foldNote(target);
+  });
+  return pending;
 }
 
 // ---------- A folder's tags, in the age map's panel ----------

@@ -30,6 +30,7 @@ NB = len(AGE_BUCKETS)
 SCANNED = (SnapshotStatus.READY, SnapshotStatus.PRUNED)  # snapshots with folder history
 TILE_LIMIT = 60  # children per treemap level; the rest fold into one "smaller folders" tile
 GRAND_LIMIT = 12  # grandchildren per child when drawing two levels
+DEPTH_SHARE = 0.0025  # the icicle and sunburst leave out folders holding less than this share of the place
 
 
 @dataclass
@@ -293,6 +294,59 @@ def _tree_home(session: Session, ident: Identity, places: list[Place], metric: s
     return {"node": node, "tiles": tiles, "breadcrumbs": [{"label": node["name"], "fs": None, "path": None}],
             "snapshots": [_snap_brief(p.snap) for p in {p.snap.id: p for p in places}.values()],
             "as_of": iso(as_of), "metric": metric, "cold_bucket": cold_bucket()}
+
+
+# ---------- The icicle and the sunburst ----------
+
+def depth_tree(session: Session, ident: Identity, fs_slug: str | None, path: str | None, *, metric: str = "bytes",
+               levels: int = 6, scan: Scan = None, lab_slug: str | None = None) -> dict:
+    """A place's folders `levels` levels deep, each with the folders inside it, leaving out those holding less than
+    DEPTH_SHARE of the place by `metric`. Home's first level is its places (filesystems, or the person's folders)."""
+    if metric not in METRICS:
+        raise HTTPException(422, f"Unknown size metric {metric!r}")
+    places = resolve(session, ident, fs_slug, path, scan, lab_slug)
+    owners = folder_owners(session) if ident.is_admin and any(p.path == p.idx.root for p in places) else None
+    if fs_slug:
+        p = places[0]
+        if p.idx.node(p.path) is None:
+            raise not_found()
+        total = p.idx.measure(p.path, metric)
+        tiles = _depth_tiles(p, metric, levels, total * DEPTH_SHARE, owners)
+        as_of = p.snap.started_at
+    else:
+        total = sum(p.idx.measure(p.path, metric) for p in places)
+        ref = max((p.idx.ref_day for p in places), default=0.0)
+        tiles = []
+        for p in places:
+            row = p.idx.node(p.path)
+            if row is None:
+                continue
+            is_root = p.path == p.idx.root
+            tile = {"kind": "fs" if is_root else "dir", "fs": p.fs.slug, "path": p.path,
+                    "name": p.fs.name if is_root else row["name"], "lab": lab_brief(p.lab), "fs_name": p.fs.name,
+                    "error": row["error"], "stats": tile_stats(rebase(Stats.from_row(row), p.idx.ref_day, ref), ref)}
+            if levels > 1:
+                tile["children"] = _depth_tiles(p, metric, levels - 1, total * DEPTH_SHARE, owners)
+            tiles.append(tile)
+        as_of = max((p.snap.started_at for p in places), default=None)
+    return {"tiles": tiles, "total": total, "least": total * DEPTH_SHARE, "levels": levels, "metric": metric,
+            "as_of": iso(as_of), "cold_bucket": cold_bucket()}
+
+
+def _depth_tiles(place: Place, metric: str, levels: int, least: float, owners: dict | None) -> list[dict]:
+    """The folders below `place`, nested: rows come level by level, so each folder's parent is placed before it."""
+    idx = place.idx
+    top_depth = idx.depth_of(place.path) + 1
+    out, by_id = [], {}
+    for r in idx.partition(place.path, metric=metric, levels=levels, least=least):
+        lab = owners.get((place.fs.id, r["name"])) if owners is not None and r["depth"] == 1 else None
+        tile = _dir_tile(place.fs.slug, r, idx.ref_day, lab)
+        by_id[r["dir_id"]] = tile
+        if r["depth"] == top_depth:
+            out.append(tile)
+        elif r["parent_id"] in by_id:
+            by_id[r["parent_id"]].setdefault("children", []).append(tile)
+    return out
 
 
 # ---------- The change map ----------

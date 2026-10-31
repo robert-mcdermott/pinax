@@ -167,6 +167,8 @@ const P = {
   send: '<path d="M21 3L10 14"/><path d="M21 3l-7 18-4-7-7-4z"/>',
   moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
   treemap: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M11 3v18"/><path d="M11 12h10"/><path d="M16 12v9"/>',
+  icicle: '<rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="11" rx="1"/><rect x="10" y="16" width="5" height="5" rx="1"/><rect x="17" y="3" width="4" height="6" rx="1"/><rect x="17" y="11" width="4" height="3" rx="1"/>',
+  sunburst: '<circle cx="12" cy="12" r="3.5"/><circle cx="12" cy="12" r="9"/><path d="M12 3v5.5"/><path d="M20.5 15l-5.2-1.8"/><path d="M5 17.5l4.3-3.3"/>',
   pie: '<path d="M12 3a9 9 0 1 0 9 9h-9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/>',
   tag: '<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><path d="M8 8h.01"/>',
   receipt: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6"/><path d="M9 12h6"/><path d="M9 16h4"/>',

@@ -32,6 +32,16 @@ def tree(fs: str | None = None, path: str | None = None, metric: str = "bytes", 
     return explore.tree(session, identity, fs, path, metric=metric, depth=depth, scan=snapshot or at, lab_slug=lab)
 
 
+@router.get("/depth")
+def depth(fs: str | None = None, path: str | None = None, metric: str = "bytes", levels: int = Query(6, ge=1, le=10),
+          snapshot: int | None = None, at: date | None = None, lab: str | None = None,
+          identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
+    """A directory's folders up to `levels` levels deep, nested, leaving out the smallest, for the icicle and the
+    sunburst."""
+    return explore.depth_tree(session, identity, fs, path, metric=metric, levels=levels, scan=snapshot or at,
+                              lab_slug=lab)
+
+
 @router.get("/changes")
 def changes(fs: str | None = None, path: str | None = None, since: date | None = None, metric: str = "max",
             depth: int = Query(1, ge=1, le=2), snapshot: int | None = None, at: date | None = None, lab: str | None = None,

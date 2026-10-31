@@ -2,7 +2,7 @@
 // Squarified treemap (Bruls, Huizing and van Wijk, 2000), drawn as absolutely positioned links so
 // every tile is a real, keyboard-reachable navigation target. Tiles are separated by a 2px surface
 // gap (never a stroke), labels are measured and only drawn when they fit, and nested tiles sit in a
-// neutral frame whose header names the parent folder.
+// neutral frame whose header names the parent folder. The icicle (depth.js) draws its tiles the same way.
 import { esc, visible } from "/js/core.js";
 
 const GAP = 1; // inset per side: 2px between neighbors
@@ -59,7 +59,7 @@ const lum = (hex) => {
 };
 const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
 
-function resolver() {
+export function resolver() {
   const cs = getComputedStyle(document.documentElement);
   const ink = cs.getPropertyValue("--tile-ink").trim() || "#0B1022";
   const cache = new Map();
@@ -79,7 +79,7 @@ function measure(text, font) {
   measureCtx.font = font;
   return measureCtx.measureText(text).width;
 }
-function fitText(text, maxW, font) {
+export function fitText(text, maxW, font) {
   if (measure(text, font) <= maxW) return text;
   let lo = 0, hi = text.length;
   while (lo < hi) {
@@ -87,6 +87,73 @@ function fitText(text, maxW, font) {
     if (measure(text.slice(0, mid) + "…", font) <= maxW) lo = mid; else hi = mid - 1;
   }
   return lo >= 3 ? text.slice(0, lo) + "…" : null;
+}
+
+// ---------- Tiles and tooltips ----------
+export const fonts = () => {
+  const family = getComputedStyle(document.body).fontFamily;
+  return { font: `700 12.5px ${family}`, small: `400 11.5px ${family}` };
+};
+
+/** A tooltip inside `el`: beside the pointer, or beside a focused box ({x, y, w, h}). */
+export function tooltip(el) {
+  const tipEl = document.createElement("div");
+  tipEl.className = "tm-tip";
+  tipEl.hidden = true;
+  tipEl.setAttribute("role", "tooltip");
+  const show = (content, e, box) => {
+    tipEl.innerHTML = content;
+    tipEl.hidden = false;
+    const W = el.clientWidth, H = el.clientHeight;
+    const bounds = el.getBoundingClientRect();
+    let px, py;
+    if (e) { px = e.clientX - bounds.left + 14; py = e.clientY - bounds.top + 14; }
+    else { px = box.x + Math.min(box.w, 40); py = box.y + Math.min(box.h, 30); }
+    const tw = tipEl.offsetWidth, th = tipEl.offsetHeight;
+    if (px + tw > W) px = Math.max(0, px - tw - 28);
+    if (py + th > H) py = Math.max(0, H - th - 4);
+    tipEl.style.left = `${px}px`;
+    tipEl.style.top = `${py}px`;
+  };
+  return { el: tipEl, show, hide: () => { tipEl.hidden = true; } };
+}
+
+/**
+ * One tile for `t` in the rectangle `r` (before its gap), with its label if it fits and its tooltip.
+ * ctx: { col: resolver(), fonts: fonts(), tip: tooltip(el) }; opts as for renderTreemap.
+ */
+export function tileElement(t, r, opts, ctx, { frame = false, focusable = true } = {}) {
+  const { color, href, label } = opts;
+  const url = href(t);
+  const a = document.createElement(url ? "a" : "div");
+  if (url) a.href = url;
+  if (!focusable) a.tabIndex = -1;
+  const x = r.x + GAP, y = r.y + GAP, w = Math.max(0, r.w - 2 * GAP), h = Math.max(0, r.h - 2 * GAP);
+  const marked = opts.mark?.(t) && w >= 18 && h >= 18; // the dot only where it fits
+  a.className = `tm-tile ${frame ? "frame" : "leaf"} ${url ? "" : "static"}${marked ? " tagged" : ""}`;
+  Object.assign(a.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` });
+  if (!frame) {
+    const c = ctx.col(color(t));
+    a.style.background = c.bg;
+    a.style.color = c.fg;
+  }
+  const name = visible(t.name || "");
+  a.setAttribute("aria-label", `${name}: ${label(t)}`);
+  const room = w - 12;
+  if (room > 18 && h >= 18) {
+    const n = fitText(name, room, ctx.fonts.font);
+    if (n) {
+      const sub = !frame && h >= 36 ? fitText(label(t), room, ctx.fonts.small) : null;
+      a.insertAdjacentHTML("beforeend", `<span class="tm-l">${esc(n)}${sub ? `<small>${esc(sub)}</small>` : ""}</span>`);
+    }
+  }
+  const onPointer = (e) => { if (e.target.closest(".tm-tile") === a) ctx.tip.show(opts.tip(t), e); };
+  a.addEventListener("mouseenter", onPointer);
+  a.addEventListener("mousemove", onPointer);
+  a.addEventListener("mouseleave", ctx.tip.hide);
+  a.addEventListener("focus", () => ctx.tip.show(opts.tip(t), null, { x, y, w, h }));
+  a.addEventListener("blur", ctx.tip.hide);
+  return { a, box: { x, y, w, h } };
 }
 
 // ---------- Rendering ----------
@@ -97,70 +164,21 @@ function fitText(text, maxW, font) {
  *       levels: 1 or 2; onEmpty() -> HTML for when nothing has a value.
  */
 export function renderTreemap(el, tiles, opts) {
-  const { value, color, href, label, tip, levels = 1 } = opts;
+  const { value, levels = 1 } = opts;
   el.innerHTML = "";
   const W = el.clientWidth, H = el.clientHeight;
-  const font = `700 12.5px ${getComputedStyle(document.body).fontFamily}`;
-  const small = `400 11.5px ${getComputedStyle(document.body).fontFamily}`;
-  const col = resolver();
-  const tipEl = document.createElement("div");
-  tipEl.className = "tm-tip";
-  tipEl.hidden = true;
-  tipEl.setAttribute("role", "tooltip");
-
   const items = tiles.map((t) => ({ t, v: Math.max(0, value(t) || 0) })).filter((d) => d.v > 0).sort((a, b) => b.v - a.v);
   if (!items.length) {
     el.innerHTML = `<div class="tm-empty">${opts.onEmpty ? opts.onEmpty() : "Nothing to show"}</div>`;
     return;
   }
+  const ctx = { col: resolver(), fonts: fonts(), tip: tooltip(el) };
   const frag = document.createDocumentFragment();
   const rects = squarify(items.map((d) => d.v), 0, 0, W, H);
-
-  const makeTile = (t, r, { frame = false, focusable = true } = {}) => {
-    const url = href(t);
-    const a = document.createElement(url ? "a" : "div");
-    if (url) a.href = url;
-    if (!focusable) a.tabIndex = -1;
-    a.className = `tm-tile ${frame ? "frame" : "leaf"} ${url ? "" : "static"}${opts.mark?.(t) ? " tagged" : ""}`;
-    const x = r.x + GAP, y = r.y + GAP, w = Math.max(0, r.w - 2 * GAP), h = Math.max(0, r.h - 2 * GAP);
-    Object.assign(a.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` });
-    if (!frame) {
-      const c = col(color(t));
-      a.style.background = c.bg;
-      a.style.color = c.fg;
-    }
-    const name = visible(t.name || "");
-    a.setAttribute("aria-label", `${name}: ${label(t)}`);
-    const room = w - 12;
-    if (room > 18 && h >= 18) {
-      const n = fitText(name, room, font);
-      if (n) {
-        const sub = !frame && h >= 36 ? fitText(label(t), room, small) : null;
-        a.insertAdjacentHTML("beforeend", `<span class="tm-l">${esc(n)}${sub ? `<small>${esc(sub)}</small>` : ""}</span>`);
-      }
-    }
-    const onPointer = (e) => { if (e.target.closest(".tm-tile") === a) showTip(t, e); };
-    a.addEventListener("mouseenter", onPointer);
-    a.addEventListener("mousemove", onPointer);
-    a.addEventListener("mouseleave", () => { tipEl.hidden = true; });
-    a.addEventListener("focus", () => showTip(t, null, { x, y, w, h }));
-    a.addEventListener("blur", () => { tipEl.hidden = true; });
+  const makeTile = (t, r, flags) => {
+    const { a, box } = tileElement(t, r, opts, ctx, flags);
     frag.append(a);
-    return { x, y, w, h };
-  };
-
-  const showTip = (t, e, box) => {
-    tipEl.innerHTML = tip(t);
-    tipEl.hidden = false;
-    const bounds = el.getBoundingClientRect();
-    let px, py;
-    if (e) { px = e.clientX - bounds.left + 14; py = e.clientY - bounds.top + 14; }
-    else { px = box.x + Math.min(box.w, 40); py = box.y + Math.min(box.h, 30); }
-    const tw = tipEl.offsetWidth, th = tipEl.offsetHeight;
-    if (px + tw > W) px = Math.max(0, px - tw - 28);
-    if (py + th > H) py = Math.max(0, H - th - 4);
-    tipEl.style.left = `${px}px`;
-    tipEl.style.top = `${py}px`;
+    return box;
   };
 
   items.forEach((d, i) => {
@@ -176,5 +194,5 @@ export function renderTreemap(el, tiles, opts) {
     const kr = squarify(kids.map((k) => k.v), inner.x, inner.y, inner.w, inner.h);
     kids.forEach((k, j) => { if (kr[j]) makeTile(k.t, kr[j], { focusable: false }); });
   });
-  el.append(frag, tipEl);
+  el.append(frag, ctx.tip.el);
 }

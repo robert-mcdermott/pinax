@@ -49,8 +49,10 @@ The controls above it:
   *Sequencing and genomics*), or data older than a threshold.
 - **Color by**: *Average age (by size)*, *Time since the last change*, *Age of the oldest file*, *Time since the last
   access* (where the filesystem records it), *Share that is cold*, or the share of one kind of data.
-- **Levels**: one level of subfolders, or two, with each tile's own subfolders drawn inside it.
-- **View**: the map, or the same folders as a table, which can be sorted and read by a screen reader.
+- **Levels**: one level of subfolders, or two, with each tile's own subfolders drawn inside it. For the icicle and
+  the sunburst: four, six, or eight levels.
+- **View**: the map; the same folders several levels deep as an [icicle or a sunburst](#icicle-and-sunburst); or the
+  folder's subfolders as a table, which can be sorted and read by a screen reader.
 
 Hover a tile for its size, files, ages, and owner. A tile with a dot is tagged, or holds tagged folders
 ([Tags](#tags-and-collections)).
@@ -68,6 +70,28 @@ Where it holds hard links to files counted elsewhere, it says how much they woul
 ![The age map's panel for one folder](images/folder-panel-light.webp "The panel for 2022_tumor_atlas: 12.8 TiB, five and a half years old on average, all of it unchanged for two years or more, with its tags and cleanup plan box below.")
 
 ![The same folders as a table](images/age-map-table-light.webp "The table view: every subfolder with its size, share, files, average age, last change, and cold share.")
+
+### Icicle and sunburst
+
+The map shows one or two levels of folders at a time, so data deep in a chain of folders (runs inside samples
+inside batches) is found by clicking down. The icicle and the sunburst show a folder four, six, or eight levels deep
+at once (*Levels*). Each folder is drawn beside the folder it is in, as long as its share of it, and colored as on
+the map. The two views draw the same folders in different ways:
+
+- **Icicle**: one column per level, left to right. A folder's height is how much it holds, so sizes are easy to
+  compare and names have room.
+- **Sunburst**: one ring per level around the folder you are in, clockwise from the top. A folder's angle is how much
+  it holds. Outer rings are drawn larger, so compare angles, not areas; read exact sizes from the icicle. Click the
+  middle to go up one level.
+
+Folders holding less than 0.25% of the folder you are in are left out, so that the view stays readable. The space
+after a folder's subfolders is its own files, and the folders too small to draw. *Size by* and *Color by* work as
+they do for the map. Hover a folder for its details, and click it to go into it. The keyboard's Tab key moves through
+the first level; the table view lists the folder's subfolders for a screen reader.
+
+![The age map as an icicle](images/age-map-icicle-light.webp "fujimoto_a as an icicle: 2014_legacy_reruns, nearly twelve years old, shows four levels down, inside 2022_tumor_atlas/raw.")
+
+![The age map as a sunburst](images/age-map-sunburst-light.webp "The same folder as a sunburst: projects is the first ring, 2025_immune_aging is red on the left, and 2014_legacy_reruns, the oldest, is on the right.")
 
 ## History and forecasts
 

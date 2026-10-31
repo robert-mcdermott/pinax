@@ -106,3 +106,36 @@ def test_precomputed_cold_folders_match_brute_force(idx, older):
         # The same as joining every directory with its parent at query time (indexes before version 3).
         legacy = idx._cold_scan(place, idx.ref_epoch - bucket_edges()[older - 1] * 86400)
         assert {r["path"] for r in legacy["rows"]} == paths and legacy["bytes"] == total, (place, older)
+
+
+def _brute_folders(metric: str) -> dict[str, int]:
+    """Every folder's bytes or files, straight from the file list."""
+    out: dict[str, int] = {}
+    for f in FILES:
+        parts = f["path"].split("/")[:-1]
+        for i in range(1, len(parts) + 1):
+            d = f"{ROOT}/{'/'.join(parts[:i])}"
+            out[d] = out.get(d, 0) + (f["size"] if metric == "bytes" else 1)
+    return out
+
+
+@pytest.mark.parametrize("metric", ["bytes", "files"])
+def test_partition_is_every_folder_above_the_threshold_as_a_tree(idx, metric):
+    sizes = _brute_folders(metric)
+    cases = [(ROOT, 6, 1), (ROOT, 2, 1), (ROOT, 6, 3000), (ROOT, 6, 2), (ROOT + "/alpha_lab", 2, 100),
+             (ROOT + "/alpha_lab/projects/2015_old", 6, 1), (ROOT + "/orphans/old", 6, 1)]
+    for place, levels, least in cases:
+        rows = idx.partition(place, metric=metric, levels=levels, least=least)
+        expect = {d for d, v in sizes.items() if d.startswith(place + "/") and v >= least
+                  and d.count("/") - place.count("/") <= levels}
+        assert {r["path"] for r in rows} == expect, (place, levels, least)
+        assert all(r[metric] == sizes[r["path"]] for r in rows)
+        # Level by level, the largest first, each folder after its parent.
+        top, seen = idx.depth_of(place) + 1, set()
+        for prev, r in zip([None, *rows], rows):
+            assert r["depth"] == top or r["parent_id"] in seen
+            if prev is not None and prev["depth"] == r["depth"]:
+                assert prev[metric] >= r[metric]
+            seen.add(r["dir_id"])
+    assert idx.measure(ROOT, metric) == sum(f["size"] if metric == "bytes" else 1 for f in FILES)
+    assert idx.measure(ROOT + "/nowhere", metric) == 0

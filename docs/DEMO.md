@@ -105,7 +105,8 @@ files are sparse, on a laptop's disk), so the capacities are set, and use is mea
    compressed its uncompressed FASTQ files before the fifth scan.)
 4. **Switch identity** (top right) to *Aiko Fujimoto*. Drill into `projects`: `2025_immune_aging` is red, data
    written this year, beside two blue projects. Then `2022_tumor_atlas`, then `raw`: an active project hides
-   `2014_legacy_reruns`, the darkest blue tile, nearly twelve years old.
+   `2014_legacy_reruns`, the darkest blue tile, nearly twelve years old. Go back to `fujimoto_a` and switch *View*
+   to *Icicle*: the same folder shows at once, four levels down; *Sunburst* draws it as rings.
    **Cold data** at two years lists `raw` as one cold unit; at ten years it lists `2014_legacy_reruns` alone.
    **History** for `fujimoto_a`: the lab grew from 19 to 25 TiB in six scans, and new data on top of the columns
    brought its cold share down from 77% to 60%. Hover a column for that scan; the three small charts follow.
@@ -149,7 +150,9 @@ files are sparse, on a laptop's disk), so the capacities are set, and use is mea
    moved project and the compressed FASTQ among new and removed folders, and the largest new files (Cell Ranger
    BAMs); each list downloads as CSV.
 11. **Folders and labs.** Tick *Unmapped only*, then map `shared_reference` to the Genomics Shared Resource.
-   Switch to *Casey Morgan*: the folder now appears in their data.
+   Switch to *Casey Morgan*: the folder now appears in their data. Back as Priya, *Tags* lists the Fujimoto Lab's own
+   *Atlas paper* under *Labs' own tags*: *Fold into a standard tag* into *Project* gives its folder a *Project* tag
+   named *Atlas paper*, and retires the lab's tag.
 12. **Costs and Chargeback.** Back as Priya, *Costs* shows each filesystem's prices and free tiers, with the
    Lindqvist Lab's exception. *Chargeback* for last month lists every lab's and department's charge, the most
    first (the Genomics Shared Resource, a department, has nothing free), the totals by filesystem, and the

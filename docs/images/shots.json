@@ -11,6 +11,14 @@
   "width": 2000,
   "height": 1250
  },
+ "age-map-icicle": {
+  "width": 2000,
+  "height": 1250
+ },
+ "age-map-sunburst": {
+  "width": 2000,
+  "height": 1250
+ },
  "age-map-table": {
   "width": 2000,
   "height": 1250
@@ -152,6 +160,10 @@
   "height": 1250
  },
  "tags-admin": {
+  "width": 2000,
+  "height": 1250
+ },
+ "tags-fold": {
   "width": 2000,
   "height": 1250
  },

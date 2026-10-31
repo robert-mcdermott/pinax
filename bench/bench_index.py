@@ -14,6 +14,7 @@ import statistics
 import time
 from pathlib import Path
 
+from pinax.explore import DEPTH_SHARE
 from pinax.index import SnapshotIndex
 from pinax.ingest.build import build_index
 
@@ -79,12 +80,17 @@ def main() -> None:
     most_folders = pick("""SELECT d.path FROM dirs d JOIN (SELECT parent_id, count(*) AS n FROM dirs GROUP BY parent_id
                            ORDER BY n DESC LIMIT 1) w ON w.parent_id = d.dir_id""")
     three_years = 4  # age buckets 3-5y and older
+    floor = lambda path: idx.measure(path) * DEPTH_SHARE  # the icicle's and sunburst's smallest folder
     cases = [
         ("treemap: filesystem root, two levels", lambda: idx.children(root, grand_limit=12)),
         ("treemap: top-level folder, two levels", lambda: idx.children(top, grand_limit=12)),
         ("treemap: depth-3 folder, two levels", lambda: idx.children(deep3, grand_limit=12)),
         ("treemap: folder with most subfolders", lambda: idx.children(most_folders, grand_limit=12)),
         ("treemap: deepest folder", lambda: idx.children(deepest, grand_limit=12)),
+        ("icicle: filesystem root, six levels", lambda: idx.partition(root, levels=6, least=floor(root))),
+        ("icicle: filesystem root, eight levels", lambda: idx.partition(root, levels=8, least=floor(root))),
+        ("icicle: top-level folder, six levels", lambda: idx.partition(top, levels=6, least=floor(top))),
+        ("icicle: folder with most subfolders", lambda: idx.partition(most_folders, levels=6, least=floor(most_folders))),
         ("file types: filesystem root", lambda: idx.types(root)),
         ("file types: top-level folder", lambda: idx.types(top)),
         ("file types: depth-3 folder", lambda: idx.types(deep3)),
