@@ -16,8 +16,7 @@ decisions taken are recorded here. Later waves are outlined at the end.
 **Progress** is marked here as each slice is committed: done, next or to come. Each requirement's status is
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
-**Where things stand:** waves 1 to 10 are released as 0.1.0 to 0.10.0 (tags on `main`); wave 11 (0.11.0,
-deeper views) is being built. Besides forecasts, 0.6.0
+**Where things stand:** waves 1 to 11 are released as 0.1.0 to 0.11.0 (tags on `main`). Besides forecasts, 0.6.0
 has what was merged since 0.5.0:
 - labs and departments can be added, changed, and deactivated in the app, so a site needs no CSV files at all;
 - guidance for operating Pinax;
@@ -1241,6 +1240,7 @@ before the pilot at the maintainer's request.
 | --- | --- | --- | --- |
 | 1 | The icicle and the sunburst (E10) | The age map's *View* adds *Icicle* and *Sunburst* beside the map and the table: a folder four, six, or eight levels deep at once, each folder spanning its share of the one it is in, sized and colored as on the map, leaving out folders under 0.25% of the place; hover, focus, and opening a folder as on the map, and the sunburst's middle goes up a level; every folder within the levels and over the floor, and no other, against sums worked out from the files, by size and by files; a lab's members see only its folders; within the directory-query budget (Q3) at 10 million files; both themes and a phone's width; the user guide, with screenshots | Done |
 | 2 | Folding a lab's own tag into a standard one from *Tags* (T2), carried from 0.10.0 | Wave 8 built the fold (`tags.merge`, `POST /api/admin/tags/{id}/merge`: each folder with the lab's tag gets the standard tag, with a value given, or the lab tag's own, and the lab's tag is retired), but no button for it. Each row of *Labs' own tags* gets *Fold into a standard tag*: the standard tag, a value if it takes one, how many folders it changes, and a confirmation; then the row shows it retired. Tested through the page's API calls; the administration guide's *Tags* section and its screenshot updated | Done |
+| 3 | Release 0.11.0 | The demo shows both new views and a fold (the walk-through's steps); version 0.11.0, changelog dated with notes on upgrading from 0.10.0; the website rebuilt; pull request, tag, release | Done |
 
 ### Decisions for wave 11
 
@@ -1294,6 +1294,12 @@ before the pilot at the maintainer's request.
      the value given; a flag folded into text keeps its name as the value; both folds audited.
    - *Done*: a fold on a copy of the demo in the browser; the administration guide's *Tags*, with a screenshot of
      the dialog.
+3. **Release 0.11.0.**
+   - The demo needs no new data: its folders go six levels deep, and the Fujimoto Lab's *Atlas paper* is a lab tag to
+     fold. The walk-through opens `fujimoto_a` as an icicle and a sunburst; the website's home page names the release.
+   - Version 0.11.0 in `pyproject.toml`, `pinax.__version__`, and `uv.lock`; `CHANGELOG.md` dated, with notes on
+     upgrading from 0.10.0 (no migration, setting, or dependency); the deployment guide installs v0.11.0.
+   - Pull request to `main`, then tag `v0.11.0` and the release.
 
 ## Later waves (outlined)
 

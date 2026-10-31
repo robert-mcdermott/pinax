@@ -1,8 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.11.0 (2026-10-31)
 
-Wave 11 ("deeper views"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+Eleventh release (wave 11, "deeper views"): the age map as an icicle and a sunburst, to see a folder up to eight
+levels deep at once and find data deep in a chain of folders; and folding a lab's own tag into a standard one from
+*Tags*. The roadmap adds what a review of the capabilities a product like Pinax should have found missing: a
+setting for whether each filesystem's access times can be trusted, more roles, API tokens, the audit log in the app,
+and load tests. It comes before the production pilot (now wave 12), reach (now wave 13, with sign-in with Microsoft
+Entra ID optional), and hardening (wave 14, 1.0.0). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+
+Upgrading from 0.10.0: install the new version and restart Pinax ([Upgrading](docs/DEPLOYMENT.md#upgrading)). There
+is no migration, and no new setting or dependency. Browsers load the new pages on their next visit.
 
 ### Added
 

@@ -57,7 +57,7 @@ sudo git clone https://github.com/robert-mcdermott/pinax.git /opt/pinax
 ```
 
 ```bash
-cd /opt/pinax && sudo git checkout v0.10.0 && sudo env UV_PYTHON_INSTALL_DIR=/opt/pinax/.python uv sync --frozen --no-dev
+cd /opt/pinax && sudo git checkout v0.11.0 && sudo env UV_PYTHON_INSTALL_DIR=/opt/pinax/.python uv sync --frozen --no-dev
 ```
 
 ```bash
@@ -477,7 +477,7 @@ missing or automatic ingest has stopped or stopped responding; and 503 when the 
 Logs go to the journal (`journalctl -u pinax-web -u pinax-ingest`), as text:
 
 ```text
-2026-10-28 20:32:50 INFO pinax: Pinax 0.10.0 started: environment prod, sign-in header, catalog postgresql+psycopg://pinax@db.example.org/pinax, data in /var/lib/pinax
+2026-10-28 20:32:50 INFO pinax: Pinax 0.11.0 started: environment prod, sign-in header, catalog postgresql+psycopg://pinax@db.example.org/pinax, data in /var/lib/pinax
 2026-10-28 20:32:57 INFO pinax.request: GET /api/tree 200 in 122 ms, 6 index queries 27 ms [user=fujimoto_a address=10.20.4.17 request=c4b8784fe19b4890]
 2026-10-28 20:33:02 INFO pinax.audit: view.saved: View 'Tumor atlas' saved, shared with the Fujimoto Lab [user=fujimoto_a address=10.20.4.17 request=51d0c2a7e3b94b11]
 ```

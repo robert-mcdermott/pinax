@@ -150,7 +150,9 @@ files are sparse, on a laptop's disk), so the capacities are set, and use is mea
    moved project and the compressed FASTQ among new and removed folders, and the largest new files (Cell Ranger
    BAMs); each list downloads as CSV.
 11. **Folders and labs.** Tick *Unmapped only*, then map `shared_reference` to the Genomics Shared Resource.
-   Switch to *Casey Morgan*: the folder now appears in their data.
+   Switch to *Casey Morgan*: the folder now appears in their data. Back as Priya, *Tags* lists the Fujimoto Lab's own
+   *Atlas paper* under *Labs' own tags*: *Fold into a standard tag* into *Project* gives its folder a *Project* tag
+   named *Atlas paper*, and retires the lab's tag.
 12. **Costs and Chargeback.** Back as Priya, *Costs* shows each filesystem's prices and free tiers, with the
    Lindqvist Lab's exception. *Chargeback* for last month lists every lab's and department's charge, the most
    first (the Genomics Shared Resource, a department, has nothing free), the totals by filesystem, and the
