@@ -717,6 +717,24 @@ pre.json { background: var(--surface-2); color: var(--text); border: 1px solid v
 .tm-tip dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .tm-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
 
+/* Sunburst (depth.js): arcs separated by a surface-colored edge; an outline drawn on top of the arc under the pointer
+   or in focus. The icicle uses the treemap's tiles. */
+.sb { display: block; font-family: var(--fh-font-body); }
+.sb-arc { stroke: var(--surface); stroke-width: 1.5; cursor: pointer; }
+.sb-arc.static { cursor: default; }
+/* The links have classes, so the dark theme's underline for plain links passes them by; it would carry to their labels. */
+.sb a, .sb a:hover { outline: none; text-decoration: none; }
+.tm.square { height: auto; aspect-ratio: 1 / 1; max-height: clamp(360px, 62vh, 760px); }
+.sb-hot { fill: none; stroke: var(--text); stroke-width: 2; pointer-events: none; }
+.sb-hot.focus { stroke: var(--focus); stroke-width: 3; }
+.sb-label { font-size: 12px; font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.sb-center { fill: var(--surface-2); stroke: var(--border); stroke-width: 1; }
+.sb-up { cursor: pointer; }
+.sb-up:hover .sb-center, .sb-up:focus-visible .sb-center { stroke: var(--text); stroke-width: 2; }
+.sb-up:focus-visible .sb-center { stroke: var(--focus); stroke-width: 3; }
+.sb-name { fill: var(--text); font-size: 12.5px; font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.sb-sub { fill: var(--text-muted); font-size: 11.5px; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+
 /* Charts over time (timechart.js): recessive hairline grid and axes; the marks carry the color. */
 .tc { position: relative; width: 100%; }
 .tc-svg { display: block; overflow: visible; font-family: var(--fh-font-body); }

@@ -16,34 +16,37 @@ decisions taken are recorded here. Later waves are outlined at the end.
 **Progress** is marked here as each slice is committed: done, next or to come. Each requirement's status is
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
-**Where things stand:** waves 1 to 10 are released as 0.1.0 to 0.10.0 (tags on `main`). Besides forecasts, 0.6.0
+**Where things stand:** waves 1 to 10 are released as 0.1.0 to 0.10.0 (tags on `main`); wave 11 (0.11.0,
+deeper views) is being built. Besides forecasts, 0.6.0
 has what was merged since 0.5.0:
 - labs and departments can be added, changed, and deactivated in the app, so a site needs no CSV files at all;
 - guidance for operating Pinax;
 - time limits for requests, and new and removed files recorded at ingest, for filesystems of two billion files.
 
-Next is the production pilot (wave 11), when production storage is reachable; until then, reach (wave 12) can
-come first. Whichever comes next starts with the items [carried into the next wave](#carried-into-the-next-wave). If production storage becomes reachable sooner, the pilot becomes the next wave and the
-waves after it are renumbered. Ideas kept for later but not planned are in the [parking lot](#parking-lot).
+After it comes the production pilot (wave 12), when production storage is reachable; until then, reach (wave 13)
+can come first. If production storage becomes reachable sooner, the pilot becomes the next wave and the waves after
+it are renumbered. Ideas kept for later but not planned are in the [parking lot](#parking-lot).
 
 The order follows one principle:
 1. **Trust first.** Totals that agree with an independent computation on every directory, and that say when
    they are lower bounds.
 2. **Then real storage at real scale.** First everything a production deployment needs, checked on real local
-   scans and on synthetic data at scale (wave 2); then production storage itself and a pilot (wave 11).
+   scans and on synthetic data at scale (wave 2); then production storage itself and a pilot (wave 12).
 3. **Then change over time.** Where the growth comes from, and whether data is ageing. It comes before the pilot
    (wave 3) because it can be built and checked without production storage, which is not yet reachable.
 4. **Then what a site needs to run Pinax, and to charge for storage.** People managed in the app, and sign-in
    without single sign-on (wave 4); costs and chargeback (wave 5). Both come before the pilot for the same reason.
 5. **Then action.** Where storage is heading, what a lab could free and what that would save, and folders
    described in terms a lab and IT share (waves 6 to 8). These come before the pilot for the same reason.
-6. **Then reach.** Everyone in the organization, signed in, with access kept in step with the directory (wave 12).
+6. **Then reach.** Everyone in the organization, signed in, with access kept in step with the directory (wave 13).
 
 Wave 9 (action: hard links, saved views, background searches) came before the pilot and reach once the pilot was
 still out of reach after wave 8, as this plan allowed; the waves after it were renumbered. Wave 10 (operations)
 is the part of reach that a production deployment needs before it has many users: a catalog on PostgreSQL that
 migrations upgrade in place, logs a site can collect, and metrics its monitoring can trend and alert on. It came
-next at the maintainer's request, and the pilot and the rest of reach were renumbered after it.
+next at the maintainer's request, and the pilot and the rest of reach were renumbered after it. Wave 11 (deeper
+views: the age map as an icicle and a sunburst, and what 0.10.0 left) came next the same way, and the pilot, reach,
+and hardening were renumbered again.
 
 Work that needs a system Pinax has no access to, such as a mail service, a chat workspace, or a storage system's
 own interface, is kept in the [parking lot](#parking-lot) rather than planned.
@@ -143,7 +146,7 @@ recorded below as built. Merged to `main` in pull request #1 and released as v0.
 Everything a first production deployment needs, built and checked without production storage: every number
 checked against an independent tool, the shapes of real filesystems handled, 100 million files indexed, scans
 ingested as they arrive, labs onboarded in bulk, and a deployment kit. Production storage and the pilot follow
-in wave 11.
+in wave 12.
 
 ### Wave 2 sequence
 
@@ -154,7 +157,7 @@ in wave 11.
 | 3 | Scale to 100 million (S3, R3, Q3–Q5) | A 100-million-file synthetic scan, built and queried on the development laptop, meets Q3–Q5; whole-filesystem cold folders precomputed per age threshold at build time and answered within Q3; build memory and threads tuned and documented | Done |
 | 4 | Automatic ingest (S4, O4) | `pinax ingest --watch` (or a timer) ingests each new verified scan under a folder once, skipping incomplete and already-ingested scans, safe if two run at once; failures shown on *Scans* with the error; tests for each case | Done |
 | 5 | Bulk onboarding (A5) | Labs, people, memberships, and folder ownership imported from CSV with a dry run that lists every change, refusing ambiguous rows; changes audited; example files and docs | Done |
-| 6 | Deployment kit (P6, A4) | systemd units for the web app and ingest; header mode checked behind oauth2-proxy with a local test identity provider; a health endpoint; `docs/DEPLOYMENT.md` rewritten as an installation guide, confirmed by the pilot's installation in wave 11 | Done |
+| 6 | Deployment kit (P6, A4) | systemd units for the web app and ingest; header mode checked behind oauth2-proxy with a local test identity provider; a health endpoint; `docs/DEPLOYMENT.md` rewritten as an installation guide, confirmed by the pilot's installation in wave 12 | Done |
 | 7 | Release 0.2.0 | README demo script updated; version 0.2.0, changelog, pull request, tag, release | Done |
 
 ### Decisions for wave 2
@@ -165,12 +168,12 @@ in wave 11.
   one of them until explained.
 - Production storage is out of reach while wave 2 is built (decided 2026-10-26). The real scan in slice 2 is the
   maintainer's `~/Documents`: real names and shapes, but one owner on a laptop disk. Owners and labs are covered by
-  the demo seed and synthetic scans; production scans, server hardware, and the pilot are wave 11.
+  the demo seed and synthetic scans; production scans, server hardware, and the pilot are wave 12.
 - Pinax records only counts, timings, and checksums from real scans, never paths or names, in the repository;
   the scans themselves stay outside it and are deleted after measuring.
 - Watching polls a folder on a timer instead of relying on file-change notifications, which network filesystems
   do not deliver reliably.
-- Bulk onboarding is a stop-gap until the authoritative source of folder ownership is decided (wave 12); the import
+- Bulk onboarding is a stop-gap until the authoritative source of folder ownership is decided (wave 13); the import
   format is documented so that source can produce it.
 - No catalog migrations yet: waves 2 and 3 may still change the catalog schema, so pilot catalogs are re-created
   from the import files. Snapshot indexes are rebuilt from scans when `INDEX_VERSION` changes.
@@ -216,7 +219,7 @@ in wave 11.
      video formats, macro-enabled spreadsheets, diagrams, executables, and disk images were added to their
      categories, leaving 0.8%. The scan and its indexes were deleted after measuring.
    - *Done*: the real local scan and the wide and deep synthetic scan equal to rollup on every directory, with
-     the shapes above handled. Measuring production storage moved to wave 11.
+     the shapes above handled. Measuring production storage moved to wave 12.
 3. **Scale to 100 million (S3, R3, Q3–Q5).**
    - A synthetic scan of 100 million files in 2.44 million folders under 2,000 top-level folders, generated in
      155 s (3.8 GB).
@@ -234,7 +237,7 @@ in wave 11.
      file); directory-level queries 1–50 ms; lab searches 22 ms, whole-filesystem searches 2.8 s; every
      directory equal to rollup. With 17 GB and all ten threads the build was no faster (133 s), so the default
      stays 8 GB.
-   - *Done*: Q3–Q5 met at 100 million synthetic files on the laptop; server hardware and production are wave 11.
+   - *Done*: Q3–Q5 met at 100 million synthetic files on the laptop; server hardware and production are wave 12.
 4. **Automatic ingest (S4, O4).**
    - `watch.py` and `pinax ingest --watch [FOLDER] [--interval N] [--once] [--no-verify] [--allow-incomplete]`: each
      pass finds scan folders up to three levels down, oldest first; complete scans are verified with
@@ -292,7 +295,7 @@ in wave 11.
    - Tests: the health states; the header refused from untrusted addresses and accepted from trusted networks;
      demo sign-in off in header mode; every unit's command parsed by the CLI and every setting it names real;
      rebuilds (a lost index, the cache reopening, `--outdated`, a missing scan).
-   - *Done*, except what only a real server shows: the pilot installation in wave 11 confirms the guide and units
+   - *Done*, except what only a real server shows: the pilot installation in wave 12 confirms the guide and units
      (`systemd-analyze verify` and the sandboxing options cannot be run on the development Mac).
 7. **Release 0.2.0.**
    - The demo re-seeded with this wave's code: all four snapshots equal to rollup; the README demo script walked
@@ -377,7 +380,7 @@ Every change is checked against an independent computation, like every total.
      snapshots, 10 changes); evolved scans of a real demo scan and of the wide and deep shapes likewise. At one
      million files, `--evolve` takes 1.6 s, comparing 0.2 s of a 6 s build, and checking the change 1.1 s (all
      245,361 directories equal). Kept to small scans on the development laptop; the measurement with changed scans
-     at 100 million files waits for server-class hardware in wave 11.
+     at 100 million files waits for server-class hardware in wave 12.
 3. **History charts (E7).**
    - `explore.history` and `/api/history` take any place: a person's home, a lab or department, a filesystem, a
      top-level folder (every scan, from folder history), or a deeper folder (the retained snapshots, from their
@@ -426,7 +429,7 @@ Every change is checked against an independent computation, like every total.
      sums; sizing; access.
    - *Done*: checked in both themes and at 375 pixels on the demo. At one million synthetic files (three evolved
      generations), the root and a lab folder take 7–21 ms from `changes` and 12–31 ms joined with an older scan,
-     against 24 ms for the age map; the 100-million-file measurement waits for server-class hardware (wave 11).
+     against 24 ms for the age map; the 100-million-file measurement waits for server-class hardware (wave 12).
 5. **What changed (R9).**
    - `SnapshotIndex.change_units`: over a place's subtree in both scans (the stored changes, or an attached older
      index), the folders in both scans that grew and shrank most, leaving out a folder when one of its subfolders
@@ -443,7 +446,7 @@ Every change is checked against an independent computation, like every total.
      with a removed subfolder), from the stored previous scan and from an older scan; CSV, limits, and access.
    - *Done*: checked in both themes and at 375 pixels on the demo. At one million synthetic files (three evolved
      generations), a lab folder's report takes 70–90 ms and the whole filesystem's 0.5–0.6 s; the 100-million-file
-     measurement waits for server-class hardware (wave 11).
+     measurement waits for server-class hardware (wave 12).
    - Before slice 6, at the maintainer's request: the age scale changed from orange-to-red to hot-to-cold (red for
      data changed within two years, blue from then on), so cold data looks cold and a map of mostly old data no
      longer reads as alarming throughout. Each arm passes the ordinal checks in both themes.
@@ -470,7 +473,7 @@ Every change is checked against an independent computation, like every total.
    - Version 0.3.0 in `pyproject.toml`, `pinax.__version__`, and `uv.lock`; `CHANGELOG.md` dated, with upgrade
      notes; pull request `wave3` to `main`, then tag `v0.3.0` and the release.
    - Not measured: anything above a million files. The change map's Q3 and What changed's Q4 at 100 million files,
-     and changed scans at that size, wait for server-class hardware (wave 11).
+     and changed scans at that size, wait for server-class hardware (wave 12).
    - *Done*.
 
 ## 0.4.0: people and sign-in (wave 4)
@@ -510,7 +513,7 @@ maintainer's request, while production storage is out of reach, and merged in pu
    - Version 0.4.0 in `pyproject.toml`, `pinax.__version__`, and `uv.lock`; `CHANGELOG.md` dated, with notes on
      upgrading from 0.3.0 (new catalog columns added at start-up; the demo refused in production).
    - The roadmap re-planned: costs and chargeback, wanted by the maintainer and needing no production storage, move
-     up from the action wave to wave 5; the production pilot moves to wave 6 (since moved to wave 11), and the
+     up from the action wave to wave 5; the production pilot moves to wave 6 (since moved to wave 12), and the
      later waves follow.
    - Pull request to `main`, then tag `v0.4.0` and the release.
    - *Done*.
@@ -1128,7 +1131,7 @@ who changed what, and metrics that a site's monitoring can trend and alert on. N
 - **Audit events stay in the catalog**, where Pinax's pages read them; the log gets a copy of each once its change is
   committed, for a site's log collector or security monitoring.
 - **Sign-in with Microsoft Entra ID in Pinax itself**, with OpenID Connect, rather than behind an authenticating
-  proxy, is for reach (wave 12), with roles from Entra ID groups or app roles. Header mode behind a proxy stays, for
+  proxy, is for reach (wave 13), with roles from Entra ID groups or app roles. Header mode behind a proxy stays, for
   other identity providers.
 
 ### Slices as built
@@ -1226,24 +1229,66 @@ who changed what, and metrics that a site's monitoring can trend and alert on. N
      off, nine settings, the units and proxy configuration to copy again).
    - Pull request to `main`, then tag `v0.10.0` and the release.
 
-## Carried into the next wave
+## 0.11.0: deeper views (wave 11)
 
-Small items found since the last release. They are the first slice of whichever wave comes next, the pilot or
-reach, before its own slices.
+More of the storage at once, and what 0.10.0 left. Like waves 9 and 10, it needs no production storage, and comes
+before the pilot at the maintainer's request.
 
-| Item | Requirements | What is needed |
-| --- | --- | --- |
-| Folding a lab's own tag into a standard one from *Tags* | T2 | Wave 8 built the fold (`tags.merge`, `POST /api/admin/tags/{id}/merge`: each folder with the lab's tag gets the standard tag, with a value given, or the lab tag's own, and the lab's tag is retired), but no button for it. Each row of *Labs' own tags* gets *Fold into a standard tag*: the standard tag, a value if it takes one, how many folders it changes, and a confirmation; then the row shows it retired. Tested through the page's API calls; the administration guide's *Tags* section and its screenshot updated |
+### Wave 11 sequence
+
+| Slice | Scope and requirements | Acceptance before the next slice | Status |
+| --- | --- | --- | --- |
+| 1 | The icicle and the sunburst (E10) | The age map's *View* adds *Icicle* and *Sunburst* beside the map and the table: a folder four, six, or eight levels deep at once, each folder spanning its share of the one it is in, sized and colored as on the map, leaving out folders under 0.25% of the place; hover, focus, and opening a folder as on the map, and the sunburst's middle goes up a level; every folder within the levels and over the floor, and no other, against sums worked out from the files, by size and by files; a lab's members see only its folders; within the directory-query budget (Q3) at 10 million files; both themes and a phone's width; the user guide, with screenshots | Done |
+| 2 | Folding a lab's own tag into a standard one from *Tags* (T2), carried from 0.10.0 | Wave 8 built the fold (`tags.merge`, `POST /api/admin/tags/{id}/merge`: each folder with the lab's tag gets the standard tag, with a value given, or the lab tag's own, and the lab's tag is retired), but no button for it. Each row of *Labs' own tags* gets *Fold into a standard tag*: the standard tag, a value if it takes one, how many folders it changes, and a confirmation; then the row shows it retired. Tested through the page's API calls; the administration guide's *Tags* section and its screenshot updated | Next |
+
+### Decisions for wave 11
+
+- **Both an icicle and a sunburst.** They draw the same partition of a folder, so they share a query, a layout,
+  colors, and tooltips; only the drawing differs. The icicle is the one to read sizes from: lengths side by side,
+  and names that fit. The sunburst shows a tree's shape at a glance and fits a phone, but draws outer rings larger
+  than inner ones of the same share, so the guide says to compare angles. The treemap stays the default.
+- **A floor, not a count.** The treemap draws a folder's largest 60 children and folds the rest; over several levels,
+  counts per folder would multiply. Leaving out folders under 0.25% of the place bounds the drawing (at most 400
+  folders on a level) and keeps what is left a tree, since a folder holds at least as much as any folder inside it.
+  The space after a folder's subfolders, its own files and the folders left out, stays empty rather than becoming a
+  tile.
+- **Clicking opens the folder**, as on the map, rather than zooming inside the chart, so the address, the panel, and
+  saved views follow.
+
+### Slices as built
+
+1. **The icicle and the sunburst (E10).**
+   - `index.partition`: every folder within the levels below a place that holds at least the floor by the size
+     metric, in one depth-and-path-range scan of `dirs`, level by level and the largest first; `index.measure`: what
+     a place holds by a metric. `explore.depth_tree` nests them, with each top-level folder's owner for
+     administrators; a person's home has their places as its first level, with the floor from all of them together.
+     `GET /api/depth` (levels 1 to 10; six by default).
+   - `depth.js`: the layout; the icicle drawn with the treemap's tiles (`treemap.js` now shares its tiles, colors,
+     and tooltips); the sunburst in SVG, each label across its ring or along it, whichever has more room, an outline
+     on the arc under the pointer or in focus, and the place in the middle. *Levels* offers four, six, or eight for
+     them; the sunburst's box is square.
+   - Measured on a synthetic scan of 10 million files with wide and deep folders (265,000 folders): 4–7 ms for six or
+     eight levels anywhere, against 17–31 ms for the treemap's two levels (`bench/bench_index.py`). At a
+     filesystem's root it reads every folder within the levels, about 2 ms per million folders on this laptop, so a
+     root with 100 million folders may take a few hundred milliseconds; the pilot (wave 12) measures it on
+     production.
+   - Tests: the partition against folder sums worked out from the test filesystem's files, by size and by files, at
+     several places, levels, and floors, level by level, the largest first, each folder after its parent; the
+     endpoint's nesting, floor, owners, home, and access (`tests/test_index.py`, `tests/test_api.py`).
+   - The demo seed scans its filesystems by their real path, so a demo reached through a link (macOS's `/tmp` and
+     `/var` are links to `/private`) ingests.
+   - *Done*: checked in the browser in both themes, at a phone's width, and by keyboard; both views in the user
+     guide, with screenshots.
 
 ## Later waves (outlined)
 
 | Wave | Release | Theme | Main content |
 | --- | --- | --- | --- |
-| 11 | 0.11.0 | Production pilot | The largest production scan available ingests and passes `pinax check`; build time, index size, and query times measured on production replace the extrapolations in `docs/ARCHITECTURE.md`; 100 million files on server-class hardware, including the change map, what changed, and changed scans at that size, and the folder counts of production (two billion files may mean 50 to 200 million folders, which every report that reads all folders grows with); the time limits and whole-filesystem query turns set for production; installation on a pilot server from the deployment kit, scanning on a schedule; IT and a few pilot labs use it, and what they find is fixed or recorded |
-| 12 | 0.12.0 | Reach | Sign-in with Microsoft Entra ID in Pinax itself (OpenID Connect, the authorization code flow with PKCE), with roles from Entra ID groups or app roles and lab membership synced from the directory (A6); recertification report (A7); CI, container image (P6); for local sign-in, two-factor codes and limits per network address; security review |
-| 13 | 1.0.0 | Hardening | Budgets met at a billion files in production; accessibility audit; documentation complete; pilot and early-user feedback addressed |
+| 12 | 0.12.0 | Production pilot | The largest production scan available ingests and passes `pinax check`; build time, index size, and query times measured on production replace the extrapolations in `docs/ARCHITECTURE.md`; 100 million files on server-class hardware, including the change map, what changed, and changed scans at that size, and the folder counts of production (two billion files may mean 50 to 200 million folders, which every report that reads all folders grows with); the time limits and whole-filesystem query turns set for production; installation on a pilot server from the deployment kit, scanning on a schedule; IT and a few pilot labs use it, and what they find is fixed or recorded |
+| 13 | 0.13.0 | Reach | Sign-in with Microsoft Entra ID in Pinax itself (OpenID Connect, the authorization code flow with PKCE), with roles from Entra ID groups or app roles and lab membership synced from the directory (A6); recertification report (A7); CI, container image (P6); for local sign-in, two-factor codes and limits per network address; security review |
+| 14 | 1.0.0 | Hardening | Budgets met at a billion files in production; accessibility audit; documentation complete; pilot and early-user feedback addressed |
 
-Wave 12 needs no production storage either: if the pilot is still out of reach after wave 10, parts of it can come
+Wave 13 needs no production storage either: if the pilot is still out of reach after wave 11, parts of it can come
 first.
 
 ## Parking lot
@@ -1278,8 +1323,8 @@ Ideas kept for later, and not on a path to be built. An idea leaves the parking 
 ## Decisions still open
 
 - The authoritative source of folder ownership (which lab owns each top-level folder), and how Pinax stays in step
-  with it (wave 12).
+  with it (wave 13).
 - Which filesystems record access time reliably enough to show it by default.
 - Scan cadence and snapshot retention for each filesystem.
-- When production storage becomes reachable for wave 11, and which filesystem and labs the pilot uses.
+- When production storage becomes reachable for wave 12, and which filesystem and labs the pilot uses.
 - Who may see unmapped folders besides storage administrators (for example division data managers).

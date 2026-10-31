@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """The HTTP API: who can see what, and that reports answer correctly."""
 
-from conftest import ROOT, login
+from conftest import FILES, ROOT, login
 
 ALPHA = ROOT + "/alpha_lab"
 BETA = ROOT + "/beta_lab"
@@ -52,6 +52,40 @@ def test_person_without_labs_sees_nothing(client):
     login(client, "nobody")
     assert client.get("/api/home").json()["folders"] == []
     assert client.get("/api/tree").json()["tiles"] == []
+
+
+def test_depth_views_nest_folders_and_keep_to_the_persons_own(client):
+    login(client, "ada")
+    home = client.get("/api/depth").json()
+    assert [t["path"] for t in home["tiles"]] == [ALPHA]
+    projects = next(c for c in home["tiles"][0]["children"] if c["name"] == "projects")
+    assert {c["name"] for c in projects["children"]} == {"2015_old", "2025_new"}
+    new = next(c for c in projects["children"] if c["name"] == "2025_new")
+    assert [c["name"] for c in new["children"]] == ["legacy"] and new["stats"]["bytes"] == 11010
+    one = client.get("/api/depth", params={"fs": "fast", "path": ALPHA, "levels": 1}).json()
+    assert [t["name"] for t in one["tiles"]] == ["projects"] and "children" not in one["tiles"][0]
+    for path in (BETA, ROOT, ROOT + "/orphans/old", ALPHA + "/../beta_lab"):
+        assert client.get("/api/depth", params={"fs": "fast", "path": path}).status_code == 404, path
+    assert client.get("/api/depth", params={"levels": 11}).status_code == 422
+    assert client.get("/api/depth", params={"metric": "nope"}).status_code == 422
+
+
+def test_depth_views_leave_out_the_smallest_folders(client):
+    login(client, "ivy")
+    d = client.get("/api/depth", params={"fs": "fast"}).json()
+    total = sum(f["size"] for f in FILES)
+    assert d["total"] == total and d["least"] == total * 0.0025
+
+    def walk(tiles):
+        for t in tiles:
+            yield t
+            yield from walk(t.get("children", []))
+    drawn = {t["path"]: t for t in walk(d["tiles"])}
+    assert ROOT + "/orphans/old" in drawn and ROOT + "/beta_lab/locked" not in drawn  # 123 bytes in, 5 out
+    assert all(t["stats"]["bytes"] >= d["least"] for t in drawn.values())
+    assert drawn[ALPHA]["lab"]["slug"] == "alpha"  # top-level folders carry their owner for administrators
+    home = client.get("/api/depth").json()
+    assert [t["kind"] for t in home["tiles"]] == ["fs"] and {c["name"] for c in home["tiles"][0]["children"]} >= {"alpha_lab", "beta_lab"}
 
 
 def test_age_and_type_reports(client):

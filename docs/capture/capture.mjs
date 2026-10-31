@@ -169,6 +169,8 @@ const scenes = {
   },
   async 'age-map-access'() { await open('hlindqvist', `#/explore?fs=fast&path=${at('lindqvist_h')}&color=access`); },
   async 'age-map-table'() { await open('afujimoto', `#/explore?fs=fast&path=${at('fujimoto_a/projects')}&view=table`); },
+  async 'age-map-icicle'() { await open('afujimoto', `#/explore?fs=fast&path=${at('fujimoto_a')}&view=icicle`); },
+  async 'age-map-sunburst'() { await open('afujimoto', `#/explore?fs=fast&path=${at('fujimoto_a')}&view=sunburst`); },
   async 'folder-panel'() {
     await open('afujimoto', `#/explore?fs=fast&path=${at('fujimoto_a/projects/2022_tumor_atlas')}`);
     return { clip: await clipOf('aside.detail') };

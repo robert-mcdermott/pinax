@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+
+Wave 11 ("deeper views"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+
+### Added
+
+- **The icicle and the sunburst.** The age map's *View* adds *Icicle* and *Sunburst* beside the map and the table: a
+  folder four, six, or eight levels deep at once (*Levels*), each folder drawn beside the one it is in, as long as
+  its share of it, sized and colored as on the map. The icicle has a column per level; the sunburst a ring per level
+  around the folder, whose middle goes up a level. Folders under 0.25% of the place are left out. Hover a folder for
+  its details and click it to open it, as on the map; saved views keep the view. `GET /api/depth` serves them
+  ([Icicle and sunburst](docs/USER-GUIDE.md#icicle-and-sunburst)).
+
+### Changed
+
+- **The roadmap.** Wave 11 is now deeper views (0.11.0), at the maintainer's request; the production pilot moves to
+  wave 12, reach to wave 13, and hardening to wave 14 (1.0.0). Folding a lab's own tag into a standard one, carried
+  from 0.10.0, is its second slice.
+
+### Fixed
+
+- `pinax seed` failed when the demo was reached through a link (as macOS's `/tmp` and `/var` are), since the scans
+  recorded a different root than the filesystem's; it now scans each demo filesystem by its real path.
+
 ## 0.10.0 (2026-10-29)
 
 Tenth release (wave 10, "operations"): what a production deployment needs from Pinax itself. The catalog can be

@@ -355,6 +355,22 @@ class SnapshotIndex:
             out["grand"] = self._grandchildren(path, depth, expr, grand_limit, ids)
         return out
 
+    def measure(self, path: str, metric: str = "bytes") -> float:
+        """How much `path` holds by `metric` (0 if it is not in this scan)."""
+        row = self._one(f"SELECT {METRICS[metric]} FROM dirs WHERE depth = ? AND path = ?", [self.depth_of(path), path])
+        return float(row[0] or 0) if row else 0.0
+
+    def partition(self, path: str, *, metric: str = "bytes", levels: int = 6, least: float = 1) -> list[dict]:
+        """Every folder up to `levels` levels below `path` that holds at least `least` by `metric`, level by level and
+        the largest first, for the icicle and the sunburst. A folder holds at least as much as any folder inside it,
+        so each one's parent is listed too and the rows form a tree, with at most total / `least` folders on a level."""
+        expr = METRICS[metric]
+        depth = self.depth_of(path)
+        lo, hi = child_range(path)
+        return self._rows(
+            f"SELECT {DIR_COLUMNS} FROM dirs WHERE depth > ? AND depth <= ? AND path >= ? AND path < ? AND {expr} >= ? "
+            f"ORDER BY depth, {expr} DESC, path", [depth, depth + levels, lo, hi, max(least, 1)], ROW_KEYS)
+
     def _child_sums(self, depth: int, lo: str, hi: str, listed: list[int]) -> tuple[dict, dict]:
         """Totals over all the children, and over those not listed. One aggregate pass split by whether a child
         is listed, rather than ranking every child: a folder can have hundreds of thousands of subfolders."""

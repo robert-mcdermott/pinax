@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // The age map: a treemap of a folder's subfolders, sized by how much they hold and colored by how old
-// it is. Click a tile to go one level down; the breadcrumbs go back up.
+// it is, or the same folders several levels deep as an icicle or a sunburst (depth.js). Click a folder to go
+// into it; the breadcrumbs go back up.
 import {
   $, $$, ageText, api, bytes, date, displayPath, html, icon, mount, num, parseQuery, pct, placeHash, placeQuery,
   raw, state, when,
@@ -8,21 +9,26 @@ import {
 import { planBox } from "/js/plans.js";
 import { tagBox } from "/js/tags.js";
 import { scopeHeader } from "/js/shell.js";
+import { renderIcicle, renderSunburst } from "/js/depth.js";
 import { renderTreemap } from "/js/treemap.js";
 import {
   ageBar, ageHistogram, bars, categories, coldBytes, colorFor, colorOptions, daysSince, legend, metricLabel,
   metricOptions, metricText, metricValue, thresholdText,
 } from "/js/viz.js";
 
-const DEFAULTS = { size: "bytes", color: "mean", levels: "2", view: "map" };
+const DEFAULTS = { size: "bytes", color: "mean", levels: "2", depth: "6", view: "map" };
+const DEEP = new Set(["icicle", "sunburst"]); // views of several levels, from /api/depth
+const VIEWS = [["map", "treemap", "Map"], ["icicle", "icicle", "Icicle"], ["sunburst", "sunburst", "Sunburst"], ["table", "table", "Table"]];
 
 export async function viewExplore(el, query) {
   const q = { ...DEFAULTS, ...parseQuery(query) };
   const place = q.fs ? { fs: q.fs, path: q.path } : null;
-  const view = { size: q.size, color: q.color, levels: q.levels, view: q.view };
-  const [data, below] = await Promise.all([
-    api("tree", { query: { ...placeQuery(place), metric: q.size, depth: Number(q.levels), lab: q.lab } }),
-    place ? api("tags/below", { query: { fs: place.fs, path: place.path }, quiet: true }).catch(() => ({ tagged: {} })) : { tagged: {} }]);
+  const deep = DEEP.has(q.view);
+  const view = { size: q.size, color: q.color, levels: q.levels, depth: q.depth, view: q.view };
+  const [data, below, depth] = await Promise.all([
+    api("tree", { query: { ...placeQuery(place), metric: q.size, depth: deep ? 1 : Number(q.levels), lab: q.lab } }),
+    place ? api("tags/below", { query: { fs: place.fs, path: place.path }, quiet: true }).catch(() => ({ tagged: {} })) : { tagged: {} },
+    deep ? api("depth", { query: { ...placeQuery(place), metric: q.size, levels: Number(q.depth), lab: q.lab } }) : null]);
   // A tile's own tags, or that it holds tagged folders (null: neither).
   const tagged = Object.entries(below.tagged);
   const tagsOf = (t) => {
@@ -55,26 +61,23 @@ export async function viewExplore(el, query) {
     <div class="toolbar">
       ${select("ctl-size", "Size by", metricOptions(), q.size)}
       ${select("ctl-color", "Color by", colorOptions(), q.color)}
-      <div class="ctl"><span>Levels</span><div class="pills" role="group" aria-label="Levels shown">
-        <button data-levels="1" class="${q.levels === "1" ? "active" : ""}" aria-pressed="${q.levels === "1"}">One</button>
-        <button data-levels="2" class="${q.levels === "2" ? "active" : ""}" aria-pressed="${q.levels === "2"}">Two</button></div></div>
-      <div class="ctl"><span>View</span><div class="pills" role="group" aria-label="View">
-        <button data-view="map" class="${q.view === "map" ? "active" : ""}" aria-pressed="${q.view === "map"}">${icon("treemap")} Map</button>
-        <button data-view="table" class="${q.view === "table" ? "active" : ""}" aria-pressed="${q.view === "table"}">${icon("table")} Table</button></div></div>
+      ${q.view === "table" ? "" : deep ? pills("Levels", "Levels shown", "depth", [["4", "Four"], ["6", "Six"], ["8", "Eight"]], q.depth)
+        : pills("Levels", "Levels shown", "levels", [["1", "One"], ["2", "Two"]], q.levels)}
+      ${pills("View", "View", "view", VIEWS.map(([key, ic, label]) => [key, html`${icon(ic)} ${label}`]), q.view)}
     </div>
     <div class="explore-layout">
       <div class="card tm-card">
-        ${q.view === "map" ? html`<div class="tm" id="tm" role="group" aria-label="Treemap of ${node.name}: ${metricLabel(q.size)} by ${colorOptions().find((c) => c.key === q.color)?.label}"></div>`
-          : childTable(tiles, q, asOf, cb, hrefFor, total, tagsOf)}
+        ${q.view === "table" ? childTable(tiles, q, asOf, cb, hrefFor, total, tagsOf)
+          : html`<div class="tm${q.view === "sunburst" ? " square" : ""}" id="tm" role="group" aria-label="${{ map: "Treemap", icicle: "Icicle", sunburst: "Sunburst" }[q.view] || "Treemap"} of ${node.name}: ${metricLabel(q.size)} by ${colorOptions().find((c) => c.key === q.color)?.label}"></div>`}
         ${legend(q.color, cb)}
-        <p class="small muted" style="margin:10px 0 0">Tile area is ${metricLabel(q.size).toLowerCase()}. ${node.subdirs > 60 ? `The largest 60 of ${num(node.subdirs)} subfolders are drawn; the rest are combined. ` : ""}Click a folder to open it.</p>
+        <p class="small muted" style="margin:10px 0 0">${caption(q, node, depth)}</p>
       </div>
       ${detailPanel(node, data, q, cb)}
     </div>`);
 
-  if (q.view === "map") {
+  if (q.view !== "table") {
     const tm = $("#tm", el);
-    const draw = () => renderTreemap(tm, tiles, {
+    const opts = {
       levels: Number(q.levels),
       value: (t) => metricValue(t.stats, q.size),
       color: (t) => colorFor(t.stats, q.color, asOf, cb).token,
@@ -82,8 +85,13 @@ export async function viewExplore(el, query) {
       label: (t) => `${metricText(metricValue(t.stats, q.size), q.size)} · ${colorFor(t.stats, q.color, asOf, cb).text}${tagsOf(t) ? ` · tags: ${tagsOf(t)}` : ""}`,
       tip: (t) => String(tileTip(t, q, asOf, cb, total, tagsOf(t))),
       mark: (t) => Boolean(tagsOf(t)),
-      onEmpty: () => String(html`<div class="empty">${icon("treemap")}<h3>Nothing to draw</h3><p>No subfolder here has any ${metricLabel(q.size).toLowerCase()}.</p></div>`),
-    });
+      onEmpty: () => String(html`<div class="empty">${icon(VIEWS.find(([k]) => k === q.view)?.[1] || "treemap")}<h3>Nothing to draw</h3><p>No subfolder here has any ${metricLabel(q.size).toLowerCase()}.</p></div>`),
+      total: depth?.total,
+      center: { name: node.name, sub: metricText(total, q.size),
+        href: parentCrumb ? placeHash("explore", parentCrumb.fs ? { fs: parentCrumb.fs, path: parentCrumb.path } : null, keep) : null },
+    };
+    const render = { map: renderTreemap, icicle: renderIcicle, sunburst: renderSunburst }[q.view] || renderTreemap;
+    const draw = () => render(tm, deep ? depth.tiles : tiles, opts);
     draw();
     let timer;
     const redraw = () => { clearTimeout(timer); timer = setTimeout(() => { if (document.body.contains(tm)) draw(); }, 120); };
@@ -100,12 +108,29 @@ export async function viewExplore(el, query) {
   const go = (changes) => { location.hash = placeHash("explore", place, { ...keep, ...changes }); };
   $("#ctl-size", el).addEventListener("change", (e) => go({ size: e.target.value }));
   $("#ctl-color", el).addEventListener("change", (e) => go({ color: e.target.value }));
-  $$("[data-levels]", el).forEach((b) => b.addEventListener("click", () => go({ levels: b.dataset.levels })));
-  $$("[data-view]", el).forEach((b) => b.addEventListener("click", () => go({ view: b.dataset.view })));
+  for (const key of ["levels", "depth", "view"]) {
+    $$(`[data-${key}]`, el).forEach((b) => b.addEventListener("click", () => go({ [key]: b.dataset[key] })));
+  }
   $$("[data-hist]", el).forEach((b) => b.addEventListener("click", () => {
     $$("[data-hist]", el).forEach((x) => { x.classList.toggle("active", x === b); x.setAttribute("aria-pressed", String(x === b)); });
     mount($("#hist", el), ageHistogram(b.dataset.hist === "atime" ? node.stats.atime_bytes : node.stats.age_bytes));
   }));
+}
+
+const pills = (label, aria, key, options, value) => html`<div class="ctl"><span>${label}</span><div class="pills" role="group" aria-label="${aria}">
+  ${options.map(([k, text]) => html`<button data-${key}="${k}" class="${k === value ? "active" : ""}" aria-pressed="${k === value}">${text}</button>`)}</div></div>`;
+
+function caption(q, node, depth) {
+  const measure = metricLabel(q.size).toLowerCase();
+  if (q.view === "table") return "Click a folder to open it.";
+  if (!depth) {
+    return `Tile area is ${measure}. ${node.subdirs > 60 ? `The largest 60 of ${num(node.subdirs)} subfolders are drawn; the rest are combined. ` : ""}Click a folder to open it.`;
+  }
+  const how = q.view === "icicle" ? `Each column is a level deeper, and a folder's height is its ${measure}`
+    : `Each ring is a level deeper, and a folder's angle is its ${measure}; compare angles, since outer rings are drawn larger`;
+  const share = depth.total ? +((depth.least / depth.total) * 100).toFixed(2) : 0;
+  return `${how}. Folders holding less than ${share}% of this place are left out, and the space after a folder's `
+    + `subfolders is its own files and the folders too small to draw. Click a folder to open it${q.view === "sunburst" && node.fs ? ", or the middle to go up" : ""}.`;
 }
 
 function tileTip(t, q, asOf, cb, total, tags = null) {

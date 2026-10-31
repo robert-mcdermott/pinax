@@ -14,7 +14,8 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
   down and find where the old data is. Size by bytes, space on disk, file count, data of one kind
   (for example sequencing data), or data older than a threshold. Color by average age, time since the last
   change, age of the oldest file, time since the last access, the share that is cold, or the share of one kind
-  of data. Show one or two levels, or switch to a table.
+  of data. Show one or two levels, or switch to a table. Or see a folder several levels deep at once, as an
+  icicle or a sunburst, to find data deep in a chain of folders.
 - **History**: how any folder, lab, or filesystem grew and aged over its scans: size by age as stacked
   columns, with files, cold share, and average age beside it, or as a table with CSV. A forecast carries the
   trend of the last six months of scans a year ahead, with a range and a check of how far off it was three
