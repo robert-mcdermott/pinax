@@ -17,7 +17,11 @@ Wave 11 ("deeper views"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
 
 - **The roadmap.** Wave 11 is now deeper views (0.11.0), at the maintainer's request; the production pilot moves to
   wave 12, reach to wave 13, and hardening to wave 14 (1.0.0). Folding a lab's own tag into a standard one, carried
-  from 0.10.0, is its second slice.
+  from 0.10.0, is its second slice. Later waves gain: in the pilot, a setting for whether each filesystem's access
+  times can be trusted; in reach, more roles (finance, auditor, division head) decided before the Entra ID group
+  mapping, API tokens for scripts, and the audit log in the app; in hardening, load tests with many people at once.
+  Sign-in with Entra ID stays optional: local sign-in and header mode remain, for small organizations and
+  departments without access to their organization's Entra ID.
 
 ### Fixed
 

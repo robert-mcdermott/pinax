@@ -59,6 +59,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | E8 | A change map: the treemap colored by growth or shrinkage since a chosen scan, drilling down like the age map | done (wave 3, slice 4: since any retained scan, new and removed folders drawn; 7–31 ms at a million files; wave 12: at 100 million) |
 | E9 | Saved views: a person saves a page with its place and settings, and shares it with their labs | done (wave 9, slice 2) |
 | E10 | A folder several levels deep at once: the age map as an icicle and as a sunburst, sized and colored as the map is, the smallest folders left out | done (wave 11, slice 1: four, six, or eight levels; folders under 0.25% of the place left out; 4–7 ms at 10 million files) |
+| E11 | Each filesystem says whether its access times can be trusted; where they cannot, views by last access are hidden or marked | planned (wave 12) |
 
 ## Reports
 
@@ -107,10 +108,12 @@ validation that shows it. Requirement IDs are stable and never reused.
 | A3 | Labs and departments own top-level folders (one owner each), the same model as Tundra; changes audited | done (wave 1, slice 6; after 0.5.0: added, changed, deactivated, and reactivated in the app, as well as by import) |
 | A4 | Demo identity; trust a single sign-on proxy's header in production | done (wave 1, slice 1; wave 2, slice 6: only from trusted proxies, checked behind oauth2-proxy 7.15) |
 | A5 | Import labs, people, memberships, and folder ownership in bulk | done (wave 2, slice 5: `pinax import`, docs/IMPORT.md) |
-| A6 | Single sign-on with roles from directory groups; membership synced from the directory | planned (wave 13: sign-in with Microsoft Entra ID in Pinax itself) |
+| A6 | Single sign-on with roles from directory groups; membership synced from the directory; optional, so that a site without it signs in as A4 or A9 allow | planned (wave 13: sign-in with Microsoft Entra ID in Pinax itself) |
 | A7 | An access recertification report | planned (wave 13) |
 | A9 | Sign in without single sign-on: passwords Pinax keeps, temporary passwords that must be changed, lockout, sessions, audit; the first administrator from the command line; the demo's sign-in-as-anyone refused in production | done (wave 4, slice 2: `PINAX_AUTH_MODE=local`) |
 | A8 | Manage people in the app, as in Tundra: add people, change their details, lab memberships, and administrator role, deactivate and reactivate them; every change audited; an administrator always remains | done (wave 4, slice 1: *People and access*) |
+| A10 | Roles beyond administrator, PI, and delegate: finance (charges, statements, and prices, without folders), auditor (everything to read, and the audit log, without changing anything), and division head or data steward (a division's labs); given in the app, or from directory groups where sign-in uses them | planned (wave 13: decided before A6's group mapping) |
+| A11 | API tokens for scripts: personal or service tokens, stored hashed, with the person's access or read-only, expiring, revocable, each use audited; with every way of signing in | planned (wave 13) |
 
 ## IT operations
 
@@ -121,6 +124,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | O3 | Scans: every snapshot with its status, timings, and sizes | done (wave 1, slice 6) |
 | O4 | Alerts when a scan or ingest fails | done (wave 2, slice 4: failed and skipped scans, and a watcher that stopped, shown on *Scans*; `--once` exits 1 on a failure; wave 10, slice 4: metrics that monitoring alerts on, and alert rules in `deploy/prometheus/`; alerts by email or chat are in the roadmap's parking lot) |
 | O5 | Metrics, structured logs, slow-query logging | done (wave 10, slice 3: a line per request with its ID, person, address, and time in index queries, slow requests flagged, audit events logged once committed, text or JSON; slice 4: Prometheus metrics at `/metrics`) |
+| O6 | The audit log in the app: every audit event, filtered by person, action, folder, and date, with CSV | planned (wave 13) |
 
 ## Quality and performance
 
@@ -131,3 +135,4 @@ validation that shows it. Requirement IDs are stable and never reused.
 | Q3 | Directory-level queries (treemap, types, owners, cold folders of a lab) within 100 ms at a billion files | partial (wave 1: 23–64 ms at 10 million files; wave 2, slice 3: 1–50 ms at 100 million synthetic files; wave 5, slice 4: a month's charges for every lab in 25 ms on a year of weekly scans of 2,000 folders; wave 12: on production) |
 | Q4 | Searches scoped to a lab folder within 1 s; whole-filesystem searches within 60 s at a billion files | partial (wave 1: 10 ms and 273 ms at 10 million files; wave 2, slice 3: 22 ms and 2.8 s at 100 million, about 30 s projected at a billion; wave 12: on production) |
 | Q5 | Index build within 2 hours per billion files on a server; index at most 60 bytes per file | partial (wave 1: 2.2 s per million files on a 10-core laptop; 55 bytes per file; wave 2, slice 3: 1.2 s per million at 100 million within 8 GB, about 20 minutes projected per billion; 56 bytes per file; wave 12: on a server) |
+| Q6 | Many people at once: response times, memory, and whole-filesystem query turns under concurrent use, measured by a load test | planned (wave 14) |

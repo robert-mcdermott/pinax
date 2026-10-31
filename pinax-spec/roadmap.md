@@ -61,6 +61,7 @@ own interface, is kept in the [parking lot](#parking-lot) rather than planned.
 | Unit of display | Directories, with subtree totals precomputed per scan; files only in searches and lists |
 | Unit of ownership | A top-level folder of a filesystem, owned by one lab or department; people, labs, memberships, and folder ownership use Tundra's model |
 | Ages | Measured from the scan's start, by modification time unless a view says otherwise; seven buckets from under 90 days to ten years or more |
+| Sign-in | Passwords Pinax keeps (`local`), or a trusted single sign-on proxy's header (`header`); from wave 13, also Microsoft Entra ID in Pinax itself. Entra ID stays optional: a small organization, or a department without access to its organization's Entra ID, runs Pinax with local sign-in or its own proxy, and roles, API tokens, and the audit log work with every way of signing in |
 | Colors | Interface tokens from Tundra; a validated hot-to-cold age scale (red for data changed within two years, blue from then on, split at the default cold threshold; until wave 3 a one-hue orange-to-red ramp); a custom Pinax logo, not the Fred Hutch logo |
 | Development data | The demo seed (sparse files scanned by the real fs-inventory), `bench/synth_scan.py`, and scans of the maintainer's own files; real scans are never committed, only measurements |
 | Default port | 8001 (Tundra uses 8000) |
@@ -1284,12 +1285,13 @@ before the pilot at the maintainer's request.
 
 | Wave | Release | Theme | Main content |
 | --- | --- | --- | --- |
-| 12 | 0.12.0 | Production pilot | The largest production scan available ingests and passes `pinax check`; build time, index size, and query times measured on production replace the extrapolations in `docs/ARCHITECTURE.md`; 100 million files on server-class hardware, including the change map, what changed, and changed scans at that size, and the folder counts of production (two billion files may mean 50 to 200 million folders, which every report that reads all folders grows with); the time limits and whole-filesystem query turns set for production; installation on a pilot server from the deployment kit, scanning on a schedule; IT and a few pilot labs use it, and what they find is fixed or recorded |
-| 13 | 0.13.0 | Reach | Sign-in with Microsoft Entra ID in Pinax itself (OpenID Connect, the authorization code flow with PKCE), with roles from Entra ID groups or app roles and lab membership synced from the directory (A6); recertification report (A7); CI, container image (P6); for local sign-in, two-factor codes and limits per network address; security review |
-| 14 | 1.0.0 | Hardening | Budgets met at a billion files in production; accessibility audit; documentation complete; pilot and early-user feedback addressed |
+| 12 | 0.12.0 | Production pilot | The largest production scan available ingests and passes `pinax check`; build time, index size, and query times measured on production replace the extrapolations in `docs/ARCHITECTURE.md`; 100 million files on server-class hardware, including the change map, what changed, and changed scans at that size, and the folder counts of production (two billion files may mean 50 to 200 million folders, which every report that reads all folders grows with); the time limits and whole-filesystem query turns set for production; installation on a pilot server from the deployment kit, scanning on a schedule; IT and a few pilot labs use it, and what they find is fixed or recorded; each filesystem says whether its access times can be trusted, and where they cannot, views by last access are hidden or marked (E11) |
+| 13 | 0.13.0 | Reach | First, the roles decided: finance, auditor, and division head or data steward beside administrator, PI, and delegate, given in the app with any sign-in (A10). Then optional sign-in with Microsoft Entra ID in Pinax itself (OpenID Connect, the authorization code flow with PKCE), with those roles from Entra ID groups or app roles and lab membership synced from the directory (A6); local sign-in and header mode stay, for sites without Entra ID. API tokens for scripts, with every way of signing in (A11); the audit log in the app, searchable and exported (O6); recertification report (A7); CI, container image (P6); for local sign-in, two-factor codes and limits per network address; security review |
+| 14 | 1.0.0 | Hardening | Budgets met at a billion files in production; load tests with many people at once (Q6); accessibility audit; documentation complete, with the time to rebuild the indexes after losing a server; pilot and early-user feedback addressed |
 
 Wave 13 needs no production storage either: if the pilot is still out of reach after wave 11, parts of it can come
-first.
+first. Its roles are decided before its Entra ID group mapping is built, so that groups map onto every role from the
+start; finance and auditors then need no administrator role.
 
 ## Parking lot
 
@@ -1316,7 +1318,6 @@ Ideas kept for later, and not on a path to be built. An idea leaves the parking 
 | Recognizing data by its folder names: sequencing runs, cryo-EM sessions, imaging plates | Partly covered by the *Source* tag (wave 8) |
 | Searching files within a collection | Within a lab, as fast as Find in a folder; across the organization, a whole-filesystem search under the time limits |
 | Tags on single files | At two billion files, every tagged view would become a file-level query; tags stay on folders (wave 8) |
-| API tokens for scripts | |
 | Folder history exported as Parquet, for Tableau or Power BI | |
 | An MCP server, so an AI assistant can answer storage questions with the person's own access | |
 
@@ -1324,7 +1325,8 @@ Ideas kept for later, and not on a path to be built. An idea leaves the parking 
 
 - The authoritative source of folder ownership (which lab owns each top-level folder), and how Pinax stays in step
   with it (wave 13).
-- Which filesystems record access time reliably enough to show it by default.
+- Which filesystems record access time reliably enough to show it by default: from wave 12 each filesystem has a
+  setting for it (E11), and the pilot decides each production filesystem's.
 - Scan cadence and snapshot retention for each filesystem.
 - When production storage becomes reachable for wave 12, and which filesystem and labs the pilot uses.
 - Who may see unmapped folders besides storage administrators (for example division data managers).
