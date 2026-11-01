@@ -19,7 +19,7 @@ The folder holds any of `labs.csv`, `people.csv`, `memberships.csv`, and `folder
 `--labs`, `--people`, `--memberships`, and `--folders`. The examples in `examples/import/` fit the demo: they add
 two departments and a lab, three people, and owners for the demo's three unmapped folders.
 
-This is a stop-gap until the authoritative source of folder ownership is chosen (wave 13 in
+This is a stop-gap until the authoritative source of folder ownership is chosen (wave 14 in
 `pinax-spec/roadmap.md`). That source, or a script reading it, can write these files.
 
 ## How an import works
@@ -66,6 +66,9 @@ and spaces around values are ignored. Empty lines are skipped.
 | `title` | no | Free text |
 | `is_admin` | no (default `false`) | `true` gives the person the storage administrator role: every filesystem and folder |
 | `active` | no (default `true`) | `false` stops the person signing in |
+
+Site roles (auditor, finance, and division head) are not imported: give them on the person's page in *People and
+access* ([Site roles](ADMINISTRATION.md#site-roles)).
 
 ### memberships.csv: who belongs to which lab
 

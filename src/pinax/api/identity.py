@@ -61,4 +61,6 @@ def demo_login(body: DemoLogin, response: Response, session: Session = Depends(g
 
 @router.get("/me")
 def me(identity: Identity = Depends(current_identity)):
-    return user_json(identity.user)
+    """The person signed in, and what their roles let them see and change (the pages follow it; the server decides)."""
+    return {**user_json(identity.user), "sees_all": identity.sees_all, "sees_charges": identity.sees_charges,
+            "divisions": sorted(identity.divisions), "sees_labs": bool(identity.labs_seen)}

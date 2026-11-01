@@ -1,6 +1,6 @@
     <section class="hero">
       <div class="container hero-grid">
-        <a class="eyebrow" href="{{github}}/releases"><span class="pill">v{{version}}</span> The age map as an icicle and a sunburst</a>
+        <a class="eyebrow" href="{{github}}/releases"><span class="pill">v{{version}}</span> Site roles, API tokens, and the audit log</a>
         <h1>See what your research storage holds, <span class="accent">and what it costs</span></h1>
         <p class="lede">Pinax turns scans of filesystems with billions of files into an age map, history, forecasts, and
           monthly charges that every lab can explore for its own folders, and that IT can check, directory by directory.
@@ -33,7 +33,7 @@
           </div>
           <div class="pillar">
             <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Each lab sees its own</h3>
-            <p>Labs own top-level folders; their members see those and nothing else, checked on the server for every request. Every change is audited.</p>
+            <p>Labs own top-level folders; their members see those and nothing else, and every other role only what it allows, checked on the server for every request. Every change is audited.</p>
           </div>
         </div>
       </div>
@@ -125,6 +125,16 @@
 
         <article class="feature reverse">
           <div class="feature-text">
+            <span class="kicker">Access and audit</span>
+            <h3>Who sees what, and a record of who did what</h3>
+            <p>Auditors who see everything and change nothing, finance who see every lab's charges, and division heads who read their division's labs. API tokens let scripts read Pinax or act with a person's access. Every change is in the audit log, with where it came from, and the access review shows who has access to what, since when, with a recorded sign-off.</p>
+            <a class="more-link" href="docs/people.html">People and access</a>
+          </div>
+          {{shot access-review "The access review: what is worth a look, the site roles, and the latest review"}}
+        </article>
+
+        <article class="feature">
+          <div class="feature-text">
             <span class="kicker">Operations</span>
             <h3>Ready for production</h3>
             <p>Scans on a schedule and automatic ingest; SQLite with nothing to install, or PostgreSQL with migrations; a log line for every request and audit event, as text or JSON; Prometheus metrics with alert rules to start from; systemd units, and single sign-on behind oauth2-proxy.</p>
@@ -145,7 +155,7 @@
         <div class="steps">
           <div class="step"><h3>Scan</h3><p>fs-inventory walks each filesystem's metadata on a schedule, in parallel and resumably, and writes Parquet: about 40 bytes per entry.</p></div>
           <div class="step"><h3>Ingest</h3><p>Pinax builds a snapshot index in which every directory carries the totals of everything below it, and records what changed since the last scan.</p></div>
-          <div class="step"><h3>Explore</h3><p>Labs see their own folders; administrators see everything. Every page reads totals, never adds up files, so it answers in milliseconds.</p></div>
+          <div class="step"><h3>Explore</h3><p>Labs see their own folders, division heads their division's, administrators and auditors everything. Every page reads totals, never adds up files, so it answers in milliseconds.</p></div>
         </div>
       </div>
     </section>
@@ -163,6 +173,7 @@
               <li>What your labs store, where the old data is, and how it is changing</li>
               <li>What each month costs, and what a cleanup would save</li>
               <li>Data found by project, grant, or stage</li>
+              <li>Scripts that read your data, with an API token</li>
             </ul>
             <a class="more-link" href="docs/my-data.html">The user guide</a>
           </div>
@@ -172,6 +183,7 @@
               <li>Install, scan, and keep Pinax running</li>
               <li>Map folders to labs, manage people, set prices and capacities</li>
               <li>Statements for finance, logs for security, metrics for monitoring</li>
+              <li>Roles for auditors, finance, and division heads; the audit log and access reviews</li>
             </ul>
             <a class="more-link" href="docs/install.html">Installing Pinax</a>
           </div>

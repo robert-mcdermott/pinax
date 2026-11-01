@@ -1,5 +1,79 @@
 # Changelog
 
+## 0.12.0 (2026-11-01)
+
+Twelfth release (wave 12, "access"): who may see and do what beyond labs' members and storage administrators,
+scripts that use Pinax with a person's access, and the record of who did what. Three site roles (auditor, finance,
+and division head), API tokens for scripts, the audit log in the app, and an access review with its sign-off, all
+with every way of signing in. The demo has a person in each role, and its walk-through switches to each. The pilot
+follows in wave 13, and reach, with optional sign-in with Microsoft Entra ID, in wave 14. See
+[pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+
+Upgrading from 0.11.0: back the catalog up ([Backups](docs/DEPLOYMENT.md#backups)), install the new version, and
+restart Pinax ([Upgrading](docs/DEPLOYMENT.md#upgrading)).
+- **The catalog has four migrations**, `0002` to `0005`, which Pinax applies when it starts; with
+  `PINAX_DB_AUTO_UPGRADE=false` it refuses to start until `pinax db upgrade` has applied them. The snapshot indexes
+  are unchanged, so nothing needs rebuilding.
+- **Behind oauth2-proxy**, add `"^/script/api/"` to `skip_auth_routes` in its configuration and restart it, so
+  scripts with API tokens get through ([Sign-on with oauth2-proxy](docs/DEPLOYMENT.md#6-sign-on-with-oauth2-proxy)).
+  Without it, the proxy stops scripts, and nothing else changes.
+- **One new setting**, `PINAX_TOKEN_MAX_DAYS` (365 by default), the longest an API token may last. No new
+  dependency.
+- Storage administrators and lab memberships given before the upgrade say *Not recorded* in the access review:
+  Pinax did not record when they were given. Browsers load the new pages on their next visit.
+
+### Added
+
+- **Site roles.** Beside lab memberships, a person can be an *auditor* (sees everything a storage administrator does,
+  people included, and changes nothing), *finance* (every lab's and department's charges, and the prices, free tiers,
+  and capacities behind them; no folders), or *head of a division* (the labs of that division, as their members see
+  them, to read). They are given on a person's page in *People and access*, each change audited, and a person can
+  have several. Every check is on the server: seeing and changing are now separate questions, so reads an
+  administrator once made alone are open to these roles, and changes stay with administrators, and with each lab's
+  PI and delegates for its tags and plan. Pages show each role what it may use: finance lands on *Chargeback*, and
+  auditors see the administration pages without their buttons
+  ([Site roles](docs/ADMINISTRATION.md#site-roles)). The demo has one of each: Helen Marsh, Daniel Osei, and Grace
+  Whitfield.
+- **API tokens for scripts.** Anyone makes their own under *API tokens* (in the menu under their name), reading
+  only or with their access, for a week to a year (`PINAX_TOKEN_MAX_DAYS`); administrators make *service tokens*
+  for a named service, which belong to no one and read as finance or as an auditor. A token is shown once and
+  stored as its SHA-256; it expires, its person or an administrator revokes it, and deactivating its person revokes
+  it. Every change made with one is audited with its name, and each shows when and from where it was last used. A
+  script sends it as `Authorization: Bearer …` to `/script/api/...`, which the sign-on proxy's configuration now
+  lets through and Pinax answers only with a token; the user guide has a script that downloads a month's
+  chargeback statement ([API tokens for scripts](docs/USER-GUIDE.md#api-tokens-for-scripts)).
+- **The audit log in the app.** *Audit log*, for administrators and auditors: every change and sign-in, newest
+  first, 50 a page, with who made it, the token it was made with, the address it came from, and its recorded detail;
+  found by person (changes they made and changes to them), action or kind of action, lab, folder (and the folders
+  in it), and days; *Download CSV* has every one that matches. A person's and a lab's recent changes link to theirs.
+  Every audit event now records the address of the request that made it. The demo's site roles are given by its
+  administrator, so they are in its audit log.
+- **Access review.** *Access review*, for administrators and auditors: what is worth a look (labs with no PI,
+  people who see nothing, tokens that can make changes as their person, and, with local sign-in, people who have not signed in for 90
+  days), every site role, each lab's members and folders, and each person's access and what they see, with when
+  each was given; *Find* across them; a CSV with a row for each piece of access; and *Record a review*, audited
+  (`access.reviewed`), which auditors may do too ([Access review](docs/ADMINISTRATION.md#access-review)). Pinax now
+  records when a person is made a storage administrator and when each lab membership is given. The demo's Helen
+  Marsh has recorded a review.
+
+### Changed
+
+- **The roadmap.** Wave 12 (0.12.0) is access: roles, API tokens, the audit log in the app, and access reviews,
+  which work with every way of signing in. The pilot moves to wave 13; reach (wave 14) keeps optional sign-in with
+  Entra ID (with notes from Tundra's), local sign-in's two-factor codes and per-address limits, CI and the
+  container image, and the security review; hardening is wave 15 (1.0.0).
+- **The catalog's first migrations since its baseline**: `0002` adds the `user_role` table, `0003` the
+  `api_token` table, `0004` the audit event's address, with indexes on its action and person, and `0005` when a
+  person was made an administrator and when each lab membership was given (empty for those given before); Pinax
+  applies them when it starts, or `pinax db upgrade` does where `PINAX_DB_AUTO_UPGRADE=false`.
+- **The oauth2-proxy configuration** (`deploy/oauth2-proxy/pinax.cfg`) lets `/script/api/` through without signing
+  in, for scripts with API tokens; copy the new `skip_auth_routes` line to an installed one.
+- **The guides** follow the wave throughout: *How Pinax sees storage* explains site roles and API tokens;
+  *Troubleshooting* has what goes wrong with tokens and roles; *Trying Pinax on your own data*, the administration
+  guide's opening, the architecture's catalog, and *Development* (the new modules, guards, and endpoints) are up to
+  date; the website's home page has *Access and audit*. `.env.example` and `deploy/pinax.env` list
+  `PINAX_TOKEN_MAX_DAYS`.
+
 ## 0.11.0 (2026-10-31)
 
 Eleventh release (wave 11, "deeper views"): the age map as an icicle and a sunburst, to see a folder up to eight

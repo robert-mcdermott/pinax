@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .. import tags
-from ..auth import Identity, current_identity, require_admin
+from ..auth import Identity, current_identity, require_admin, require_sees_all
 from ..db import get_session
 from ..models import Filesystem, FolderTag, Lab, Tag
 from ..snapshots import cold_bucket
@@ -49,7 +49,7 @@ def _uses(session: Session) -> dict[int, int]:
 
 
 @admin.get("")
-def tag_list(_: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+def tag_list(_: Identity = Depends(require_sees_all), session: Session = Depends(get_session)):
     """The standard tags, retired ones too, and every lab's own, each with how many folders have it."""
     uses = _uses(session)
     labs = session.scalars(select(Tag).where(Tag.lab_id.is_not(None)).order_by(Tag.label)).all()

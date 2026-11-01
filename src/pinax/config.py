@@ -94,6 +94,8 @@ class Settings(BaseSettings):
     login_lockout_minutes: int = 15
     password_min_length: int = 12
     cookie_secure: bool | None = None
+    # API tokens (tokens.py) expire after at most this many days.
+    token_max_days: int = 365
 
     @property
     def secure_cookies(self) -> bool:

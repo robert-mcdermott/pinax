@@ -20,24 +20,31 @@ snapshot index that makes it fast, how it is built and queried, security, and me
 ## Components
 
 ```text
-   Storage nodes / scan hosts                        Pinax server
-   ┌──────────────────────────────┐                  ┌──────────────────────────────────────────────┐
-   │ fs-inventory scan  (Rust,    │   scan folder    │ pinax ingest  (DuckDB)                       │
-   │ parallel, resumable, read-   │ ───────────────► │   scan -> snapshot index                     │
-   │ only) -> Parquet + manifest  │  (shared path)   │   var/snapshots/<fs>/<scan>/                 │
-   └──────────────────────────────┘                  │     index.duckdb    directory-level tables   │
-                                                     │     files/gNNNNNN/  per-file Parquet, by     │
-                                                     │                     group of top folders     │
-                                                     │                                              │
-                                                     │ catalog (SQLite, or PostgreSQL)              │
-                                                     │   people, labs, folder ownership,            │
-                                                     │   filesystems, snapshots, folder history     │
-                                                     │                                              │
-                                                     │ FastAPI  /api  ── read-only DuckDB cursors   │
-                                                     │ static UI (HTML, CSS, JS modules; no build)  │
-                                                     └──────────────────────────────────────────────┘
-                                                                   ▲ HTTPS (SSO proxy in front)
-                                                         PIs, lab members, IT
+  Storage nodes or scan hosts
+  ┌──────────────────────────────────────────────────┐
+  │ fs-inventory scan (Rust; parallel, resumable,    │
+  │ read-only) -> Parquet files and a manifest       │
+  └──────────────────────────────────────────────────┘
+                          │ scan folder (a shared path)
+                          ▼
+  Pinax server
+  ┌──────────────────────────────────────────────────┐
+  │ pinax ingest (DuckDB): scan -> snapshot index    │
+  │   var/snapshots/<fs>/<scan>/                     │
+  │     index.duckdb    directory-level tables       │
+  │     files/gNNNNNN/  per-file Parquet, by group   │
+  │                     of top-level folders         │
+  │                                                  │
+  │ catalog (SQLite, or PostgreSQL)                  │
+  │   people and roles, labs, folder ownership,      │
+  │   filesystems, snapshots, folder history, ...    │
+  │                                                  │
+  │ FastAPI /api ── read-only DuckDB cursors         │
+  │ static UI (HTML, CSS, JS modules; no build)      │
+  └──────────────────────────────────────────────────┘
+                          ▲ HTTPS, through oauth2-proxy (single
+                          │ sign-on) or nginx/Caddy (passwords)
+  PIs, lab members, finance, auditors, IT, and scripts
 ```
 
 | Piece | Choice | Why |
@@ -54,7 +61,7 @@ Pinax keeps three kinds of data. Only the catalog cannot be made again, so it is
 
 | | Where | What it holds | Size | If it is lost |
 |---|---|---|---|---|
-| **Catalog** | `PINAX_VAR_ROOT/pinax.db` (SQLite) | Filesystems; a record of every scan; folder history (each top-level folder's totals for every scan); people, labs and departments, memberships, folder ownership and who owned each folder when; local sign-in password hashes and sessions; prices and free tiers; the audit log; the ingest watcher's heartbeat | Small: about one row per top-level folder per scan (2,000 folders scanned weekly add about 100,000 rows a year) | Restore it from a backup. Without one, register the filesystems again, import people, labs, and folder ownership from the import files, and ingest the kept scans again; prices and free tiers, ownership history, folder history of scans no longer kept, and the audit log are lost |
+| **Catalog** | `PINAX_VAR_ROOT/pinax.db` (SQLite) | Filesystems; a record of every scan; folder history (each top-level folder's totals for every scan); people, their site roles, labs and departments, memberships (with when each role was given), folder ownership and who owned each folder when; local sign-in password hashes and sessions; API tokens (their SHA-256, never the token); prices and free tiers; capacities; cleanup plans, tags, and saved views; the audit log; the ingest watcher's heartbeat | Small: about one row per top-level folder per scan (2,000 folders scanned weekly add about 100,000 rows a year) | Restore it from a backup. Without one, register the filesystems again, import people, labs, and folder ownership from the import files, and ingest the kept scans again; prices and free tiers, ownership history, folder history of scans no longer kept, site roles, API tokens (scripts need new ones), plans, tags, views, and the audit log are lost |
 | **Snapshot indexes** | `PINAX_VAR_ROOT/snapshots/<filesystem>/<scan>/`, one per kept snapshot | `index.duckdb`: every directory's totals, and its changes since the scan before, with the files new and removed since; `files/`: Parquet, one row per file, for searches and file lists | About 56 bytes per file, plus about 60 per file new or removed since the scan before, for each of the newest `PINAX_KEEP_SNAPSHOTS` (6) snapshots of each filesystem | `pinax rebuild SNAPSHOT_ID` makes it again from its scan |
 | **Scans** | Where fs-inventory wrote them: `PINAX_SCAN_ROOT` for `pinax scan` and the watcher, or anywhere for `pinax ingest` | fs-inventory's Parquet and `manifest.json`: every entry's path, size, times, and owner | About 40 bytes per entry | Nothing changes in the app; that snapshot's index can no longer be rebuilt or checked |
 
@@ -79,8 +86,8 @@ Weekly scans of a billion-file filesystem take about 40 GB each, about 2 TB a ye
 catalog holds top-level folder names; names in research storage can carry identifiers, such as a study subject's
 ID in a file name. The catalog also holds people's names and emails and, with local sign-in, password hashes.
 Treat all three like the filesystem's own metadata: only the `pinax` user and group can read `/var/lib/pinax`
-(mode 0750), and backups and copies need the same protection. In the app, only storage administrators see across
-labs.
+(mode 0750), and backups and copies need the same protection. In the app, only storage administrators and auditors
+see across labs (finance sees every lab's charges, not its folders).
 
 ### The catalog database
 
@@ -246,7 +253,7 @@ folder must still exist for this part of the check. At 100 million files (2.44 m
 nearly all of it the two rollups, and every directory was equal (between two synthetic scans with the same
 contents). Between changed scans from `synth_scan.py --evolve` at one million files, comparing takes 0.2 seconds
 of a six-second build and checking it 1.1 seconds, every directory equal; changed scans at 100 million files wait
-for server-class hardware (wave 12).
+for server-class hardware (wave 13).
 
 ## Real filesystems
 
@@ -274,7 +281,7 @@ A real scan was checked the same way: the maintainer's documents folder on a lap
 builds in 0.8 s and every query takes under 25 ms. It also showed common types that were counted as *other*:
 camera photo and video formats, macro-enabled spreadsheets, diagrams, executables, and disk images, 35% of its
 bytes. With those added, *other* is 0.8% of its bytes, nearly all of it files without an extension. Production
-storage, with many owners and a billion files, is measured in wave 12.
+storage, with many owners and a billion files, is measured in wave 13.
 
 ## Querying
 
@@ -582,21 +589,42 @@ the month shows at once; adding up the ranges overstates the range); storage no 
   - `header`: trusts a username header set by a single sign-on proxy, as Tundra does, and only on requests that
     come straight from the proxy's address (`PINAX_TRUSTED_PROXIES`); the same header from anywhere else is
     refused. `scripts/sso-check.py` checks this behind a real oauth2-proxy.
+  - Planned for wave 14: sign-in with Microsoft Entra ID (or another OpenID Connect provider) in Pinax
+    itself, as Tundra does it (`TUNDRA_AUTH_MODE=oidc`), with no sign-on proxy; `local` and `header` stay.
+- **API tokens** (`tokens.py`), with every way of signing in: `Authorization: Bearer pinax_…`, 256 random bits, of
+  which the catalog keeps only the SHA-256 and the first characters. A personal token takes its person's access as
+  it is at each request, or reads only (GET, and starting a search); a service token belongs to no one and reads as
+  an auditor or as finance. Every token expires; it ends sooner when revoked, or when its person is deactivated.
+  No token makes tokens or changes a password. Behind a sign-on proxy, `/script/api/...` is `/api/...` answered
+  only with a token (`auth.ScriptPrefix`), which the proxy lets through without signing in. A change made with a
+  token is audited with its name (a SQLAlchemy event on the session, as for logging audit events).
 - **Authorization is on the server, for every request.** A request names a filesystem and path; Pinax checks
   that the path is canonical (no `.`, `..`, or empty components) and inside the filesystem root, takes its
-  top-level folder, and allows it only for administrators or members of the lab that owns that folder.
+  top-level folder, and allows it only for those who see everything or who see the lab that owns that folder.
   Otherwise it answers 404, so the existence of other labs' folders is not revealed.
+- **Seeing and changing are separate** (`auth.Identity`). Storage administrators and auditors see everything
+  (`sees_all`), and finance every lab's charges and the prices behind them (`sees_charges`); a lab's members, and
+  the heads of its division (a site role, `user_role`), see its folders. Only storage administrators change the
+  site's settings (`require_admin`), and only a lab's PI and delegates, or an administrator, tag its folders or plan
+  its cleanup. Reads an administrator once made alone take `require_sees_all` or `require_sees_charges`.
+- **The audit log** (`audit.py`, *Audit log*), for those who see everything: found by person (by or about them),
+  action or kind, lab (by name, and by the paths of its folders), folder (by path prefix, with `LIKE` wildcards
+  escaped, and the mapping of its top-level folder), and day; paged, or streamed as CSV from a session of its own.
+- **The access review** (`review.py`), for those who see everything: site roles, labs, and people as they are
+  now, with when each piece of access was given (`user.admin_since` and `lab_membership.granted_at`, set by
+  SQLAlchemy attribute events, so every way of giving access records it; `user_role.granted_at`), and a sign-off
+  audited as `access.reviewed`.
 - File queries read only the Parquet files of the top-level folders in scope.
 - People, labs, memberships, and folder ownership use the same model as Tundra (`Lab`, `LabFolder`,
   `User`, `LabMembership`); changes are audited. People are never deleted: a deactivated person cannot sign in,
-  and keeps their memberships and administrator role, unused, until reactivated. At least one active storage
+  and keeps their memberships and roles, unused, until reactivated. At least one active storage
   administrator always remains, and nobody can remove their own administrator role or deactivate themselves
   (`people.py`, shared by *People and access* and `pinax import`).
 - Pinax never reads file contents or writes to the file system it reports on; it reads scan output.
 - **Logs** (`logs.py`): one line for each request to the API, with a request ID (returned as `X-Request-ID`), the
   person, and their address (behind a trusted proxy, from `X-Forwarded-For`), and every audit event once its change
   is committed (a SQLAlchemy event on the session, so every place that audits is covered), optionally to a file of
-  its own as JSON lines. Never a password, session token, request body, or query string; the catalog's address is
+  its own as JSON lines. Another such event records each audit event's address, and its API token's name. Never a password, session token, API token, request body, or query string; the catalog's address is
   logged without its password.
 - **Metrics** (`metrics.py`, `/metrics`): off until `PINAX_METRICS_TOKEN` is set, then only with it (compared in
   constant time). They name filesystems, never labs, people, or paths. Figures from the catalog are worked out when
@@ -639,7 +667,7 @@ million, so minutes at two billion, beyond the time limit), and is best asked of
 from synthetic data, which has about 41 files per folder; production filesystems often have fewer, so two billion
 files may mean 50 to 200 million folders, beyond anything measured so far. Reports that read every folder of a
 whole filesystem, like the folder lists of *What changed* (about 0.1 s per 250,000 folders here) and the icicle
-and sunburst of a filesystem's root (about 2 ms per million folders), grow with them. The pilot (wave 12) measures
+and sunburst of a filesystem's root (about 2 ms per million folders), grow with them. The pilot (wave 13) measures
 production storage.
 
 Index size is about 56 bytes per file, mostly the per-file Parquet (which is kept sorted and compressed). A
@@ -687,14 +715,12 @@ uv run python bench/bench_charges.py --folders 2000 --weeks 52
 | `pinax seed` writes demo trees of sparse files and scans them with fs-inventory | Scheduled fs-inventory scans on storage nodes or scan hosts | Pinax ingests any complete Parquet scan |
 | Demo owners rewritten to fictional accounts, and demo scans dated a month apart | Real owners and times from the scan | Only `seed.py` rewrites scans, only its own demo scans |
 | SQLite catalog | SQLite on one server, or PostgreSQL | Migrations upgrade either in place ([The catalog database](#the-catalog-database)) |
-| Demo identity switcher | Single sign-on proxy, `PINAX_AUTH_MODE=header` | Checked behind oauth2-proxy 7.15 with a stand-in identity provider |
+| Demo identity switcher | Single sign-on through a proxy (`PINAX_AUTH_MODE=header`), or passwords Pinax keeps (`local`) | Checked behind oauth2-proxy 7.15 with a stand-in identity provider; sign-in with Entra ID in Pinax itself, with no proxy, is planned for wave 14 |
 | People, labs, and folder mappings managed in the app | The same, fed from the authoritative source; until then imported from CSV (`pinax import`) | Same model as Tundra |
 | One server | Web and ingest can run on separate hosts sharing `var/snapshots` | Indexes are replaced, never changed in place; keep every ingest on one host, since the ingest lock is a file lock in `PINAX_VAR_ROOT` |
 
 ## Known limits
 
-- **Hard links** are counted once per path, so a file with several links counts several times. The scan has
-  `ino` and `nlink`, so de-duplicated totals are possible later.
 - **Modification time** is what copies and restores usually preserve; a folder copied last week from old data
   still looks old. That is usually what people want, and the interface says which time each view uses.
 - **Access time** depends on mount options; many storage systems update it rarely or never.

@@ -56,6 +56,8 @@ def user_json(u: User) -> dict:
     return {
         "username": u.username, "display_name": u.display_name, "email": u.email, "title": u.title,
         "is_admin": u.is_admin, "active": u.active, "initials": initials(u.display_name), "labs": labs,
+        "roles": [{"role": r.role, "division": r.division, "since": iso(r.granted_at)}
+                  for r in sorted(u.roles, key=lambda r: (r.role, r.division))],
         # Local sign-in: whether a password is set, must be changed, and until when the account is locked.
         "has_password": bool(u.password_hash), "must_change_password": bool(u.must_change_password),
         "password_set_at": iso(u.password_set_at), "locked_until": iso(u.locked_until),

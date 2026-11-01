@@ -14,6 +14,9 @@ import { viewTags } from "/js/tags.js";
 import { bindSave, viewsCard } from "/js/views.js";
 import { viewCollections } from "/js/collections.js";
 import { viewSearches } from "/js/searches.js";
+import { viewTokens } from "/js/tokens.js";
+import { viewAudit } from "/js/audit.js";
+import { viewAccessReview } from "/js/review.js";
 import { viewChanges } from "/js/changes.js";
 import { viewExplore } from "/js/explore.js";
 import { viewHistory } from "/js/history.js";
@@ -27,7 +30,8 @@ const main = $("#main");
 async function viewHome(el) {
   state.place = null;
   renderSidebar();
-  if (state.me.is_admin) return viewOverview(el);
+  if (state.me.sees_all) return viewOverview(el);
+  if (!state.me.sees_labs && state.me.sees_charges) return location.replace("#/chargeback");
   const [home, tree, charges] = await Promise.all([api("home"), api("tree"),
     api("charges", { query: { history: false }, quiet: true }).catch(() => null)]);
   const folders = home.folders;
@@ -93,6 +97,9 @@ const routes = [
   [/^#\/access(\?.*)?$/, viewAccess],
   [/^#\/access\/people\/([^?]+)$/, viewPerson],
   [/^#\/access\/labs\/([^?]+)$/, viewLab],
+  [/^#\/tokens$/, viewTokens],
+  [/^#\/audit(\?.*)?$/, viewAudit],
+  [/^#\/access-review$/, viewAccessReview],
 ];
 
 await loadIdentity();

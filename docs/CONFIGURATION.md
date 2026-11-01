@@ -67,6 +67,7 @@ Settings are `PINAX_*` environment variables, or a `.env` file in the folder you
 | `PINAX_LOGIN_LOCKOUT_MINUTES` | `15` | Local sign-in: how long a locked account stays locked (a new temporary password unlocks it at once) |
 | `PINAX_PASSWORD_MIN_LENGTH` | `12` | Local sign-in: the shortest password allowed (it also may not contain the username) |
 | `PINAX_COOKIE_SECURE` | unset | Local sign-in: mark the session cookie Secure, so it is sent only over HTTPS. Unset means yes when `PINAX_ENVIRONMENT=prod`, no otherwise |
+| `PINAX_TOKEN_MAX_DAYS` | `365` | The longest an API token may last, in days; people choose from a week up to this ([API tokens](ADMINISTRATION.md#api-tokens)) |
 
 ## Logs
 

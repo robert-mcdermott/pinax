@@ -46,7 +46,7 @@ real data instead, see [SETUP.md](SETUP.md).
 
 ## Who is who
 
-The seed adds 14 labs and departments and 20 people; all names are fictional. The ones the walk-through uses:
+The seed adds 14 labs and departments and 23 people; all names are fictional. The ones the walk-through uses:
 
 | Person | Who they are | What they see |
 | --- | --- | --- |
@@ -57,10 +57,13 @@ The seed adds 14 labs and departments and 20 people; all names are fictional. Th
 | Casey Morgan | Director of the Genomics Shared Resource, a department | The department's sequencing folders |
 | Avery Wong | Staff scientist, a delegate for a lab and a department | Folders from both |
 | Riya Patel | Postdoctoral fellow | Nothing yet: no lab access |
+| Grace Whitfield | Head of the Basic Sciences division | The Alvarez, Fujimoto, and Kowalski labs, to read |
+| Daniel Osei | Research finance analyst | Every lab's charges, the prices, and the capacities; no folders |
+| Helen Marsh | Research compliance officer, an auditor | Everything, to read |
 | Priya Natarajan, Sam Rivera | Storage administrators | Everything, and the administration pages |
 
 Three top-level folders belong to no one (`scratch_legacy` and `shared_reference` on *Fast*, `irb_archive` on
-*Secure*), so only administrators see them, and nobody is charged for them.
+*Secure*), so only administrators and the auditor see them, and nobody is charged for them.
 
 ## The six months
 
@@ -180,11 +183,42 @@ files are sparse, on a laptop's disk), so the capacities are set, and use is mea
     name, and whether it is a lab or a department, which decides its free tier), and its page changes its details
     or deactivates it: its members stop seeing its folders, which stay its own (and charged to it) until they are
     moved.
-17. **Import from CSV.** In a terminal, `uv run pinax import examples/import` lists the 14 changes the example
+17. **Site roles.** *Site roles* on the *People* tab lists the three people with one, each given on their page and
+    in the audit log. Switch to each in turn:
+    - **Helen Marsh**, an auditor, sees every page an administrator does, from *All data* and *Folders and labs* to
+      *People and access* and the audit log, and no button that changes anything. The server refuses her changes
+      too.
+    - **Daniel Osei**, in research finance, lands on *Chargeback*. His sidebar is *Storage charges* (of any lab or
+      department), *Chargeback* with its statement, *Costs*, and *Capacity*, to read; he sees no folders. *API
+      tokens*, under his name, has his *Monthly ledger import*, which reads the statement every month.
+    - **Grace Whitfield**, head of Basic Sciences, sees the division's labs as their members do, to read. *My
+      data* is the Alvarez, Fujimoto, and Kowalski labs, 28.5 TiB, and *Storage charges* and *Cleanup plans*
+      choose among them. On the age map of `fujimoto_a/projects/2022_tumor_atlas`, the panel lists the folder's
+      tags and whether it is in the lab's plan, with no button to change either: tagging and planning stay with
+      each lab's PI and delegates.
+18. **API tokens.** As Priya Natarajan, *API tokens* in the sidebar: her own token, the service tokens for the
+    storage dashboards and the finance warehouse, and Daniel Osei's, Rohan Dasgupta's, and Mateo Reyes's, with
+    when each was last used. *Make token*, reading only, shows it once; then, in a terminal:
+
+    ```bash
+    curl -H "Authorization: Bearer THE-TOKEN" "http://127.0.0.1:8001/script/api/admin/costs/charges?fmt=csv"
+    ```
+
+    This month's chargeback statement, as Priya sees it. *Revoke* it, and the same request answers *401*.
+19. **The audit log.** As Helen Marsh, the auditor, *Audit log*: every change above, newest first, with who made
+    it, from where, and with which token. Choose *Rohan Dasgupta* for his cleanup plan, *Change: All: API tokens*
+    for every token made and revoked, or the filesystem *Fast* and the folder `dasgupta_r` for everything done to
+    that lab's folder. *Download CSV* has them all.
+20. **Access review.** Still as Helen, *Access review*: two things worth a look (Riya Patel, who can sign in and
+    sees nothing, and Rohan Dasgupta's *Sequencing pipeline tags*, a token that can make changes as Rohan, such as
+    tagging the lab's folders), every site role, each lab's members and folders, and each person's access, with when
+    each was given. Type `Basic Sciences` in *Find* for that division: its three labs and Grace Whitfield.
+    Helen's review is under *Reviews*; *Record a review* adds another, and it is in the audit log.
+21. **Import from CSV.** In a terminal, `uv run pinax import examples/import` lists the 14 changes the example
     files would make: two departments, a lab, three people, their memberships, and owners for the three unmapped
     folders. Add `--apply`, and *Folders and labs* shows no unmapped folders; every change is in the audit log.
 
-18. **Logs and metrics.** The terminal running `pinax serve` has a line for each request, with who made it, from
+22. **Logs and metrics.** The terminal running `pinax serve` has a line for each request, with who made it, from
     where, how long it took, and its request ID; each change made above is there too, as a `pinax.audit` line. Stop
     the server, and start it again with metrics on:
 

@@ -158,6 +158,7 @@ const P = {
   arrowLeft: '<path d="M19 12H5"/><path d="M11 6l-6 6 6 6"/>',
   arrowRight: '<path d="M5 12h14"/><path d="M13 6l6 6-6 6"/>',
   lock: '<rect x="5" y="11" width="14" height="10" rx="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  key: '<circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 20 3M16 7l3 3M14 9l2 2"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c.8-4 4-6 8-6s7.2 2 8 6"/>',
   scan: '<path d="M4 8V5a1 1 0 0 1 1-1h3"/><path d="M16 4h3a1 1 0 0 1 1 1v3"/><path d="M20 16v3a1 1 0 0 1-1 1h-3"/><path d="M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M4 12h16"/>',
   package: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5"/><path d="M12 12v9"/><path d="M12 12L4 7.5"/>',
@@ -166,6 +167,7 @@ const P = {
   flag: '<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>',
   send: '<path d="M21 3L10 14"/><path d="M21 3l-7 18-4-7-7-4z"/>',
   moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+  eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   treemap: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M11 3v18"/><path d="M11 12h10"/><path d="M16 12v9"/>',
   icicle: '<rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="11" rx="1"/><rect x="10" y="16" width="5" height="5" rx="1"/><rect x="17" y="3" width="4" height="6" rx="1"/><rect x="17" y="11" width="4" height="3" rx="1"/>',
   sunburst: '<circle cx="12" cy="12" r="3.5"/><circle cx="12" cy="12" r="9"/><path d="M12 3v5.5"/><path d="M20.5 15l-5.2-1.8"/><path d="M5 17.5l4.3-3.3"/>',
@@ -255,8 +257,22 @@ export async function loadIdentity() {
     if (e.status !== 401) throw e;
     state.me = null;
   }
+  // Controls that change the site's settings (class admin-only) show for storage administrators only; others who see
+  // those pages (auditors, finance) read them. The server refuses the changes either way.
+  document.body.classList.toggle("can-administer", Boolean(state.me?.is_admin));
   return state.me;
 }
+
+const SITE_ROLE_TEXT = { auditor: "Auditor", finance: "Finance" };
+/** What a person's roles and labs give them, in a few words. */
+export function accessText(u) {
+  const roles = (u.roles || []).map((r) => (r.role === "division" ? `Head of ${r.division}` : SITE_ROLE_TEXT[r.role] || r.role));
+  return [...(u.is_admin ? ["Storage administrator"] : []), ...roles,
+    ...u.labs.map((l) => `${l.name} (${roleLabel(l.role, l.kind)})`)].join(", ");
+}
+// Demo identities in three groups: storage administrators; auditors, finance, and division heads; labs' members.
+const personaGroups = (users) => [users.filter((u) => u.is_admin), users.filter((u) => !u.is_admin && u.roles?.length),
+  users.filter((u) => !u.is_admin && !u.roles?.length)];
 
 async function loadUsers() {
   if (!state.users) state.users = await api("demo/users");
@@ -265,7 +281,8 @@ async function loadUsers() {
 
 function personaRow(u) {
   const labs = u.is_admin ? u.title
-    : u.labs.map((l) => `${l.name} (${roleLabel(l.role, l.kind)})`).join(", ") || `${u.title || "No title"} · no lab access`;
+    : u.roles?.length ? `${u.title} · ${accessText(u)}`
+    : accessText(u) || `${u.title || "No title"} · no lab access`;
   const current = state.me && state.me.username === u.username;
   return html`<button class="persona ${current ? "current" : ""}" data-user="${u.username}" data-admin="${u.is_admin ? 1 : 0}">
     <span class="avatar ${u.is_admin ? "admin outlined" : ""}">${u.initials}</span>
@@ -365,12 +382,12 @@ export async function showPersonaPicker(force = false) {
   const users = await loadUsers();
   const wrap = document.createElement("div");
   wrap.className = "modal-backdrop persona-picker";
-  const ops = users.filter((u) => u.is_admin);
-  const owners = users.filter((u) => !u.is_admin);
+  const [ops, oversight, owners] = personaGroups(users);
   wrap.innerHTML = String(html`<div class="modal" role="dialog" aria-modal="true" aria-labelledby="pp-title">
     <div class="modal-head"><h2 id="pp-title">Choose a demo identity</h2>
     <p class="muted small" style="margin-top:6px">In production, people sign in with single sign-on and Pinax maps them to their labs.</p></div>
     <div class="modal-body"><h4 class="tiny muted">STORAGE ADMINISTRATORS</h4>${ops.map(personaRow)}
+    ${oversight.length ? html`<h4 class="tiny muted" style="margin-top:14px">AUDIT, FINANCE, AND DIVISIONS</h4>${oversight.map(personaRow)}` : ""}
     <h4 class="tiny muted" style="margin-top:14px">PIS AND LAB MEMBERS</h4>${owners.map(personaRow)}</div>
     ${force ? "" : html`<div class="modal-foot"><button class="btn btn-ghost" data-act="cancel">Close</button></div>`}</div>`);
   wrap.addEventListener("click", (e) => {
@@ -397,7 +414,7 @@ export function renderTopbar({ mode, nav = [] } = {}) {
   const me = state.me;
   const bar = $("#topbar");
   const isAdmin = me && me.is_admin;
-  const sub = me ? (me.is_admin ? "Storage administrator" : me.labs.map((l) => l.name).join(", ")) : "";
+  const sub = me ? (me.is_admin ? "Storage administrator" : accessText(me).replace(/ \((PI|Owner|Delegate)\)/g, "")) : "";
   mount(bar, html`
     <a class="brand" href="${me ? "/app/" : "/"}" aria-label="Pinax home">
       <img class="brand-mark" src="/img/pinax-mark.svg" alt="">
@@ -435,11 +452,11 @@ export function renderTopbar({ mode, nav = [] } = {}) {
     const users = demo ? await loadUsers() : [];
     dd.innerHTML = String(html`<h4>SIGNED IN AS</h4>
       <div style="padding:4px 10px 10px"><b>${me.display_name}</b><br><span class="small muted">${me.title} · ${me.email}</span></div>
+      <a class="menu-item" href="/app/#/tokens">${icon("key")}API tokens</a>
       ${isLocal() ? html`<button class="menu-item" data-act="password">${icon("lock")}Change password</button>
         <button class="menu-item" data-act="sign-out">${icon("arrowRight")}Sign out</button>` : ""}
       ${demo ? html`<h4>SWITCH DEMO IDENTITY</h4>
-      ${users.filter((u) => u.is_admin).map(personaRow)}
-      ${users.filter((u) => !u.is_admin).map(personaRow)}
+      ${personaGroups(users).flat().map(personaRow)}
       <div class="demo-note">Demo mode: anyone can be anyone. For real use, set PINAX_AUTH_MODE=local (passwords) or header (single sign-on).</div>` : ""}`);
     dd.addEventListener("click", (ev) => {
       ev.stopPropagation();
@@ -509,7 +526,8 @@ export function startRouter(routes, outlet, { onRoute } = {}) {
 export function setActiveNav(hash, selector) {
   $$(selector).forEach((a) => {
     const m = a.dataset.route;
-    const active = m === "#/" ? hash === "#/" || hash === "" : hash.startsWith(m);
+    // The route itself, or a page under it (#/access/people/…), not another route that starts the same (#/access-review).
+    const active = m === "#/" ? hash === "#/" || hash === "" : hash === m || /^[/?]/.test(hash.slice(m.length)) && hash.startsWith(m);
     a.classList.toggle("active", active);
   });
 }

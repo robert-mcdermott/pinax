@@ -38,6 +38,8 @@ request ID, which is also the `X-Request-ID` of the response a person saw ([Logs
 | A new folder is missing | It was created after the newest scan | It appears after the next scan is ingested |
 | A report says an older scan | Someone chose an earlier scan beside the date; links keep the choice | *Back to the latest* in the header |
 | A report says the totals are lower bounds | fs-inventory could not read a folder below (permissions), or the scan stalled | *Storage health* lists folders not read completely; give the scanning account read access to metadata |
+| A division head's *My data* is empty | No active lab has their division as its *Division*, spelled the same | Set each lab's *Division* on its page in *People and access*; the site role follows it ([Site roles](ADMINISTRATION.md#site-roles)) |
+| Finance sees no folders; an auditor or a division head has no buttons to change things | Their roles read, and finance sees charges, not folders | As designed. A lab's tags and cleanup plan are changed by its PI and delegates, and the site's settings by administrators |
 
 ## Scans and ingest
 
@@ -73,6 +75,17 @@ request ID, which is also the `X-Request-ID` of the response a person saw ([Logs
 | Pages are slow while a search runs | Searches use every core | Set `PINAX_QUERY_THREADS` below the number of cores |
 | Lines marked *(slow)* in the log | Requests over `PINAX_SLOW_REQUEST_SECONDS` | The line names the route and the time in index queries; see [Sizing](DEPLOYMENT.md#sizing) |
 | *Something went wrong* on a page | An error on the server | The log has it, with the request's ID |
+
+## API tokens and scripts
+
+| What you see | Why | What to do |
+| --- | --- | --- |
+| 401, `Send a live API token as Authorization: Bearer <token>` | No token, a mistyped one, or one that expired, was revoked, or belongs to someone deactivated | *API tokens* (or the person's page) shows each token's state; make a new one if it ended. On `/script/api/` a token is the only way in |
+| *403 The token '...' only reads* | A change made with a token that reads only | Make a token with *Your access* for a script that changes things ([API tokens for scripts](USER-GUIDE.md#api-tokens-for-scripts)) |
+| *403 A search in the background is a person's* | A service token starting a search in the background | Start it with a person's own token |
+| *403 Tokens are made and revoked, and passwords changed, in Pinax's pages* | A token used on the token or password routes | As designed: a leaked token cannot make another |
+| Through oauth2-proxy, a script gets a sign-in page or a redirect | The proxy's configuration does not let `/script/api/` through, or the script calls `/api/` | `skip_auth_routes` in `deploy/oauth2-proxy/pinax.cfg` includes `^/script/api/`; scripts call `https://pinax.example.org/script/api/...` ([Sign-on with oauth2-proxy](DEPLOYMENT.md#6-sign-on-with-oauth2-proxy)) |
+| A token made with *Your access* no longer changes what it did | Its person's access changed: a token is never more than its person | As designed; it follows their access as it is now |
 
 ## Monitoring
 

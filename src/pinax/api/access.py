@@ -9,9 +9,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from .. import labs as labs_service
-from .. import ownership, signin
+from .. import ownership, signin, tokens
 from .. import people as people_service
-from ..auth import Identity, require_admin
+from ..auth import Identity, require_admin, require_sees_all
 from ..config import get_settings
 from ..db import get_session
 from ..models import AuditEvent, Filesystem, Lab, LabFolder, LabMembership, User
@@ -29,7 +29,7 @@ def _labs(session: Session) -> list[Lab]:
 
 
 @router.get("/labs")
-def labs(_: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+def labs(_: Identity = Depends(require_sees_all), session: Session = Depends(get_session)):
     return [lab_json(lab) for lab in _labs(session)]
 
 
@@ -42,13 +42,19 @@ def _lab(session: Session, slug: str) -> Lab:
     return lab
 
 
+def _event(e: AuditEvent) -> dict:
+    """An audited change for a lab's or person's history: who made it (or ran the command), and with which token."""
+    detail = e.detail or {}
+    return {"ts": iso(e.ts), "action": e.action, "summary": e.summary,
+            "by": e.actor.display_name if e.actor else detail.get("by"), "token": detail.get("token")}
+
+
 def _lab_json(session: Session, lab: Lab) -> dict:
     """A lab, with when it was added and the latest audited changes to it (by the app or an import)."""
     events = session.scalars(select(AuditEvent).where(AuditEvent.detail["lab"].as_string() == lab.slug)
                              .options(selectinload(AuditEvent.actor)).order_by(AuditEvent.ts.desc()).limit(12))
     return {**lab_json(lab), "created_at": iso(lab.created_at),
-            "history": [{"ts": iso(e.ts), "action": e.action, "summary": e.summary,
-                         "by": e.actor.display_name if e.actor else (e.detail or {}).get("by")} for e in events]}
+            "history": [_event(e) for e in events]}
 
 
 class LabBody(BaseModel):
@@ -71,7 +77,7 @@ def _lab_change(session: Session, slug: str, change) -> dict:
 
 
 @router.get("/labs/{slug}")
-def lab(slug: str, _: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+def lab(slug: str, _: Identity = Depends(require_sees_all), session: Session = Depends(get_session)):
     return _lab_json(session, _lab(session, slug))
 
 
@@ -104,7 +110,7 @@ def reactivate_lab(slug: str, identity: Identity = Depends(require_admin), sessi
 
 
 @router.get("/people")
-def people(_: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+def people(_: Identity = Depends(require_sees_all), session: Session = Depends(get_session)):
     users = session.scalars(
         select(User).options(selectinload(User.memberships).selectinload(LabMembership.lab).selectinload(Lab.folders))
         .order_by(User.is_admin.desc(), User.display_name)
@@ -125,8 +131,8 @@ def _person_json(session: Session, user: User) -> dict:
     events = session.scalars(select(AuditEvent).where(AuditEvent.detail["username"].as_string() == user.username)
                              .options(selectinload(AuditEvent.actor)).order_by(AuditEvent.ts.desc()).limit(12))
     return {**user_json(user), "created_at": iso(user.created_at), "is_self": False,
-            "history": [{"ts": iso(e.ts), "action": e.action, "summary": e.summary,
-                         "by": e.actor.display_name if e.actor else (e.detail or {}).get("by")} for e in events]}
+            "tokens": [tokens.token_json(t) for t in tokens.listed(session, user)],
+            "history": [_event(e) for e in events]}
 
 
 class PersonBody(BaseModel):
@@ -136,6 +142,7 @@ class PersonBody(BaseModel):
     title: str = ""
     is_admin: bool = False
     memberships: list[dict[str, Any]] | None = None  # [{lab: slug, role}], the full list; absent leaves them
+    roles: list[dict[str, Any]] | None = None  # site roles, [{role, division}], the full list; absent leaves them
 
 
 def _save(session: Session, identity: Identity, user: User | None, body: PersonBody) -> dict:
@@ -151,7 +158,7 @@ def _save(session: Session, identity: Identity, user: User | None, body: PersonB
 
 
 @router.get("/people/{username}")
-def person(username: str, identity: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+def person(username: str, identity: Identity = Depends(require_sees_all), session: Session = Depends(get_session)):
     user = _person(session, username)
     return _person_json(session, user) | {"is_self": user.id == identity.user.id}
 

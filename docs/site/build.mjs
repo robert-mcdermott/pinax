@@ -27,11 +27,11 @@ const SHOTS = JSON.parse(readFileSync(join(docs, 'images/shots.json'), 'utf8'));
 const DOCS = [
   { group: 'Start', pages: [
     { slug: 'index', title: 'Documentation', file: 'README.md', lede: 'What Pinax is for, and where everything is.' },
-    { slug: 'concepts', title: 'How Pinax sees storage', file: 'CONCEPTS.md', lede: 'Scans, snapshots, folder ownership, sizes, ages, change, costs, plans, tags, and the catalog: the ideas every other page relies on.' },
-    { slug: 'demo', title: 'The demo', file: 'DEMO.md', lede: 'Pinax with fictional labs and six months of scans, in one command, and a 20-minute walk-through.' },
+    { slug: 'concepts', title: 'How Pinax sees storage', file: 'CONCEPTS.md', lede: 'Scans, snapshots, folder ownership, who sees what, sizes, ages, change, costs, plans, tags, and the catalog: the ideas every other page relies on.' },
+    { slug: 'demo', title: 'The demo', file: 'DEMO.md', lede: 'Pinax with fictional labs and six months of scans, in one command, and a walk-through with a step for each role.' },
   ] },
   { group: 'User guide', pages: [
-    { slug: 'my-data', title: 'Signing in and My data', file: 'USER-GUIDE.md', intro: true, sections: ['Signing in and My data'], lede: 'For PIs, lab managers, and lab members: what your labs store, as of the latest scan.' },
+    { slug: 'my-data', title: 'Signing in and My data', file: 'USER-GUIDE.md', intro: true, sections: ['Signing in and My data'], lede: 'For PIs, lab managers, lab members, and division heads: what your labs store, as of the latest scan.' },
     { slug: 'age-map', title: 'The age map', file: 'USER-GUIDE.md', sections: ['The age map'], lede: 'A treemap of any folder, sized by what it holds and colored by how old it is.' },
     { slug: 'history', title: 'History and forecasts', file: 'USER-GUIDE.md', sections: ['History and forecasts'], lede: 'How a folder grew and aged over its scans, and where it is heading.' },
     { slug: 'changes', title: 'Change map and what changed', file: 'USER-GUIDE.md', sections: ['Change map and what changed'], lede: 'Where a folder grew and shrank between two scans, and the files behind it.' },
@@ -41,11 +41,12 @@ const DOCS = [
     { slug: 'cleanup-plans', title: 'Cleanup plans', file: 'USER-GUIDE.md', sections: ['Cleanup plans'], lede: 'What a lab means to delete, move, or compress, what it would save, and what later scans show was done.' },
     { slug: 'tags', title: 'Tags and collections', file: 'USER-GUIDE.md', sections: ['Tags and collections'], lede: 'Folders described in terms a lab and IT share, and data found by them.' },
     { slug: 'saved-views', title: 'Saved views and earlier scans', file: 'USER-GUIDE.md', sections: ['Saved views and earlier scans'], lede: 'Pages kept under a name and shared with a lab, and every report on an earlier scan.' },
+    { slug: 'api-tokens', title: 'API tokens for scripts', file: 'USER-GUIDE.md', sections: ['API tokens for scripts'], lede: 'Scripts that read Pinax, or act for you, without signing in: a report, a chargeback import, a dashboard.' },
   ] },
   { group: 'Administration', pages: [
-    { slug: 'administration', title: 'Administering Pinax', file: 'ADMINISTRATION.md', intro: true, sections: ['All data'], lede: 'For storage administrators: the pages only they see, and a first week with them.' },
+    { slug: 'administration', title: 'Administering Pinax', file: 'ADMINISTRATION.md', intro: true, sections: ['All data'], lede: 'For storage administrators, and the auditors and finance who read the same pages: what each page is for, and a first week with them.' },
     { slug: 'folders-and-labs', title: 'Folders and labs', file: 'ADMINISTRATION.md', sections: ['Folders and labs'], lede: 'Every top-level folder, who owns it, and how to change that.' },
-    { slug: 'people', title: 'People and access', file: 'ADMINISTRATION.md', sections: ['People and access'], lede: 'Who can sign in, what each person sees, and who administers Pinax.' },
+    { slug: 'people', title: 'People and access', file: 'ADMINISTRATION.md', sections: ['People and access', 'API tokens', 'Access review'], lede: 'Who can sign in, what each person sees, who administers Pinax, the tokens scripts use, and reviewing it all.' },
     { slug: 'scans', title: 'Scans and storage health', file: 'ADMINISTRATION.md', sections: ['Scans', 'Storage health'], lede: 'Every snapshot and its state, automatic ingest, and what the scans say is wrong with the storage.' },
     { slug: 'capacity', title: 'Capacity', file: 'ADMINISTRATION.md', sections: ['Capacity'], lede: 'How much each filesystem holds, how fast it fills, and when.' },
     { slug: 'costs', title: 'Costs and chargeback', file: 'ADMINISTRATION.md', sections: ['Costs', 'Chargeback'], lede: 'Prices and free tiers from a day on, and every lab\'s charges with a statement for finance.' },

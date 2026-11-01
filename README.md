@@ -48,14 +48,25 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
 - **For IT**: an overview of every filesystem, the largest folders and biggest changes, unmapped folders,
   storage health (scan errors, very large directories, small-file hotspots, problem file names, deleted
   owners), the scan history, each filesystem's capacity and the month it fills at its trend, and people and
-  access: add people, change their details, lab memberships, and administrator role, and deactivate and
+  access: add people, change their details, lab memberships, and roles, and deactivate and
   reactivate them; add labs and departments, change their details, and deactivate and reactivate them; every
   change audited; costs: each filesystem's price
   per month and the free tiers for labs and departments, from a day on; and chargeback: every lab's and
   department's charges for a month, totals by filesystem, the storage no one owns, and a CSV statement for finance.
+- **Roles beyond labs**: auditors see everything and change nothing; finance sees every lab's charges and the
+  prices behind them, and no folders; division heads see their divisions' labs as the labs' members do. Given on a
+  person's page, beside their labs, with every way of signing in; checked on the server for every request.
+- **API tokens for scripts**: a person's own, reading only or with their access, and service tokens that read as
+  finance or as an auditor; shown once and stored hashed, expiring and revocable, and every change made with one
+  audited with its name. A month's chargeback statement is one request.
+- **The audit log**: every change and sign-in, who made it, from where, and with which token, found by person,
+  change, lab, folder, and day, for administrators and auditors, with CSV.
+- **Access review**: who has access to what, with when each was given and what is worth a look, as a page and a
+  CSV, and a recorded sign-off, for periodic recertification.
 - **Sign-in three ways**: the demo's persona switcher, to show Pinax with the seeded people (no setup; refused in
   production); usernames and passwords Pinax keeps, for sites without single sign-on; or single sign-on, such as
-  Entra ID behind oauth2-proxy. People, labs, and access are managed the same way in all three.
+  Entra ID behind oauth2-proxy. People, labs, and access are managed the same way in all three. Sign-in with
+  Entra ID in Pinax itself, with no proxy, is planned (wave 14 in the roadmap).
 - **Built for scale**: each scan is indexed once into directory-level totals, so a treemap of a petabyte
   draws in tens of milliseconds: at 100 million files, every directory-level query takes 50 ms or less, and the
   index builds in two minutes. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and measured
@@ -79,12 +90,12 @@ The guides are in [docs/](docs/README.md), and make a website with screenshots o
 | Document | Covers |
 |---|---|
 | [docs/CONCEPTS.md](docs/CONCEPTS.md) | How Pinax sees storage: scans, snapshots, folder ownership, sizes, ages, change, costs, plans, tags |
-| [docs/USER-GUIDE.md](docs/USER-GUIDE.md) | Every page a lab sees, for PIs, lab members, and administrators exploring |
-| [docs/DEMO.md](docs/DEMO.md) | Running the demo, who is who, its six months, prices, and capacities, and a 20-minute walk-through |
+| [docs/USER-GUIDE.md](docs/USER-GUIDE.md) | Every page a lab sees, for PIs, lab members, division heads, and administrators exploring; API tokens for scripts |
+| [docs/DEMO.md](docs/DEMO.md) | Running the demo, who is who, its six months, prices, and capacities, and a walk-through with a step for each role |
 | [docs/SETUP.md](docs/SETUP.md) | Running Pinax on your own data: settings, the first administrator, scans, labs and people, prices |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Installing on a server: systemd services, single sign-on, scheduled scans, the catalog on SQLite or PostgreSQL, backups, upgrades, sizing, charges and statements, logs, metrics, operations |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every setting, its default, and what it does |
-| [docs/ADMINISTRATION.md](docs/ADMINISTRATION.md) | The administrator's pages: folders and labs, people and access, scans, storage health, capacity, costs, chargeback, tags, the audit log |
+| [docs/ADMINISTRATION.md](docs/ADMINISTRATION.md) | The administrator's pages, and what auditors and finance read: folders and labs, people and access with site roles, API tokens, the access review, scans, storage health, capacity, costs, chargeback, tags, the audit log |
 | [docs/IMPORT.md](docs/IMPORT.md) | The CSV format for importing labs, people, memberships, and folder ownership |
 | [docs/CLI.md](docs/CLI.md) | Every `pinax` command and option |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | What a problem looks like, why, and what to do |
@@ -120,12 +131,13 @@ Then open <http://127.0.0.1:8001> and choose who to be.
 The demo needs no setup. `pinax seed` writes two research filesystems of about 35,000 sparse files (123 TB of
 logical size on under 10 MB of disk), with ages going back fifteen years, and scans each one six times with
 fs-inventory, a month apart, with six months of activity simulated in between: labs grow, clean up, move a
-project, and join. It adds 14 labs and departments, 20 people, and storage prices, so there are six months of
-history and charges to explore. Sign-in is a persona switcher: be a PI, a delegate, or a storage administrator,
-and switch at any time. Seeding takes about fifteen seconds and resets `var/` and `demo/` each time, so it runs
-only when `PINAX_ENVIRONMENT=demo` (the default); Pinax refuses demo sign-in when `PINAX_ENVIRONMENT=prod`.
+project, and join. It adds 14 labs and departments, 23 people, and storage prices, so there are six months of
+history and charges to explore. Sign-in is a persona switcher: be a PI, a delegate, a division head, finance, an
+auditor, or a storage administrator, and switch at any time. Seeding takes about fifteen seconds and resets
+`var/` and `demo/` each time, so it runs only when `PINAX_ENVIRONMENT=demo` (the default); Pinax refuses demo
+sign-in when `PINAX_ENVIRONMENT=prod`.
 
-[docs/DEMO.md](docs/DEMO.md) has who is who, what happens in the six months, and a 20-minute walk-through.
+[docs/DEMO.md](docs/DEMO.md) has who is who, what happens in the six months, and a walk-through of about 20 minutes.
 
 ## Use your own data
 
@@ -157,7 +169,7 @@ uv run pinax serve
 
 Sign in with the temporary password and choose your own. Then add labs and people under *People and access*, and
 give each top-level folder its owner under *Folders and labs*; its members see it, and nobody else except storage
-administrators. With this `.env`, `pinax seed` refuses to run, so it cannot wipe your data; move `.env` aside to
+administrators, auditors, and the heads of its division. With this `.env`, `pinax seed` refuses to run, so it cannot wipe your data; move `.env` aside to
 go back to the demo.
 
 [docs/SETUP.md](docs/SETUP.md) walks through it step by step: scans made elsewhere and automatic ingest, checking

@@ -31,7 +31,7 @@ from pathlib import Path
 import duckdb
 from sqlalchemy import select
 
-from . import capacity, costs, plans, tags
+from . import capacity, costs, people, plans, tags
 from .config import Settings, get_settings
 from .db import init_db, reset_catalog, reset_engine, session_scope
 from .models import AuditEvent, Filesystem, Lab, LabFolder, LabMembership, User
@@ -161,6 +161,21 @@ PEOPLE = [
     ("rpatel", "Riya Patel", "Postdoctoral Research Fellow", False, []),  # no lab access yet
     ("pnatarajan", "Priya Natarajan", "Storage Engineering Lead", True, []),
     ("srivera", "Sam Rivera", "Research Data Services, Scientific Computing", True, []),
+    ("hmarsh", "Helen Marsh", "Research Compliance Officer", False, []),
+    ("dosei", "Daniel Osei", "Research Finance Analyst", False, []),
+    ("gwhitfield", "Grace Whitfield", "Associate Director, Basic Sciences", False, []),
+]
+# Site roles beside labs (auth.py): an auditor, finance, and the head of a division of three labs.
+DEMO_ROLES = [("hmarsh", "auditor", ""), ("dosei", "finance", ""), ("gwhitfield", "division", "Basic Sciences")]
+# API tokens: (maker, name, days, read only, service role, made days ago, last used days ago, address). Their secrets
+# are made up and thrown away, so no one can use them.
+DEMO_TOKENS = [
+    ("dosei", "Monthly ledger import", 365, True, None, 64, 2, "10.20.4.17"),
+    ("rdasgupta", "Sequencing pipeline tags", 180, False, None, 41, 0.3, "10.31.8.102"),
+    ("mreyes", "Weekly usage report", 90, True, None, 20, 6, "10.20.9.55"),
+    ("pnatarajan", "Capacity forecast to Grafana", 90, True, None, 12, 0.05, "10.10.1.40"),
+    ("pnatarajan", "Storage dashboards", 365, True, "auditor", 120, 0.01, "10.10.1.40"),
+    ("srivera", "Research finance warehouse", 365, True, "finance", 75, 31, "10.40.2.9"),
 ]
 
 # Extra file-system accounts (lab members who are not Pinax users), and accounts that no longer exist.
@@ -544,6 +559,27 @@ def demo_tags() -> None:
             tags.apply(s, ident, fs, path, tag, value, cold_from=cold_bucket())
 
 
+def demo_tokens(now: float) -> None:
+    """DEMO_TOKENS, made and used in the past."""
+    from . import tokens
+
+    seeded = datetime.fromtimestamp(now, UTC).replace(tzinfo=None)
+    with session_scope() as s:
+        for username, name, days, read_only, role, made, used, address in DEMO_TOKENS:
+            maker = s.scalar(select(User).where(User.username == username))
+            t, _ = tokens.make(s, maker, name, days, read_only=read_only, role=role, at=seeded - timedelta(days=made))
+            t.last_used_at, t.last_used_address = seeded - timedelta(days=used), address
+
+
+def demo_review() -> None:
+    """Helen Marsh, the auditor, has reviewed access once, since she was given the role."""
+    from . import review
+
+    with session_scope() as s:
+        review.sign_off(s, s.scalar(select(User).where(User.username == "hmarsh")),
+                        "First review with the new roles. Asked the Fujimoto Lab whether Jordan Okafor still needs access.")
+
+
 def demo_plan(when: float) -> None:
     """The Dasgupta Lab's cleanup plan (DEMO_PLAN), made by its PI on `when`."""
     from .auth import identity_for
@@ -732,6 +768,7 @@ def run_seed(scale: float = 1.0) -> None:
     locked.chmod(0)  # unreadable: the scan records an error and carries on
 
     init_db()  # the catalog's tables, and the default tags
+    started = datetime.fromtimestamp(taken[0], UTC).replace(tzinfo=None)
     with session_scope() as s:
         fss = {}
         for slug, name, display, desc in FILESYSTEMS:
@@ -751,11 +788,17 @@ def run_seed(scale: float = 1.0) -> None:
                      email=f"{username}@example.org")
             s.add(u)
             s.flush()
-            for slug, role in memberships:
-                s.add(LabMembership(user_id=u.id, lab_id=labs[slug].id, role=role))
+            for slug, role in memberships:  # given when the story starts, with the first scan
+                s.add(LabMembership(user_id=u.id, lab_id=labs[slug].id, role=role, granted_at=started))
+            u.admin_since = started if admin else None
         s.add(AuditEvent(action="demo.seeded", summary="Demo data created by pinax seed"))
         s.flush()
         admin = s.scalar(select(User).where(User.is_admin.is_(True)).order_by(User.id).limit(1))
+        users = {u.username: u for u in s.scalars(select(User))}
+        for username, role, division in DEMO_ROLES:  # given by an administrator, as on a person's page
+            u = users[username]
+            people.save_person(s, admin, u, {"display_name": u.display_name, "email": u.email, "title": u.title,
+                                             "is_admin": u.is_admin, "roles": [{"role": role, "division": division}]})
         prices, free = demo_costs(now)
         for fs, starts, amount, unit in prices:
             costs.add_price(s, admin, fss[fs], starts, amount, unit)
@@ -789,4 +832,6 @@ def run_seed(scale: float = 1.0) -> None:
             demo_plan(taken[n - 1] + 9 * 86400)
     demo_tags()
     demo_views_and_search()
+    demo_tokens(now)
+    demo_review()
     print(f"Done: {sum(last.values()):,} demo files across {len(fs_roots)} filesystems. Run `uv run pinax serve`.")

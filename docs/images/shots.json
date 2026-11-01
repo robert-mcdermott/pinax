@@ -1,4 +1,8 @@
 {
+ "access-review": {
+  "width": 2000,
+  "height": 1250
+ },
  "age-map": {
   "width": 2000,
   "height": 1250
@@ -36,6 +40,10 @@
   "height": 1250
  },
  "all-data-attention": {
+  "width": 2000,
+  "height": 1250
+ },
+ "audit-log": {
   "width": 2000,
   "height": 1250
  },
@@ -139,6 +147,10 @@
   "width": 2000,
   "height": 1250
  },
+ "person-roles": {
+  "width": 2000,
+  "height": 1250
+ },
  "plan-suggestions": {
   "width": 2000,
   "height": 1250
@@ -164,6 +176,10 @@
   "height": 1250
  },
  "tags-fold": {
+  "width": 2000,
+  "height": 1250
+ },
+ "tokens": {
   "width": 2000,
   "height": 1250
  },

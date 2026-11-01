@@ -109,7 +109,8 @@ def test_processes_starting_together_take_turns(env):
         t.join()
     for e in engines:
         e.dispose()
-    assert errors == [] and sorted(applied) == [[], ["0001"]]
+    every = [f"{n:04d}" for n in range(1, int(migrate.head()) + 1)]  # revisions are numbered in order
+    assert errors == [] and sorted(applied) == [[], every]
 
 
 def test_a_new_revision_holds_what_the_catalog_lacks(env, tmp_path, monkeypatch):
@@ -124,14 +125,16 @@ def test_a_new_revision_holds_what_the_catalog_lacks(env, tmp_path, monkeypatch)
     monkeypatch.setattr(migrate, "SCRIPTS", scripts)
     migrate._scripts.cache_clear()
     try:
+        newest = migrate.head()
+        following = f"{int(newest) + 1:04d}"
         with get_engine().begin() as conn:
             conn.execute(text("DROP INDEX ix_audit_event_ts"))
         path = migrate.revision(get_engine(), "Index audit events by time")
-        assert path.name == "0002_index_audit_events_by_time.py"
+        assert path.name == f"{following}_index_audit_events_by_time.py"
         source = path.read_text()
         upgrade = source.split("def upgrade")[1].split("def downgrade")[0]
         assert "create_index(batch_op.f('ix_audit_event_ts'), ['ts']" in upgrade
-        assert "down_revision: str | None = '0001'" in source
-        assert migrate.head() == "0002"
+        assert f"down_revision: str | None = '{newest}'" in source
+        assert migrate.head() == following
     finally:
         migrate._scripts.cache_clear()

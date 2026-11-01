@@ -22,6 +22,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    event,
     false,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -171,6 +172,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(200))
     title: Mapped[str] = mapped_column(String(200), default="")
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)  # IT: sees every filesystem and folder
+    admin_since: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # set by _admin_since
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     # Local sign-in (PINAX_AUTH_MODE=local) only; unused behind single sign-on. The hash names its algorithm and
@@ -183,6 +185,27 @@ class User(Base):
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     memberships: Mapped[list["LabMembership"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    roles: Mapped[list["UserRole"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+
+
+SITE_ROLES = ("auditor", "finance", "division")
+
+
+class UserRole(Base):
+    """A site role a person has beside their lab memberships (auth.py). An auditor sees everything a storage
+    administrator does and changes nothing; finance sees every lab's charges and the prices behind them; a division
+    head sees the labs of one division (`division`, matching labs' own), as their members do."""
+
+    __tablename__ = "user_role"
+    __table_args__ = (UniqueConstraint("user_id", "role", "division"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"))
+    role: Mapped[str] = mapped_column(String(32))  # SITE_ROLES
+    division: Mapped[str] = mapped_column(String(200), default="", server_default="")
+    granted_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    user: Mapped["User"] = relationship(back_populates="roles")
 
 
 class LoginSession(Base):
@@ -203,6 +226,35 @@ class LoginSession(Base):
     user: Mapped[User] = relationship()
 
 
+class ApiToken(Base):
+    """A token a script sends instead of signing in (tokens.py). A personal token is a person's, with their access
+    or reading only; a service token belongs to no one: an administrator makes it for a named service, and it reads
+    as an auditor or as finance (`role`). Only its SHA-256 is stored, with its first characters to tell it apart.
+    Ended by expiry, by revoking it, and, for a personal token, by deactivating its person. Kept once ended, so the
+    audit log keeps every reference."""
+
+    __tablename__ = "api_token"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    prefix: Mapped[str] = mapped_column(String(16))
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), nullable=True, index=True)
+    role: Mapped[str] = mapped_column(String(32), default="", server_default="")  # a service token's
+    read_only: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"), nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_used_address: Mapped[str] = mapped_column(String(64), default="", server_default="")
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    revoked_by_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"), nullable=True)
+
+    user: Mapped[User | None] = relationship(foreign_keys=[user_id])
+    created_by: Mapped[User | None] = relationship(foreign_keys=[created_by_id])
+    revoked_by: Mapped[User | None] = relationship(foreign_keys=[revoked_by_id])
+
+
 class LabMembership(Base):
     __tablename__ = "lab_membership"
     __table_args__ = (UniqueConstraint("user_id", "lab_id"),)
@@ -211,9 +263,27 @@ class LabMembership(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
     lab_id: Mapped[int] = mapped_column(ForeignKey("lab.id"))
     role: Mapped[str] = mapped_column(String(32))  # "pi" (PI or department owner) or "delegate"
+    granted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=utcnow)  # _role_given
 
     user: Mapped[User] = relationship(back_populates="memberships")
     lab: Mapped[Lab] = relationship(back_populates="memberships")
+
+
+# When each piece of access was given, for the access review (review.py), however it was given: on a person's page,
+# by import, or from the command line. Given before 0.12.0, it was not recorded (None).
+
+@event.listens_for(User.is_admin, "set", active_history=True)
+def _admin_since(user: User, value, oldvalue, _initiator) -> None:
+    if value and oldvalue is not True:
+        user.admin_since = utcnow()
+    elif not value:
+        user.admin_since = None
+
+
+@event.listens_for(LabMembership.role, "set", active_history=True)
+def _role_given(membership: LabMembership, value, oldvalue, _initiator) -> None:
+    if value != oldvalue:
+        membership.granted_at = utcnow()
 
 
 class SnapshotStatus:
@@ -448,14 +518,18 @@ class Heartbeat(Base):
 
 
 class AuditEvent(Base):
+    """Who changed what, and every sign-in (audit.py). `actor` None: from the command line (`detail.by`) or Pinax
+    itself. `address`: where the request came from, for changes made in the app."""
+
     __tablename__ = "audit_event"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     ts: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
-    actor_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"), nullable=True)
-    action: Mapped[str] = mapped_column(String(64))
+    actor_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"), nullable=True, index=True)
+    action: Mapped[str] = mapped_column(String(64), index=True)
     summary: Mapped[str] = mapped_column(Text)
     detail: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    address: Mapped[str] = mapped_column(String(64), default="", server_default="")
 
     actor: Mapped[User | None] = relationship()
 

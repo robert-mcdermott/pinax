@@ -103,10 +103,10 @@ function card(c, data) {
       ${c.schedule.map((r) => html`<tr><td><span class="nowrap">${date(`${r.starts}T12:00:00Z`)}</span>
           ${r.current ? html` <span class="chip chip-approved">${icon("check")}now</span>` : r.future ? html` <span class="chip chip-queued">scheduled</span>` : ""}</td>
         <td class="num nowrap">${r.amount} ${r.unit}</td>
-        <td class="right"><button class="icon-btn" type="button" title="Remove" aria-label="Remove the capacity from ${r.starts}"
+        <td class="right"><button class="icon-btn admin-only" type="button" title="Remove" aria-label="Remove the capacity from ${r.starts}"
           data-day="${r.starts}" data-remove="${c.fs}|${r.id}">${icon("x")}</button></td></tr>`)}</tbody></table></div>`
       : html`<p class="small muted">None set${st ? ": the storage's own figure is used" : ""}.</p>`}
-    <form class="toolbar cost-form" data-capacity="${c.fs}">
+    <form class="toolbar cost-form admin-only" data-capacity="${c.fs}">
       <label class="ctl"><span>From</span><input class="input sm" type="date" name="starts" value="${data.today}" required></label>
       <label class="ctl"><span>Capacity</span><input class="input sm" name="amount" inputmode="decimal" placeholder="e.g. 500" required autocomplete="off"></label>
       <label class="ctl"><span>Unit</span><select class="select sm" name="unit" aria-label="Unit">

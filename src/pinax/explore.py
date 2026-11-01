@@ -89,10 +89,10 @@ def _snapshot_for(session: Session, fs: Filesystem, scan: Scan) -> Snapshot | No
 
 
 def home_places(session: Session, ident: Identity, lab_slug: str | None = None, scan: Scan = None) -> list[Place]:
-    """A person's home: each filesystem root (administrators), or their labs' folders, as of `scan` (a day; a
-    filesystem with no full scan by then is left out)."""
+    """A person's home: each filesystem root (for those who see everything), or their labs' folders (with those of
+    the divisions they head), as of `scan` (a day; a filesystem with no full scan by then is left out)."""
     places: list[Place] = []
-    owners = folder_owners(session) if ident.is_admin else ident.folders
+    owners = folder_owners(session) if ident.sees_all else ident.folders
     for fs in _filesystems(session):
         try:
             snap = _snapshot_for(session, fs, scan if isinstance(scan, date) else None)
@@ -101,7 +101,7 @@ def home_places(session: Session, ident: Identity, lab_slug: str | None = None, 
         if snap is None:
             continue
         idx = indexes.get(snap)
-        if ident.is_admin and not lab_slug:
+        if ident.sees_all and not lab_slug:
             places.append(Place(fs, snap, idx, idx.root))
             continue
         for (fs_id, name), lab in sorted(owners.items(), key=lambda kv: kv[0][1]):
@@ -198,9 +198,9 @@ def _tiles_for(fs: str, idx: SnapshotIndex, rows: list[dict], all_sum: dict | No
 
 
 def _breadcrumbs(ident: Identity, place: Place) -> list[dict]:
-    crumbs = [{"label": "All data" if ident.is_admin else "My data", "fs": None, "path": None}]
+    crumbs = [{"label": "All data" if ident.sees_all else "My data", "fs": None, "path": None}]
     idx = place.idx
-    if ident.is_admin:
+    if ident.sees_all:
         crumbs.append({"label": place.fs.name, "fs": place.fs.slug, "path": idx.root})
     if place.path == idx.root:
         return crumbs
@@ -233,7 +233,7 @@ def _tree_dir(session: Session, ident: Identity, place: Place, metric: str, dept
         raise not_found()
     ch = idx.children(place.path, metric=metric, limit=TILE_LIMIT, grand_limit=GRAND_LIMIT if depth > 1 else 0)
     owners = folder_owners(session) if place.path == idx.root else None
-    if owners is not None and not ident.is_admin:
+    if owners is not None and not ident.sees_all:
         owners = None
     tiles = _tiles_for(place.fs.slug, idx, ch["rows"], ch["all"], ch["rest"], row, idx.ref_day, owners, place.fs.id)
     grand = ch.get("grand") or {}
@@ -288,7 +288,7 @@ def _tree_home(session: Session, ident: Identity, places: list[Place], metric: s
         total = total.add(st, count_as_dir=True)
     lab = session.scalar(select(Lab).where(Lab.slug == lab_slug)) if lab_slug else None
     node = {"kind": "home", "fs": None, "path": None, "lab": lab_brief(lab),
-            "name": lab.name if lab else ("All data" if ident.is_admin else "My data"),
+            "name": lab.name if lab else ("All data" if ident.sees_all else "My data"),
             "stats": total.json(ref), "direct": None, "subdirs": len(tiles)}
     as_of = max((p.snap.started_at for p in places), default=None)
     return {"node": node, "tiles": tiles, "breadcrumbs": [{"label": node["name"], "fs": None, "path": None}],
@@ -305,7 +305,7 @@ def depth_tree(session: Session, ident: Identity, fs_slug: str | None, path: str
     if metric not in METRICS:
         raise HTTPException(422, f"Unknown size metric {metric!r}")
     places = resolve(session, ident, fs_slug, path, scan, lab_slug)
-    owners = folder_owners(session) if ident.is_admin and any(p.path == p.idx.root for p in places) else None
+    owners = folder_owners(session) if ident.sees_all and any(p.path == p.idx.root for p in places) else None
     if fs_slug:
         p = places[0]
         if p.idx.node(p.path) is None:
@@ -427,7 +427,7 @@ def change_tree(session: Session, ident: Identity, fs_slug: str | None, path: st
     if metric not in CHANGE_METRICS:
         raise HTTPException(422, f"Unknown size {metric!r}")
     places = resolve(session, ident, fs_slug, path, scan, lab_slug)
-    owners = folder_owners(session) if ident.is_admin else None
+    owners = folder_owners(session) if ident.sees_all else None
     compared, tiles, total = {}, [], {}
     choices = sorted({s.started_at.date() for p in places for s in _earlier(session, p.snap)}, reverse=True)
     for p in places:
@@ -464,7 +464,7 @@ def change_tree(session: Session, ident: Identity, fs_slug: str | None, path: st
             kids = None
     if not fs_slug:
         lab = session.scalar(select(Lab).where(Lab.slug == lab_slug)) if lab_slug else None
-        name = lab.name if lab else ("All data" if ident.is_admin else "My data")
+        name = lab.name if lab else ("All data" if ident.sees_all else "My data")
         node = {"kind": "home", "fs": None, "path": None, "name": name, "lab": lab_brief(lab)}
         crumbs = [{"label": name, "fs": None, "path": None}]
     else:
@@ -546,7 +546,7 @@ def what_changed(session: Session, ident: Identity, fs_slug: str | None, path: s
                 "name": p.fs.name if p.path == p.idx.root else p.path.rsplit("/", 1)[-1]}
     else:
         lab = session.scalar(select(Lab).where(Lab.slug == lab_slug)) if lab_slug else None
-        node = {"fs": None, "path": None, "lab": lab_brief(lab), "name": lab.name if lab else ("All data" if ident.is_admin else "My data")}
+        node = {"fs": None, "path": None, "lab": lab_brief(lab), "name": lab.name if lab else ("All data" if ident.sees_all else "My data")}
     node.update(now=_side(total, "n", refs[0]) if total else None, then=_side(total, "o", refs[1]) if total else None,
                 in_new=total.get("in_new", True), in_old=total.get("in_old", True))
     return {"node": node, **lists, "files": files, "counts": dict(counts), "limit": limit,
@@ -779,7 +779,7 @@ def folder_rows(session: Session, ident: Identity) -> list[dict]:
         for name, s in sorted(stats.items()):
             if not ident.can_view_folder(fs.id, name or None):
                 continue
-            if not ident.is_admin and (fs.id, name) not in ident.folders:
+            if not ident.sees_all and (fs.id, name) not in ident.folders:
                 continue
             lab = owners.get((fs.id, name))
             p = before.get(name)
@@ -800,13 +800,13 @@ def scan_days(session: Session, ident: Identity, fs_slug: str | None, lab_slug: 
     a day is any day one of them was scanned; each counts as of its newest scan by then."""
     if fs_slug:
         fs = session.scalar(select(Filesystem).where(Filesystem.slug == fs_slug))
-        if fs is None or not (ident.is_admin or any(f == fs.id for f, _ in ident.folders)):
+        if fs is None or not (ident.sees_all or any(f == fs.id for f, _ in ident.folders)):
             raise not_found("No such filesystem")
         fs_ids = {fs.id}
     elif lab_slug:
         lab = session.scalar(select(Lab).where(Lab.slug == lab_slug))
         fs_ids = {f.filesystem_id for f in (lab.folders if lab else []) if ident.can_view_folder(f.filesystem_id, f.path)}
-    elif ident.is_admin:
+    elif ident.sees_all:
         fs_ids = {fs.id for fs in _filesystems(session)}
     else:
         fs_ids = {f for f, _ in ident.folders}
@@ -941,7 +941,7 @@ def history(session: Session, ident: Identity, fs_slug: str | None, path: str | 
         if not members:
             raise not_found("That lab or department is not shared with you")
         kind, name = "lab", lab.name
-    elif ident.is_admin:
+    elif ident.sees_all:
         kind, name, members = "home", "All data", {fs.id: None for fs in _filesystems(session)}
     else:
         members = defaultdict(set)
@@ -982,7 +982,7 @@ def lab_summaries(session: Session, ident: Identity) -> list[dict]:
             a["change"] += (r["change"] or {}).get("bytes", 0)
     out = []
     for lab in labs:
-        if not ident.is_admin and lab.id not in ident.lab_roles:
+        if not ident.can_view_lab(lab.id):
             continue
         out.append({**lab_brief(lab), "division": lab.division, "research_area": lab.research_area,
                     "members": len(lab.memberships), **by_slug[lab.slug]})

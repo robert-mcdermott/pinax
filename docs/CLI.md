@@ -242,7 +242,7 @@ For developers: writes the next migration from what changed in `models.py`, agai
 ## pinax seed
 
 Deletes the catalog and indexes in `PINAX_VAR_ROOT` and writes the demo: two filesystems of sparse files, 14 labs
-and departments, 20 people, six scans a month apart, prices, capacities, a cleanup plan, tags, and saved views
+and departments, 23 people, six scans a month apart, prices, capacities, a cleanup plan, tags, and saved views
 ([DEMO.md](DEMO.md)). It runs only when `PINAX_ENVIRONMENT=demo`.
 
 | Option | |

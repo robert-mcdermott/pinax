@@ -14,8 +14,9 @@ a log collector (PINAX_LOG_FORMAT), to standard error or to PINAX_LOG_FILE (reop
 - **Audit.** Every audit event (models.AuditEvent: who changed what, every sign-in) is also logged by `pinax.audit`
   once its change is committed, and only then: one rolled back never happened. PINAX_AUDIT_LOG writes them to a file
   of their own as well, as JSON lines, for a site's security monitoring. From the command line, the line names the
-  account that ran it.
-- **Never logged:** passwords, session cookies or tokens, request bodies, or query strings.
+  account that ran it. An event made by a request records the person's address; one made with an API token, the
+  token's name (`token` in its detail).
+- **Never logged:** passwords, session cookies, API tokens, request bodies, or query strings.
 """
 
 import getpass
@@ -47,6 +48,7 @@ class RequestInfo:
     id: str
     address: str
     user: str = ""
+    token: str = ""  # the name of the API token the request came with
     queries: int = 0
     query_seconds: float = 0.0
 
@@ -58,6 +60,12 @@ def set_user(username: str) -> None:
     """The person a request was found to be (auth.py)."""
     if (info := current.get()) is not None:
         info.user = username
+
+
+def set_token(name: str) -> None:
+    """The API token a request came with (auth.py): every change it makes is audited with the token's name."""
+    if (info := current.get()) is not None:
+        info.token = name
 
 
 def count_query(seconds: float) -> None:
@@ -256,6 +264,23 @@ def _os_user() -> str:
         return os.environ.get("SUDO_USER") or getpass.getuser()
     except Exception:  # noqa: BLE001 - no account name to be had
         return ""
+
+
+@event.listens_for(Session, "before_flush")
+def _from_request(session: Session, _context, _instances) -> None:
+    """An audit event made by a request records where it came from, and the API token it came with."""
+    from .models import AuditEvent
+
+    info = current.get()
+    if info is None:
+        return
+    for obj in session.new:
+        if not isinstance(obj, AuditEvent):
+            continue
+        if not obj.address:
+            obj.address = info.address[:64]
+        if info.token and "token" not in (obj.detail or {}):
+            obj.detail = {**(obj.detail or {}), "token": info.token}
 
 
 @event.listens_for(Session, "after_flush")

@@ -1,13 +1,15 @@
 # Administration guide
 
-For storage administrators: the pages only they see, and what to do with them. Installing Pinax, scanning, the
+For storage administrators: the pages only they change, and what to do with them; and for auditors and finance,
+who read some of the same pages ([Site roles](#site-roles)). Installing Pinax, scanning, the
 catalog, upgrades, logs, and monitoring are in [DEPLOYMENT.md](DEPLOYMENT.md); every setting is in
 [CONFIGURATION.md](CONFIGURATION.md); every command is in [CLI.md](CLI.md).
 
 A **storage administrator** sees every filesystem and every folder, including folders no lab owns, and the pages
 under *Administration* in the sidebar. The first one is made from the command line (`pinax user add --admin`);
 after that, administrators make others under *People and access*. At least one active administrator always
-remains, and nobody can remove their own role or deactivate themselves.
+remains, and nobody can remove their own role or deactivate themselves. An **auditor** sees the same pages without
+their buttons; **finance** sees *Storage charges* of any lab, *Chargeback*, *Costs*, and *Capacity*.
 
 A new administrator's first week usually goes:
 
@@ -17,6 +19,7 @@ A new administrator's first week usually goes:
 4. Set each filesystem's capacity (*Capacity*), and its prices and free tiers if storage is charged (*Costs*).
 5. Look at *Storage health* for folders the scanner could not read, and give it access.
 6. Read *All data* each week: what grew, what needs attention.
+7. Give auditors, finance, and division heads their site roles, and record an *Access review* from time to time.
 
 ## All data
 
@@ -49,13 +52,13 @@ Every top-level folder of every filesystem: who owns it, its size, files, cold s
 change since the previous scan, and age profile. *Filesystem*, *Owner*, and *Unmapped only* narrow the list; the
 person icon beside an owner changes it.
 
-![Folders and labs, unmapped only](images/folders-light.webp "Unmapped only: three folders no lab owns, so only administrators see them and nobody is charged for them.")
+![Folders and labs, unmapped only](images/folders-light.webp "Unmapped only: three folders no lab owns, so only administrators and auditors see them and nobody is charged for them.")
 
 - **Map a folder**: choose its lab or department. Its members see it from then on, and it is charged to its owner
   from the moment it was mapped.
 - **Move a folder to another lab**: choose the new owner. The old lab stops seeing it; charges move with it from
   that moment, and earlier months stay as they were.
-- **Unmap it**: no lab owns it; only administrators see it, and nobody is charged.
+- **Unmap it**: no lab owns it; only administrators and auditors see it, and nobody is charged.
 
 Every change is audited, and Pinax keeps when each folder belonged to whom, for past months' charges. Below the
 folders, *Labs and departments* lists each with its owner or PI, division, folders, members, size, cold share, and
@@ -67,8 +70,8 @@ source of folder ownership, the import files are how to keep it in step.
 ## People and access
 
 Who can sign in, what each person sees, and who administers Pinax. *People* lists everyone, with their username,
-labs and roles, and status; the tabs narrow it to administrators, people with no access, and inactive people;
-*Search* finds by name, username, email, or title.
+labs and roles, and status; the tabs narrow it to administrators, people with site roles, people with no access,
+and inactive people; *Search* finds by name, username, email, or title.
 
 ![People and access](images/people-light.webp "People and access: two storage administrators, PIs, delegates, and a staff scientist in a lab and a department.")
 
@@ -78,12 +81,35 @@ you save. A person's page has their profile, their labs and roles, the administr
 changes from the audit log:
 
 - **Labs**: add them to a lab or department as PI (or owner) or delegate, change the role, or take them out.
-- **Administrator**: grant or remove the storage administrator role.
-- **Deactivate**: they cannot sign in, and their memberships and role are kept, unused, until *Reactivate*.
+- **Site roles**: storage administrator, auditor, finance, or head of one or more divisions, beside any labs
+  ([Site roles](#site-roles)).
+- **Deactivate**: they cannot sign in, and their memberships and role are kept, unused, until *Reactivate*; their
+  sessions end and their API tokens are revoked.
+- **API tokens**: theirs, with when each was last used, to revoke ([API tokens](#api-tokens)).
 - **Set a new temporary password** (local sign-in): Pinax shows it once; they must change it when they next sign
   in. It also unlocks a locked account and ends their sessions.
 
 ![A person's page](images/person-light.webp "Jordan Okafor's page: a delegate for two labs.")
+
+### Site roles
+
+Beside lab memberships, a person can have site roles, given and taken away on their page, each change audited. A
+person can have several (a finance officer who is also a PI), and every role works with every way of signing in.
+
+| Role | Sees | Changes |
+| --- | --- | --- |
+| Storage administrator | Everything | Everything: people, labs, folder ownership, prices, capacity, the tags, and any lab's tags and plan |
+| Auditor | Everything a storage administrator sees, people and the audit log included | Nothing |
+| Finance | Every lab's and department's charges (*Storage charges* of any of them, *Chargeback* and its statement), and the prices, free tiers, and capacities behind them | Nothing; sees no folders, files, or people |
+| Division head | Each lab in the divisions chosen (a lab's *Division*) as its members see it: its folders and every report, its charges, its plan, and its collections | Nothing: tagging and planning stay with each lab's PI and delegates |
+| PI, owner, or delegate | Their lab's or department's folders and every report, its charges, plan, and collections | Its folders' tags and its cleanup plan |
+
+Pages show each person what they may use: an auditor sees the administration pages without their buttons, and
+finance a sidebar of charges. Every check is made on the server, for every request
+([Security](ARCHITECTURE.md#security)). A division head's labs follow the labs' *Division*: change a lab's division,
+and its folders move to the new division's heads.
+
+![A division head's page](images/person-roles-light.webp "Grace Whitfield, head of Basic Sciences: no lab of her own, and the folders of its three labs to read.")
 
 **Labs and departments** lists every lab and department with its members and folders. *Add lab or department*
 adds one: a slug (its short ID), a name, whether it is a lab or a department (which decides its free tier), its
@@ -95,6 +121,58 @@ folders, which stay its own, and charged to it, until they are moved.
 ![A lab's page](images/lab-light.webp "The Fujimoto Lab's page: its folders, members, and recent changes.")
 
 For many people at once, `pinax import` reads CSV files with a dry run first ([IMPORT.md](IMPORT.md)).
+
+## API tokens
+
+Scripts read Pinax, or act for someone, with API tokens instead of signing in, however people sign in
+([API tokens for scripts](USER-GUIDE.md#api-tokens-for-scripts)). *API tokens*, in the sidebar for administrators
+and auditors and in everyone's menu, has three lists:
+
+- **Your tokens**: everyone makes their own, reading only or with their access, for a week to a year
+  (`PINAX_TOKEN_MAX_DAYS`, 365 by default). Pinax shows each once and keeps only its SHA-256.
+- **Service tokens**: for a service rather than a person, such as a finance system or a dashboard. An administrator
+  names the service and chooses what it reads: as finance (every lab's charges, the chargeback statement, and the
+  prices behind them) or as an auditor (everything). A service token belongs to no one, so it keeps working when
+  whoever made it leaves, and it only reads.
+- **Everyone else's tokens**, with when each was made, when it expires, and when and from where it was last used.
+
+An administrator can **Revoke** any token, here or on its person's page; a person revokes their own. Deactivating a
+person revokes their tokens, and reactivating them does not bring them back. Making and revoking a token is
+audited, and so is every change made with one, with the token's name: *with the token “…”* in a person's or lab's
+recent changes, and `token` in the event's detail. No token can make or revoke tokens, or change a password.
+
+![API tokens](images/tokens-light.webp "Priya Natarajan's tokens page: her own token, then the service tokens, each with when and from where it was last used.")
+
+## Access review
+
+Who has access to what, as of now, for a periodic review (a recertification) and a record that it was done.
+*Access review*, in the sidebar of administrators and auditors, has:
+
+- **Worth a look**: active labs and departments with no PI or owner, people who can sign in and see nothing, API
+  tokens that can make changes, and, with local sign-in, people with access who have not signed in for 90 days. A
+  token that can make changes is kept by a script, not behind a sign-in, so whoever has it acts as its person, with
+  whatever access that person has now (more, if they are given more): each shows when it expires and was last used.
+  Check that it is still used and still needs to change things; if not, revoke it and make one that only reads.
+- **Site roles**: every storage administrator, auditor, finance officer, and division head, with when each was
+  given.
+- **Labs and departments**: each one's members and their roles, with when each was given, the heads of its
+  division, and its folders, with when it came to own each where that was changed in Pinax.
+- **People**: each active person's access, the folders they see and why (*via* a lab, or as head of a division),
+  their live API tokens, and, with local sign-in, when they last signed in.
+
+*Find* narrows every list to a person, lab, division, role, or folder. **Download CSV** has a row for each piece of
+access each person has (one saying *none* for someone who sees nothing), with what it lets them see and since when,
+for a spreadsheet or the review's record. Only active people and labs are listed: deactivated ones give no access,
+and are counted.
+
+**Record a review**, once you have gone through it, keeps who reviewed it, when, a note, and how much access there
+was, in the audit log (`access.reviewed`); *Reviews* lists the latest. It changes no one's access, so auditors may
+record it too.
+
+Pinax records when access was given from 0.12.0 on: a role or membership given before says *Not recorded*.
+Changing a member's role (delegate to PI) gives it again, from then.
+
+![The access review](images/access-review-light.webp "Helen Marsh's access review: what is worth a look, the site roles with when each was given, and her review recorded.")
 
 ## Scans
 
@@ -127,10 +205,10 @@ longer exist** (files owned by a uid with no account).
 ## Capacity
 
 How much each filesystem holds, how much is used, how fast use grows at the trend of the last six months, and when
-it fills. `pinax scan` records what the storage reports with each scan; a capacity set here (*From*, *Capacity*,
-*Unit*, *Set capacity*) takes its place from its day on, and a later one can be scheduled for an expansion. Use is
-measured by the storage's own figure once there are scans that have it, otherwise by space on disk, otherwise by
-size.
+it fills, for administrators, auditors, and finance. `pinax scan` records what the storage reports with each scan; a
+capacity set here (*From*, *Capacity*, *Unit*, *Set capacity*) takes its place from its day on, and a later one can
+be scheduled for an expansion. Use is measured by the storage's own figure once there are scans that have it,
+otherwise by space on disk, otherwise by size.
 
 ![Capacity](images/capacity-light.webp "Capacity: Fast fills within the year at its trend, before the expansion scheduled for later.")
 
@@ -139,7 +217,8 @@ up to three years ahead; at the fast end of the trend's range, Pinax also gives 
 
 ## Costs
 
-What each filesystem's storage costs a month, in `PINAX_CURRENCY`, and how much is free:
+What each filesystem's storage costs a month, in `PINAX_CURRENCY`, and how much is free. Administrators set them;
+auditors and finance read them:
 
 - **Price per month**: *From*, *Price*, and *Per* (TB, TiB, GB, or GiB) adds a price from a day on, until the
   next. Earlier prices are kept, so past months keep what they had.
@@ -153,7 +232,7 @@ change is audited ([Charges and statements](DEPLOYMENT.md#charges-and-statements
 
 ## Chargeback
 
-Every lab's and department's charge for a month, most first, the totals by filesystem, and the storage no one owns
+Finance's home page, and for administrators and auditors: every lab's and department's charge for a month, most first, the totals by filesystem, and the storage no one owns
 (*Unbilled*), with **Download CSV**, the statement for finance. *The next 12 months* adds up what every lab will pay
 at its trend.
 
@@ -189,7 +268,7 @@ first ([CLI.md](CLI.md#pinax-tags)).
 
 ## Every lab's cleanup plans
 
-An administrator's *Cleanup plans* shows every lab's plan at once: what they would free and save in all, by
+An administrator's or auditor's *Cleanup plans* shows every lab's plan at once: what they would free and save in all, by
 filesystem, the largest folders planned, and each lab's total, so IT can see what cleanup is coming and what is
 done.
 
@@ -198,7 +277,25 @@ done.
 ## The audit log
 
 Every change made in the app, by import, and from the command line, and every sign-in with local sign-in, is in the
-audit log: who made it, when, from where, and what changed. A person's and a lab's page show their recent changes;
-*All data* shows the latest under *Recent activity*. Each event is also written to Pinax's log once its change is
-committed, and to `PINAX_AUDIT_LOG` if it is set, for a site's security monitoring ([Logs](DEPLOYMENT.md#logs)). The
-whole log is the catalog's `audit_event` table ([Monitoring and operations](DEPLOYMENT.md#monitoring-and-operations)).
+audit log: who made it, when, from where, and what changed. *Audit log*, in the sidebar of administrators and
+auditors, shows it newest first, 50 changes a page, each with its time, who made it (or *Command line* with the
+account that ran it, or *Pinax* for scans it ingested), the API token it was made with, the address it came from,
+and what it changed; *Details* opens what was recorded. Find changes by any of:
+
+- **Person**: changes they made, and changes made to them (their roles, labs, and tokens).
+- **Change**: one action, such as `plan.added`, or every one of a kind, such as every change to cleanup plans.
+- **Lab or department**: changes to it, its members, its plan, its own tags, and its folders, and folders given to
+  it or taken from it.
+- **Folder**: changes to a folder and the folders in it, and to who owns the top-level folder it is in (choose its
+  filesystem and give its path within it, such as `dasgupta_r/sequencing`); a filesystem alone, every folder on it.
+- **From** and **To**: the days, in UTC.
+
+**Download CSV** has every change that matches, as recorded, with its detail as JSON. A person's and a lab's page
+show their recent changes, with *All* for the rest; *All data* shows the latest under *Recent activity*.
+
+![The audit log](images/audit-log-light.webp "Helen Marsh, an auditor, reads the audit log: the demo's latest changes and who made them, made by pinax seed, so from no address.")
+
+Each event is also written to Pinax's log once its change is committed, and to `PINAX_AUDIT_LOG` if it is set, for
+a site's security monitoring ([Logs](DEPLOYMENT.md#logs)). Changes made before 0.12.0 have no address, except
+sign-ins. The whole log is the catalog's `audit_event` table
+([Monitoring and operations](DEPLOYMENT.md#monitoring-and-operations)).

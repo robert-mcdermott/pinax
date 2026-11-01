@@ -41,7 +41,16 @@ several filesystems.
 **People** belong to labs as a **PI** (or a department's owner) or a **delegate** (a lab manager, a staff
 scientist). Members see exactly the top-level folders their labs own, everything below them, and nothing else: the
 check is made on the server for every request, and other labs' folders do not appear at all. **Storage
-administrators** see every filesystem and folder, and the administration pages.
+administrators** see every filesystem and folder, and the administration pages, and change the site's settings.
+
+Beside their labs, a person can have **site roles**: an **auditor** sees everything a storage administrator does and
+changes nothing; **finance** sees every lab's charges and the prices, free tiers, and capacities behind them, and no
+folders; a **division head** sees the labs of their division as those labs' members do, to read. Seeing and
+changing are separate: a lab's tags and cleanup plan are changed only by its PI and delegates (and administrators).
+
+Scripts use Pinax with an **API token** instead of signing in: a person's own, which carries their access or only
+reads, or a **service token** an administrator makes for a named service, which reads as finance or as an auditor.
+A token expires, can be revoked, and is never more than its person.
 
 Ownership changes over time (a folder moves to another lab, a lab closes), and Pinax keeps when each change
 happened, so a past month is charged as it was.
@@ -98,9 +107,11 @@ hold or kept until a date stay out of cleanup plans.
 
 ## The catalog
 
-Everything that is not an index (people, labs, folder ownership, filesystems, snapshot records, folder history,
-prices, plans, tags, views, the audit log) is in the **catalog**: SQLite in `PINAX_VAR_ROOT` by default, or
+Everything that is not an index (people and their roles, labs, folder ownership, filesystems, snapshot records,
+folder history, prices, plans, tags, views, API tokens, the audit log) is in the **catalog**: SQLite in `PINAX_VAR_ROOT` by default, or
 PostgreSQL. It is small, and it is the one part that cannot be made again from scans, so it is backed up. Indexes
 can be rebuilt from their scans.
 
-Every change made in the app, by import, or from the command line is **audited**: who, what, when, and from where.
+Every change made in the app, by import, or from the command line is **audited**: who, what, when, from where, and
+with which API token. Administrators and auditors read it in the app's *Audit log*, and review who has access to
+what, with when each was given, in the *Access review*.

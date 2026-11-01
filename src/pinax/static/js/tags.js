@@ -40,10 +40,10 @@ export async function viewTags(el) {
       <div class="sub">${t.description}</div></td>
     <td>${TYPE_TEXT[t.type]}${t.many ? ", more than one" : ""}${t.choices.length ? html`<div class="sub">${t.choices.join(", ")}</div>` : ""}</td>
     <td class="hide-narrow">${t.lab ? t.lab.name : BY_TEXT[t.applied_by]}</td><td class="num">${num(t.uses)}</td>
-    <td class="right nowrap">${t.lab ? (t.uses ? html`<button class="btn btn-ghost btn-sm" data-fold="${t.id}">Fold into a standard tag</button>` : "")
+    <td class="right nowrap"><span class="admin-only">${t.lab ? (t.uses ? html`<button class="btn btn-ghost btn-sm" data-fold="${t.id}">Fold into a standard tag</button>` : "")
       : html`<button class="btn btn-ghost btn-sm" data-edit="${t.id}">Change</button>`}
       <button class="btn btn-ghost btn-sm" data-active="${t.id}" data-to="${t.active ? 0 : 1}">${t.active ? "Retire" : "Bring back"}</button>
-      ${t.uses ? "" : html`<button class="icon-btn" title="Delete" aria-label="Delete ${t.label}" data-delete="${t.id}">${icon("x")}</button>`}</td></tr>`;
+      ${t.uses ? "" : html`<button class="icon-btn" title="Delete" aria-label="Delete ${t.label}" data-delete="${t.id}">${icon("x")}</button>`}</span></td></tr>`;
   const table = (list) => html`<div class="table-wrap"><table class="table"><thead><tr><th>Tag</th><th>Value</th><th class="hide-narrow">Applied by</th>
     <th class="num">Folders</th><th></th></tr></thead><tbody>${list.map(row)}</tbody></table></div>`;
   mount(el, html`
@@ -51,7 +51,7 @@ export async function viewTags(el) {
       <p>The standard tags every lab can put on its folders, to describe what they hold: the project, the grant, the stage and source of the data, how
         sensitive it is, and how long it must be kept. A tag on a folder applies to everything below it. A tag in use is retired, not deleted, so what
         was tagged stays tagged.</p></div>
-      <div class="actions"><button class="btn btn-primary btn-sm" id="t-add">${icon("plus")}Add tag</button></div></div>
+      <div class="actions admin-only"><button class="btn btn-primary btn-sm" id="t-add">${icon("plus")}Add tag</button></div></div>
     <div class="card flush"><div class="card-head"><h2>Standard tags</h2></div>${table(data.standard)}</div>
     <div class="card flush" style="margin-top:20px"><div class="card-head"><h2>Labs' own tags</h2></div>
       ${data.custom.length ? table(data.custom) : html`<div style="padding:0 22px 18px">${emptyState("tag", "None yet", "Labs make tags of their own from a folder's panel on the age map.")}</div>`}</div>`);

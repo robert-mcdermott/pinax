@@ -320,6 +320,7 @@ svg.i { width: 1.1em; height: 1.1em; vertical-align: -0.18em; flex: none; }
   text-align: left; border-radius: var(--radius); cursor: pointer; font: inherit; font-size: 14px; color: inherit;
 }
 .menu-item:hover, .menu-item:focus-visible { background: var(--surface-2); }
+a.menu-item, a.menu-item:hover { color: var(--text); text-decoration: none; }
 .menu-item svg { width: 16px; height: 16px; color: var(--accent-icon); }
 /* A form's own error, beside the fields it is about. */
 .form-error { margin: 0 0 14px; padding: 8px 12px; font-size: 13.5px; color: var(--text); background: var(--warn-bg);
@@ -689,6 +690,13 @@ pre.json { background: var(--surface-2); color: var(--text); border: 1px solid v
 .input.sm { width: 140px; }
 .toolbar .grow { flex: 1; min-width: 220px; }
 .toolbar .grow .input { width: 100%; }
+/* The audit log: an event's recorded detail, opened under its summary. */
+.table.audit td:nth-child(3), .table.review td { overflow-wrap: anywhere; }  /* long paths break, not widen it */
+[data-find][hidden] { display: none !important; }  /* the access review's Find, over a feed's own display */
+.audit-detail { margin-top: 4px; }
+.audit-detail summary { cursor: pointer; color: var(--accent-text); width: max-content; }
+.audit-detail .kv { margin: 6px 0 2px; font-size: 12.5px; }
+.audit-detail dd { overflow-wrap: anywhere; }
 
 /* ---------- Treemap ---------- */
 .explore-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
@@ -716,6 +724,9 @@ pre.json { background: var(--surface-2); color: var(--text); border: 1px solid v
 .tm-tip dt { color: var(--text-muted); }
 .tm-tip dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .tm-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+
+/* Controls that change the site's settings: for storage administrators only (core.js loadIdentity). */
+body:not(.can-administer) .admin-only { display: none !important; }
 
 /* Sunburst (depth.js): arcs separated by a surface-colored edge; an outline drawn on top of the arc under the pointer
    or in focus. The icicle uses the treemap's tiles. */
@@ -877,6 +888,8 @@ pre.json { background: var(--surface-2); color: var(--text); border: 1px solid v
 @media (max-width: 600px) {
   .hide-narrow { display: none; }
   .charge-total { align-items: flex-start; }
+  .table.audit th { width: auto !important; }  /* the summary takes what the time and person leave */
+  .table.audit td { padding: 10px 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
