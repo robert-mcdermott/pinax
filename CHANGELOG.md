@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- **The roadmap.** Reach (wave 14) makes local sign-in the default out of the box outside the demo, in the code and
+  in the server kit, with sign-in with Entra ID optional, configured by settings. Two-factor codes and per-address
+  limits for local sign-in move to the parking lot, and the security review is taken off the roadmap.
+
 ## 0.12.0 (2026-11-01)
 
 Twelfth release (wave 12, "access"): who may see and do what beyond labs' members and storage administrators,

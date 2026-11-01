@@ -1479,11 +1479,18 @@ reach, at the maintainer's request.
 | Wave | Release | Theme | Main content |
 | --- | --- | --- | --- |
 | 13 | 0.13.0 | Production pilot | The largest production scan available ingests and passes `pinax check`; build time, index size, and query times measured on production replace the extrapolations in `docs/ARCHITECTURE.md`; 100 million files on server-class hardware, including the change map, what changed, and changed scans at that size, and the folder counts of production (two billion files may mean 50 to 200 million folders, which every report that reads all folders grows with); the time limits and whole-filesystem query turns set for production; installation on a pilot server from the deployment kit, scanning on a schedule; IT and a few pilot labs use it, and what they find is fixed or recorded; each filesystem says whether its access times can be trusted, and where they cannot, views by last access are hidden or marked (E11) |
-| 14 | 0.14.0 | Reach | Optional sign-in with Microsoft Entra ID in Pinax itself (OpenID Connect, the authorization code flow with PKCE), following Tundra's (below), with the roles of wave 12 from Entra ID app roles or groups, and lab membership synced from the directory (A6); local sign-in and header mode stay, for sites without Entra ID. For local sign-in, two-factor codes and limits per network address. CI and a container image (P6). Security review |
+| 14 | 0.14.0 | Reach | Local sign-in the default out of the box outside the demo, in the code and in the server kit (below). Optional sign-in with Microsoft Entra ID in Pinax itself, configured by settings (OpenID Connect, the authorization code flow with PKCE), following Tundra's (below), with the roles of wave 12 from Entra ID app roles or groups, and lab membership synced from the directory (A6); header mode behind oauth2-proxy stays. CI and a container image (P6) |
 | 15 | 1.0.0 | Hardening | Budgets met at a billion files in production; load tests with many people at once (Q6); accessibility audit; documentation complete, with the time to rebuild the indexes after losing a server; pilot and early-user feedback addressed |
 
 Wave 14 needs no production storage either: if the pilot is still out of reach after wave 12, it can come first.
 Its Entra ID mapping is onto the roles wave 12 builds, so groups map onto every role from the start.
+
+**Local sign-in is the default; Entra ID is optional.** Pinax may run for a small company or a team with no access
+to its organization's Entra ID, so it must work fully with passwords it keeps, with nothing else to set up, and
+single sign-on is something a site configures. Today the code's default is the demo's persona switcher (in the demo
+environment) and the server kit (`deploy/pinax.env`, `docs/DEPLOYMENT.md`) defaults to oauth2-proxy; wave 14 makes
+local sign-in the default outside the demo, in the code and in the server kit, with Entra ID (and oauth2-proxy) as
+the documented options. The demo keeps its persona switcher.
 
 **Sign-in with Entra ID, following Tundra.** Tundra, Pinax's sister application, signs people in with Entra ID itself
 (`TUNDRA_AUTH_MODE=oidc`; `src/tundra/oidc.py`, `docs/ENTRA-ID.md`, `tests/test_oidc.py`). What to take from it:
@@ -1537,6 +1544,14 @@ Ideas kept for later, and not on a path to be built. An idea leaves the parking 
 | Cloud buckets and archives beside filesystems, priced by storage class | The cloud accounts' inventory reports (S3 Inventory, Azure Blob inventory) or the archive's catalog |
 | The data of people who have left, by lab, for their PI to decide on | Who has left, from HR or the directory; the owners report already flags accounts that no longer exist |
 
+**Not needed for now** (local sign-in locks an account after five failures in a row, and sites that need more use
+single sign-on):
+
+| Idea | Notes |
+| --- | --- |
+| Two-factor codes for local sign-in (was in wave 14) | One-time codes from an authenticator app, with recovery codes |
+| Limits on sign-in attempts per network address (was in wave 14) | Slowing down an address that tries many accounts, beside the per-account lockout |
+
 **Not yet chosen:**
 
 | Idea | Notes |
@@ -1557,4 +1572,5 @@ Ideas kept for later, and not on a path to be built. An idea leaves the parking 
   setting for it (E11), and the pilot decides each production filesystem's.
 - Scan cadence and snapshot retention for each filesystem.
 - When production storage becomes reachable for wave 13, and which filesystem and labs the pilot uses.
-- Who may see unmapped folders besides storage administrators (for example division data managers).
+- Who may see unmapped folders besides storage administrators and auditors (who see them from 0.12.0), for example
+  division data managers.
