@@ -140,6 +140,35 @@ recent changes, and `token` in the event's detail. No token can make or revoke t
 
 ![API tokens](images/tokens-light.webp "Priya Natarajan's tokens page: her own token, then the service tokens, each with when and from where it was last used.")
 
+## Access review
+
+Who has access to what, as of now, for a periodic review (a recertification) and a record that it was done.
+*Access review*, in the sidebar of administrators and auditors, has:
+
+- **Worth a look**: active labs and departments with no PI or owner, people who can sign in and see nothing, API
+  tokens that change what their person may change, and, with local sign-in, people with access who have not signed
+  in for 90 days.
+- **Site roles**: every storage administrator, auditor, finance officer, and division head, with when each was
+  given.
+- **Labs and departments**: each one's members and their roles, with when each was given, the heads of its
+  division, and its folders, with when it came to own each where that was changed in Pinax.
+- **People**: each active person's access, the folders they see and why (*via* a lab, or as head of a division),
+  their live API tokens, and, with local sign-in, when they last signed in.
+
+*Find* narrows every list to a person, lab, division, role, or folder. **Download CSV** has a row for each piece of
+access each person has (one saying *none* for someone who sees nothing), with what it lets them see and since when,
+for a spreadsheet or the review's record. Only active people and labs are listed: deactivated ones give no access,
+and are counted.
+
+**Record a review**, once you have gone through it, keeps who reviewed it, when, a note, and how much access there
+was, in the audit log (`access.reviewed`); *Reviews* lists the latest. It changes no one's access, so auditors may
+record it too.
+
+Pinax records when access was given from 0.12.0 on: a role or membership given before says *Not recorded*.
+Changing a member's role (delegate to PI) gives it again, from then.
+
+![The access review](images/access-review-light.webp "Helen Marsh's access review: what is worth a look, the site roles with when each was given, and her review recorded.")
+
 ## Scans
 
 Every snapshot: its filesystem, when its scan started, its status, entries and files, size, scan errors, how long

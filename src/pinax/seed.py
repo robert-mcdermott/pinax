@@ -571,6 +571,15 @@ def demo_tokens(now: float) -> None:
             t.last_used_at, t.last_used_address = seeded - timedelta(days=used), address
 
 
+def demo_review() -> None:
+    """Helen Marsh, the auditor, has reviewed access once, since she was given the role."""
+    from . import review
+
+    with session_scope() as s:
+        review.sign_off(s, s.scalar(select(User).where(User.username == "hmarsh")),
+                        "First review with the new roles. Asked the Fujimoto Lab whether Jordan Okafor still needs access.")
+
+
 def demo_plan(when: float) -> None:
     """The Dasgupta Lab's cleanup plan (DEMO_PLAN), made by its PI on `when`."""
     from .auth import identity_for
@@ -759,6 +768,7 @@ def run_seed(scale: float = 1.0) -> None:
     locked.chmod(0)  # unreadable: the scan records an error and carries on
 
     init_db()  # the catalog's tables, and the default tags
+    started = datetime.fromtimestamp(taken[0], UTC).replace(tzinfo=None)
     with session_scope() as s:
         fss = {}
         for slug, name, display, desc in FILESYSTEMS:
@@ -778,8 +788,9 @@ def run_seed(scale: float = 1.0) -> None:
                      email=f"{username}@example.org")
             s.add(u)
             s.flush()
-            for slug, role in memberships:
-                s.add(LabMembership(user_id=u.id, lab_id=labs[slug].id, role=role))
+            for slug, role in memberships:  # given when the story starts, with the first scan
+                s.add(LabMembership(user_id=u.id, lab_id=labs[slug].id, role=role, granted_at=started))
+            u.admin_since = started if admin else None
         s.add(AuditEvent(action="demo.seeded", summary="Demo data created by pinax seed"))
         s.flush()
         admin = s.scalar(select(User).where(User.is_admin.is_(True)).order_by(User.id).limit(1))
@@ -822,4 +833,5 @@ def run_seed(scale: float = 1.0) -> None:
     demo_tags()
     demo_views_and_search()
     demo_tokens(now)
+    demo_review()
     print(f"Done: {sum(last.values()):,} demo files across {len(fs_roots)} filesystems. Run `uv run pinax serve`.")

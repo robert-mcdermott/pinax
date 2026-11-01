@@ -46,7 +46,7 @@ const DOCS = [
   { group: 'Administration', pages: [
     { slug: 'administration', title: 'Administering Pinax', file: 'ADMINISTRATION.md', intro: true, sections: ['All data'], lede: 'For storage administrators: the pages only they see, and a first week with them.' },
     { slug: 'folders-and-labs', title: 'Folders and labs', file: 'ADMINISTRATION.md', sections: ['Folders and labs'], lede: 'Every top-level folder, who owns it, and how to change that.' },
-    { slug: 'people', title: 'People and access', file: 'ADMINISTRATION.md', sections: ['People and access', 'API tokens'], lede: 'Who can sign in, what each person sees, who administers Pinax, and the tokens scripts use.' },
+    { slug: 'people', title: 'People and access', file: 'ADMINISTRATION.md', sections: ['People and access', 'API tokens', 'Access review'], lede: 'Who can sign in, what each person sees, who administers Pinax, the tokens scripts use, and reviewing it all.' },
     { slug: 'scans', title: 'Scans and storage health', file: 'ADMINISTRATION.md', sections: ['Scans', 'Storage health'], lede: 'Every snapshot and its state, automatic ingest, and what the scans say is wrong with the storage.' },
     { slug: 'capacity', title: 'Capacity', file: 'ADMINISTRATION.md', sections: ['Capacity'], lede: 'How much each filesystem holds, how fast it fills, and when.' },
     { slug: 'costs', title: 'Costs and chargeback', file: 'ADMINISTRATION.md', sections: ['Costs', 'Chargeback'], lede: 'Prices and free tiers from a day on, and every lab\'s charges with a statement for finance.' },

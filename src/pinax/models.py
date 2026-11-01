@@ -22,6 +22,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    event,
     false,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -171,6 +172,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(200))
     title: Mapped[str] = mapped_column(String(200), default="")
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)  # IT: sees every filesystem and folder
+    admin_since: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # set by _admin_since
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     # Local sign-in (PINAX_AUTH_MODE=local) only; unused behind single sign-on. The hash names its algorithm and
@@ -261,9 +263,27 @@ class LabMembership(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
     lab_id: Mapped[int] = mapped_column(ForeignKey("lab.id"))
     role: Mapped[str] = mapped_column(String(32))  # "pi" (PI or department owner) or "delegate"
+    granted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=utcnow)  # _role_given
 
     user: Mapped[User] = relationship(back_populates="memberships")
     lab: Mapped[Lab] = relationship(back_populates="memberships")
+
+
+# When each piece of access was given, for the access review (review.py), however it was given: on a person's page,
+# by import, or from the command line. Given before 0.12.0, it was not recorded (None).
+
+@event.listens_for(User.is_admin, "set", active_history=True)
+def _admin_since(user: User, value, oldvalue, _initiator) -> None:
+    if value and oldvalue is not True:
+        user.admin_since = utcnow()
+    elif not value:
+        user.admin_since = None
+
+
+@event.listens_for(LabMembership.role, "set", active_history=True)
+def _role_given(membership: LabMembership, value, oldvalue, _initiator) -> None:
+    if value != oldvalue:
+        membership.granted_at = utcnow()
 
 
 class SnapshotStatus:

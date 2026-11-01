@@ -526,7 +526,8 @@ export function startRouter(routes, outlet, { onRoute } = {}) {
 export function setActiveNav(hash, selector) {
   $$(selector).forEach((a) => {
     const m = a.dataset.route;
-    const active = m === "#/" ? hash === "#/" || hash === "" : hash.startsWith(m);
+    // The route itself, or a page under it (#/access/people/…), not another route that starts the same (#/access-review).
+    const active = m === "#/" ? hash === "#/" || hash === "" : hash === m || /^[/?]/.test(hash.slice(m.length)) && hash.startsWith(m);
     a.classList.toggle("active", active);
   });
 }

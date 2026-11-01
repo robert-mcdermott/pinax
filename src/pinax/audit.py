@@ -28,7 +28,7 @@ KINDS = {
     "auth": "Signing in", "person": "People", "lab": "Labs and departments", "folder": "Folders",
     "plan": "Cleanup plans", "tag": "Tags", "mark": "Marked folders", "cost": "Prices and free tiers",
     "capacity": "Capacity", "token": "API tokens", "view": "Saved views", "snapshot": "Scans", "import": "Imports",
-    "demo": "The demo",
+    "access": "Access reviews", "demo": "The demo",
 }
 CSV_FIELDS = ["time", "username", "name", "token", "action", "summary", "address", "source", "by", "detail"]
 

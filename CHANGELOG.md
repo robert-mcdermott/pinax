@@ -30,6 +30,13 @@ Wave 12 ("access"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
   in it), and days; *Download CSV* has every one that matches. A person's and a lab's recent changes link to theirs.
   Every audit event now records the address of the request that made it. The demo's site roles are given by its
   administrator, so they are in its audit log.
+- **Access review.** *Access review*, for administrators and auditors: what is worth a look (labs with no PI,
+  people who see nothing, tokens that change things, and, with local sign-in, people who have not signed in for 90
+  days), every site role, each lab's members and folders, and each person's access and what they see, with when
+  each was given; *Find* across them; a CSV with a row for each piece of access; and *Record a review*, audited
+  (`access.reviewed`), which auditors may do too ([Access review](docs/ADMINISTRATION.md#access-review)). Pinax now
+  records when a person is made a storage administrator and when each lab membership is given. The demo's Helen
+  Marsh has recorded a review.
 
 ### Changed
 
@@ -38,8 +45,9 @@ Wave 12 ("access"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
   Entra ID (with notes from Tundra's), local sign-in's two-factor codes and per-address limits, CI and the
   container image, and the security review; hardening is wave 15 (1.0.0).
 - **The catalog's first migrations since its baseline**: `0002` adds the `user_role` table, `0003` the
-  `api_token` table, and `0004` the audit event's address, with indexes on its action and person; Pinax applies them
-  when it starts, or `pinax db upgrade` does where `PINAX_DB_AUTO_UPGRADE=false`.
+  `api_token` table, `0004` the audit event's address, with indexes on its action and person, and `0005` when a
+  person was made an administrator and when each lab membership was given (empty for those given before); Pinax
+  applies them when it starts, or `pinax db upgrade` does where `PINAX_DB_AUTO_UPGRADE=false`.
 - **The oauth2-proxy configuration** (`deploy/oauth2-proxy/pinax.cfg`) lets `/script/api/` through without signing
   in, for scripts with API tokens; copy the new `skip_auth_routes` line to an installed one.
 

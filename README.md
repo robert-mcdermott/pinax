@@ -61,6 +61,8 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
   audited with its name. A month's chargeback statement is one request.
 - **The audit log**: every change and sign-in, who made it, from where, and with which token, found by person,
   change, lab, folder, and day, for administrators and auditors, with CSV.
+- **Access review**: who has access to what, with when each was given and what is worth a look, as a page and a
+  CSV, and a recorded sign-off, for periodic recertification.
 - **Sign-in three ways**: the demo's persona switcher, to show Pinax with the seeded people (no setup; refused in
   production); usernames and passwords Pinax keeps, for sites without single sign-on; or single sign-on, such as
   Entra ID behind oauth2-proxy. People, labs, and access are managed the same way in all three.

@@ -219,6 +219,7 @@ const scenes = {
   async 'person-roles'() { await open('pnatarajan', '#/access/people/gwhitfield'); },
   async tokens() { await open('pnatarajan', '#/tokens'); },
   async 'audit-log'() { await open('hmarsh', '#/audit'); },
+  async 'access-review'() { await open('hmarsh', '#/access-review'); },
   async labs() { await open('pnatarajan', '#/access?tab=labs'); },
   async lab() { await open('pnatarajan', '#/access/labs/fujimoto_a'); },
   async scans() { await open('pnatarajan', '#/scans'); },

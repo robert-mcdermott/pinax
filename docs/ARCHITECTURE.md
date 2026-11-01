@@ -601,6 +601,10 @@ the month shows at once; adding up the ranges overstates the range); storage no 
 - **The audit log** (`audit.py`, *Audit log*), for those who see everything: found by person (by or about them),
   action or kind, lab (by name, and by the paths of its folders), folder (by path prefix, with `LIKE` wildcards
   escaped, and the mapping of its top-level folder), and day; paged, or streamed as CSV from a session of its own.
+- **The access review** (`review.py`), for those who see everything: site roles, labs, and people as they are
+  now, with when each piece of access was given (`user.admin_since` and `lab_membership.granted_at`, set by
+  SQLAlchemy attribute events, so every way of giving access records it; `user_role.granted_at`), and a sign-off
+  audited as `access.reviewed`.
 - File queries read only the Parquet files of the top-level folders in scope.
 - People, labs, memberships, and folder ownership use the same model as Tundra (`Lab`, `LabFolder`,
   `User`, `LabMembership`); changes are audited. People are never deleted: a deactivated person cannot sign in,

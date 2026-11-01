@@ -691,7 +691,8 @@ pre.json { background: var(--surface-2); color: var(--text); border: 1px solid v
 .toolbar .grow { flex: 1; min-width: 220px; }
 .toolbar .grow .input { width: 100%; }
 /* The audit log: an event's recorded detail, opened under its summary. */
-.table.audit td:nth-child(3) { overflow-wrap: anywhere; }  /* long paths break rather than widen the table */
+.table.audit td:nth-child(3), .table.review td { overflow-wrap: anywhere; }  /* long paths break, not widen it */
+[data-find][hidden] { display: none !important; }  /* the access review's Find, over a feed's own display */
 .audit-detail { margin-top: 4px; }
 .audit-detail summary { cursor: pointer; color: var(--accent-text); width: max-content; }
 .audit-detail .kv { margin: 6px 0 2px; font-size: 12.5px; }

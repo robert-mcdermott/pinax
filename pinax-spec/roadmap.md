@@ -1318,8 +1318,8 @@ reach, at the maintainer's request.
 | 1 | Roles (A10) | Auditor, finance, and division head beside storage administrator, PI, and delegate; given and taken away in *People and access*, and audited; each role's access checked on the server for every request, with tests for each role as A1 has for labs (what it sees, what answers 403 or 404, and that it changes nothing it may not); the sidebar and pages show each role what it may use; the demo has a person in each | Done |
 | 2 | API tokens for scripts (A11) | Personal tokens, and service tokens for a named service, stored hashed and shown once, with their person's access or read-only, expiring, revocable, and last used; every change made with one audited with the token's name; a deactivated person's tokens stop; the proxy configuration lets requests with a token through to Pinax; the guide has a script that downloads a month's chargeback statement | Done |
 | 3 | The audit log in the app (O6) | A page of every audit event, for administrators and auditors: filtered by person, action, folder, and date, newest first, paged, with CSV | Done |
-| 4 | Access review (A7) | Who has access to what, for review and sign-off: each lab's and department's members and roles, each site role's holders, and the folders each can see, with when each was given; CSV; for administrators and auditors | Next |
-| 5 | Release 0.12.0 | The demo walk-through for each role; version 0.12.0, changelog, pull request, tag, release | To come |
+| 4 | Access review (A7) | Who has access to what, for review and sign-off: each lab's and department's members and roles, each site role's holders, and the folders each can see, with when each was given; CSV; for administrators and auditors | Done |
+| 5 | Release 0.12.0 | The demo walk-through for each role; version 0.12.0, changelog, pull request, tag, release | Next |
 
 ### Decisions for wave 12
 
@@ -1347,6 +1347,11 @@ reach, at the maintainer's request.
   only with a token, never the sign-on header. With local sign-in, a token works on either path.
 - **No token makes tokens.** Tokens are made, revoked, and passwords changed only in Pinax's pages, so a token that
   leaks cannot make itself another.
+- **A review's sign-off is a record, not a change.** Recording that access was reviewed changes no one's access, so
+  auditors, whose work it often is, may record it as administrators may. It is kept in the audit log, with how much
+  access there was, rather than in a table of its own.
+- **When access was given is recorded from now on.** Earlier grants say *Not recorded* rather than a guess from
+  the audit log, whose older events do not all name what they changed.
 
 ### Slices as built
 
@@ -1428,6 +1433,27 @@ reach, at the maintainer's request.
      as recorded; a change made with a token.
    - *Done*: in the browser as an auditor, every filter, paging, and the CSV, at 375 pixels and in both themes; the
      administration guide's *The audit log*, with a screenshot; the walk-through's step 18.
+4. **Access review (A7).**
+   - Migration `0005`: `user.admin_since` and `lab_membership.granted_at`, set by SQLAlchemy attribute events on
+     `User.is_admin` and `LabMembership.role`, so the people page, `pinax import`, `pinax user add`, and the seed all
+     record them; a role changed (delegate to PI) is given again. `user_role.granted_at` was there already.
+   - `review.py`: active people and labs only. Site roles, administrators first, each with its date; each lab's
+     members (PI first) with theirs, the heads of its division, and its folders with when the lab came to own each
+     (the latest stretch of `folder_owner` with the current owner, where Pinax recorded a change); each person's
+     access, the folders they see and through what, live tokens, and last sign-in; what is worth a look; the counts,
+     with deactivated people and labs; the latest sign-offs. The CSV has a row for each piece of access, and *none*
+     for someone who sees nothing.
+   - `GET /api/admin/access-review` (`fmt=csv`) and `POST /api/admin/access-review/sign-off`, both
+     `require_sees_all`; the sign-off is audited as `access.reviewed` with a note and the counts.
+   - *Access review* (`#/access-review`, the sidebar of administrators and auditors): the counts, *Find* across every
+     list, *Worth a look*, *Site roles*, *Labs and departments*, *People* (folders behind *Details*), *Reviews*, and
+     *Record a review*. The sidebar marks a page by its own route only, so *People and access* is not marked on it.
+   - Demo: memberships and administrators dated from the first scan; Helen Marsh has recorded a review.
+   - Tests (`tests/test_review.py`): who may read it and sign off; site roles, labs, people, and what is worth a look;
+     deactivated people and labs left out; dates given, not recorded, and given again; a folder's date; tokens and,
+     with local sign-in, people who have not signed in; the sign-off audited, changing nothing; the CSV.
+   - *Done*: in the browser as an auditor: *Find*, a review recorded, at 375 pixels and in both themes; the
+     administration guide's *Access review*, with a screenshot; the walk-through's step 19.
 
 ## Later waves (outlined)
 
