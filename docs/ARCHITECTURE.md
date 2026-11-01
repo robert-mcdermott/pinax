@@ -246,7 +246,7 @@ folder must still exist for this part of the check. At 100 million files (2.44 m
 nearly all of it the two rollups, and every directory was equal (between two synthetic scans with the same
 contents). Between changed scans from `synth_scan.py --evolve` at one million files, comparing takes 0.2 seconds
 of a six-second build and checking it 1.1 seconds, every directory equal; changed scans at 100 million files wait
-for server-class hardware (wave 12).
+for server-class hardware (wave 13).
 
 ## Real filesystems
 
@@ -274,7 +274,7 @@ A real scan was checked the same way: the maintainer's documents folder on a lap
 builds in 0.8 s and every query takes under 25 ms. It also showed common types that were counted as *other*:
 camera photo and video formats, macro-enabled spreadsheets, diagrams, executables, and disk images, 35% of its
 bytes. With those added, *other* is 0.8% of its bytes, nearly all of it files without an extension. Production
-storage, with many owners and a billion files, is measured in wave 12.
+storage, with many owners and a billion files, is measured in wave 13.
 
 ## Querying
 
@@ -639,7 +639,7 @@ million, so minutes at two billion, beyond the time limit), and is best asked of
 from synthetic data, which has about 41 files per folder; production filesystems often have fewer, so two billion
 files may mean 50 to 200 million folders, beyond anything measured so far. Reports that read every folder of a
 whole filesystem, like the folder lists of *What changed* (about 0.1 s per 250,000 folders here) and the icicle
-and sunburst of a filesystem's root (about 2 ms per million folders), grow with them. The pilot (wave 12) measures
+and sunburst of a filesystem's root (about 2 ms per million folders), grow with them. The pilot (wave 13) measures
 production storage.
 
 Index size is about 56 bytes per file, mostly the per-file Parquet (which is kept sorted and compressed). A
