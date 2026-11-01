@@ -690,6 +690,12 @@ pre.json { background: var(--surface-2); color: var(--text); border: 1px solid v
 .input.sm { width: 140px; }
 .toolbar .grow { flex: 1; min-width: 220px; }
 .toolbar .grow .input { width: 100%; }
+/* The audit log: an event's recorded detail, opened under its summary. */
+.table.audit td:nth-child(3) { overflow-wrap: anywhere; }  /* long paths break rather than widen the table */
+.audit-detail { margin-top: 4px; }
+.audit-detail summary { cursor: pointer; color: var(--accent-text); width: max-content; }
+.audit-detail .kv { margin: 6px 0 2px; font-size: 12.5px; }
+.audit-detail dd { overflow-wrap: anywhere; }
 
 /* ---------- Treemap ---------- */
 .explore-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
@@ -881,6 +887,8 @@ body:not(.can-administer) .admin-only { display: none !important; }
 @media (max-width: 600px) {
   .hide-narrow { display: none; }
   .charge-total { align-items: flex-start; }
+  .table.audit th { width: auto !important; }  /* the summary takes what the time and person leave */
+  .table.audit td { padding: 10px 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

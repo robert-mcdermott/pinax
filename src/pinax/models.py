@@ -498,14 +498,18 @@ class Heartbeat(Base):
 
 
 class AuditEvent(Base):
+    """Who changed what, and every sign-in (audit.py). `actor` None: from the command line (`detail.by`) or Pinax
+    itself. `address`: where the request came from, for changes made in the app."""
+
     __tablename__ = "audit_event"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     ts: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
-    actor_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"), nullable=True)
-    action: Mapped[str] = mapped_column(String(64))
+    actor_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"), nullable=True, index=True)
+    action: Mapped[str] = mapped_column(String(64), index=True)
     summary: Mapped[str] = mapped_column(Text)
     detail: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    address: Mapped[str] = mapped_column(String(64), default="", server_default="")
 
     actor: Mapped[User | None] = relationship()
 

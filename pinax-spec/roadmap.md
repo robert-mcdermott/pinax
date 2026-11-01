@@ -1317,8 +1317,8 @@ reach, at the maintainer's request.
 | --- | --- | --- | --- |
 | 1 | Roles (A10) | Auditor, finance, and division head beside storage administrator, PI, and delegate; given and taken away in *People and access*, and audited; each role's access checked on the server for every request, with tests for each role as A1 has for labs (what it sees, what answers 403 or 404, and that it changes nothing it may not); the sidebar and pages show each role what it may use; the demo has a person in each | Done |
 | 2 | API tokens for scripts (A11) | Personal tokens, and service tokens for a named service, stored hashed and shown once, with their person's access or read-only, expiring, revocable, and last used; every change made with one audited with the token's name; a deactivated person's tokens stop; the proxy configuration lets requests with a token through to Pinax; the guide has a script that downloads a month's chargeback statement | Done |
-| 3 | The audit log in the app (O6) | A page of every audit event, for administrators and auditors: filtered by person, action, folder, and date, newest first, paged, with CSV | Next |
-| 4 | Access review (A7) | Who has access to what, for review and sign-off: each lab's and department's members and roles, each site role's holders, and the folders each can see, with when each was given; CSV; for administrators and auditors | To come |
+| 3 | The audit log in the app (O6) | A page of every audit event, for administrators and auditors: filtered by person, action, folder, and date, newest first, paged, with CSV | Done |
+| 4 | Access review (A7) | Who has access to what, for review and sign-off: each lab's and department's members and roles, each site role's holders, and the folders each can see, with when each was given; CSV; for administrators and auditors | Next |
 | 5 | Release 0.12.0 | The demo walk-through for each role; version 0.12.0, changelog, pull request, tag, release | To come |
 
 ### Decisions for wave 12
@@ -1405,6 +1405,29 @@ reach, at the maintainer's request.
    - *Done*: tokens made, shown once, and revoked in the browser, at 375 pixels and in both themes; the guide's
      script run against the demo with a service token, saving a month's final statement; the user guide's *API
      tokens for scripts* and the administration guide's *API tokens*, with a screenshot.
+3. **The audit log in the app (O6).**
+   - `audit.py`: filters combined as one query, newest first: a person (events they made, `actor_id`, and those
+     about them, `detail.username`), an action or a kind (`plan` for `plan.*`), a lab (`detail.lab`, folders mapped
+     to or from it, and events whose `detail.path` is in one of its folders now, since a folder's tag records the
+     tag's lab, not the folder's), a folder (`detail.path` equal or below, with `LIKE` wildcards escaped, and
+     `folder.mapped` of its top-level folder, recorded by filesystem and folder name), and days (UTC). Paths are
+     shown with display roots; the CSV keeps what was recorded, streamed a thousand rows at a time from a session of
+     its own.
+   - Migration `0004`: the audit event's `address`, set for every event a request makes (the `before_flush` event
+     that names a token), and indexes on `action` and `actor_id`. Sign-ins from before keep theirs in the detail,
+     which the log falls back to.
+   - `GET /api/admin/audit` (`require_sees_all`): a page (50, at most 500), the total, every action recorded with
+     its count, and the people and labs to choose from; `fmt=csv` for every one.
+   - *Audit log* (`#/audit`, the sidebar of administrators and auditors): the filters in one form, the count, each
+     change's time, person (or command line, or Pinax) and token, summary and action, address, and *Details*;
+     *Newer* and *Older*; *Download CSV*. Links from a person's and a lab's recent changes and from *Recent
+     activity*. Long paths break, so the table fits 375 pixels.
+   - Demo: site roles given by the demo's administrator through `people.save_person`, so they are audited.
+   - Tests (`tests/test_audit.py`): who may read it; order, who, where, and display roots; each filter alone and
+     together; folders (a prefix that is not a parent, and wildcards); mistakes named (404 or 422); paging; the CSV
+     as recorded; a change made with a token.
+   - *Done*: in the browser as an auditor, every filter, paging, and the CSV, at 375 pixels and in both themes; the
+     administration guide's *The audit log*, with a screenshot; the walk-through's step 18.
 
 ## Later waves (outlined)
 

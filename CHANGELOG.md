@@ -24,6 +24,12 @@ Wave 12 ("access"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
   script sends it as `Authorization: Bearer …` to `/script/api/...`, which the sign-on proxy's configuration now
   lets through and Pinax answers only with a token; the user guide has a script that downloads a month's
   chargeback statement ([API tokens for scripts](docs/USER-GUIDE.md#api-tokens-for-scripts)).
+- **The audit log in the app.** *Audit log*, for administrators and auditors: every change and sign-in, newest
+  first, 50 a page, with who made it, the token it was made with, the address it came from, and its recorded detail;
+  found by person (changes they made and changes to them), action or kind of action, lab, folder (and the folders
+  in it), and days; *Download CSV* has every one that matches. A person's and a lab's recent changes link to theirs.
+  Every audit event now records the address of the request that made it. The demo's site roles are given by its
+  administrator, so they are in its audit log.
 
 ### Changed
 
@@ -31,9 +37,9 @@ Wave 12 ("access"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
   which work with every way of signing in. The pilot moves to wave 13; reach (wave 14) keeps optional sign-in with
   Entra ID (with notes from Tundra's), local sign-in's two-factor codes and per-address limits, CI and the
   container image, and the security review; hardening is wave 15 (1.0.0).
-- **The catalog's first migrations since its baseline**: `0002` adds the `user_role` table and `0003` the
-  `api_token` table; Pinax applies them when it starts, or `pinax db upgrade` does where
-  `PINAX_DB_AUTO_UPGRADE=false`.
+- **The catalog's first migrations since its baseline**: `0002` adds the `user_role` table, `0003` the
+  `api_token` table, and `0004` the audit event's address, with indexes on its action and person; Pinax applies them
+  when it starts, or `pinax db upgrade` does where `PINAX_DB_AUTO_UPGRADE=false`.
 - **The oauth2-proxy configuration** (`deploy/oauth2-proxy/pinax.cfg`) lets `/script/api/` through without signing
   in, for scripts with API tokens; copy the new `skip_auth_routes` line to an installed one.
 

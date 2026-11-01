@@ -242,7 +242,25 @@ done.
 ## The audit log
 
 Every change made in the app, by import, and from the command line, and every sign-in with local sign-in, is in the
-audit log: who made it, when, from where, and what changed. A person's and a lab's page show their recent changes;
-*All data* shows the latest under *Recent activity*. Each event is also written to Pinax's log once its change is
-committed, and to `PINAX_AUDIT_LOG` if it is set, for a site's security monitoring ([Logs](DEPLOYMENT.md#logs)). A
-change made with an API token names the token. The whole log is the catalog's `audit_event` table ([Monitoring and operations](DEPLOYMENT.md#monitoring-and-operations)).
+audit log: who made it, when, from where, and what changed. *Audit log*, in the sidebar of administrators and
+auditors, shows it newest first, 50 changes a page, each with its time, who made it (or *Command line* with the
+account that ran it, or *Pinax* for scans it ingested), the API token it was made with, the address it came from,
+and what it changed; *Details* opens what was recorded. Find changes by any of:
+
+- **Person**: changes they made, and changes made to them (their roles, labs, and tokens).
+- **Change**: one action, such as `plan.added`, or every one of a kind, such as every change to cleanup plans.
+- **Lab or department**: changes to it, its members, its plan, its own tags, and its folders, and folders given to
+  it or taken from it.
+- **Folder**: changes to a folder and the folders in it, and to who owns the top-level folder it is in (choose its
+  filesystem and give its path within it, such as `dasgupta_r/sequencing`); a filesystem alone, every folder on it.
+- **From** and **To**: the days, in UTC.
+
+**Download CSV** has every change that matches, as recorded, with its detail as JSON. A person's and a lab's page
+show their recent changes, with *All* for the rest; *All data* shows the latest under *Recent activity*.
+
+![The audit log](images/audit-log-light.webp "Helen Marsh, an auditor, reads the audit log: the demo's latest changes and who made them, made by pinax seed, so from no address.")
+
+Each event is also written to Pinax's log once its change is committed, and to `PINAX_AUDIT_LOG` if it is set, for
+a site's security monitoring ([Logs](DEPLOYMENT.md#logs)). Changes made before 0.12.0 have no address, except
+sign-ins. The whole log is the catalog's `audit_event` table
+([Monitoring and operations](DEPLOYMENT.md#monitoring-and-operations)).

@@ -31,10 +31,10 @@ from pathlib import Path
 import duckdb
 from sqlalchemy import select
 
-from . import capacity, costs, plans, tags
+from . import capacity, costs, people, plans, tags
 from .config import Settings, get_settings
 from .db import init_db, reset_catalog, reset_engine, session_scope
-from .models import AuditEvent, Filesystem, Lab, LabFolder, LabMembership, User, UserRole
+from .models import AuditEvent, Filesystem, Lab, LabFolder, LabMembership, User
 from .snapshots import indexes, ingest_scan
 
 KB, MB, GB, TB = 1000, 1000**2, 1000**3, 1000**4
@@ -780,12 +780,14 @@ def run_seed(scale: float = 1.0) -> None:
             s.flush()
             for slug, role in memberships:
                 s.add(LabMembership(user_id=u.id, lab_id=labs[slug].id, role=role))
-        users = {u.username: u for u in s.scalars(select(User))}
-        for username, role, division in DEMO_ROLES:
-            s.add(UserRole(user_id=users[username].id, role=role, division=division))
         s.add(AuditEvent(action="demo.seeded", summary="Demo data created by pinax seed"))
         s.flush()
         admin = s.scalar(select(User).where(User.is_admin.is_(True)).order_by(User.id).limit(1))
+        users = {u.username: u for u in s.scalars(select(User))}
+        for username, role, division in DEMO_ROLES:  # given by an administrator, as on a person's page
+            u = users[username]
+            people.save_person(s, admin, u, {"display_name": u.display_name, "email": u.email, "title": u.title,
+                                             "is_admin": u.is_admin, "roles": [{"role": role, "division": division}]})
         prices, free = demo_costs(now)
         for fs, starts, amount, unit in prices:
             costs.add_price(s, admin, fss[fs], starts, amount, unit)

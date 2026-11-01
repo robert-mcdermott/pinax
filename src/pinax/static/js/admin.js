@@ -63,7 +63,7 @@ export async function viewOverview(el) {
             <li><span>${icon("alert")}</span><span><b>${num(errors)} scan errors</b>, such as folders the scanner could not open, so their totals are lower bounds. <a href="#/health">Review</a></span></li>
             <li><span>${icon("tag")}</span><span><b>${num(names)} problem file names</b> that break scripts and migrations. <a href="#/health">Review</a></span></li>
           </ul></div>
-        <div class="card"><div class="card-head"><h2>Recent activity</h2></div>
+        <div class="card"><div class="card-head"><h2>Recent activity</h2><a class="small" href="#/audit">Audit log</a></div>
           <ul class="feed">${ov.activity.map((a) => html`<li><span class="when">${when(a.ts)}</span><span>${a.summary}</span></li>`)}</ul></div>
       </div>
     </div>
@@ -447,7 +447,7 @@ export async function viewPerson(el, username) {
               : form.is_admin || has("auditor") || has("finance") ? "" : html`<p class="small muted" style="margin-top:8px">No folders. Add a lab or department that owns folders.</p>`}</div>
           ${person ? html`<div class="card"><h3>Record</h3><dl class="kv" style="margin-top:10px">
             <dt>Added</dt><dd>${date(person.created_at)}</dd></dl>
-            ${person.history.length ? html`<h3 style="margin-top:14px">Recent changes</h3><ul class="feed">${person.history.map((h) => html`<li style="padding:6px 0"><span><span class="small">${h.summary}</span><br>
+            ${person.history.length ? html`<div class="row between" style="margin-top:14px"><h3>Recent changes</h3><a class="small" href="#/audit?person=${encodeURIComponent(person.username)}">All</a></div><ul class="feed">${person.history.map((h) => html`<li style="padding:6px 0"><span><span class="small">${h.summary}</span><br>
               <span class="tiny muted">${date(h.ts, true)}${h.by ? ` · ${h.by}` : ""}${h.token ? ` · with the token “${h.token}”` : ""}</span></span></li>`)}</ul>` : ""}</div>` : ""}
           ${person ? personTokens(person) : ""}
           ${person && state.config.auth_mode === "local" && state.me.is_admin ? html`<div class="card"><h3>Password</h3>
@@ -630,7 +630,7 @@ export async function viewLab(el, slug) {
               : html`<p class="small muted" style="margin-top:8px">None mapped.</p>`}
             <a class="small" href="#/folders?lab=${encodeURIComponent(lab.slug)}">${lab.folders.length ? "Change" : "Map folders"} on Folders and labs</a></div>
           <div class="card"><h3>Record</h3><dl class="kv" style="margin-top:10px"><dt>Added</dt><dd>${date(lab.created_at)}</dd></dl>
-            ${lab.history.length ? html`<h3 style="margin-top:14px">Recent changes</h3><ul class="feed">${lab.history.map((h) => html`<li style="padding:6px 0"><span><span class="small">${h.summary}</span><br>
+            ${lab.history.length ? html`<div class="row between" style="margin-top:14px"><h3>Recent changes</h3><a class="small" href="#/audit?lab=${encodeURIComponent(lab.slug)}">All</a></div><ul class="feed">${lab.history.map((h) => html`<li style="padding:6px 0"><span><span class="small">${h.summary}</span><br>
               <span class="tiny muted">${date(h.ts, true)}${h.by ? ` · ${h.by}` : ""}${h.token ? ` · with the token “${h.token}”` : ""}</span></span></li>`)}</ul>` : ""}</div>
           ${lab.active ? html`<div class="card admin-only"><h3>Deactivate</h3>
             <p class="small muted" style="margin-top:8px">Its members will no longer see its folders. Its members and folders are kept, unused, and come back if you reactivate it; its folders are still charged to it until you move or unmap them. Nothing is deleted.</p>

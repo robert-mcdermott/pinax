@@ -14,7 +14,8 @@ a log collector (PINAX_LOG_FORMAT), to standard error or to PINAX_LOG_FILE (reop
 - **Audit.** Every audit event (models.AuditEvent: who changed what, every sign-in) is also logged by `pinax.audit`
   once its change is committed, and only then: one rolled back never happened. PINAX_AUDIT_LOG writes them to a file
   of their own as well, as JSON lines, for a site's security monitoring. From the command line, the line names the
-  account that ran it. A change made with an API token is audited with the token's name (`token` in its detail).
+  account that ran it. An event made by a request records the person's address; one made with an API token, the
+  token's name (`token` in its detail).
 - **Never logged:** passwords, session cookies, API tokens, request bodies, or query strings.
 """
 
@@ -266,14 +267,19 @@ def _os_user() -> str:
 
 
 @event.listens_for(Session, "before_flush")
-def _with_token(session: Session, _context, _instances) -> None:
+def _from_request(session: Session, _context, _instances) -> None:
+    """An audit event made by a request records where it came from, and the API token it came with."""
     from .models import AuditEvent
 
     info = current.get()
-    if info is None or not info.token:
+    if info is None:
         return
     for obj in session.new:
-        if isinstance(obj, AuditEvent) and "token" not in (obj.detail or {}):
+        if not isinstance(obj, AuditEvent):
+            continue
+        if not obj.address:
+            obj.address = info.address[:64]
+        if info.token and "token" not in (obj.detail or {}):
             obj.detail = {**(obj.detail or {}), "token": info.token}
 
 

@@ -598,6 +598,9 @@ the month shows at once; adding up the ranges overstates the range); storage no 
   the heads of its division (a site role, `user_role`), see its folders. Only storage administrators change the
   site's settings (`require_admin`), and only a lab's PI and delegates, or an administrator, tag its folders or plan
   its cleanup. Reads an administrator once made alone take `require_sees_all` or `require_sees_charges`.
+- **The audit log** (`audit.py`, *Audit log*), for those who see everything: found by person (by or about them),
+  action or kind, lab (by name, and by the paths of its folders), folder (by path prefix, with `LIKE` wildcards
+  escaped, and the mapping of its top-level folder), and day; paged, or streamed as CSV from a session of its own.
 - File queries read only the Parquet files of the top-level folders in scope.
 - People, labs, memberships, and folder ownership use the same model as Tundra (`Lab`, `LabFolder`,
   `User`, `LabMembership`); changes are audited. People are never deleted: a deactivated person cannot sign in,
@@ -608,7 +611,7 @@ the month shows at once; adding up the ranges overstates the range); storage no 
 - **Logs** (`logs.py`): one line for each request to the API, with a request ID (returned as `X-Request-ID`), the
   person, and their address (behind a trusted proxy, from `X-Forwarded-For`), and every audit event once its change
   is committed (a SQLAlchemy event on the session, so every place that audits is covered), optionally to a file of
-  its own as JSON lines. Never a password, session token, API token, request body, or query string; the catalog's address is
+  its own as JSON lines. Another such event records each audit event's address, and its API token's name. Never a password, session token, API token, request body, or query string; the catalog's address is
   logged without its password.
 - **Metrics** (`metrics.py`, `/metrics`): off until `PINAX_METRICS_TOKEN` is set, then only with it (compared in
   constant time). They name filesystems, never labs, people, or paths. Figures from the catalog are worked out when
