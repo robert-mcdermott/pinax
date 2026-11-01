@@ -20,24 +20,31 @@ snapshot index that makes it fast, how it is built and queried, security, and me
 ## Components
 
 ```text
-   Storage nodes / scan hosts                        Pinax server
-   ┌──────────────────────────────┐                  ┌──────────────────────────────────────────────┐
-   │ fs-inventory scan  (Rust,    │   scan folder    │ pinax ingest  (DuckDB)                       │
-   │ parallel, resumable, read-   │ ───────────────► │   scan -> snapshot index                     │
-   │ only) -> Parquet + manifest  │  (shared path)   │   var/snapshots/<fs>/<scan>/                 │
-   └──────────────────────────────┘                  │     index.duckdb    directory-level tables   │
-                                                     │     files/gNNNNNN/  per-file Parquet, by     │
-                                                     │                     group of top folders     │
-                                                     │                                              │
-                                                     │ catalog (SQLite, or PostgreSQL)              │
-                                                     │   people, labs, folder ownership,            │
-                                                     │   filesystems, snapshots, folder history     │
-                                                     │                                              │
-                                                     │ FastAPI  /api  ── read-only DuckDB cursors   │
-                                                     │ static UI (HTML, CSS, JS modules; no build)  │
-                                                     └──────────────────────────────────────────────┘
-                                                                   ▲ HTTPS (SSO proxy in front)
-                                                         PIs, lab members, IT
+  Storage nodes or scan hosts
+  ┌──────────────────────────────────────────────────┐
+  │ fs-inventory scan (Rust; parallel, resumable,    │
+  │ read-only) -> Parquet files and a manifest       │
+  └──────────────────────────────────────────────────┘
+                          │ scan folder (a shared path)
+                          ▼
+  Pinax server
+  ┌──────────────────────────────────────────────────┐
+  │ pinax ingest (DuckDB): scan -> snapshot index    │
+  │   var/snapshots/<fs>/<scan>/                     │
+  │     index.duckdb    directory-level tables       │
+  │     files/gNNNNNN/  per-file Parquet, by group   │
+  │                     of top-level folders         │
+  │                                                  │
+  │ catalog (SQLite, or PostgreSQL)                  │
+  │   people and roles, labs, folder ownership,      │
+  │   filesystems, snapshots, folder history, ...    │
+  │                                                  │
+  │ FastAPI /api ── read-only DuckDB cursors         │
+  │ static UI (HTML, CSS, JS modules; no build)      │
+  └──────────────────────────────────────────────────┘
+                          ▲ HTTPS, through oauth2-proxy (single
+                          │ sign-on) or nginx/Caddy (passwords)
+  PIs, lab members, finance, auditors, IT, and scripts
 ```
 
 | Piece | Choice | Why |
@@ -582,6 +589,8 @@ the month shows at once; adding up the ranges overstates the range); storage no 
   - `header`: trusts a username header set by a single sign-on proxy, as Tundra does, and only on requests that
     come straight from the proxy's address (`PINAX_TRUSTED_PROXIES`); the same header from anywhere else is
     refused. `scripts/sso-check.py` checks this behind a real oauth2-proxy.
+  - Planned for wave 14: sign-in with Microsoft Entra ID (or another OpenID Connect provider) in Pinax
+    itself, as Tundra does it (`TUNDRA_AUTH_MODE=oidc`), with no sign-on proxy; `local` and `header` stay.
 - **API tokens** (`tokens.py`), with every way of signing in: `Authorization: Bearer pinax_…`, 256 random bits, of
   which the catalog keeps only the SHA-256 and the first characters. A personal token takes its person's access as
   it is at each request, or reads only (GET, and starting a search); a service token belongs to no one and reads as
@@ -706,7 +715,7 @@ uv run python bench/bench_charges.py --folders 2000 --weeks 52
 | `pinax seed` writes demo trees of sparse files and scans them with fs-inventory | Scheduled fs-inventory scans on storage nodes or scan hosts | Pinax ingests any complete Parquet scan |
 | Demo owners rewritten to fictional accounts, and demo scans dated a month apart | Real owners and times from the scan | Only `seed.py` rewrites scans, only its own demo scans |
 | SQLite catalog | SQLite on one server, or PostgreSQL | Migrations upgrade either in place ([The catalog database](#the-catalog-database)) |
-| Demo identity switcher | Single sign-on proxy, `PINAX_AUTH_MODE=header` | Checked behind oauth2-proxy 7.15 with a stand-in identity provider |
+| Demo identity switcher | Single sign-on through a proxy (`PINAX_AUTH_MODE=header`), or passwords Pinax keeps (`local`) | Checked behind oauth2-proxy 7.15 with a stand-in identity provider; sign-in with Entra ID in Pinax itself, with no proxy, is planned for wave 14 |
 | People, labs, and folder mappings managed in the app | The same, fed from the authoritative source; until then imported from CSV (`pinax import`) | Same model as Tundra |
 | One server | Web and ingest can run on separate hosts sharing `var/snapshots` | Indexes are replaced, never changed in place; keep every ingest on one host, since the ingest lock is a file lock in `PINAX_VAR_ROOT` |
 

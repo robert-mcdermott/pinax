@@ -8,20 +8,33 @@ pilot installation (wave 13 in `pinax-spec/roadmap.md`) will confirm it on a rea
 ## Shape of a deployment
 
 ```text
-  browser ──► oauth2-proxy (sign-on, :443 or :4180) ──► pinax-web (127.0.0.1:8001)
-                                                              │ reads
-  pinax-scan@fast.timer ──► fs-inventory scan ──► /var/lib/pinax/scans/fast/<date>/
-                                                              │ watched by
-                                                       pinax-ingest ──► /var/lib/pinax/snapshots/
+  Signing in
+    browsers, and scripts with API tokens
+        │ HTTPS
+        ▼
+    oauth2-proxy (single sign-on)  or  nginx/Caddy (HTTPS only)
+        │
+        ▼
+    pinax-web, on 127.0.0.1:8001 ──reads──► catalog and indexes
+
+  Scanning and indexing (paths under /var/lib/pinax)
+    pinax-scan@fast.timer ──► fs-inventory ──► scans/fast/<date>/
+    pinax-ingest, watching scans/ ──► an index in snapshots/
 ```
 
+- **Signing in** is one of two ways today. With **single sign-on**, oauth2-proxy signs people in with an OpenID
+  Connect provider such as Microsoft Entra ID and passes each person's username to Pinax in a header (step 6).
+  Without it, Pinax keeps **passwords** itself, behind an HTTPS proxy such as nginx or Caddy
+  ([Signing in without single sign-on](#signing-in-without-single-sign-on)). Sign-in with Entra ID in Pinax itself,
+  as Tundra does it, with nginx or a load balancer only for HTTPS and no oauth2-proxy, is planned for wave 14 in
+  `pinax-spec/roadmap.md`; both of today's ways will stay.
 - **Scans** run where the filesystem is mounted with good metadata performance: the Pinax server itself (the
   `pinax-scan@` timer), or a storage node or NFS client that writes into the scan folder. fs-inventory reads
   only metadata, never file contents.
 - **Ingest** (`pinax-ingest`) watches the scan folder and builds an index from each new scan. It needs the scan
   folder, not the filesystem.
 - **The web app** (`pinax-web`) reads only `/var/lib/pinax`: the catalog and the indexes. It listens on this
-  host only, and believes the username header only from oauth2-proxy.
+  host only, and with single sign-on believes the username header only from the proxy (`PINAX_TRUSTED_PROXIES`).
 
 ## What you need
 
@@ -31,7 +44,8 @@ pilot installation (wave 13 in `pinax-spec/roadmap.md`) will confirm it on a rea
 - Read access to the filesystems' metadata from the host that scans them.
 - A way for people to sign in, one of:
   - **single sign-on**: an OpenID Connect identity provider (for example Microsoft Entra ID) and
-    [oauth2-proxy](https://oauth2-proxy.github.io/oauth2-proxy/) 7 (step 6);
+    [oauth2-proxy](https://oauth2-proxy.github.io/oauth2-proxy/) 7 (step 6), until Pinax signs in with Entra ID
+    itself (planned for wave 14);
   - **passwords Pinax keeps**, for a site without single sign-on: an HTTPS reverse proxy such as nginx or Caddy
     in front of Pinax ([Signing in without single sign-on](#signing-in-without-single-sign-on)).
 
@@ -136,6 +150,9 @@ running as root. If scans run on another host instead, skip the timer and have t
 
 ### 6. Sign-on with oauth2-proxy
 
+Pinax does not yet sign people in with an identity provider itself (that is planned for wave 14), so single sign-on
+goes through oauth2-proxy, in front of Pinax:
+
 1. Register an application with the identity provider, with the redirect URI
    `https://pinax.example.org/oauth2/callback`, and create a client secret.
 2. Install oauth2-proxy 7 (7.3 or later, for `upstream_timeout`) as `/usr/local/bin/oauth2-proxy`, and a system
@@ -196,8 +213,8 @@ principal name, such as `jdoe@example.org`), so a site that may move should use 
 curl -s http://127.0.0.1:8001/api/health
 ```
 
-It answers `{"status": "ok", ...}`. Sign in through oauth2-proxy as an administrator and open *Scans*:
-*Automatic ingest* should say *Watching*. Run the first scan rather than waiting for Sunday:
+It answers `{"status": "ok", ...}`. Sign in as an administrator (through oauth2-proxy, or with your password) and
+open *Scans*: *Automatic ingest* should say *Watching*. Run the first scan rather than waiting for Sunday:
 
 ```bash
 sudo systemctl start pinax-scan@fast
