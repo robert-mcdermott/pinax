@@ -1316,8 +1316,8 @@ reach, at the maintainer's request.
 | Slice | Scope and requirements | Acceptance before the next slice | Status |
 | --- | --- | --- | --- |
 | 1 | Roles (A10) | Auditor, finance, and division head beside storage administrator, PI, and delegate; given and taken away in *People and access*, and audited; each role's access checked on the server for every request, with tests for each role as A1 has for labs (what it sees, what answers 403 or 404, and that it changes nothing it may not); the sidebar and pages show each role what it may use; the demo has a person in each | Done |
-| 2 | API tokens for scripts (A11) | Personal tokens, and service tokens for a named service, stored hashed and shown once, with their person's access or read-only, expiring, revocable, and last used; every change made with one audited with the token's name; a deactivated person's tokens stop; the proxy configuration lets requests with a token through to Pinax; the guide has a script that downloads a month's chargeback statement | Next |
-| 3 | The audit log in the app (O6) | A page of every audit event, for administrators and auditors: filtered by person, action, folder, and date, newest first, paged, with CSV | To come |
+| 2 | API tokens for scripts (A11) | Personal tokens, and service tokens for a named service, stored hashed and shown once, with their person's access or read-only, expiring, revocable, and last used; every change made with one audited with the token's name; a deactivated person's tokens stop; the proxy configuration lets requests with a token through to Pinax; the guide has a script that downloads a month's chargeback statement | Done |
+| 3 | The audit log in the app (O6) | A page of every audit event, for administrators and auditors: filtered by person, action, folder, and date, newest first, paged, with CSV | Next |
 | 4 | Access review (A7) | Who has access to what, for review and sign-off: each lab's and department's members and roles, each site role's holders, and the folders each can see, with when each was given; CSV; for administrators and auditors | To come |
 | 5 | Release 0.12.0 | The demo walk-through for each role; version 0.12.0, changelog, pull request, tag, release | To come |
 
@@ -1339,6 +1339,14 @@ reach, at the maintainer's request.
   settings (administrator); a lab's data is seen by its members and its division's heads, and changed by its PI and
   delegates. Pages show only what a person may use, but the server decides.
 - **A token is never more than its person**: it carries their access, or less (read-only), and stops with them.
+- **A service token is no one's, and only reads.** A finance system or a dashboard should not stop when whoever set
+  it up leaves, nor act for anyone: an administrator makes it for a named service, and it reads as finance or as an
+  auditor. Changes through the API are made with a person's own token, in their name.
+- **Scripts get past a sign-on proxy on a path of their own.** oauth2-proxy chooses what to let through by path,
+  not by header, so `/script/api/...` is `/api/...` for scripts: the proxy lets it through, and Pinax answers it
+  only with a token, never the sign-on header. With local sign-in, a token works on either path.
+- **No token makes tokens.** Tokens are made, revoked, and passwords changed only in Pinax's pages, so a token that
+  leaks cannot make itself another.
 
 ### Slices as built
 
@@ -1366,6 +1374,37 @@ reach, at the maintainer's request.
      lab. The migration tests follow the newest revision.
    - *Done*: each role checked in the browser on a demo of its own; roles given on a person's page and audited; the
      administration guide's *Site roles*, with screenshots.
+2. **API tokens for scripts (A11).**
+   - `api_token` (migration `0003`): a token's name, the SHA-256 of its secret (`pinax_` and 43 random characters)
+     and its first characters, its person (none for a service token) or its role (`auditor`, `finance`), whether it
+     only reads, who made it and when, when it expires, when and from where it was last used, and when and by whom it
+     was revoked. Ended tokens are kept, for the audit log, and listed for 90 days.
+   - `tokens.py`: making (a week to `PINAX_TOKEN_MAX_DAYS`, 365 by default; a name unique among the owner's live
+     tokens), finding a live token (not expired or revoked, its person active), what it may do (reading only: GET,
+     and a person's starting a search; no token on `/api/tokens`, `/api/admin/tokens`, or `/api/auth/`), revoking,
+     and revoking a person's tokens when they are deactivated. Making and revoking are audited (`token.made`,
+     `token.revoked`), in the person's history.
+   - `auth.current_identity` takes `Authorization: Bearer` first, in every mode: a personal token is its person as
+     they are now (`identity_for`), a service token a person never stored, with no labs and the token's role. The
+     request's log line names the person (`service:<name>` for a service), and `logs` stamps the token's name on
+     every audit event the request adds (a `before_flush` event, so every place that audits is covered).
+     `auth.ScriptPrefix` turns `/script/api/...` into `/api/...` and marks it token-only;
+     `deploy/oauth2-proxy/pinax.cfg` lets it through.
+   - *API tokens* (`#/tokens`, the menu under everyone's name, and the sidebar for administrators and auditors):
+     one's own tokens, made with a name, a lifetime, and reading only or one's access, shown once with an example;
+     service tokens; everyone else's; revoking. A person's page lists their tokens to revoke; recent changes say
+     which token made them.
+   - Demo: five tokens (a finance analyst's monthly ledger import, a PI's pipeline that tags with her access, a
+     data manager's weekly report, an administrator's capacity forecast, and two service tokens), made and used in
+     the past; their secrets are thrown away.
+   - Tests (`tests/test_tokens.py`): reading as the person and nothing more, the secret stored hashed and never
+     logged; changes with a token's access audited with its name, and following the person's access; expiry,
+     revoking (one's own, an administrator's, not someone else's), and deactivation; no token on the token or
+     password routes; names and lifetimes; service tokens (outliving their maker, what each role reads, reading
+     only); scripts through the sign-on proxy on `/script/api/`, where the sign-on header does not count.
+   - *Done*: tokens made, shown once, and revoked in the browser, at 375 pixels and in both themes; the guide's
+     script run against the demo with a service token, saving a month's final statement; the user guide's *API
+     tokens for scripts* and the administration guide's *API tokens*, with a screenshot.
 
 ## Later waves (outlined)
 

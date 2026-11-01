@@ -3,7 +3,10 @@
 
 Demo mode identifies the user from a persona cookie set by the UI switcher. Local mode finds them from a
 sign-in session (signin.py). Header mode trusts a username injected by an SSO reverse proxy (for example
-oauth2-proxy in front of Entra ID). Every authorization decision happens here, server-side.
+oauth2-proxy in front of Entra ID). In every mode, a script sends an API token instead (tokens.py): a person's, with
+their access or reading only, or a service's, reading as an auditor or as finance. Behind a sign-on proxy, scripts
+use /script/api/..., which the proxy lets through and Pinax answers only with a token. Every authorization decision
+happens here, server-side.
 
 Seeing and changing are separate. Storage administrators and auditors see everything, and finance every lab's
 charges; everyone else sees the top-level folders of their active labs and departments, and of the labs in the
@@ -19,16 +22,18 @@ from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, object_session, selectinload
 
-from . import logs
+from . import logs, tokens
 from .config import get_settings
 from .db import get_session
-from .models import Lab, LabFolder, LabMembership, User
+from .models import ApiToken, Lab, LabFolder, LabMembership, User
 from .signin import COOKIE as SESSION_COOKIE
 from .signin import find_session
 
 DEMO_COOKIE = "pinax_user"
 # What someone signed in with a temporary password may do before changing it.
 WHILE_CHANGING_PASSWORD = {"/api/me", "/api/auth/password", "/api/auth/logout"}
+SCRIPTS = "/script"  # /script/api/... is /api/..., answered only with an API token
+TOKEN_ONLY = "pinax.token_only"
 log = logging.getLogger("pinax.auth")
 
 
@@ -41,6 +46,7 @@ class Identity:
     labs_seen: set[int] = field(default_factory=set)  # their labs, and those of the divisions they head
     roles: frozenset[str] = frozenset()  # site roles (models.SITE_ROLES)
     divisions: frozenset[str] = frozenset()  # the divisions they head
+    token: ApiToken | None = None  # the API token the request came with
 
     @property
     def is_admin(self) -> bool:
@@ -78,6 +84,9 @@ def _load_user(session: Session, username: str) -> User | None:
 
 def current_identity(request: Request, session: Session = Depends(get_session)) -> Identity:
     settings = get_settings()
+    scheme, _, secret = request.headers.get("authorization", "").partition(" ")
+    if scheme.lower() == "bearer" or request.scope.get(TOKEN_ONLY):
+        return _token_identity(request, session, secret.strip() if scheme.lower() == "bearer" else "")
     if settings.auth_mode == "header":
         if not from_trusted_proxy(request, settings.trusted_proxies):
             # Anyone could send the header; only the sign-on proxy's word counts.
@@ -103,6 +112,44 @@ def current_identity(request: Request, session: Session = Depends(get_session)) 
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "This account has been deactivated")
     logs.set_user(user.username)
     return identity_for(user)
+
+
+def _token_identity(request: Request, session: Session, secret: str) -> Identity:
+    """A script's request: the token's person, as they are now, or for a service token, its role alone."""
+    info = logs.current.get()
+    t = tokens.find(session, secret, info.address if info else "") if secret else None
+    if t is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Send a live API token as Authorization: Bearer <token>",
+                            headers={"WWW-Authenticate": "Bearer"})
+    if problem := tokens.may(t, request.method, request.url.path):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, problem)
+    logs.set_token(t.name)
+    if t.user is None:
+        logs.set_user(f"service:{t.name}")
+        # A service is no one: a person never stored, with no labs, and the token's role.
+        service = User(username=f"service:{t.name}", display_name=t.name, email="", title="Service token",
+                       is_admin=False, active=True)
+        return Identity(user=service, roles=frozenset({t.role}), token=t)
+    user = _load_user(session, t.user.username)
+    logs.set_user(user.username)
+    ident = identity_for(user)
+    ident.token = t
+    return ident
+
+
+class ScriptPrefix:
+    """ASGI middleware: /script/api/... is /api/..., for scripts behind a sign-on proxy, which lets that path through
+    without signing in (deploy/oauth2-proxy/pinax.cfg); Pinax answers it only with an API token."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and scope["path"].startswith(SCRIPTS + "/api/"):
+            scope["path"] = scope["path"][len(SCRIPTS):]
+            scope["raw_path"] = scope["path"].encode()
+            scope[TOKEN_ONLY] = True
+        await self.app(scope, receive, send)
 
 
 def from_trusted_proxy(request: Request, trusted: list[str]) -> bool:

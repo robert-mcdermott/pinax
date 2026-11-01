@@ -320,6 +320,7 @@ svg.i { width: 1.1em; height: 1.1em; vertical-align: -0.18em; flex: none; }
   text-align: left; border-radius: var(--radius); cursor: pointer; font: inherit; font-size: 14px; color: inherit;
 }
 .menu-item:hover, .menu-item:focus-visible { background: var(--surface-2); }
+a.menu-item, a.menu-item:hover { color: var(--text); text-decoration: none; }
 .menu-item svg { width: 16px; height: 16px; color: var(--accent-icon); }
 /* A form's own error, beside the fields it is about. */
 .form-error { margin: 0 0 14px; padding: 8px 12px; font-size: 13.5px; color: var(--text); background: var(--warn-bg);

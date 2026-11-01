@@ -14,6 +14,7 @@ import { viewTags } from "/js/tags.js";
 import { bindSave, viewsCard } from "/js/views.js";
 import { viewCollections } from "/js/collections.js";
 import { viewSearches } from "/js/searches.js";
+import { viewTokens } from "/js/tokens.js";
 import { viewChanges } from "/js/changes.js";
 import { viewExplore } from "/js/explore.js";
 import { viewHistory } from "/js/history.js";
@@ -94,6 +95,7 @@ const routes = [
   [/^#\/access(\?.*)?$/, viewAccess],
   [/^#\/access\/people\/([^?]+)$/, viewPerson],
   [/^#\/access\/labs\/([^?]+)$/, viewLab],
+  [/^#\/tokens$/, viewTokens],
 ];
 
 await loadIdentity();

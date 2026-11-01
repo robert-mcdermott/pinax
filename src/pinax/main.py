@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import __version__, jobs, metrics, migrate
 from .api import router as api_router
+from .auth import ScriptPrefix
 from .config import get_settings, unsafe
 from .db import get_engine, init_db
 from .limits import BUSY, GONE, QueryBudget, Stopped
@@ -92,8 +93,10 @@ async def unhandled(_request: Request, exc: Exception):
     return JSONResponse({"detail": "Internal error"}, status_code=500)
 
 
-# Each GET's time limit covers everything below it (limits.py); outermost of all, each request's ID and log line.
+# Each GET's time limit covers everything below it (limits.py); scripts' /script/api/... is /api/... (auth.py);
+# outermost of all, each request's ID and log line.
 app.add_middleware(QueryBudget)
+app.add_middleware(ScriptPrefix)
 app.add_middleware(RequestLog)
 
 

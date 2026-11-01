@@ -187,11 +187,20 @@ files are sparse, on a laptop's disk), so the capacities are set, and use is mea
     name, and whether it is a lab or a department, which decides its free tier), and its page changes its details
     or deactivates it: its members stop seeing its folders, which stay its own (and charged to it) until they are
     moved.
-17. **Import from CSV.** In a terminal, `uv run pinax import examples/import` lists the 14 changes the example
+17. **API tokens.** As Priya Natarajan, *API tokens* in the sidebar: her own token, the service tokens for the
+    storage dashboards and the finance warehouse, and Daniel Osei's, Rohan Dasgupta's, and Mateo Reyes's, with
+    when each was last used. *Make token*, reading only, shows it once; then, in a terminal:
+
+    ```bash
+    curl -H "Authorization: Bearer THE-TOKEN" "http://127.0.0.1:8001/script/api/admin/costs/charges?fmt=csv"
+    ```
+
+    This month's chargeback statement, as Priya sees it. *Revoke* it, and the same request answers *401*.
+18. **Import from CSV.** In a terminal, `uv run pinax import examples/import` lists the 14 changes the example
     files would make: two departments, a lab, three people, their memberships, and owners for the three unmapped
     folders. Add `--apply`, and *Folders and labs* shows no unmapped folders; every change is in the audit log.
 
-18. **Logs and metrics.** The terminal running `pinax serve` has a line for each request, with who made it, from
+19. **Logs and metrics.** The terminal running `pinax serve` has a line for each request, with who made it, from
     where, how long it took, and its request ID; each change made above is there too, as a `pinax.audit` line. Stop
     the server, and start it again with metrics on:
 

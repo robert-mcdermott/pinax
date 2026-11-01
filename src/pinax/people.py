@@ -4,9 +4,10 @@ division head), and who administers it.
 
 The People page and `pinax import` follow the same rules (`username_problem`, `email_problem`). People are never
 deleted, so the audit log keeps every reference: a deactivated person cannot sign in, and keeps their lab
-memberships and administrator role, unused, so reactivating them restores exactly what they had. Every change is
-audited with the fields before and after. At least one active storage administrator always remains, and no one
-can remove their own administrator role or deactivate themselves.
+memberships and administrator role, unused, so reactivating them restores exactly what they had (their sessions
+end, though, and their API tokens are revoked). Every change is audited with the fields before and after. At least
+one active storage administrator always remains, and no one can remove their own administrator role or deactivate
+themselves.
 """
 
 import getpass
@@ -19,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from .models import SITE_ROLES, AuditEvent, Lab, LabMembership, User, UserRole
 from .signin import end_sessions
+from .tokens import revoke_all
 
 ROLES = ("pi", "delegate")
 ROLE_TEXT = {"auditor": "auditor", "finance": "finance", "division": "division head"}
@@ -208,13 +210,16 @@ def set_active(session: Session, actor: User | None, user: User, active: bool) -
         if user.is_admin and active_admins(session) <= 1:
             raise PeopleError("At least one active storage administrator is required", 409)
     user.active = active
+    revoked = 0
     if not active:
         end_sessions(session, user)
+        revoked = revoke_all(session, user, actor)
     labs = sorted(f"{m.lab.name} ({m.role})" for m in user.memberships if m.lab.active)
     kept = ", ".join(labs + (["storage administrator"] if user.is_admin else [])) or "no access"
     _audit(session, actor, "person.reactivated" if active else "person.deactivated",
            f"{'Reactivated' if active else 'Deactivated'} {user.display_name}"
-           + (f"; access restored: {kept}" if active else f"; cannot sign in (access kept, unused: {kept})"),
+           + (f"; access restored: {kept}" if active else f"; cannot sign in (access kept, unused: {kept})")
+           + (f"; {revoked} API token{'' if revoked == 1 else 's'} revoked" if revoked else ""),
            {"username": user.username, "fields": {"active": {"before": not active, "after": active}},
-            "labs": labs, "is_admin": user.is_admin})
+            "labs": labs, "is_admin": user.is_admin, "tokens_revoked": revoked})
     session.flush()

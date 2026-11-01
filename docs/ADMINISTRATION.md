@@ -80,7 +80,9 @@ changes from the audit log:
 - **Labs**: add them to a lab or department as PI (or owner) or delegate, change the role, or take them out.
 - **Site roles**: storage administrator, auditor, finance, or head of one or more divisions, beside any labs
   ([Site roles](#site-roles)).
-- **Deactivate**: they cannot sign in, and their memberships and role are kept, unused, until *Reactivate*.
+- **Deactivate**: they cannot sign in, and their memberships and role are kept, unused, until *Reactivate*; their
+  sessions end and their API tokens are revoked.
+- **API tokens**: theirs, with when each was last used, to revoke ([API tokens](#api-tokens)).
 - **Set a new temporary password** (local sign-in): Pinax shows it once; they must change it when they next sign
   in. It also unlocks a locked account and ends their sessions.
 
@@ -116,6 +118,27 @@ folders, which stay its own, and charged to it, until they are moved.
 ![A lab's page](images/lab-light.webp "The Fujimoto Lab's page: its folders, members, and recent changes.")
 
 For many people at once, `pinax import` reads CSV files with a dry run first ([IMPORT.md](IMPORT.md)).
+
+## API tokens
+
+Scripts read Pinax, or act for someone, with API tokens instead of signing in, however people sign in
+([API tokens for scripts](USER-GUIDE.md#api-tokens-for-scripts)). *API tokens*, in the sidebar for administrators
+and auditors and in everyone's menu, has three lists:
+
+- **Your tokens**: everyone makes their own, reading only or with their access, for a week to a year
+  (`PINAX_TOKEN_MAX_DAYS`, 365 by default). Pinax shows each once and keeps only its SHA-256.
+- **Service tokens**: for a service rather than a person, such as a finance system or a dashboard. An administrator
+  names the service and chooses what it reads: as finance (every lab's charges, the chargeback statement, and the
+  prices behind them) or as an auditor (everything). A service token belongs to no one, so it keeps working when
+  whoever made it leaves, and it only reads.
+- **Everyone else's tokens**, with when each was made, when it expires, and when and from where it was last used.
+
+An administrator can **Revoke** any token, here or on its person's page; a person revokes their own. Deactivating a
+person revokes their tokens, and reactivating them does not bring them back. Making and revoking a token is
+audited, and so is every change made with one, with the token's name: *with the token “…”* in a person's or lab's
+recent changes, and `token` in the event's detail. No token can make or revoke tokens, or change a password.
+
+![API tokens](images/tokens-light.webp "Priya Natarajan's tokens page: her own token, then the service tokens, each with when and from where it was last used.")
 
 ## Scans
 
@@ -221,5 +244,5 @@ done.
 Every change made in the app, by import, and from the command line, and every sign-in with local sign-in, is in the
 audit log: who made it, when, from where, and what changed. A person's and a lab's page show their recent changes;
 *All data* shows the latest under *Recent activity*. Each event is also written to Pinax's log once its change is
-committed, and to `PINAX_AUDIT_LOG` if it is set, for a site's security monitoring ([Logs](DEPLOYMENT.md#logs)). The
-whole log is the catalog's `audit_event` table ([Monitoring and operations](DEPLOYMENT.md#monitoring-and-operations)).
+committed, and to `PINAX_AUDIT_LOG` if it is set, for a site's security monitoring ([Logs](DEPLOYMENT.md#logs)). A
+change made with an API token names the token. The whole log is the catalog's `audit_event` table ([Monitoring and operations](DEPLOYMENT.md#monitoring-and-operations)).

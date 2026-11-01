@@ -56,6 +56,9 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
 - **Roles beyond labs**: auditors see everything and change nothing; finance sees every lab's charges and the
   prices behind them, and no folders; division heads see their divisions' labs as the labs' members do. Given on a
   person's page, beside their labs, with every way of signing in; checked on the server for every request.
+- **API tokens for scripts**: a person's own, reading only or with their access, and service tokens that read as
+  finance or as an auditor; shown once and stored hashed, expiring and revocable, and every change made with one
+  audited with its name. A month's chargeback statement is one request.
 - **Sign-in three ways**: the demo's persona switcher, to show Pinax with the seeded people (no setup; refused in
   production); usernames and passwords Pinax keeps, for sites without single sign-on; or single sign-on, such as
   Entra ID behind oauth2-proxy. People, labs, and access are managed the same way in all three.

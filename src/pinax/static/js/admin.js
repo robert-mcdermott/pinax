@@ -6,6 +6,7 @@ import {
 } from "/js/core.js";
 import { fillChip, fillRange, fillShort } from "/js/capacity.js";
 import { renderSidebar } from "/js/shell.js";
+import { bindPersonTokens, personTokens } from "/js/tokens.js";
 import { viewsCard } from "/js/views.js";
 import { ageBar, ageHistogram, bars, categories, coldBytes, thresholdText } from "/js/viz.js";
 
@@ -447,7 +448,8 @@ export async function viewPerson(el, username) {
           ${person ? html`<div class="card"><h3>Record</h3><dl class="kv" style="margin-top:10px">
             <dt>Added</dt><dd>${date(person.created_at)}</dd></dl>
             ${person.history.length ? html`<h3 style="margin-top:14px">Recent changes</h3><ul class="feed">${person.history.map((h) => html`<li style="padding:6px 0"><span><span class="small">${h.summary}</span><br>
-              <span class="tiny muted">${date(h.ts, true)}${h.by ? ` · ${h.by}` : ""}</span></span></li>`)}</ul>` : ""}</div>` : ""}
+              <span class="tiny muted">${date(h.ts, true)}${h.by ? ` · ${h.by}` : ""}${h.token ? ` · with the token “${h.token}”` : ""}</span></span></li>`)}</ul>` : ""}</div>` : ""}
+          ${person ? personTokens(person) : ""}
           ${person && state.config.auth_mode === "local" && state.me.is_admin ? html`<div class="card"><h3>Password</h3>
             <p class="small" style="margin-top:8px">${passwordState(person)}</p>
             ${person.active ? html`<button class="btn btn-secondary btn-sm" id="set-password">${icon("lock")}${person.has_password ? "Set a new temporary password" : "Set a temporary password"}</button>` : ""}</div>` : ""}
@@ -481,6 +483,7 @@ export async function viewPerson(el, username) {
     $("#deactivate", el)?.addEventListener("click", () => change("deactivate"));
     $("#set-password", el)?.addEventListener("click", setPassword);
     $("#reactivate", el)?.addEventListener("click", () => change("reactivate"));
+    if (person) bindPersonTokens(el, person, () => viewPerson(el, username));
   };
 
   const save = async () => {
@@ -628,7 +631,7 @@ export async function viewLab(el, slug) {
             <a class="small" href="#/folders?lab=${encodeURIComponent(lab.slug)}">${lab.folders.length ? "Change" : "Map folders"} on Folders and labs</a></div>
           <div class="card"><h3>Record</h3><dl class="kv" style="margin-top:10px"><dt>Added</dt><dd>${date(lab.created_at)}</dd></dl>
             ${lab.history.length ? html`<h3 style="margin-top:14px">Recent changes</h3><ul class="feed">${lab.history.map((h) => html`<li style="padding:6px 0"><span><span class="small">${h.summary}</span><br>
-              <span class="tiny muted">${date(h.ts, true)}${h.by ? ` · ${h.by}` : ""}</span></span></li>`)}</ul>` : ""}</div>
+              <span class="tiny muted">${date(h.ts, true)}${h.by ? ` · ${h.by}` : ""}${h.token ? ` · with the token “${h.token}”` : ""}</span></span></li>`)}</ul>` : ""}</div>
           ${lab.active ? html`<div class="card admin-only"><h3>Deactivate</h3>
             <p class="small muted" style="margin-top:8px">Its members will no longer see its folders. Its members and folders are kept, unused, and come back if you reactivate it; its folders are still charged to it until you move or unmap them. Nothing is deleted.</p>
             <button class="btn btn-warn btn-sm" id="deactivate">${icon("lock")}Deactivate</button></div>` : ""}`

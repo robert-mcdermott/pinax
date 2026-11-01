@@ -41,11 +41,12 @@ const DOCS = [
     { slug: 'cleanup-plans', title: 'Cleanup plans', file: 'USER-GUIDE.md', sections: ['Cleanup plans'], lede: 'What a lab means to delete, move, or compress, what it would save, and what later scans show was done.' },
     { slug: 'tags', title: 'Tags and collections', file: 'USER-GUIDE.md', sections: ['Tags and collections'], lede: 'Folders described in terms a lab and IT share, and data found by them.' },
     { slug: 'saved-views', title: 'Saved views and earlier scans', file: 'USER-GUIDE.md', sections: ['Saved views and earlier scans'], lede: 'Pages kept under a name and shared with a lab, and every report on an earlier scan.' },
+    { slug: 'api-tokens', title: 'API tokens for scripts', file: 'USER-GUIDE.md', sections: ['API tokens for scripts'], lede: 'Scripts that read Pinax, or act for you, without signing in: a report, a chargeback import, a dashboard.' },
   ] },
   { group: 'Administration', pages: [
     { slug: 'administration', title: 'Administering Pinax', file: 'ADMINISTRATION.md', intro: true, sections: ['All data'], lede: 'For storage administrators: the pages only they see, and a first week with them.' },
     { slug: 'folders-and-labs', title: 'Folders and labs', file: 'ADMINISTRATION.md', sections: ['Folders and labs'], lede: 'Every top-level folder, who owns it, and how to change that.' },
-    { slug: 'people', title: 'People and access', file: 'ADMINISTRATION.md', sections: ['People and access'], lede: 'Who can sign in, what each person sees, and who administers Pinax.' },
+    { slug: 'people', title: 'People and access', file: 'ADMINISTRATION.md', sections: ['People and access', 'API tokens'], lede: 'Who can sign in, what each person sees, who administers Pinax, and the tokens scripts use.' },
     { slug: 'scans', title: 'Scans and storage health', file: 'ADMINISTRATION.md', sections: ['Scans', 'Storage health'], lede: 'Every snapshot and its state, automatic ingest, and what the scans say is wrong with the storage.' },
     { slug: 'capacity', title: 'Capacity', file: 'ADMINISTRATION.md', sections: ['Capacity'], lede: 'How much each filesystem holds, how fast it fills, and when.' },
     { slug: 'costs', title: 'Costs and chargeback', file: 'ADMINISTRATION.md', sections: ['Costs', 'Chargeback'], lede: 'Prices and free tiers from a day on, and every lab\'s charges with a statement for finance.' },

@@ -224,6 +224,35 @@ class LoginSession(Base):
     user: Mapped[User] = relationship()
 
 
+class ApiToken(Base):
+    """A token a script sends instead of signing in (tokens.py). A personal token is a person's, with their access
+    or reading only; a service token belongs to no one: an administrator makes it for a named service, and it reads
+    as an auditor or as finance (`role`). Only its SHA-256 is stored, with its first characters to tell it apart.
+    Ended by expiry, by revoking it, and, for a personal token, by deactivating its person. Kept once ended, so the
+    audit log keeps every reference."""
+
+    __tablename__ = "api_token"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    prefix: Mapped[str] = mapped_column(String(16))
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), nullable=True, index=True)
+    role: Mapped[str] = mapped_column(String(32), default="", server_default="")  # a service token's
+    read_only: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"), nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_used_address: Mapped[str] = mapped_column(String(64), default="", server_default="")
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    revoked_by_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"), nullable=True)
+
+    user: Mapped[User | None] = relationship(foreign_keys=[user_id])
+    created_by: Mapped[User | None] = relationship(foreign_keys=[created_by_id])
+    revoked_by: Mapped[User | None] = relationship(foreign_keys=[revoked_by_id])
+
+
 class LabMembership(Base):
     __tablename__ = "lab_membership"
     __table_args__ = (UniqueConstraint("user_id", "lab_id"),)

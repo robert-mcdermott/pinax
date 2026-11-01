@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from .. import labs as labs_service
-from .. import ownership, signin
+from .. import ownership, signin, tokens
 from .. import people as people_service
 from ..auth import Identity, require_admin, require_sees_all
 from ..config import get_settings
@@ -42,13 +42,19 @@ def _lab(session: Session, slug: str) -> Lab:
     return lab
 
 
+def _event(e: AuditEvent) -> dict:
+    """An audited change for a lab's or person's history: who made it (or ran the command), and with which token."""
+    detail = e.detail or {}
+    return {"ts": iso(e.ts), "action": e.action, "summary": e.summary,
+            "by": e.actor.display_name if e.actor else detail.get("by"), "token": detail.get("token")}
+
+
 def _lab_json(session: Session, lab: Lab) -> dict:
     """A lab, with when it was added and the latest audited changes to it (by the app or an import)."""
     events = session.scalars(select(AuditEvent).where(AuditEvent.detail["lab"].as_string() == lab.slug)
                              .options(selectinload(AuditEvent.actor)).order_by(AuditEvent.ts.desc()).limit(12))
     return {**lab_json(lab), "created_at": iso(lab.created_at),
-            "history": [{"ts": iso(e.ts), "action": e.action, "summary": e.summary,
-                         "by": e.actor.display_name if e.actor else (e.detail or {}).get("by")} for e in events]}
+            "history": [_event(e) for e in events]}
 
 
 class LabBody(BaseModel):
@@ -125,8 +131,8 @@ def _person_json(session: Session, user: User) -> dict:
     events = session.scalars(select(AuditEvent).where(AuditEvent.detail["username"].as_string() == user.username)
                              .options(selectinload(AuditEvent.actor)).order_by(AuditEvent.ts.desc()).limit(12))
     return {**user_json(user), "created_at": iso(user.created_at), "is_self": False,
-            "history": [{"ts": iso(e.ts), "action": e.action, "summary": e.summary,
-                         "by": e.actor.display_name if e.actor else (e.detail or {}).get("by")} for e in events]}
+            "tokens": [tokens.token_json(t) for t in tokens.listed(session, user)],
+            "history": [_event(e) for e in events]}
 
 
 class PersonBody(BaseModel):

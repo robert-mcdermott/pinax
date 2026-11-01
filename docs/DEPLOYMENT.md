@@ -153,7 +153,10 @@ the same header from anywhere else gets *401*. If oauth2-proxy runs on another h
 `PINAX_TRUSTED_PROXIES` and make Pinax listen where only that host can reach it. It waits five minutes for an
 answer from Pinax (`upstream_timeout`; its default is 30 seconds), longer than Pinax lets a request run
 (`PINAX_QUERY_TIMEOUT`, 180 seconds), so a long search ends with Pinax saying why. `/api/health` is open without
-sign-in, for monitoring.
+sign-in, for monitoring. So is `/script/api/`, for scripts with API tokens: Pinax answers there only with a live
+token in the `Authorization` header, never the sign-on header, and the proxy passes that header on as it is (leave
+`pass_authorization_header` and `set_authorization_header` off). Scripts behind the proxy use
+`https://pinax.example.org/script/api/...` ([API tokens for scripts](USER-GUIDE.md#api-tokens-for-scripts)).
 
 ### Signing in without single sign-on
 
@@ -179,7 +182,7 @@ server. Sessions last 12 hours and end on signing out, on deactivation, and when
 Every sign-in, failure, lock, and password change is in the audit log, never the passwords. Add the reverse
 proxy's address to `PINAX_TRUSTED_PROXIES`, so the log, the audit, and each session record the person's own address
 from `X-Forwarded-For` rather than the proxy's. One limit: failures lock an account rather than slowing down an
-address.
+address. Scripts send API tokens instead of passwords, to `/api/...` or `/script/api/...` alike.
 
 ![The sign-in page with local sign-in](images/sign-in-light.webp "Local sign-in: a username and a password Pinax keeps.")
 

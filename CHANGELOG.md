@@ -16,6 +16,14 @@ Wave 12 ("access"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
   auditors see the administration pages without their buttons
   ([Site roles](docs/ADMINISTRATION.md#site-roles)). The demo has one of each: Helen Marsh, Daniel Osei, and Grace
   Whitfield.
+- **API tokens for scripts.** Anyone makes their own under *API tokens* (in the menu under their name), reading
+  only or with their access, for a week to a year (`PINAX_TOKEN_MAX_DAYS`); administrators make *service tokens*
+  for a named service, which belong to no one and read as finance or as an auditor. A token is shown once and
+  stored as its SHA-256; it expires, its person or an administrator revokes it, and deactivating its person revokes
+  it. Every change made with one is audited with its name, and each shows when and from where it was last used. A
+  script sends it as `Authorization: Bearer …` to `/script/api/...`, which the sign-on proxy's configuration now
+  lets through and Pinax answers only with a token; the user guide has a script that downloads a month's
+  chargeback statement ([API tokens for scripts](docs/USER-GUIDE.md#api-tokens-for-scripts)).
 
 ### Changed
 
@@ -23,8 +31,11 @@ Wave 12 ("access"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
   which work with every way of signing in. The pilot moves to wave 13; reach (wave 14) keeps optional sign-in with
   Entra ID (with notes from Tundra's), local sign-in's two-factor codes and per-address limits, CI and the
   container image, and the security review; hardening is wave 15 (1.0.0).
-- **The catalog's first migration since its baseline** (`0002`) adds the `user_role` table; Pinax applies it when it
-  starts, or `pinax db upgrade` does where `PINAX_DB_AUTO_UPGRADE=false`.
+- **The catalog's first migrations since its baseline**: `0002` adds the `user_role` table and `0003` the
+  `api_token` table; Pinax applies them when it starts, or `pinax db upgrade` does where
+  `PINAX_DB_AUTO_UPGRADE=false`.
+- **The oauth2-proxy configuration** (`deploy/oauth2-proxy/pinax.cfg`) lets `/script/api/` through without signing
+  in, for scripts with API tokens; copy the new `skip_auth_routes` line to an installed one.
 
 ## 0.11.0 (2026-10-31)
 

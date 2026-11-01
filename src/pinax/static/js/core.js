@@ -158,6 +158,7 @@ const P = {
   arrowLeft: '<path d="M19 12H5"/><path d="M11 6l-6 6 6 6"/>',
   arrowRight: '<path d="M5 12h14"/><path d="M13 6l6 6-6 6"/>',
   lock: '<rect x="5" y="11" width="14" height="10" rx="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  key: '<circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 20 3M16 7l3 3M14 9l2 2"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c.8-4 4-6 8-6s7.2 2 8 6"/>',
   scan: '<path d="M4 8V5a1 1 0 0 1 1-1h3"/><path d="M16 4h3a1 1 0 0 1 1 1v3"/><path d="M20 16v3a1 1 0 0 1-1 1h-3"/><path d="M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M4 12h16"/>',
   package: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5"/><path d="M12 12v9"/><path d="M12 12L4 7.5"/>',
@@ -451,6 +452,7 @@ export function renderTopbar({ mode, nav = [] } = {}) {
     const users = demo ? await loadUsers() : [];
     dd.innerHTML = String(html`<h4>SIGNED IN AS</h4>
       <div style="padding:4px 10px 10px"><b>${me.display_name}</b><br><span class="small muted">${me.title} · ${me.email}</span></div>
+      <a class="menu-item" href="/app/#/tokens">${icon("key")}API tokens</a>
       ${isLocal() ? html`<button class="menu-item" data-act="password">${icon("lock")}Change password</button>
         <button class="menu-item" data-act="sign-out">${icon("arrowRight")}Sign out</button>` : ""}
       ${demo ? html`<h4>SWITCH DEMO IDENTITY</h4>

@@ -582,6 +582,13 @@ the month shows at once; adding up the ranges overstates the range); storage no 
   - `header`: trusts a username header set by a single sign-on proxy, as Tundra does, and only on requests that
     come straight from the proxy's address (`PINAX_TRUSTED_PROXIES`); the same header from anywhere else is
     refused. `scripts/sso-check.py` checks this behind a real oauth2-proxy.
+- **API tokens** (`tokens.py`), with every way of signing in: `Authorization: Bearer pinax_…`, 256 random bits, of
+  which the catalog keeps only the SHA-256 and the first characters. A personal token takes its person's access as
+  it is at each request, or reads only (GET, and starting a search); a service token belongs to no one and reads as
+  an auditor or as finance. Every token expires; it ends sooner when revoked, or when its person is deactivated.
+  No token makes tokens or changes a password. Behind a sign-on proxy, `/script/api/...` is `/api/...` answered
+  only with a token (`auth.ScriptPrefix`), which the proxy lets through without signing in. A change made with a
+  token is audited with its name (a SQLAlchemy event on the session, as for logging audit events).
 - **Authorization is on the server, for every request.** A request names a filesystem and path; Pinax checks
   that the path is canonical (no `.`, `..`, or empty components) and inside the filesystem root, takes its
   top-level folder, and allows it only for those who see everything or who see the lab that owns that folder.
@@ -601,7 +608,7 @@ the month shows at once; adding up the ranges overstates the range); storage no 
 - **Logs** (`logs.py`): one line for each request to the API, with a request ID (returned as `X-Request-ID`), the
   person, and their address (behind a trusted proxy, from `X-Forwarded-For`), and every audit event once its change
   is committed (a SQLAlchemy event on the session, so every place that audits is covered), optionally to a file of
-  its own as JSON lines. Never a password, session token, request body, or query string; the catalog's address is
+  its own as JSON lines. Never a password, session token, API token, request body, or query string; the catalog's address is
   logged without its password.
 - **Metrics** (`metrics.py`, `/metrics`): off until `PINAX_METRICS_TOKEN` is set, then only with it (compared in
   constant time). They name filesystems, never labs, people, or paths. Figures from the catalog are worked out when

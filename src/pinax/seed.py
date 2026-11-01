@@ -167,6 +167,16 @@ PEOPLE = [
 ]
 # Site roles beside labs (auth.py): an auditor, finance, and the head of a division of three labs.
 DEMO_ROLES = [("hmarsh", "auditor", ""), ("dosei", "finance", ""), ("gwhitfield", "division", "Basic Sciences")]
+# API tokens: (maker, name, days, read only, service role, made days ago, last used days ago, address). Their secrets
+# are made up and thrown away, so no one can use them.
+DEMO_TOKENS = [
+    ("dosei", "Monthly ledger import", 365, True, None, 64, 2, "10.20.4.17"),
+    ("rdasgupta", "Sequencing pipeline tags", 180, False, None, 41, 0.3, "10.31.8.102"),
+    ("mreyes", "Weekly usage report", 90, True, None, 20, 6, "10.20.9.55"),
+    ("pnatarajan", "Capacity forecast to Grafana", 90, True, None, 12, 0.05, "10.10.1.40"),
+    ("pnatarajan", "Storage dashboards", 365, True, "auditor", 120, 0.01, "10.10.1.40"),
+    ("srivera", "Research finance warehouse", 365, True, "finance", 75, 31, "10.40.2.9"),
+]
 
 # Extra file-system accounts (lab members who are not Pinax users), and accounts that no longer exist.
 MEMBER_NAMES = ["tnguyen", "bokoro", "lfischer", "dmendes", "yzhou", "kpatel", "jkim", "mrossi", "asato", "ebrown",
@@ -549,6 +559,18 @@ def demo_tags() -> None:
             tags.apply(s, ident, fs, path, tag, value, cold_from=cold_bucket())
 
 
+def demo_tokens(now: float) -> None:
+    """DEMO_TOKENS, made and used in the past."""
+    from . import tokens
+
+    seeded = datetime.fromtimestamp(now, UTC).replace(tzinfo=None)
+    with session_scope() as s:
+        for username, name, days, read_only, role, made, used, address in DEMO_TOKENS:
+            maker = s.scalar(select(User).where(User.username == username))
+            t, _ = tokens.make(s, maker, name, days, read_only=read_only, role=role, at=seeded - timedelta(days=made))
+            t.last_used_at, t.last_used_address = seeded - timedelta(days=used), address
+
+
 def demo_plan(when: float) -> None:
     """The Dasgupta Lab's cleanup plan (DEMO_PLAN), made by its PI on `when`."""
     from .auth import identity_for
@@ -797,4 +819,5 @@ def run_seed(scale: float = 1.0) -> None:
             demo_plan(taken[n - 1] + 9 * 86400)
     demo_tags()
     demo_views_and_search()
+    demo_tokens(now)
     print(f"Done: {sum(last.values()):,} demo files across {len(fs_roots)} filesystems. Run `uv run pinax serve`.")

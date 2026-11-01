@@ -43,7 +43,8 @@ export function renderSidebar() {
       ${link("tags", "tag", "Tags", false)}
       ${link("costs", "banknote", "Costs", false)}
       ${link("chargeback", "table", "Chargeback", false)}
-      ${link("access", "lock", "People and access", false)}`
+      ${link("access", "lock", "People and access", false)}
+      ${link("tokens", "key", "API tokens", false)}`
     : me.sees_charges ? html`<h4>FINANCE</h4>
       ${link("chargeback", "table", "Chargeback", false)}
       ${link("costs", "banknote", "Costs", false)}
