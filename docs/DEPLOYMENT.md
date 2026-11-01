@@ -3,7 +3,7 @@
 Installing Pinax on a Linux server: the services, single sign-on, scans and keeping them, upgrades, sizing, backups,
 charges and statements, and operations.
 The files this guide installs are in `deploy/`. This guide is checked against the tests and a local run; the
-pilot installation (wave 13 in `pinax-spec/roadmap.md`) will confirm it on a real server.
+pilot installation (wave 14 in `pinax-spec/roadmap.md`) will confirm it on a real server.
 
 ## Shape of a deployment
 
@@ -26,7 +26,7 @@ pilot installation (wave 13 in `pinax-spec/roadmap.md`) will confirm it on a rea
   Connect provider such as Microsoft Entra ID and passes each person's username to Pinax in a header (step 6).
   Without it, Pinax keeps **passwords** itself, behind an HTTPS proxy such as nginx or Caddy
   ([Signing in without single sign-on](#signing-in-without-single-sign-on)). Sign-in with Entra ID in Pinax itself,
-  as Tundra does it, with nginx or a load balancer only for HTTPS and no oauth2-proxy, is planned for wave 14 in
+  as Tundra does it, with nginx or a load balancer only for HTTPS and no oauth2-proxy, is planned for wave 13 in
   `pinax-spec/roadmap.md`; both of today's ways will stay.
 - **Scans** run where the filesystem is mounted with good metadata performance: the Pinax server itself (the
   `pinax-scan@` timer), or a storage node or NFS client that writes into the scan folder. fs-inventory reads
@@ -45,7 +45,7 @@ pilot installation (wave 13 in `pinax-spec/roadmap.md`) will confirm it on a rea
 - A way for people to sign in, one of:
   - **single sign-on**: an OpenID Connect identity provider (for example Microsoft Entra ID) and
     [oauth2-proxy](https://oauth2-proxy.github.io/oauth2-proxy/) 7 (step 6), until Pinax signs in with Entra ID
-    itself (planned for wave 14);
+    itself (planned for wave 13);
   - **passwords Pinax keeps**, for a site without single sign-on: an HTTPS reverse proxy such as nginx or Caddy
     in front of Pinax ([Signing in without single sign-on](#signing-in-without-single-sign-on)).
 
@@ -150,7 +150,7 @@ running as root. If scans run on another host instead, skip the timer and have t
 
 ### 6. Sign-on with oauth2-proxy
 
-Pinax does not yet sign people in with an identity provider itself (that is planned for wave 14), so single sign-on
+Pinax does not yet sign people in with an identity provider itself (that is planned for wave 13), so single sign-on
 goes through oauth2-proxy, in front of Pinax:
 
 1. Register an application with the identity provider, with the redirect URI

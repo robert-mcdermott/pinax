@@ -253,7 +253,7 @@ folder must still exist for this part of the check. At 100 million files (2.44 m
 nearly all of it the two rollups, and every directory was equal (between two synthetic scans with the same
 contents). Between changed scans from `synth_scan.py --evolve` at one million files, comparing takes 0.2 seconds
 of a six-second build and checking it 1.1 seconds, every directory equal; changed scans at 100 million files wait
-for server-class hardware (wave 13).
+for server-class hardware (wave 14).
 
 ## Real filesystems
 
@@ -281,7 +281,7 @@ A real scan was checked the same way: the maintainer's documents folder on a lap
 builds in 0.8 s and every query takes under 25 ms. It also showed common types that were counted as *other*:
 camera photo and video formats, macro-enabled spreadsheets, diagrams, executables, and disk images, 35% of its
 bytes. With those added, *other* is 0.8% of its bytes, nearly all of it files without an extension. Production
-storage, with many owners and a billion files, is measured in wave 13.
+storage, with many owners and a billion files, is measured in wave 14.
 
 ## Querying
 
@@ -589,7 +589,7 @@ the month shows at once; adding up the ranges overstates the range); storage no 
   - `header`: trusts a username header set by a single sign-on proxy, as Tundra does, and only on requests that
     come straight from the proxy's address (`PINAX_TRUSTED_PROXIES`); the same header from anywhere else is
     refused. `scripts/sso-check.py` checks this behind a real oauth2-proxy.
-  - Planned for wave 14: sign-in with Microsoft Entra ID (or another OpenID Connect provider) in Pinax
+  - Planned for wave 13: sign-in with Microsoft Entra ID (or another OpenID Connect provider) in Pinax
     itself, as Tundra does it (`TUNDRA_AUTH_MODE=oidc`), with no sign-on proxy; `local` and `header` stay.
 - **API tokens** (`tokens.py`), with every way of signing in: `Authorization: Bearer pinax_…`, 256 random bits, of
   which the catalog keeps only the SHA-256 and the first characters. A personal token takes its person's access as
@@ -667,7 +667,7 @@ million, so minutes at two billion, beyond the time limit), and is best asked of
 from synthetic data, which has about 41 files per folder; production filesystems often have fewer, so two billion
 files may mean 50 to 200 million folders, beyond anything measured so far. Reports that read every folder of a
 whole filesystem, like the folder lists of *What changed* (about 0.1 s per 250,000 folders here) and the icicle
-and sunburst of a filesystem's root (about 2 ms per million folders), grow with them. The pilot (wave 13) measures
+and sunburst of a filesystem's root (about 2 ms per million folders), grow with them. The pilot (wave 14) measures
 production storage.
 
 Index size is about 56 bytes per file, mostly the per-file Parquet (which is kept sorted and compressed). A
@@ -715,7 +715,7 @@ uv run python bench/bench_charges.py --folders 2000 --weeks 52
 | `pinax seed` writes demo trees of sparse files and scans them with fs-inventory | Scheduled fs-inventory scans on storage nodes or scan hosts | Pinax ingests any complete Parquet scan |
 | Demo owners rewritten to fictional accounts, and demo scans dated a month apart | Real owners and times from the scan | Only `seed.py` rewrites scans, only its own demo scans |
 | SQLite catalog | SQLite on one server, or PostgreSQL | Migrations upgrade either in place ([The catalog database](#the-catalog-database)) |
-| Demo identity switcher | Single sign-on through a proxy (`PINAX_AUTH_MODE=header`), or passwords Pinax keeps (`local`) | Checked behind oauth2-proxy 7.15 with a stand-in identity provider; sign-in with Entra ID in Pinax itself, with no proxy, is planned for wave 14 |
+| Demo identity switcher | Single sign-on through a proxy (`PINAX_AUTH_MODE=header`), or passwords Pinax keeps (`local`) | Checked behind oauth2-proxy 7.15 with a stand-in identity provider; sign-in with Entra ID in Pinax itself, with no proxy, is planned for wave 13 |
 | People, labs, and folder mappings managed in the app | The same, fed from the authoritative source; until then imported from CSV (`pinax import`) | Same model as Tundra |
 | One server | Web and ingest can run on separate hosts sharing `var/snapshots` | Indexes are replaced, never changed in place; keep every ingest on one host, since the ingest lock is a file lock in `PINAX_VAR_ROOT` |
 

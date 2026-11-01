@@ -2,12 +2,16 @@
 
 ## Unreleased
 
+Wave 13 ("reach"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+
 ### Changed
 
-- **The roadmap.** Reach (wave 14) makes local sign-in the default out of the box outside the demo, in the code and
-  in the server kit, with sign-in with Entra ID optional, configured by settings. Two-factor codes and per-address
-  limits for local sign-in move to the parking lot, and the security review is taken off the roadmap. With sign-in
-  through Entra ID, reach adds an emergency administrator sign-in for when Entra ID or its setup fails (A12).
+- **The roadmap.** Reach comes next, as wave 13 (0.13.0): local sign-in the default out of the box outside the
+  demo, in the code and in the server kit; sign-in with Entra ID in Pinax itself, optional and configured by
+  settings, with roles from its app roles or groups; an emergency administrator sign-in for when Entra ID or its
+  setup fails (A12); and CI and a container image. The pilot becomes wave 14, and takes lab membership from the
+  directory (A6). Two-factor codes and per-address limits for local sign-in move to the parking lot, and the
+  security review is taken off the roadmap.
 
 ## 0.12.0 (2026-11-01)
 

@@ -66,7 +66,7 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
 - **Sign-in three ways**: the demo's persona switcher, to show Pinax with the seeded people (no setup; refused in
   production); usernames and passwords Pinax keeps, for sites without single sign-on; or single sign-on, such as
   Entra ID behind oauth2-proxy. People, labs, and access are managed the same way in all three. Sign-in with
-  Entra ID in Pinax itself, with no proxy, is planned (wave 14 in the roadmap).
+  Entra ID in Pinax itself, with no proxy, is planned (wave 13 in the roadmap).
 - **Built for scale**: each scan is indexed once into directory-level totals, so a treemap of a petabyte
   draws in tens of milliseconds: at 100 million files, every directory-level query takes 50 ms or less, and the
   index builds in two minutes. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and measured
