@@ -6,7 +6,8 @@
 
 - **The roadmap.** Reach (wave 14) makes local sign-in the default out of the box outside the demo, in the code and
   in the server kit, with sign-in with Entra ID optional, configured by settings. Two-factor codes and per-address
-  limits for local sign-in move to the parking lot, and the security review is taken off the roadmap.
+  limits for local sign-in move to the parking lot, and the security review is taken off the roadmap. With sign-in
+  through Entra ID, reach adds an emergency administrator sign-in for when Entra ID or its setup fails (A12).
 
 ## 0.12.0 (2026-11-01)
 

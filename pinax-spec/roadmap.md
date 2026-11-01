@@ -1479,7 +1479,7 @@ reach, at the maintainer's request.
 | Wave | Release | Theme | Main content |
 | --- | --- | --- | --- |
 | 13 | 0.13.0 | Production pilot | The largest production scan available ingests and passes `pinax check`; build time, index size, and query times measured on production replace the extrapolations in `docs/ARCHITECTURE.md`; 100 million files on server-class hardware, including the change map, what changed, and changed scans at that size, and the folder counts of production (two billion files may mean 50 to 200 million folders, which every report that reads all folders grows with); the time limits and whole-filesystem query turns set for production; installation on a pilot server from the deployment kit, scanning on a schedule; IT and a few pilot labs use it, and what they find is fixed or recorded; each filesystem says whether its access times can be trusted, and where they cannot, views by last access are hidden or marked (E11) |
-| 14 | 0.14.0 | Reach | Local sign-in the default out of the box outside the demo, in the code and in the server kit (below). Optional sign-in with Microsoft Entra ID in Pinax itself, configured by settings (OpenID Connect, the authorization code flow with PKCE), following Tundra's (below), with the roles of wave 12 from Entra ID app roles or groups, and lab membership synced from the directory (A6); header mode behind oauth2-proxy stays. CI and a container image (P6) |
+| 14 | 0.14.0 | Reach | Local sign-in the default out of the box outside the demo, in the code and in the server kit (below). Optional sign-in with Microsoft Entra ID in Pinax itself, configured by settings (OpenID Connect, the authorization code flow with PKCE), following Tundra's (below), with the roles of wave 12 from Entra ID app roles or groups, and lab membership synced from the directory (A6); header mode behind oauth2-proxy stays. An emergency administrator sign-in for when Entra ID or its setup fails (A12). CI and a container image (P6) |
 | 15 | 1.0.0 | Hardening | Budgets met at a billion files in production; load tests with many people at once (Q6); accessibility audit; documentation complete, with the time to rebuild the indexes after losing a server; pilot and early-user feedback addressed |
 
 Wave 14 needs no production storage either: if the pilot is still out of reach after wave 12, it can come first.
@@ -1527,6 +1527,25 @@ Where Pinax differs:
   decision on the authoritative source of membership and ownership.
 - **Testing what Dex cannot show**: app roles, groups and the group overage, and Graph need a test registration in
   an Entra ID tenant.
+
+**An emergency administrator sign-in (A12)**, which Tundra does not have: with sign-in through Entra ID, a way in
+for an administrator when Entra ID or Pinax's setup for it fails (an expired client secret, a wrong setting, an
+outage, a role mapping that leaves no administrator), as Microsoft advises emergency access accounts for Entra ID
+itself. It is a password-only way into an app otherwise behind the organization's single sign-on, multi-factor
+sign-in, and access policies, so it is kept small:
+- **Off unless an emergency account exists.** A site whose policy forbids any sign-in outside single sign-on makes
+  none, and then no one signs in with a password at all.
+- **Only storage administrators marked as emergency accounts**, marked and unmarked only from the server's command
+  line (`pinax user`), never in the app, so an administrator's single sign-on account, if taken over, cannot make
+  one. Everyone else signs in through Entra ID only.
+- **An address of its own**, not linked from the sign-in page; the local sign-in's password rules and lockout, a
+  longer minimum password, and short sessions.
+- **Loud**: every sign-in and failure audited, logged as a warning, and counted in the metrics, so the site's
+  monitoring can alert on it; *Access review* lists the emergency accounts under *Worth a look*.
+- **The guide's advice**: two such accounts, with long passwords kept in the organization's password vault, signed
+  in with now and then to check they work.
+- **Behind oauth2-proxy** (header mode), every request passes the proxy, so the way back stays on the server:
+  `PINAX_AUTH_MODE=local` and a restart, and `pinax user password`, which work in every mode.
 
 ## Parking lot
 
