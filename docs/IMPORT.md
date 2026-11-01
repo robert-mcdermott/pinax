@@ -67,6 +67,9 @@ and spaces around values are ignored. Empty lines are skipped.
 | `is_admin` | no (default `false`) | `true` gives the person the storage administrator role: every filesystem and folder |
 | `active` | no (default `true`) | `false` stops the person signing in |
 
+Site roles (auditor, finance, and division head) are not imported: give them on the person's page in *People and
+access* ([Site roles](ADMINISTRATION.md#site-roles)).
+
 ### memberships.csv: who belongs to which lab
 
 | Column | Required | Values |

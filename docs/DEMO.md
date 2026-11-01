@@ -63,7 +63,7 @@ The seed adds 14 labs and departments and 23 people; all names are fictional. Th
 | Priya Natarajan, Sam Rivera | Storage administrators | Everything, and the administration pages |
 
 Three top-level folders belong to no one (`scratch_legacy` and `shared_reference` on *Fast*, `irb_archive` on
-*Secure*), so only administrators see them, and nobody is charged for them.
+*Secure*), so only administrators and the auditor see them, and nobody is charged for them.
 
 ## The six months
 

@@ -8,9 +8,9 @@ screenshots in both themes, make the website (`node docs/site/build.mjs`; [docs/
 
 | Guide | What it covers |
 | --- | --- |
-| [How Pinax sees storage](CONCEPTS.md) | Filesystems, scans, snapshots, folder ownership, sizes, ages and cold data, change, costs, plans, tags, and the catalog |
-| [User guide](USER-GUIDE.md) | Every page a lab sees: My data, the age map, history and forecasts, the change map and what changed, the reports, finding files, storage charges, cleanup plans, tags and collections, saved views |
-| [The demo](DEMO.md) | Pinax with fictional labs and six months of scans, in one command, and a 20-minute walk-through |
+| [How Pinax sees storage](CONCEPTS.md) | Filesystems, scans, snapshots, folder ownership, who sees what (site roles and API tokens), sizes, ages and cold data, change, costs, plans, tags, and the catalog |
+| [User guide](USER-GUIDE.md) | Every page a lab sees: My data, the age map, history and forecasts, the change map and what changed, the reports, finding files, storage charges, cleanup plans, tags and collections, saved views, and API tokens for scripts |
+| [The demo](DEMO.md) | Pinax with fictional labs and six months of scans, in one command, and a walk-through of about 20 minutes, with a step for each role |
 
 ## For administrators
 
@@ -21,7 +21,7 @@ Read in this order when setting Pinax up for the first time:
 | [Trying Pinax on your own data](SETUP.md) | One machine, one filesystem, a first scan, and your first people, in a few minutes |
 | [Deployment](DEPLOYMENT.md) | Installing on a server (services, single sign-on or passwords), scans on a schedule and automatic ingest, checking the numbers, the catalog on SQLite or PostgreSQL, backups, upgrades, sizing, charges, logs, metrics, and day-to-day tasks |
 | [Configuration](CONFIGURATION.md) | Every setting, with its default |
-| [Administration guide](ADMINISTRATION.md) | The administrator's pages: All data, folders and labs, people and access, scans, storage health, capacity, costs, chargeback, tags, every lab's plans, and the audit log |
+| [Administration guide](ADMINISTRATION.md) | The administrator's pages, and what auditors and finance read: All data, folders and labs, people and access with site roles, API tokens, the access review, scans, storage health, capacity, costs, chargeback, tags, every lab's plans, and the audit log |
 | [Importing labs and people](IMPORT.md) | The CSV files for labs, people, memberships, and folder ownership |
 | [Command line](CLI.md) | Every `pinax` command and option |
 | [Troubleshooting](TROUBLESHOOTING.md) | What a problem looks like, why, and what to do |

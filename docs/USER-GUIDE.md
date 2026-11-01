@@ -1,7 +1,7 @@
 # User guide
 
-For the people whose data Pinax reports on: PIs, lab managers, and lab members, and for storage administrators
-when they explore. It goes through every page a lab sees, in the order most people use them. The pictures are of
+For the people whose data Pinax reports on: PIs, lab managers, and lab members; for division heads, who read their
+division's labs; and for storage administrators when they explore. It goes through every page a lab sees, in the order most people use them. The pictures are of
 the [demo](DEMO.md), whose labs and people are fictional. The ideas behind the pages (scans, top-level folders, ages,
 cold data) are in [How Pinax sees storage](CONCEPTS.md).
 

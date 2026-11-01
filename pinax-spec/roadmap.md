@@ -1462,6 +1462,13 @@ reach, at the maintainer's request.
    - The access review's token item says why it is worth a look: *The token “…” can make changes as …, not only
      read*, with when it expires and was last used; *Reading it* says what such a token risks (kept by a script, it
      acts as its person, with whatever access they have now) and what to check. The screenshot re-captured.
+   - Every guide and the website checked against the wave before the pull request: *How Pinax sees storage*
+     (site roles, API tokens, the audit log and access review), *Troubleshooting* (tokens and roles), *Trying Pinax
+     on your own data*, the administration guide's opening and the pages auditors and finance read, the
+     architecture's catalog, *Development* (modules, the guards that separate seeing from changing, endpoints,
+     pages), the documentation index, the README, `.env.example` and `deploy/pinax.env`; the website's home page
+     has *Access and audit*, and its pages' descriptions name the roles. Requirements A7, A11, and O6 say how each
+     was validated.
    - Version 0.12.0 in `pyproject.toml`, `pinax.__version__`, and `uv.lock`; `CHANGELOG.md` dated, with notes on
      upgrading from 0.11.0 (migrations `0002` to `0005`, the oauth2-proxy's `skip_auth_routes`, and
      `PINAX_TOKEN_MAX_DAYS`); the deployment guide installs v0.12.0; the website's home page names the release.

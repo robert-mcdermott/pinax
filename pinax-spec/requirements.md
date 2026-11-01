@@ -16,6 +16,8 @@ validation that shows it. Requirement IDs are stable and never reused.
   directories, small files, unreadable folders).
 - **Research data services staff** who map folders to labs, chase data whose owners have left, and decide what to
   archive.
+- **Research finance, auditors, and division leaders** who read every lab's charges and statements, review who
+  has access to what and what was changed, or follow the labs of a division, without changing anything.
 
 ## Platform
 
@@ -109,11 +111,11 @@ validation that shows it. Requirement IDs are stable and never reused.
 | A4 | Demo identity; trust a single sign-on proxy's header in production | done (wave 1, slice 1; wave 2, slice 6: only from trusted proxies, checked behind oauth2-proxy 7.15) |
 | A5 | Import labs, people, memberships, and folder ownership in bulk | done (wave 2, slice 5: `pinax import`, docs/IMPORT.md) |
 | A6 | Single sign-on with roles from directory groups; membership synced from the directory; optional, so that a site without it signs in as A4 or A9 allow | planned (wave 14: sign-in with Microsoft Entra ID in Pinax itself) |
-| A7 | An access recertification report: who has access to what, with when each was given, as a page and a CSV, and a recorded sign-off | done (wave 12) |
+| A7 | An access recertification report: who has access to what, with when each was given, as a page and a CSV, and a recorded sign-off | done (wave 12, slice 4: *Access review*, its CSV, and a sign-off audited as `access.reviewed`; when each role and membership was given, recorded from 0.12.0; `tests/test_review.py`) |
 | A9 | Sign in without single sign-on: passwords Pinax keeps, temporary passwords that must be changed, lockout, sessions, audit; the first administrator from the command line; the demo's sign-in-as-anyone refused in production | done (wave 4, slice 2: `PINAX_AUTH_MODE=local`) |
 | A8 | Manage people in the app, as in Tundra: add people, change their details, lab memberships, and administrator role, deactivate and reactivate them; every change audited; an administrator always remains | done (wave 4, slice 1: *People and access*) |
 | A10 | Roles beyond administrator, PI, and delegate: finance (charges, statements, and prices, without folders), auditor (everything to read, and the audit log, without changing anything), and division head or data steward (a division's labs); given in the app, or from directory groups where sign-in uses them | done (wave 12, slice 1: in *People and access*, with every way of signing in; checked for each role in `tests/test_roles.py`) |
-| A11 | API tokens for scripts: personal or service tokens, stored hashed, with the person's access or read-only, expiring, revocable, every change made with one audited with its name and its last use recorded; with every way of signing in | done (wave 12) |
+| A11 | API tokens for scripts: personal or service tokens, stored hashed, with the person's access or read-only, expiring, revocable, every change made with one audited with its name and its last use recorded; with every way of signing in | done (wave 12, slice 2: personal and service tokens; `/script/api/` through oauth2-proxy, where only a token counts; `tests/test_tokens.py`; the user guide's chargeback script run against the demo) |
 
 ## IT operations
 
@@ -124,7 +126,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | O3 | Scans: every snapshot with its status, timings, and sizes | done (wave 1, slice 6) |
 | O4 | Alerts when a scan or ingest fails | done (wave 2, slice 4: failed and skipped scans, and a watcher that stopped, shown on *Scans*; `--once` exits 1 on a failure; wave 10, slice 4: metrics that monitoring alerts on, and alert rules in `deploy/prometheus/`; alerts by email or chat are in the roadmap's parking lot) |
 | O5 | Metrics, structured logs, slow-query logging | done (wave 10, slice 3: a line per request with its ID, person, address, and time in index queries, slow requests flagged, audit events logged once committed, text or JSON; slice 4: Prometheus metrics at `/metrics`) |
-| O6 | The audit log in the app: every audit event, filtered by person, action, folder, and date, with CSV | done (wave 12) |
+| O6 | The audit log in the app: every audit event, filtered by person, action, folder, and date, with CSV | done (wave 12, slice 3: *Audit log* and `GET /api/admin/audit`, with each event's address and token; `tests/test_audit.py`) |
 
 ## Quality and performance
 

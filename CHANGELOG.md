@@ -68,6 +68,11 @@ restart Pinax ([Upgrading](docs/DEPLOYMENT.md#upgrading)).
   applies them when it starts, or `pinax db upgrade` does where `PINAX_DB_AUTO_UPGRADE=false`.
 - **The oauth2-proxy configuration** (`deploy/oauth2-proxy/pinax.cfg`) lets `/script/api/` through without signing
   in, for scripts with API tokens; copy the new `skip_auth_routes` line to an installed one.
+- **The guides** follow the wave throughout: *How Pinax sees storage* explains site roles and API tokens;
+  *Troubleshooting* has what goes wrong with tokens and roles; *Trying Pinax on your own data*, the administration
+  guide's opening, the architecture's catalog, and *Development* (the new modules, guards, and endpoints) are up to
+  date; the website's home page has *Access and audit*. `.env.example` and `deploy/pinax.env` list
+  `PINAX_TOKEN_MAX_DAYS`.
 
 ## 0.11.0 (2026-10-31)
 

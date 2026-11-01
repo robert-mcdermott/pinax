@@ -54,7 +54,7 @@ Pinax keeps three kinds of data. Only the catalog cannot be made again, so it is
 
 | | Where | What it holds | Size | If it is lost |
 |---|---|---|---|---|
-| **Catalog** | `PINAX_VAR_ROOT/pinax.db` (SQLite) | Filesystems; a record of every scan; folder history (each top-level folder's totals for every scan); people, labs and departments, memberships, folder ownership and who owned each folder when; local sign-in password hashes and sessions; prices and free tiers; the audit log; the ingest watcher's heartbeat | Small: about one row per top-level folder per scan (2,000 folders scanned weekly add about 100,000 rows a year) | Restore it from a backup. Without one, register the filesystems again, import people, labs, and folder ownership from the import files, and ingest the kept scans again; prices and free tiers, ownership history, folder history of scans no longer kept, and the audit log are lost |
+| **Catalog** | `PINAX_VAR_ROOT/pinax.db` (SQLite) | Filesystems; a record of every scan; folder history (each top-level folder's totals for every scan); people, their site roles, labs and departments, memberships (with when each role was given), folder ownership and who owned each folder when; local sign-in password hashes and sessions; API tokens (their SHA-256, never the token); prices and free tiers; capacities; cleanup plans, tags, and saved views; the audit log; the ingest watcher's heartbeat | Small: about one row per top-level folder per scan (2,000 folders scanned weekly add about 100,000 rows a year) | Restore it from a backup. Without one, register the filesystems again, import people, labs, and folder ownership from the import files, and ingest the kept scans again; prices and free tiers, ownership history, folder history of scans no longer kept, site roles, API tokens (scripts need new ones), plans, tags, views, and the audit log are lost |
 | **Snapshot indexes** | `PINAX_VAR_ROOT/snapshots/<filesystem>/<scan>/`, one per kept snapshot | `index.duckdb`: every directory's totals, and its changes since the scan before, with the files new and removed since; `files/`: Parquet, one row per file, for searches and file lists | About 56 bytes per file, plus about 60 per file new or removed since the scan before, for each of the newest `PINAX_KEEP_SNAPSHOTS` (6) snapshots of each filesystem | `pinax rebuild SNAPSHOT_ID` makes it again from its scan |
 | **Scans** | Where fs-inventory wrote them: `PINAX_SCAN_ROOT` for `pinax scan` and the watcher, or anywhere for `pinax ingest` | fs-inventory's Parquet and `manifest.json`: every entry's path, size, times, and owner | About 40 bytes per entry | Nothing changes in the app; that snapshot's index can no longer be rebuilt or checked |
 
@@ -79,8 +79,8 @@ Weekly scans of a billion-file filesystem take about 40 GB each, about 2 TB a ye
 catalog holds top-level folder names; names in research storage can carry identifiers, such as a study subject's
 ID in a file name. The catalog also holds people's names and emails and, with local sign-in, password hashes.
 Treat all three like the filesystem's own metadata: only the `pinax` user and group can read `/var/lib/pinax`
-(mode 0750), and backups and copies need the same protection. In the app, only storage administrators see across
-labs.
+(mode 0750), and backups and copies need the same protection. In the app, only storage administrators and auditors
+see across labs (finance sees every lab's charges, not its folders).
 
 ### The catalog database
 
@@ -712,8 +712,6 @@ uv run python bench/bench_charges.py --folders 2000 --weeks 52
 
 ## Known limits
 
-- **Hard links** are counted once per path, so a file with several links counts several times. The scan has
-  `ino` and `nlink`, so de-duplicated totals are possible later.
 - **Modification time** is what copies and restores usually preserve; a folder copied last week from old data
   still looks old. That is usually what people want, and the interface says which time each view uses.
 - **Access time** depends on mount options; many storage systems update it rarely or never.

@@ -107,13 +107,15 @@ administrator you see every filesystem and folder: *All data*, the age map, *Sto
 ## 6. Labs, people, and folders
 
 Each top-level folder of a filesystem belongs to one lab or department, and its members see it; nobody else
-does, except storage administrators. Set this up in the app:
+does, except storage administrators, auditors, and the heads of its division. Set this up in the app:
 
 1. *People and access*, *Labs and departments* tab: **Add lab or department** for each one (a slug, a name, and
    whether it is a lab or a department).
 2. *People and access*, *People* tab: **Add person** for each person, with their labs and their role in each
    (PI or owner, or delegate), then **Set a temporary password** for them to sign in with.
 3. *Folders and labs*: give each top-level folder its owner. Tick *Unmapped only* to see the ones left.
+4. Optionally, on a person's page, give site roles: auditor, finance, or head of a division
+   ([Site roles](ADMINISTRATION.md#site-roles)).
 
 For many labs and people at once, `pinax import` reads CSV files and shows every change before making it
 ([IMPORT.md](IMPORT.md)):
@@ -138,4 +140,6 @@ CSV statement. The currency is `PINAX_CURRENCY` (USD by default).
 - **A server:** [DEPLOYMENT.md](DEPLOYMENT.md) installs Pinax with systemd services, scheduled scans and automatic
   ingest, an HTTPS proxy for local sign-in or single sign-on with oauth2-proxy, upgrades, sizing, and backups.
 - **Every setting:** [CONFIGURATION.md](CONFIGURATION.md).
+- **Scripts:** API tokens let a script read Pinax, or make changes, with a person's access
+  ([API tokens for scripts](USER-GUIDE.md#api-tokens-for-scripts)).
 - **How it works, and how fast:** [ARCHITECTURE.md](ARCHITECTURE.md).

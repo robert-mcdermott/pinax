@@ -65,8 +65,8 @@ src/pinax/
                    once committed; text or JSON
   metrics.py       Prometheus metrics at /metrics: each filesystem's scans, size, and capacity from the catalog, and
                    the web app's requests, queries, and audit events
-  models.py        catalog schema: people, labs, folder ownership, filesystems, snapshots, folder history, capacity,
-                   marked folders, audit
+  models.py        catalog schema: people and their site roles, labs, folder ownership, filesystems, snapshots,
+                   folder history, capacity, marked folders, API tokens, audit
   categories.py    file categories, type normalization, age buckets
   ingest/build.py  fs-inventory scan -> snapshot index (DuckDB SQL)
   crosscheck.py    `pinax check`: every directory of an index against fs-inventory rollup
@@ -74,9 +74,12 @@ src/pinax/
   snapshots.py     running scans, ingest (one at a time, under a file lock), retention, the cache of open indexes
   watch.py         `pinax ingest --watch`: each new scan under a folder once, and a heartbeat for *Scans*
   onboard.py       `pinax import`: labs, people, memberships, and folder ownership from CSV (docs/IMPORT.md)
-  people.py        people: adding, editing, roles, deactivation (shared by the app and the CLI)
+  people.py        people: adding, editing, site roles, deactivation (shared by the app and the CLI)
   labs.py          labs and departments: adding, editing, deactivation; slug rules shared with the import
   signin.py        local sign-in: password hashes, sessions, lockout
+  tokens.py        API tokens: making (hashed, shown once), finding, what each may do, revoking
+  audit.py         the audit log: filters, pages of events, and its CSV
+  review.py        the access review: who has access to what, since when, what is worth a look; its sign-off
   ownership.py     who owned each top-level folder when, for charging past months
   costs.py         prices and free tiers per filesystem, from a day on
   charges.py       monthly charges: time-weighted, per lab or department and filesystem; and the months ahead
@@ -87,10 +90,12 @@ src/pinax/
   tags.py          folder tags: the standard list, labs' own tags, and tagging folders
   views.py         saved views: pages people keep and share with their labs
   jobs.py          searches in the background: worker threads, results kept as Parquet
-  auth.py          identity (demo cookie or SSO header) and folder access
+  auth.py          identity (demo cookie, SSO header, local session, or API token), what each person sees and may
+                   change, and `/script/api/` for scripts
   explore.py       explore and report services: resolving places, merging results across places
   serialize.py     JSON views of catalog objects
-  api/             routers: identity, sign-in, explore, admin, access, costs, capacity, plans, tags, views, health
+  api/             routers: identity, sign-in, explore, admin, access, costs, capacity, plans, tags, views, tokens,
+                   audit, review, health
   seed.py          demo filesystems, people, and scans
   cli.py, main.py  command line and FastAPI app
   static/          index.html, app/, css/pinax.css, js/, img/
@@ -105,6 +110,11 @@ tests/             pytest suite; scanfix.py writes exact fs-inventory-shaped sca
 - **Authorization is server-side, on every call.** Resolve places with `explore.resolve`, which checks that
   the path is canonical and inside the filesystem, and that the person may see its top-level folder.
   Never trust the client for paths or labs. Answer 404, not 403, for folders a person may not see.
+- **Seeing and changing are separate questions.** Guard a read that administrators and auditors may make with
+  `require_sees_all`, one that finance may make too with `require_sees_charges`, and every change to the site's
+  settings with `require_admin`. A lab's data is seen by `Identity.labs_seen` (its members and its division's
+  heads) and changed by `Identity.lab_roles` (its PI and delegates). A request with an API token is the token's
+  person, or a service with a role, and `tokens.may` decides what the token may do besides.
 - **Bind every value.** Index queries take parameters; SQL fragments are built only from fixed lists
   (`METRICS`, `FILE_SORTS`). Never interpolate request input into SQL.
 - **The index is immutable.** A snapshot index is never changed after it is built; build a new one instead.
@@ -133,7 +143,8 @@ tests/             pytest suite; scanfix.py writes exact fs-inventory-shaped sca
 
 ## HTTP API
 
-Documented automatically at `/api/docs`. The main endpoints, each taking optional `fs` and `path` (without
+Documented automatically at `/api/docs`. Scripts send an API token as `Authorization: Bearer ...`, to `/api/...`
+or, through a sign-on proxy, to `/script/api/...`, where only a token counts. The main endpoints, each taking optional `fs` and `path` (without
 them, the person's home), and `lab` to limit home to one lab:
 
 | Endpoint | Returns |
@@ -145,19 +156,23 @@ them, the person's home), and `lab` to limit home to one lab:
 | `GET /api/files?q=&category=&ext=&min_size=&older=&newer=&uid=&sort=&fmt=csv` | Files, with totals; CSV download |
 | `POST`, `GET /api/files/jobs`; `GET`, `DELETE /api/files/jobs/{id}`; `GET /api/files/jobs/{id}/csv` | A search in the background, the person's searches, one with a page of its results, stopping or deleting one, and its CSV |
 | `GET /api/home`, `GET /api/history?fs=&path=&lab=` | Folder cards and lab totals; a place's history, with the forecast of its size |
-| `GET /api/admin/overview`, `/health`, `/names`, `/snapshots`, `/labs`, `/people` | Administrator views |
+| `GET /api/admin/overview`, `/health`, `/names`, `/snapshots`, `/labs`, `/people` | Administrator views, for administrators and auditors |
 | `POST /api/admin/folders`, `POST /api/admin/labs/{slug}/members` | Folder ownership and membership changes |
+| `GET /api/admin/people/{username}`; `POST /api/admin/people`, `PUT /api/admin/people/{username}`, `POST /api/admin/people/{username}/password`, `/deactivate` and `/reactivate` | A person, with their labs, site roles (`roles`), tokens, and history; adding, changing, a temporary password, deactivating |
 | `GET`, `PUT /api/admin/labs/{slug}`, `POST /api/admin/labs`, `POST /api/admin/labs/{slug}/deactivate` and `/reactivate` | A lab or department, with its record; adding, changing, and deactivating one |
 | `GET /api/charges?month=&lab=&history=` | A person's labs' charges for a month, with their past months and the next twelve at their trend (`ahead`) |
 | `GET /api/charges/split?lab=&month=&tag=` | A lab's month split by a tag's values, and the tags its folders have to split by |
 | `GET /api/plans?lab=`, `/api/plans/here?fs=&path=`; `POST /api/plans`, `PUT`, `DELETE /api/plans/{id}`, `POST /api/plans/{id}/moved` | A person's labs' cleanup plans; a folder's place in its lab's plan; adding, changing, and taking out a folder; confirming or dismissing a move |
-| `GET /api/plans/suggestions?lab=`, `/api/plans/all` | Folders worth adding to a lab's plan; every lab's plan, for administrators |
+| `GET /api/plans/suggestions?lab=`, `/api/plans/all` | Folders worth adding to a lab's plan; every lab's plan, for administrators and auditors |
 | `GET`, `POST /api/admin/tags`; `PUT`, `DELETE /api/admin/tags/{id}`, `POST /api/admin/tags/{id}/active` | The standard tags and labs' own; adding, changing, retiring, and deleting an unused one |
 | `GET /api/tags/here?fs=&path=`, `/api/tags/below?fs=&path=`; `POST /api/tags/folders`, `DELETE /api/tags/folders/{id}`; `POST /api/tags/custom`; `POST /api/admin/tags/{id}/merge` | A folder's tags and those it inherits; the tagged folders below one; tagging and untagging; a lab's own tag; folding one into a standard tag |
 | `GET /api/tags/filters`, `/api/tags/collection?want=ID[:value]` (repeated) | The tags a person can look for, with their values; the folders that have every wanted tag, with totals, history, and forecast |
 | `GET`, `POST /api/views`; `PUT`, `DELETE /api/views/{id}` | A person's views and those shared with their labs; saving, renaming, sharing, deleting |
-| `GET /api/admin/costs`, `/api/admin/costs/charges?month=&fmt=csv`, `/api/admin/costs/ahead` | Prices and free tiers; every lab's charges for a month, or its CSV statement; every lab's next twelve months, added up |
+| `GET /api/admin/costs`, `/api/admin/costs/charges?month=&fmt=csv`, `/api/admin/costs/ahead` | Prices and free tiers; every lab's charges for a month, or its CSV statement; every lab's next twelve months, added up (for administrators, auditors, and finance) |
 | `GET /api/admin/capacity`, `POST /api/admin/capacity/{fs}`, `DELETE /api/admin/capacity/{fs}/{id}` | Each filesystem's capacity, its schedule, and when it fills; setting and removing a capacity from a day on |
+| `GET`, `POST /api/tokens`, `DELETE /api/tokens/{id}`; `GET`, `POST /api/admin/tokens` | A person's API tokens, making one (its secret is in this answer only), revoking one; everyone's, and making a service token |
+| `GET /api/admin/audit?person=&action=&lab=&fs=&path=&since=&until=&offset=&limit=&fmt=csv` | A page of audit events, newest first, with the total and what to filter by; every one that matches as CSV |
+| `GET /api/admin/access-review?fmt=csv`, `POST /api/admin/access-review/sign-off` | Who has access to what, with when each was given and what is worth a look, or its CSV; recording a review |
 | `GET /api/health`; `GET /metrics` | Health for load balancers (no sign-in); Prometheus metrics, only with `PINAX_METRICS_TOKEN` as a bearer token |
 
 ## Frontend conventions
@@ -180,7 +195,11 @@ The interface is plain HTML, CSS, and JavaScript modules with no framework or bu
 - `js/searches.js`: *Searches*, searches run in the background.
 - `js/costs.js`: *Costs*, each filesystem's prices and free tiers (`costs.py`, `api/costs.py`).
 - `js/charges.js`: *Storage charges*, what a person's labs pay each month and how, and *Chargeback*, every lab's
-  charges for a month, for administrators (`charges.py`, `api/costs.py`).
+  charges for a month, for administrators, auditors, and finance (`charges.py`, `api/costs.py`).
+- `js/tokens.js`: *API tokens*, a person's own and, for administrators and auditors, everyone's; the tokens on a
+  person's page (`tokens.py`, `api/tokens.py`).
+- `js/audit.js`: *Audit log* (`audit.py`, `api/audit.py`); `js/review.js`: *Access review* (`review.py`,
+  `api/review.py`).
 - `js/changes.js`: the change map, on `js/treemap.js`, with its seven-step gold-to-teal scale (`--chg-*`);
   `js/changed.js`: what changed, the same comparison as lists.
 - `js/shell.js`: the sidebar and the scope header (breadcrumbs, the scan date and its picker, links to every report

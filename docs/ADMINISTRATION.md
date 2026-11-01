@@ -1,13 +1,15 @@
 # Administration guide
 
-For storage administrators: the pages only they see, and what to do with them. Installing Pinax, scanning, the
+For storage administrators: the pages only they change, and what to do with them; and for auditors and finance,
+who read some of the same pages ([Site roles](#site-roles)). Installing Pinax, scanning, the
 catalog, upgrades, logs, and monitoring are in [DEPLOYMENT.md](DEPLOYMENT.md); every setting is in
 [CONFIGURATION.md](CONFIGURATION.md); every command is in [CLI.md](CLI.md).
 
 A **storage administrator** sees every filesystem and every folder, including folders no lab owns, and the pages
 under *Administration* in the sidebar. The first one is made from the command line (`pinax user add --admin`);
 after that, administrators make others under *People and access*. At least one active administrator always
-remains, and nobody can remove their own role or deactivate themselves.
+remains, and nobody can remove their own role or deactivate themselves. An **auditor** sees the same pages without
+their buttons; **finance** sees *Storage charges* of any lab, *Chargeback*, *Costs*, and *Capacity*.
 
 A new administrator's first week usually goes:
 
@@ -17,6 +19,7 @@ A new administrator's first week usually goes:
 4. Set each filesystem's capacity (*Capacity*), and its prices and free tiers if storage is charged (*Costs*).
 5. Look at *Storage health* for folders the scanner could not read, and give it access.
 6. Read *All data* each week: what grew, what needs attention.
+7. Give auditors, finance, and division heads their site roles, and record an *Access review* from time to time.
 
 ## All data
 
@@ -49,13 +52,13 @@ Every top-level folder of every filesystem: who owns it, its size, files, cold s
 change since the previous scan, and age profile. *Filesystem*, *Owner*, and *Unmapped only* narrow the list; the
 person icon beside an owner changes it.
 
-![Folders and labs, unmapped only](images/folders-light.webp "Unmapped only: three folders no lab owns, so only administrators see them and nobody is charged for them.")
+![Folders and labs, unmapped only](images/folders-light.webp "Unmapped only: three folders no lab owns, so only administrators and auditors see them and nobody is charged for them.")
 
 - **Map a folder**: choose its lab or department. Its members see it from then on, and it is charged to its owner
   from the moment it was mapped.
 - **Move a folder to another lab**: choose the new owner. The old lab stops seeing it; charges move with it from
   that moment, and earlier months stay as they were.
-- **Unmap it**: no lab owns it; only administrators see it, and nobody is charged.
+- **Unmap it**: no lab owns it; only administrators and auditors see it, and nobody is charged.
 
 Every change is audited, and Pinax keeps when each folder belonged to whom, for past months' charges. Below the
 folders, *Labs and departments* lists each with its owner or PI, division, folders, members, size, cold share, and
@@ -202,10 +205,10 @@ longer exist** (files owned by a uid with no account).
 ## Capacity
 
 How much each filesystem holds, how much is used, how fast use grows at the trend of the last six months, and when
-it fills. `pinax scan` records what the storage reports with each scan; a capacity set here (*From*, *Capacity*,
-*Unit*, *Set capacity*) takes its place from its day on, and a later one can be scheduled for an expansion. Use is
-measured by the storage's own figure once there are scans that have it, otherwise by space on disk, otherwise by
-size.
+it fills, for administrators, auditors, and finance. `pinax scan` records what the storage reports with each scan; a
+capacity set here (*From*, *Capacity*, *Unit*, *Set capacity*) takes its place from its day on, and a later one can
+be scheduled for an expansion. Use is measured by the storage's own figure once there are scans that have it,
+otherwise by space on disk, otherwise by size.
 
 ![Capacity](images/capacity-light.webp "Capacity: Fast fills within the year at its trend, before the expansion scheduled for later.")
 
@@ -214,7 +217,8 @@ up to three years ahead; at the fast end of the trend's range, Pinax also gives 
 
 ## Costs
 
-What each filesystem's storage costs a month, in `PINAX_CURRENCY`, and how much is free:
+What each filesystem's storage costs a month, in `PINAX_CURRENCY`, and how much is free. Administrators set them;
+auditors and finance read them:
 
 - **Price per month**: *From*, *Price*, and *Per* (TB, TiB, GB, or GiB) adds a price from a day on, until the
   next. Earlier prices are kept, so past months keep what they had.
@@ -228,7 +232,7 @@ change is audited ([Charges and statements](DEPLOYMENT.md#charges-and-statements
 
 ## Chargeback
 
-Every lab's and department's charge for a month, most first, the totals by filesystem, and the storage no one owns
+Finance's home page, and for administrators and auditors: every lab's and department's charge for a month, most first, the totals by filesystem, and the storage no one owns
 (*Unbilled*), with **Download CSV**, the statement for finance. *The next 12 months* adds up what every lab will pay
 at its trend.
 
@@ -264,7 +268,7 @@ first ([CLI.md](CLI.md#pinax-tags)).
 
 ## Every lab's cleanup plans
 
-An administrator's *Cleanup plans* shows every lab's plan at once: what they would free and save in all, by
+An administrator's or auditor's *Cleanup plans* shows every lab's plan at once: what they would free and save in all, by
 filesystem, the largest folders planned, and each lab's total, so IT can see what cleanup is coming and what is
 done.
 

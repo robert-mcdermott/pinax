@@ -421,9 +421,10 @@ copy works the other way too, from PostgreSQL into a new SQLite file (`--from` n
 ## Backups
 
 - **Catalog**: back up `/var/lib/pinax/pinax.db`, daily. It is the only part that cannot be made again: people,
-  labs, memberships, folder ownership and its history, snapshot records, folder history for every scan, prices
-  and free tiers, password hashes, and the audit log. It is small. Copying the file while Pinax runs can catch it
-  half-written, so use SQLite's online backup (the `sqlite3` package), which is safe at any time:
+  labs, memberships and site roles, folder ownership and its history, snapshot records, folder history for every
+  scan, prices and free tiers, plans, tags, views, password hashes, API tokens' hashes, and the audit log. It is
+  small. Copying the file while Pinax runs can catch it half-written, so use SQLite's online backup (the `sqlite3`
+  package), which is safe at any time:
 
   ```bash
   sudo install -d -o pinax -g pinax -m 0750 /var/lib/pinax/backup
@@ -577,7 +578,10 @@ server errors, searches turned away for want of a turn, and many failed sign-ins
 | Scan folders filling the disk | Pinax never deletes them: delete the folders of pruned snapshots (`pinax snapshots` lists each one's status and folder) |
 | An index was lost or damaged | `pinax rebuild SNAPSHOT_ID`, from its scan; `/api/health` is `degraded` and counts `indexes_missing` while one is missing |
 | Someone forgot their password, or is locked out (local sign-in) | Their page under *People and access*, *Set a new temporary password*; or `pinax user password USERNAME` |
-| Read the audit log | Each person's and lab's page shows its recent changes, and *All data* the latest under *Recent activity*; every event is in the log too (`pinax.audit`, and `PINAX_AUDIT_LOG` if set), and the whole log is the catalog's `audit_event` table (below) |
+| Read the audit log | *Audit log*, for administrators and auditors: found by person, change, lab, folder, and day, with CSV ([The audit log](ADMINISTRATION.md#the-audit-log)); each person's and lab's page shows its recent changes, and *All data* the latest under *Recent activity*; every event is in the log too (`pinax.audit`, and `PINAX_AUDIT_LOG` if set), and the whole log is the catalog's `audit_event` table (below) |
+| Review who has access to what | *Access review*: what is worth a look, every role and membership with when it was given, a CSV, and *Record a review* ([Access review](ADMINISTRATION.md#access-review)) |
+| Someone leaves | *Deactivate* them on their page: they cannot sign in, their sessions end, and their API tokens are revoked; a service token is no one's, so revoke it under *API tokens* when its service ends |
+| A script stops working | Its token expired, was revoked, or its person was deactivated: [Troubleshooting](TROUBLESHOOTING.md#api-tokens-and-scripts) |
 | A lab asks why a past month's charge changed | See [Charges and statements](#charges-and-statements) |
 | Someone cannot see their lab's data | Check *People and access* (membership) and *Folders and labs* (the folder is mapped to their lab) |
 | Someone gets *401* after signing in | Their username (the header named by `PINAX_AUTH_HEADER`) is not an active person in the catalog |
