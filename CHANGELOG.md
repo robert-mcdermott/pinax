@@ -1,8 +1,26 @@
 # Changelog
 
-## Unreleased
+## 0.12.0 (2026-11-01)
 
-Wave 12 ("access"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+Twelfth release (wave 12, "access"): who may see and do what beyond labs' members and storage administrators,
+scripts that use Pinax with a person's access, and the record of who did what. Three site roles (auditor, finance,
+and division head), API tokens for scripts, the audit log in the app, and an access review with its sign-off, all
+with every way of signing in. The demo has a person in each role, and its walk-through switches to each. The pilot
+follows in wave 13, and reach, with optional sign-in with Microsoft Entra ID, in wave 14. See
+[pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+
+Upgrading from 0.11.0: back the catalog up ([Backups](docs/DEPLOYMENT.md#backups)), install the new version, and
+restart Pinax ([Upgrading](docs/DEPLOYMENT.md#upgrading)).
+- **The catalog has four migrations**, `0002` to `0005`, which Pinax applies when it starts; with
+  `PINAX_DB_AUTO_UPGRADE=false` it refuses to start until `pinax db upgrade` has applied them. The snapshot indexes
+  are unchanged, so nothing needs rebuilding.
+- **Behind oauth2-proxy**, add `"^/script/api/"` to `skip_auth_routes` in its configuration and restart it, so
+  scripts with API tokens get through ([Sign-on with oauth2-proxy](docs/DEPLOYMENT.md#6-sign-on-with-oauth2-proxy)).
+  Without it, the proxy stops scripts, and nothing else changes.
+- **One new setting**, `PINAX_TOKEN_MAX_DAYS` (365 by default), the longest an API token may last. No new
+  dependency.
+- Storage administrators and lab memberships given before the upgrade say *Not recorded* in the access review:
+  Pinax did not record when they were given. Browsers load the new pages on their next visit.
 
 ### Added
 

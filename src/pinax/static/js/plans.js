@@ -218,7 +218,8 @@ function planCard(p) {
         <td class="hide-narrow nowrap">${date(i.added_at)}<div class="sub">${i.added_by || ""}</div></td>
         <td class="right">${can ? html`<button class="icon-btn" title="Take it out" aria-label="Take ${i.name} out of the plan" data-item="${i.id}" data-do="remove">${icon("x")}</button>` : ""}</td></tr>`)}
       </tbody></table></div>` : ""}
-    ${!p.items.length ? html`<div style="padding:0 22px 18px">${emptyState("archive", "Nothing planned yet", "Open a folder on the age map and add it from its panel, or add a suggestion below.")}</div>`
+    ${!p.items.length ? html`<div style="padding:0 22px 18px">${emptyState("archive", "Nothing planned yet", can ? "Open a folder on the age map and add it from its panel, or add a suggestion below."
+      : `Its ${p.lab.kind === "department" ? "owner" : "PI"} and delegates add folders to it from the age map.`)}</div>`
       : html`<div class="toolbar" style="padding:0 22px 16px"><button class="btn btn-ghost btn-sm" data-csv="${p.lab.slug}">${icon("download")}Download CSV</button></div>`}
     <div data-suggest="${p.lab.slug}"><p class="small muted" style="padding:0 22px 16px;margin:0">Looking for folders to suggest…</p></div>
   </section>`;

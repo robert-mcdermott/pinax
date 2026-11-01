@@ -16,8 +16,7 @@ decisions taken are recorded here. Later waves are outlined at the end.
 **Progress** is marked here as each slice is committed: done, next or to come. Each requirement's status is
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
-**Where things stand:** waves 1 to 11 are released as 0.1.0 to 0.11.0 (tags on `main`); wave 12 (0.12.0,
-access) is being built. Besides forecasts, 0.6.0
+**Where things stand:** waves 1 to 12 are released as 0.1.0 to 0.12.0 (tags on `main`). Besides forecasts, 0.6.0
 has what was merged since 0.5.0:
 - labs and departments can be added, changed, and deactivated in the app, so a site needs no CSV files at all;
 - guidance for operating Pinax;
@@ -1319,7 +1318,7 @@ reach, at the maintainer's request.
 | 2 | API tokens for scripts (A11) | Personal tokens, and service tokens for a named service, stored hashed and shown once, with their person's access or read-only, expiring, revocable, and last used; every change made with one audited with the token's name; a deactivated person's tokens stop; the proxy configuration lets requests with a token through to Pinax; the guide has a script that downloads a month's chargeback statement | Done |
 | 3 | The audit log in the app (O6) | A page of every audit event, for administrators and auditors: filtered by person, action, folder, and date, newest first, paged, with CSV | Done |
 | 4 | Access review (A7) | Who has access to what, for review and sign-off: each lab's and department's members and roles, each site role's holders, and the folders each can see, with when each was given; CSV; for administrators and auditors | Done |
-| 5 | Release 0.12.0 | The demo walk-through for each role; version 0.12.0, changelog, pull request, tag, release | Next |
+| 5 | Release 0.12.0 | The demo walk-through for each role; version 0.12.0, changelog, pull request, tag, release | Done |
 
 ### Decisions for wave 12
 
@@ -1432,7 +1431,7 @@ reach, at the maintainer's request.
      together; folders (a prefix that is not a parent, and wildcards); mistakes named (404 or 422); paging; the CSV
      as recorded; a change made with a token.
    - *Done*: in the browser as an auditor, every filter, paging, and the CSV, at 375 pixels and in both themes; the
-     administration guide's *The audit log*, with a screenshot; the walk-through's step 18.
+     administration guide's *The audit log*, with a screenshot; the walk-through's step 19.
 4. **Access review (A7).**
    - Migration `0005`: `user.admin_since` and `lab_membership.granted_at`, set by SQLAlchemy attribute events on
      `User.is_admin` and `LabMembership.role`, so the people page, `pinax import`, `pinax user add`, and the seed all
@@ -1453,7 +1452,17 @@ reach, at the maintainer's request.
      deactivated people and labs left out; dates given, not recorded, and given again; a folder's date; tokens and,
      with local sign-in, people who have not signed in; the sign-off audited, changing nothing; the CSV.
    - *Done*: in the browser as an auditor: *Find*, a review recorded, at 375 pixels and in both themes; the
-     administration guide's *Access review*, with a screenshot; the walk-through's step 19.
+     administration guide's *Access review*, with a screenshot; the walk-through's step 20.
+5. **Release 0.12.0.**
+   - The walk-through's *Site roles* (step 17) switches to each of the demo's site roles in turn: Helen Marsh, the
+     auditor, on every administration page with nothing to change; Daniel Osei, finance, from *Chargeback* to his
+     ledger import's token; Grace Whitfield, head of Basic Sciences, on her division's three labs, reading a
+     folder's tags and plan. Each checked on a fresh demo. A plan with nothing in it now tells those who read it
+     who adds to it, rather than inviting them to. The demo has 23 people.
+   - Version 0.12.0 in `pyproject.toml`, `pinax.__version__`, and `uv.lock`; `CHANGELOG.md` dated, with notes on
+     upgrading from 0.11.0 (migrations `0002` to `0005`, the oauth2-proxy's `skip_auth_routes`, and
+     `PINAX_TOKEN_MAX_DAYS`); the deployment guide installs v0.12.0; the website's home page names the release.
+   - Pull request to `main`, then tag `v0.12.0` and the release.
 
 ## Later waves (outlined)
 

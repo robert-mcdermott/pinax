@@ -130,7 +130,7 @@ Then open <http://127.0.0.1:8001> and choose who to be.
 The demo needs no setup. `pinax seed` writes two research filesystems of about 35,000 sparse files (123 TB of
 logical size on under 10 MB of disk), with ages going back fifteen years, and scans each one six times with
 fs-inventory, a month apart, with six months of activity simulated in between: labs grow, clean up, move a
-project, and join. It adds 14 labs and departments, 20 people, and storage prices, so there are six months of
+project, and join. It adds 14 labs and departments, 23 people, and storage prices, so there are six months of
 history and charges to explore. Sign-in is a persona switcher: be a PI, a delegate, or a storage administrator,
 and switch at any time. Seeding takes about fifteen seconds and resets `var/` and `demo/` each time, so it runs
 only when `PINAX_ENVIRONMENT=demo` (the default); Pinax refuses demo sign-in when `PINAX_ENVIRONMENT=prod`.
