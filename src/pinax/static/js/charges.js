@@ -40,7 +40,7 @@ export async function viewCharges(el, query) {
     const next = Object.entries({ month: q.month, lab: q.lab, ...changes }).filter(([, v]) => v);
     location.hash = `#/charges${next.length ? `?${new URLSearchParams(next)}` : ""}`;
   };
-  const admin = state.me.is_admin;
+  const admin = state.me.sees_charges || state.me.divisions?.length > 0;  // chooses among labs
   const months = data.months.includes(data.month) ? data.months : [data.month, ...data.months];
 
   mount(el, html`
@@ -52,7 +52,7 @@ export async function viewCharges(el, query) {
           ${data.choices.map((c) => html`<option value="${c.slug}" ${data.labs.some((l) => l.lab.slug === c.slug) ? raw("selected") : ""}>${c.name}</option>`)}</select></label>` : ""}
         <label class="ctl"><span>Month</span><select class="select sm" id="c-month">
           ${months.map((m) => html`<option value="${m}" ${m === data.month ? raw("selected") : ""}>${monthName(m)}</option>`)}</select></label>
-        ${admin ? html`<a class="btn btn-secondary btn-sm" href="#/chargeback?month=${data.month}">${icon("table")}Every lab</a>` : ""}
+        ${state.me.sees_charges ? html`<a class="btn btn-secondary btn-sm" href="#/chargeback?month=${data.month}">${icon("table")}Every lab</a>` : ""}
       </div></div>
     ${!data.priced ? html`<p class="callout">${icon("info")} <b>No storage prices are set yet</b>, so nothing is charged. The sizes below are what each lab stored.</p>` : ""}
     ${data.estimated && data.through ? html`<p class="callout">${icon("clock")} <b>${monthName(data.month)} is not over.</b>
@@ -95,7 +95,7 @@ async function splitBox(box, lab, month, tag) {
 
 function labCard(l, data) {
   const cur = data.currency;
-  const admin = state.me.is_admin;
+  const admin = state.me.sees_charges || state.me.divisions?.length > 0;
   const link = (m) => `#/charges?${new URLSearchParams(Object.entries({ month: m, lab: admin ? l.lab.slug : undefined }).filter(([, v]) => v))}`;
   const role = l.role ? roleLabel(l.role, l.lab.kind) : null;
   const unit = l.filesystems.flatMap((f) => f.periods).findLast((p) => p.unit)?.unit;  // as the month above
@@ -200,7 +200,8 @@ export async function viewChargeback(el, query) {
     <div class="kpis">
       <div class="kpi" style="--kpi-accent:var(--fh-teal)"><div class="label">Total charges</div><div class="value">${charge(data.total, cur)}</div><div class="sub">${monthName(data.month)}${data.estimated ? " · estimate" : ""}</div></div>
       <div class="kpi"><div class="label">Labs and departments charged</div><div class="value">${num(charged)}</div><div class="sub">of ${num(data.labs.length)} with storage</div></div>
-      <a class="kpi" href="#/folders?unmapped=1" style="--kpi-accent:var(--fh-yellow)"><div class="label">Unbilled storage</div><div class="value">${sized(unbilled, unit)}</div><div class="sub">On average, in folders no one owns · assign owners</div></a>
+      ${state.me.sees_all ? html`<a class="kpi" href="#/folders?unmapped=1" style="--kpi-accent:var(--fh-yellow)"><div class="label">Unbilled storage</div><div class="value">${sized(unbilled, unit)}</div><div class="sub">On average, in folders no one owns · assign owners</div></a>`
+        : html`<div class="kpi" style="--kpi-accent:var(--fh-yellow)"><div class="label">Unbilled storage</div><div class="value">${sized(unbilled, unit)}</div><div class="sub">On average, in folders no one owns</div></div>`}
     </div>
     <div class="stack">
       <div class="card flush"><div class="card-head"><h2>By filesystem</h2></div>

@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import charges, costs
-from ..auth import Identity, current_identity, require_admin
+from ..auth import Identity, current_identity, require_admin, require_sees_charges
 from ..config import get_settings
 from ..db import get_session, utcnow
 from ..models import Filesystem, FreeTier, Lab, LabFolder, Price
@@ -57,7 +57,7 @@ def _apply(session: Session, fs: Filesystem, change) -> dict:
 
 
 @admin.get("")
-def overview(_: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+def overview(_: Identity = Depends(require_sees_charges), session: Session = Depends(get_session)):
     """Every filesystem's prices and free tiers, the labs and departments exceptions can be for, and the currency."""
     filesystems = session.scalars(select(Filesystem).order_by(Filesystem.name)).all()
     labs = session.scalars(select(Lab).order_by(Lab.name)).all()
@@ -109,7 +109,7 @@ def remove_free_tier(fs: str, tier_id: int, identity: Identity = Depends(require
 
 
 @admin.get("/charges")
-def monthly_charges(month: str | None = None, fmt: str = "json", _: Identity = Depends(require_admin),
+def monthly_charges(month: str | None = None, fmt: str = "json", _: Identity = Depends(require_sees_charges),
                     session: Session = Depends(get_session)):
     """Every lab's and department's charges for a month (YYYY-MM; this month by default, estimated to its end), by
     filesystem, with the storage no one owns, and the months there are scans for. fmt=csv downloads the month's
@@ -131,7 +131,7 @@ def monthly_charges(month: str | None = None, fmt: str = "json", _: Identity = D
 
 
 @admin.get("/ahead")
-def charges_ahead(_: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+def charges_ahead(_: Identity = Depends(require_sees_charges), session: Session = Depends(get_session)):
     """Every lab's and department's charges for the next twelve months at its trend, added up; asked for apart
     from the month's charges, so Chargeback shows the month without waiting for it."""
     return charges.ahead_totals(charges.charges_ahead(session), get_settings().currency)
@@ -142,18 +142,19 @@ def lab_charges(month: str | None = None, lab: str | None = None, history: bool 
                 identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
     """What the person's labs and departments are charged for a month (YYYY-MM; this month by default, estimated
     to its end), by filesystem, period, and folder, with each lab's past months and its next twelve at its trend.
-    Administrators may ask for any lab; anyone else, for their own."""
+    Administrators, auditors, and finance may ask for any lab; division heads for their divisions'; anyone else, for
+    their own."""
     month = month or utcnow().strftime("%Y-%m")
-    if identity.is_admin:
+    if identity.sees_charges:
         choices = session.scalars(select(Lab).order_by(Lab.name)).all()
     else:
-        choices = session.scalars(select(Lab).where(Lab.id.in_(identity.lab_roles)).order_by(Lab.name)).all()
+        choices = session.scalars(select(Lab).where(Lab.id.in_(identity.labs_seen)).order_by(Lab.name)).all()
     if lab:
         shown = [c for c in choices if c.slug == lab]
         if not shown:
             raise HTTPException(404, "No such lab or department")
-    else:
-        shown = [c for c in choices if c.id in identity.lab_roles] or choices[:1]
+    else:  # their own labs; a division head, their division's; those who see every charge, one to start
+        shown = [c for c in choices if c.id in identity.lab_roles] or (choices[:1] if identity.sees_charges else choices)
     ids = {c.id for c in shown}
     try:
         out = charges.monthly_charges(session, month, labs_only=ids)
@@ -186,7 +187,7 @@ def charges_split(lab: str, month: str | None = None, tag: int | None = None,
     from ..models import FolderTag, MarkedFolder, Tag
 
     found = session.scalar(select(Lab).where(Lab.slug == lab))
-    if found is None or not (identity.is_admin or found.id in identity.lab_roles):
+    if found is None or not (identity.sees_charges or identity.can_view_lab(found.id)):
         raise HTTPException(404, "No such lab or department")
     owned = {(f.filesystem_id, f.path) for f in session.scalars(select(LabFolder).where(LabFolder.lab_id == found.id))}
     roots = {f.id: f.root.rstrip("/") for f in session.scalars(select(Filesystem))}

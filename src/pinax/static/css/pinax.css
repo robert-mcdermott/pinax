@@ -717,6 +717,9 @@ pre.json { background: var(--surface-2); color: var(--text); border: 1px solid v
 .tm-tip dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .tm-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
 
+/* Controls that change the site's settings: for storage administrators only (core.js loadIdentity). */
+body:not(.can-administer) .admin-only { display: none !important; }
+
 /* Sunburst (depth.js): arcs separated by a surface-colored edge; an outline drawn on top of the arc under the pointer
    or in focus. The icicle uses the treemap's tiles. */
 .sb { display: block; font-family: var(--fh-font-body); }

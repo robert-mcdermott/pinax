@@ -183,6 +183,27 @@ class User(Base):
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     memberships: Mapped[list["LabMembership"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    roles: Mapped[list["UserRole"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+
+
+SITE_ROLES = ("auditor", "finance", "division")
+
+
+class UserRole(Base):
+    """A site role a person has beside their lab memberships (auth.py). An auditor sees everything a storage
+    administrator does and changes nothing; finance sees every lab's charges and the prices behind them; a division
+    head sees the labs of one division (`division`, matching labs' own), as their members do."""
+
+    __tablename__ = "user_role"
+    __table_args__ = (UniqueConstraint("user_id", "role", "division"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"))
+    role: Mapped[str] = mapped_column(String(32))  # SITE_ROLES
+    division: Mapped[str] = mapped_column(String(200), default="", server_default="")
+    granted_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    user: Mapped["User"] = relationship(back_populates="roles")
 
 
 class LoginSession(Base):

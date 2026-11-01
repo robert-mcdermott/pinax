@@ -78,7 +78,7 @@ function card(f, data) {
   const today = data.today;
   const unitSelect = (name = "unit", current = "TB") => html`<select class="select sm" name="${name}" aria-label="Unit">
     ${data.units.map((u) => html`<option ${u === current ? raw("selected") : ""}>${u}</option>`)}</select>`;
-  const removeButton = (path, row, what) => html`<button class="icon-btn" type="button" title="Remove" aria-label="Remove ${what}"
+  const removeButton = (path, row, what) => html`<button class="icon-btn admin-only" type="button" title="Remove" aria-label="Remove ${what}"
     data-what="${what}" data-remove="${f.fs}|${path}|${row.id}|${row.future ? 0 : 1}">${icon("x")}</button>`;
   const dayInput = html`<label class="ctl"><span>From</span><input class="input sm" type="date" name="starts" value="${today}" required></label>`;
   const tierRows = (rows) => rows.map((t) => html`<li><span>${t.bytes == null ? "back to its kind's" : freeText(t)} from ${date(`${t.starts}T12:00:00Z`)}${t.future ? html` <span class="chip chip-queued">scheduled</span>` : ""}</span>
@@ -93,7 +93,7 @@ function card(f, data) {
           ${p.current ? html` <span class="chip chip-approved">${icon("check")}now</span>` : p.future ? html` <span class="chip chip-queued">scheduled</span>` : ""}</td>
         <td class="num nowrap">${money(p.price)} per ${p.unit}</td>
         <td class="right">${removeButton("prices", p, `the price from ${p.starts}`)}</td></tr>`)}</tbody></table></div>` : ""}
-    <form class="toolbar cost-form" data-price="${f.fs}">
+    <form class="toolbar cost-form admin-only" data-price="${f.fs}">
       ${dayInput}
       <label class="ctl"><span>Price (${state.config?.currency || "USD"})</span><input class="input sm" name="price" inputmode="decimal" placeholder="e.g. 25.50" required autocomplete="off"></label>
       <label class="ctl"><span>Per</span>${unitSelect()}</label>
@@ -106,7 +106,7 @@ function card(f, data) {
     ${f.exceptions.length ? html`<h3>Exceptions</h3><div class="grid cols-2">${f.exceptions.map((x) => html`<div>
       <p class="small" style="margin:0 0 4px"><b>${x.lab.name}</b>: ${x.now ? `${freeText(x.now)} free (its own)` : `its kind's (${freeText(f.free[x.lab.kind]?.now)})`}</p>
       <ul class="plain-list tier-list">${tierRows(x.history)}</ul></div>`)}</div>` : ""}
-    <form class="toolbar cost-form" data-free="${f.fs}">
+    <form class="toolbar cost-form admin-only" data-free="${f.fs}">
       ${dayInput}
       <label class="ctl"><span>For</span><select class="select sm" name="who" aria-label="Who the free tier is for">
         ${KINDS.map(([k, label]) => html`<option value="kind:${k}">${label}</option>`)}

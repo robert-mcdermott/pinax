@@ -14,13 +14,16 @@ export function renderSidebar() {
     const href = scoped ? placeHash(route, p) : `#/${route}`;
     return html`<a class="side-link" href="${href}" data-route="#/${route}">${icon(ic)}${label}</a>`;
   };
-  const admin = state.me?.is_admin;
+  // What each role sees (the server decides; this only leaves out what would be refused): everything, for
+  // administrators and auditors; labs' folders, for their members and division heads; every charge, for finance.
+  const me = state.me || {};
+  const all = me.sees_all, labs = all || me.sees_labs;
   mount($("#sidebar"), html`
     <h4>OVERVIEW</h4>
-    <a class="side-link" href="#/" data-route="#/">${icon("home")}${admin ? "All data" : "My data"}</a>
-    ${link("folders", "folder", admin ? "Folders and labs" : "My folders", false)}
-    ${link("charges", "receipt", "Storage charges", false)}
-    ${link("plans", "archive", "Cleanup plans", false)}
+    ${labs ? html`<a class="side-link" href="#/" data-route="#/">${icon("home")}${all ? "All data" : "My data"}</a>
+      ${link("folders", "folder", all ? "Folders and labs" : "My folders", false)}` : ""}
+    ${labs || me.sees_charges ? link("charges", "receipt", "Storage charges", false) : ""}
+    ${labs ? html`${link("plans", "archive", "Cleanup plans", false)}
     ${link("collections", "layers", "Collections", false)}
     <h4 class="scope-label">EXPLORE${p && p.fs ? html` <span class="tiny" title="${p.name || ""}">· ${p.name || ""}</span>` : ""}</h4>
     ${link("explore", "treemap", "Age map")}
@@ -31,16 +34,20 @@ export function renderSidebar() {
     ${link("types", "pie", "File types")}
     ${link("cold", "snowflake", "Cold data")}
     ${link("owners", "users", "Owners")}
-    ${link("files", "search", "Find files")}
-    ${state.me.is_admin ? link("searches", "inbox", "Searches", false) : ""}
-    ${admin ? html`<h4>ADMINISTRATION</h4>
+    ${link("files", "search", "Find files")}` : ""}
+    ${all ? link("searches", "inbox", "Searches", false) : ""}
+    ${all ? html`<h4>ADMINISTRATION</h4>
       ${link("health", "heart", "Storage health", false)}
       ${link("scans", "database", "Scans", false)}
       ${link("capacity", "server", "Capacity", false)}
       ${link("tags", "tag", "Tags", false)}
       ${link("costs", "banknote", "Costs", false)}
       ${link("chargeback", "table", "Chargeback", false)}
-      ${link("access", "lock", "People and access", false)}` : ""}`);
+      ${link("access", "lock", "People and access", false)}`
+    : me.sees_charges ? html`<h4>FINANCE</h4>
+      ${link("chargeback", "table", "Chargeback", false)}
+      ${link("costs", "banknote", "Costs", false)}
+      ${link("capacity", "server", "Capacity", false)}` : ""}`);
   setActiveNav((location.hash || "#/").split("?")[0], ".side-link");
 }
 
@@ -52,7 +59,7 @@ export const REPORTS = [
 
 /** Breadcrumbs for a place: home, then (for administrators) the filesystem, then each folder. */
 export function crumbsFor(place, labName) {
-  const admin = state.me.is_admin;
+  const admin = state.me.sees_all;
   const home = { label: labName || (admin ? "All data" : "My data"), place: labName ? { lab: place?.lab } : null };
   if (!place || !place.fs) return [home];
   const f = fsInfo(place.fs);
@@ -66,7 +73,7 @@ export function crumbsFor(place, labName) {
 }
 
 export function placeName(place, labName) {
-  if (!place || !place.fs) return labName || (state.me.is_admin ? "All data" : "My data");
+  if (!place || !place.fs) return labName || (state.me.sees_all ? "All data" : "My data");
   const f = fsInfo(place.fs);
   if (!place.path || (f && place.path === f.root)) return f ? f.name : place.fs;
   return place.path.split("/").pop();

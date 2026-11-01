@@ -216,6 +216,7 @@ const scenes = {
   async folders() { await open('pnatarajan', '#/folders?unmapped=1'); },
   async people() { await open('pnatarajan', '#/access'); },
   async person() { await open('pnatarajan', '#/access/people/jokafor'); },
+  async 'person-roles'() { await open('pnatarajan', '#/access/people/gwhitfield'); },
   async labs() { await open('pnatarajan', '#/access?tab=labs'); },
   async lab() { await open('pnatarajan', '#/access/labs/fujimoto_a'); },
   async scans() { await open('pnatarajan', '#/scans'); },

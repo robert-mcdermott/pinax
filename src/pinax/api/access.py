@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, selectinload
 from .. import labs as labs_service
 from .. import ownership, signin
 from .. import people as people_service
-from ..auth import Identity, require_admin
+from ..auth import Identity, require_admin, require_sees_all
 from ..config import get_settings
 from ..db import get_session
 from ..models import AuditEvent, Filesystem, Lab, LabFolder, LabMembership, User
@@ -29,7 +29,7 @@ def _labs(session: Session) -> list[Lab]:
 
 
 @router.get("/labs")
-def labs(_: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+def labs(_: Identity = Depends(require_sees_all), session: Session = Depends(get_session)):
     return [lab_json(lab) for lab in _labs(session)]
 
 
@@ -71,7 +71,7 @@ def _lab_change(session: Session, slug: str, change) -> dict:
 
 
 @router.get("/labs/{slug}")
-def lab(slug: str, _: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+def lab(slug: str, _: Identity = Depends(require_sees_all), session: Session = Depends(get_session)):
     return _lab_json(session, _lab(session, slug))
 
 
@@ -104,7 +104,7 @@ def reactivate_lab(slug: str, identity: Identity = Depends(require_admin), sessi
 
 
 @router.get("/people")
-def people(_: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+def people(_: Identity = Depends(require_sees_all), session: Session = Depends(get_session)):
     users = session.scalars(
         select(User).options(selectinload(User.memberships).selectinload(LabMembership.lab).selectinload(Lab.folders))
         .order_by(User.is_admin.desc(), User.display_name)
@@ -136,6 +136,7 @@ class PersonBody(BaseModel):
     title: str = ""
     is_admin: bool = False
     memberships: list[dict[str, Any]] | None = None  # [{lab: slug, role}], the full list; absent leaves them
+    roles: list[dict[str, Any]] | None = None  # site roles, [{role, division}], the full list; absent leaves them
 
 
 def _save(session: Session, identity: Identity, user: User | None, body: PersonBody) -> dict:
@@ -151,7 +152,7 @@ def _save(session: Session, identity: Identity, user: User | None, body: PersonB
 
 
 @router.get("/people/{username}")
-def person(username: str, identity: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+def person(username: str, identity: Identity = Depends(require_sees_all), session: Session = Depends(get_session)):
     user = _person(session, username)
     return _person_json(session, user) | {"is_self": user.id == identity.user.id}
 

@@ -1315,8 +1315,8 @@ reach, at the maintainer's request.
 
 | Slice | Scope and requirements | Acceptance before the next slice | Status |
 | --- | --- | --- | --- |
-| 1 | Roles (A10) | Auditor, finance, and division head beside storage administrator, PI, and delegate; given and taken away in *People and access*, and audited; each role's access checked on the server for every request, with tests for each role as A1 has for labs (what it sees, what answers 403 or 404, and that it changes nothing it may not); the sidebar and pages show each role what it may use; the demo has a person in each | Next |
-| 2 | API tokens for scripts (A11) | Personal tokens, and service tokens for a named service, stored hashed and shown once, with their person's access or read-only, expiring, revocable, and last used; every change made with one audited with the token's name; a deactivated person's tokens stop; the proxy configuration lets requests with a token through to Pinax; the guide has a script that downloads a month's chargeback statement | To come |
+| 1 | Roles (A10) | Auditor, finance, and division head beside storage administrator, PI, and delegate; given and taken away in *People and access*, and audited; each role's access checked on the server for every request, with tests for each role as A1 has for labs (what it sees, what answers 403 or 404, and that it changes nothing it may not); the sidebar and pages show each role what it may use; the demo has a person in each | Done |
+| 2 | API tokens for scripts (A11) | Personal tokens, and service tokens for a named service, stored hashed and shown once, with their person's access or read-only, expiring, revocable, and last used; every change made with one audited with the token's name; a deactivated person's tokens stop; the proxy configuration lets requests with a token through to Pinax; the guide has a script that downloads a month's chargeback statement | Next |
 | 3 | The audit log in the app (O6) | A page of every audit event, for administrators and auditors: filtered by person, action, folder, and date, newest first, paged, with CSV | To come |
 | 4 | Access review (A7) | Who has access to what, for review and sign-off: each lab's and department's members and roles, each site role's holders, and the folders each can see, with when each was given; CSV; for administrators and auditors | To come |
 | 5 | Release 0.12.0 | The demo walk-through for each role; version 0.12.0, changelog, pull request, tag, release | To come |
@@ -1339,6 +1339,33 @@ reach, at the maintainer's request.
   settings (administrator); a lab's data is seen by its members and its division's heads, and changed by its PI and
   delegates. Pages show only what a person may use, but the server decides.
 - **A token is never more than its person**: it carries their access, or less (read-only), and stops with them.
+
+### Slices as built
+
+1. **Roles (A10).**
+   - `user_role` (migration `0002`, the first since the baseline): a person's site roles, `auditor`, `finance`, or
+     `division` with the division's name, and when each was given. `auth.Identity` separates seeing from acting:
+     `sees_all` (administrators, auditors), `sees_charges` (and finance), `labs_seen` and `folders` (a person's own
+     labs, and those of the divisions they head, from the labs' *Division*), `lab_roles` (the labs they act for), and
+     `is_admin` (changes). `require_sees_all` and `require_sees_charges` guard the reads only administrators could
+     make before; every change keeps `require_admin`, and a lab's tags and plan its PI and delegates (adding to a
+     plan now checks that, rather than only seeing the folder, which no longer implies membership).
+   - *People and access*: a *Site roles* card on a person's page (administrator, auditor, finance, and each division
+     to head), a *Site roles* view of the list, role badges, and what the person would see; `people.save_person`
+     sets roles as a full list, a division only one that labs have, each one given or taken away audited
+     (`person.role`).
+   - Pages follow `/api/me`'s `sees_all`, `sees_charges`, `sees_labs`, and `divisions`: the sidebar of each role;
+     finance's home is *Chargeback*; division heads choose among their labs on *Storage charges* and *Cleanup plans*,
+     and see all of them unasked; controls that change the site's settings carry `admin-only`, shown to
+     administrators only; plans say whether the person may change them (`can_change`).
+   - Demo: Helen Marsh (auditor), Daniel Osei (finance), and Grace Whitfield (head of Basic Sciences, three labs),
+     on the landing page and in the identity picker's new group.
+   - Tests (`tests/test_roles.py`): roles given, refused (an unknown role, a division with no labs), and taken away,
+     with their audit; for each role, every read it may make, every one it may not (403 for administration, 404 for
+     folders and labs, as for others' labs), and changes refused; the division following the lab; a role beside a
+     lab. The migration tests follow the newest revision.
+   - *Done*: each role checked in the browser on a demo of its own; roles given on a person's page and audited; the
+     administration guide's *Site roles*, with screenshots.
 
 ## Later waves (outlined)
 

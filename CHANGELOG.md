@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+Wave 12 ("access"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+
+### Added
+
+- **Site roles.** Beside lab memberships, a person can be an *auditor* (sees everything a storage administrator does,
+  people included, and changes nothing), *finance* (every lab's and department's charges, and the prices, free tiers,
+  and capacities behind them; no folders), or *head of a division* (the labs of that division, as their members see
+  them, to read). They are given on a person's page in *People and access*, each change audited, and a person can
+  have several. Every check is on the server: seeing and changing are now separate questions, so reads an
+  administrator once made alone are open to these roles, and changes stay with administrators, and with each lab's
+  PI and delegates for its tags and plan. Pages show each role what it may use: finance lands on *Chargeback*, and
+  auditors see the administration pages without their buttons
+  ([Site roles](docs/ADMINISTRATION.md#site-roles)). The demo has one of each: Helen Marsh, Daniel Osei, and Grace
+  Whitfield.
+
+### Changed
+
+- **The roadmap.** Wave 12 (0.12.0) is access: roles, API tokens, the audit log in the app, and access reviews,
+  which work with every way of signing in. The pilot moves to wave 13; reach (wave 14) keeps optional sign-in with
+  Entra ID (with notes from Tundra's), local sign-in's two-factor codes and per-address limits, CI and the
+  container image, and the security review; hardening is wave 15 (1.0.0).
+- **The catalog's first migration since its baseline** (`0002`) adds the `user_role` table; Pinax applies it when it
+  starts, or `pinax db upgrade` does where `PINAX_DB_AUTO_UPGRADE=false`.
+
 ## 0.11.0 (2026-10-31)
 
 Eleventh release (wave 11, "deeper views"): the age map as an icicle and a sunburst, to see a folder up to eight

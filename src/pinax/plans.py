@@ -102,6 +102,8 @@ def add(session: Session, ident: Identity, fs: Filesystem, path: str, action: st
     lab = owner_of(session, fs, path)
     if lab is None:
         raise PlanError("No lab or department owns that folder, so it has no plan to go in")
+    if not can_plan(ident, lab.id):
+        raise PlanError(f"Only the {lab.name}'s PI and delegates plan its cleanup", 403)
     target = _target(session, fs, action, to)
     from .tags import protection, protection_text
 
@@ -149,8 +151,14 @@ def remove(session: Session, ident: Identity, item: CleanupItem) -> None:
     session.flush()
 
 
+def can_plan(ident: Identity, lab_id: int) -> bool:
+    """A lab's plan is changed by its PI and delegates, and administrators; others who see it (auditors, division
+    heads) only read it."""
+    return ident.is_admin or lab_id in ident.lab_roles
+
+
 def can_change(ident: Identity, item: CleanupItem) -> bool:
-    return ident.is_admin or item.lab_id in ident.lab_roles
+    return can_plan(ident, item.lab_id)
 
 
 def latest_stat(session: Session, mark: MarkedFolder) -> MarkedFolderStat | None:
@@ -365,7 +373,8 @@ def here(session: Session, ident: Identity, fs: Filesystem, path: str) -> dict:
     plan = lab_plan(session, lab)
     targets = session.scalars(select(Filesystem).where(Filesystem.active.is_(True), Filesystem.id != fs.id)
                               .order_by(Filesystem.name)).all()
-    return {"plannable": True, "lab": plan["lab"], "total": plan["total"], "savings": plan["savings"],
+    return {"plannable": True, "can_change": can_plan(ident, lab.id), "lab": plan["lab"], "total": plan["total"],
+            "savings": plan["savings"],
             "protected": _protected(session, fs, path),
             "item": item_json(session, mine, items) if mine else None,
             "inside": item_json(session, outer, items) if outer else None,

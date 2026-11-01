@@ -419,7 +419,7 @@ def filters(session: Session, ident) -> list[dict]:
     q = select(Tag).where(Tag.id.in_(used) | (Tag.lab_id.is_(None) & Tag.active.is_(True)))
     out = []
     for t in session.scalars(q.order_by(Tag.lab_id.is_not(None), Tag.label)):
-        if t.lab_id is not None and not (ident.is_admin or t.lab_id in ident.lab_roles):
+        if t.lab_id is not None and not ident.can_view_lab(t.lab_id):
             continue
         out.append({**tag_json(t), "values": sorted(used.get(t.id, set()) - {""})})
     return out

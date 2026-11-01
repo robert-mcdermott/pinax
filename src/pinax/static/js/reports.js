@@ -216,7 +216,7 @@ export async function viewFiles(el, query) {
   const data = await api("files", { query: { ...params, limit, total: false } });
   const more = data.files.length >= limit;
   // A search of a whole filesystem (or of all of them) can run in the background, past a page's time limit.
-  const wide = state.me.is_admin && (!place || !place.path || place.path === fsInfo(place.fs)?.root);
+  const wide = state.me.sees_all && (!place || !place.path || place.path === fsInfo(place.fs)?.root);
   const age = q.older ? `older:${q.older}` : q.newer ? `newer:${q.newer}` : "";
   const csv = `/api/files?${new URLSearchParams(Object.entries({ ...params, fmt: "csv", limit: state.config.export_max_rows })
     .filter(([, v]) => v !== undefined && v !== null && v !== ""))}`;

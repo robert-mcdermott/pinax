@@ -123,7 +123,7 @@ def _run(job_id: int) -> None:
 
 
 def can_see(ident: Identity, job: SearchJob) -> bool:
-    return ident.is_admin or job.user_id == ident.user.id
+    return ident.sees_all or job.user_id == ident.user.id
 
 
 def stop_or_delete(session: Session, job: SearchJob) -> None:

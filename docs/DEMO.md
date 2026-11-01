@@ -57,6 +57,9 @@ The seed adds 14 labs and departments and 20 people; all names are fictional. Th
 | Casey Morgan | Director of the Genomics Shared Resource, a department | The department's sequencing folders |
 | Avery Wong | Staff scientist, a delegate for a lab and a department | Folders from both |
 | Riya Patel | Postdoctoral fellow | Nothing yet: no lab access |
+| Grace Whitfield | Head of the Basic Sciences division | The Alvarez, Fujimoto, and Kowalski labs, to read |
+| Daniel Osei | Research finance analyst | Every lab's charges, the prices, and the capacities; no folders |
+| Helen Marsh | Research compliance officer, an auditor | Everything, to read |
 | Priya Natarajan, Sam Rivera | Storage administrators | Everything, and the administration pages |
 
 Three top-level folders belong to no one (`scratch_legacy` and `shared_reference` on *Fast*, `irb_archive` on
@@ -176,6 +179,10 @@ files are sparse, on a laptop's disk), so the capacities are set, and use is mea
 16. **People and access.** *Add person*: a username, a name, an email, and a lab; the panel shows the folders
     they will see. Grant or remove the storage administrator role. *Deactivate* them, and they cannot sign in (their
     access is kept, unused); *Reactivate* restores it. Each change is in the person's record and the audit log.
+    *Site roles* lists Helen Marsh (auditor), Daniel Osei (finance), and Grace Whitfield (head of Basic Sciences).
+    Switch to each: Helen sees every page, without a button that changes anything; Daniel lands on *Chargeback*,
+    with *Costs* and *Capacity* to read, and no folders; Grace's *My data* is her division's three labs, whose
+    charges and plans she reads, and whose folders she cannot tag or plan.
     On the *Labs and departments* tab, each lab's folders and members; *Add lab or department* adds one (a slug, a
     name, and whether it is a lab or a department, which decides its free tier), and its page changes its details
     or deactivates it: its members stop seeing its folders, which stay its own (and charged to it) until they are

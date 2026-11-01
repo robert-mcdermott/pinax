@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-"""People: who can sign in to Pinax, which labs and departments they belong to, and who administers it.
+"""People: who can sign in to Pinax, which labs and departments they belong to, their site roles (auditor, finance,
+division head), and who administers it.
 
 The People page and `pinax import` follow the same rules (`username_problem`, `email_problem`). People are never
 deleted, so the audit log keeps every reference: a deactivated person cannot sign in, and keeps their lab
@@ -16,10 +17,11 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from .models import AuditEvent, Lab, LabMembership, User
+from .models import SITE_ROLES, AuditEvent, Lab, LabMembership, User, UserRole
 from .signin import end_sessions
 
 ROLES = ("pi", "delegate")
+ROLE_TEXT = {"auditor": "auditor", "finance": "finance", "division": "division head"}
 PROFILE = ("display_name", "email", "title", "is_admin")
 LIMITS = {"username": 64, "display_name": 200, "email": 200, "title": 200}
 
@@ -87,7 +89,7 @@ def _memberships(session: Session, wanted: list[dict[str, Any]]) -> dict[int, tu
 
 def save_person(session: Session, actor: User | None, user: User | None, data: dict[str, Any]) -> User:
     """Add a person (`user` None) or change one: profile, administrator role, and, if given, lab memberships
-    (`memberships`: [{lab: slug, role}], the full list)."""
+    (`memberships`: [{lab: slug, role}], the full list) and site roles (`roles`: [{role, division}], the full list)."""
     creating = user is None
     profile = {"display_name": _text(data, "display_name"), "email": _text(data, "email"),
                "title": _text(data, "title"), "is_admin": bool(data.get("is_admin"))}
@@ -117,6 +119,7 @@ def save_person(session: Session, actor: User | None, user: User | None, data: d
                 raise PeopleError("At least one active storage administrator is required", 409)
         before = {k: getattr(user, k) for k in PROFILE}
     wanted = _memberships(session, data["memberships"]) if "memberships" in data else None
+    wanted_roles = _roles(session, data["roles"]) if "roles" in data else None
     for k, v in profile.items():
         setattr(user, k, v)
     session.flush()
@@ -132,8 +135,45 @@ def save_person(session: Session, actor: User | None, user: User | None, data: d
         _audit(session, actor, "person.updated", f"{user.display_name}: {what}", {"username": user.username, "fields": fields})
     if wanted is not None:
         _set_memberships(session, actor, user, wanted)
+    if wanted_roles is not None:
+        _set_roles(session, actor, user, wanted_roles)
     session.flush()
     return user
+
+
+def _roles(session: Session, rows: list[dict]) -> set[tuple[str, str]]:
+    """Site roles asked for, as (role, division): a division head's division must be one that labs have."""
+    divisions = set(session.scalars(select(Lab.division).where(Lab.division != "")))
+    out = set()
+    for row in rows or []:
+        role = str((row or {}).get("role") or "").strip()
+        division = str((row or {}).get("division") or "").strip() if role == "division" else ""
+        if role not in SITE_ROLES:
+            raise PeopleError("A site role is auditor, finance, or division (a division's head)")
+        if role == "division" and division not in divisions:
+            raise PeopleError(f"No lab is in a division called {division!r}" if division
+                              else "A division head needs a division")
+        out.add((role, division))
+    return out
+
+
+def role_text(role: str, division: str = "") -> str:
+    return f"head of {division}" if role == "division" else ROLE_TEXT.get(role, role)
+
+
+def _set_roles(session: Session, actor: User | None, user: User, wanted: set[tuple[str, str]]) -> None:
+    """Make the person's site roles exactly `wanted`, auditing each one given or taken away."""
+    current = {(r.role, r.division): r for r in session.scalars(select(UserRole).where(UserRole.user_id == user.id))}
+    for key, r in current.items():
+        if key not in wanted:
+            session.delete(r)
+            _audit(session, actor, "person.role", f"{user.display_name} is no longer {role_text(*key)}",
+                   {"username": user.username, "role": key[0], "division": key[1], "given": False})
+    for key in sorted(wanted - set(current)):
+        session.add(UserRole(user_id=user.id, role=key[0], division=key[1]))
+        _audit(session, actor, "person.role", f"{user.display_name} is now {role_text(*key)}",
+               {"username": user.username, "role": key[0], "division": key[1], "given": True})
+    session.expire(user, ["roles"])
 
 
 def _set_memberships(session: Session, actor: User | None, user: User, wanted: dict[int, tuple[Lab, str]]) -> None:

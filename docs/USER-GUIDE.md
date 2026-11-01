@@ -28,8 +28,10 @@ that Pinax keeps (a temporary one the first time, which you then change). In the
 
 You see the folders your labs own and everything inside them, and nothing else: other labs' folders do not appear
 at all. A delegate for two labs sees both. If a folder is missing, ask your storage administrators: it may not be
-mapped to your lab yet. Storage administrators see every filesystem and folder; their home page is *All data*
-([Administration](ADMINISTRATION.md#all-data)).
+mapped to your lab yet. A division head sees the folders of their division's labs the same way, to read. Storage
+administrators and auditors see every filesystem and folder; their home page is *All data*
+([Administration](ADMINISTRATION.md#all-data)). Finance sees every lab's charges, and lands on *Chargeback*
+([Site roles](ADMINISTRATION.md#site-roles)).
 
 Every page has the reports for the folder you are in along its top (*Age map*, *Change map*, *What changed*, *Age
 report*, *History*, *File types*, *Cold data*, *Owners*, *Find files*), and the scan it shows beside the date. The

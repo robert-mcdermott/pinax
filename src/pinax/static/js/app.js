@@ -27,7 +27,8 @@ const main = $("#main");
 async function viewHome(el) {
   state.place = null;
   renderSidebar();
-  if (state.me.is_admin) return viewOverview(el);
+  if (state.me.sees_all) return viewOverview(el);
+  if (!state.me.sees_labs && state.me.sees_charges) return location.replace("#/chargeback");
   const [home, tree, charges] = await Promise.all([api("home"), api("tree"),
     api("charges", { query: { history: false }, quiet: true }).catch(() => null)]);
   const folders = home.folders;

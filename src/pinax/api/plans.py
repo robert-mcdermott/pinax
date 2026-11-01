@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import marks, plans
-from ..auth import Identity, current_identity, require_admin
+from ..auth import Identity, current_identity, require_sees_all
 from ..db import get_session
 from ..models import CleanupItem, Filesystem, Lab
 from ..snapshots import cold_bucket
@@ -51,21 +51,24 @@ def _apply(session: Session, change):
 @router.get("")
 def lab_plans(lab: str | None = None, identity: Identity = Depends(current_identity),
               session: Session = Depends(get_session)):
-    """The cleanup plans of the person's labs and departments, or of one (any, for administrators)."""
+    """The cleanup plans of the person's labs and departments, or of one (any, for administrators and auditors; a
+    division's, for its heads)."""
     q = select(Lab).order_by(Lab.name)
-    if not identity.is_admin:
-        q = q.where(Lab.id.in_(identity.lab_roles))
+    if not identity.sees_all:
+        q = q.where(Lab.id.in_(identity.labs_seen))
     choices = session.scalars(q).all()
-    shown = [c for c in choices if c.slug == lab] if lab else [c for c in choices if c.id in identity.lab_roles]
+    # Their own labs' plans; a division head's, their division's; those who see every plan choose one.
+    shown = ([c for c in choices if c.slug == lab] if lab
+             else [c for c in choices if c.id in identity.lab_roles] or ([] if identity.sees_all else list(choices)))
     if lab and not shown:
         raise HTTPException(404, "No such lab or department")
-    return {"labs": [plans.lab_plan(session, c) for c in shown],
+    return {"labs": [{**plans.lab_plan(session, c), "can_change": plans.can_plan(identity, c.id)} for c in shown],
             "choices": [{"slug": c.slug, "name": c.name} for c in choices]}
 
 
 @router.get("/all")
-def every_plan(_: Identity = Depends(require_admin), session: Session = Depends(get_session)):
-    """For administrators: every lab's plan, totals by filesystem, and the largest folders planned."""
+def every_plan(_: Identity = Depends(require_sees_all), session: Session = Depends(get_session)):
+    """For administrators and auditors: every lab's plan, totals by filesystem, and the largest folders planned."""
     return plans.overview(session)
 
 
@@ -73,7 +76,7 @@ def every_plan(_: Identity = Depends(require_admin), session: Session = Depends(
 def suggestions(lab: str, identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
     """Folders of a lab worth adding to its plan, each with what it would free and save."""
     found = session.scalar(select(Lab).where(Lab.slug == lab))
-    if found is None or not (identity.is_admin or found.id in identity.lab_roles):
+    if found is None or not identity.can_view_lab(found.id):
         raise HTTPException(404, "No such lab or department")
     return {"lab": found.slug, "suggestions": plans.suggestions(session, found)}
 

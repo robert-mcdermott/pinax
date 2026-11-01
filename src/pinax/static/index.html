@@ -22,16 +22,17 @@
   <section class="entry-cards">
     <article class="entry">
       <div class="icon-ovoid" id="icon-owner"></div>
-      <h2>For PIs and lab members</h2>
+      <h2>For PIs, lab members, and division heads</h2>
       <p>Explore your lab's folders as an age map: big blue tiles are big folders of cold data, red ones recent work. Click to dive in,
         then break the same folder down by file type, owner, or age, and find files by name.</p>
       <div class="personas" id="owner-personas"></div>
     </article>
     <article class="entry ops">
       <div class="icon-ovoid" id="icon-ops"></div>
-      <h2>For IT and storage administrators</h2>
+      <h2>For IT, finance, and audit</h2>
       <p>Every filesystem at once: growth since the last scan, cold data by lab, unmapped folders, small-file
-        hotspots, problem names, scan errors, and files owned by accounts that no longer exist.</p>
+        hotspots, problem names, scan errors, and files owned by accounts that no longer exist. Every lab's charges for
+        finance, and all of it, read-only, for auditors.</p>
       <div class="personas" id="ops-personas"></div>
     </article>
   </section>
@@ -70,11 +71,12 @@
     await loadIdentity();
     renderTopbar({ mode: "home" });
 
-    const picks = { owner: ["afujimoto", "hlindqvist", "jokafor", "cmorgan"], ops: ["pnatarajan"] };
+    const picks = { owner: ["afujimoto", "hlindqvist", "jokafor", "cmorgan", "gwhitfield"], ops: ["pnatarajan", "dosei", "hmarsh"] };
     const users = await api("demo/users").catch(() => []);
     const byName = Object.fromEntries(users.map((u) => [u.username, u]));
-    const chip = (u) => html`<button class="seg" data-user="${u.username}">
-      Continue as ${u.display_name}${u.is_admin ? "" : u.labs.some((l) => l.role === "pi") ? " (PI)" : " (delegate)"}</button>`;
+    const role = (u) => (u.is_admin ? "" : u.roles?.length ? ` (${u.roles[0].role === "division" ? `head of ${u.roles[0].division}` : u.roles[0].role})`
+      : u.labs.some((l) => l.role === "pi") ? " (PI)" : " (delegate)");
+    const chip = (u) => html`<button class="seg" data-user="${u.username}">Continue as ${u.display_name}${role(u)}</button>`;
     if (users.length) {
       mount($("#owner-personas"), picks.owner.filter((n) => byName[n]).map((n) => chip(byName[n])));
       mount($("#ops-personas"), picks.ops.filter((n) => byName[n]).map((n) => chip(byName[n])));

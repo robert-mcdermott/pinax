@@ -80,17 +80,19 @@ export async function planBox(box, fs, path) {
     return;
   }
   if (!here.plannable) return mount(box, "");
+  const can = here.can_change;  // a lab's PI, delegates, and administrators; others read it
   const draw = () => {
     const item = here.item, inside = here.inside;
     mount(box, html`<h3>Cleanup plan</h3>
       ${item ? html`<p class="small" style="margin:0 0 8px"><span class="chip chip-review">${icon("archive")}${actionText(item)}</span>
           In the plan since ${date(item.added_at)}${item.added_by ? `, added by ${item.added_by}` : ""}.</p>
-        <div class="toolbar"><button class="btn btn-secondary btn-sm" data-plan="change">Change</button>
-          <button class="btn btn-ghost btn-sm" data-plan="remove">Take it out</button></div>`
+        ${can ? html`<div class="toolbar"><button class="btn btn-secondary btn-sm" data-plan="change">Change</button>
+          <button class="btn btn-ghost btn-sm" data-plan="remove">Take it out</button></div>` : ""}`
         : inside ? html`<p class="small" style="margin:0 0 8px">Inside <b>${inside.name}</b>, which is in the plan (${actionText(inside).toLowerCase()}).</p>`
         : here.protected ? html`<p class="small" style="margin:0 0 8px">${icon("shield")} ${here.protected.why}.</p>`
-        : html`<p class="small muted" style="margin:0 0 8px">Mark this folder for your lab to delete, move to cheaper storage, or compress, and see what it would save.</p>
-          <button class="btn btn-secondary btn-sm" data-plan="add">${icon("plus")}Add to cleanup plan</button>`}
+        : can ? html`<p class="small muted" style="margin:0 0 8px">Mark this folder for your lab to delete, move to cheaper storage, or compress, and see what it would save.</p>
+          <button class="btn btn-secondary btn-sm" data-plan="add">${icon("plus")}Add to cleanup plan</button>`
+        : html`<p class="small muted" style="margin:0 0 8px">Not in the lab's plan.</p>`}
       <p class="small" style="margin:10px 0 0"><a href="${planHash(here.lab.slug)}">The ${here.lab.name}'s plan</a>: ${totalText(here.total)}${here.total.folders ? ` · ${savesText(here.savings)}` : ""}</p>`);
     $("[data-plan=add]", box)?.addEventListener("click", async () => {
       if (await addToPlan(fs, path, here)) refresh();
@@ -114,8 +116,8 @@ export async function viewPlans(el, query) {
   state.place = null;
   renderSidebar();
   const q = parseQuery(query);
-  const admin = state.me.is_admin;
-  if (admin && !q.lab) return everyPlan(el);
+  const admin = state.me.sees_all || state.me.divisions?.length > 0;  // chooses among labs
+  if (state.me.sees_all && !q.lab) return everyPlan(el);
   const data = await api("plans", { query: { lab: q.lab } });
   mount(el, html`
     <div class="page-head"><div><div class="eyebrow">Overview</div><h1>Cleanup plans</h1>
@@ -147,7 +149,7 @@ export async function viewPlans(el, query) {
       if (e.name !== "AbortError") mount(box, "");
       return;
     }
-    mount(box, suggestionsTable(got, p.savings.currency));
+    mount(box, suggestionsTable(got, p.savings.currency, p.can_change));
     $$("[data-suggestion]", box).forEach((b) => b.addEventListener("click", async () => {
       const s = got[Number(b.dataset.suggestion)];
       const here = await api("plans/here", { query: { fs: s.fs, path: s.path } });
@@ -176,6 +178,7 @@ function savingsNote(s) {
 
 function planCard(p) {
   const s = p.savings;
+  const can = p.can_change;  // a lab's PI, delegates, and administrators; others read it
   const todo = p.items.filter((i) => i.progress.status !== "done");
   const done = p.items.filter((i) => i.progress.status === "done");
   const progressText = (i) => (i.progress.status === "partly done" ? `${bytes(i.progress.freed)} freed${i.progress.since ? ` by ${date(i.progress.since)}` : ""}` : "");
@@ -195,8 +198,8 @@ function planCard(p) {
           ${i.protected ? html`<div class="alert alert-warn" style="margin-top:8px">${icon("shield")}<div>Protected since it was planned: ${i.protected.why.replace(", so it cannot go in a cleanup plan", "")}. Take it out of the plan, or ask for the tag to be taken off.</div></div>` : ""}
           ${i.mark.status === "moved" ? html`<div class="alert alert-info" style="margin-top:8px">${icon("info")}<div>
             Not at its path in the latest scan; a folder with its inode is at <b>${displayPath(i.fs, i.mark.moved_to)}</b>. If it moved there, nothing was freed.
-            <div class="toolbar" style="margin-top:6px"><button class="btn btn-secondary btn-sm" data-moved="${i.id}" data-accept="1">It moved there</button>
-            <button class="btn btn-ghost btn-sm" data-moved="${i.id}" data-accept="0">It is not the same folder</button></div></div></div>` : ""}</td>
+            ${can ? html`<div class="toolbar" style="margin-top:6px"><button class="btn btn-secondary btn-sm" data-moved="${i.id}" data-accept="1">It moved there</button>
+            <button class="btn btn-ghost btn-sm" data-moved="${i.id}" data-accept="0">It is not the same folder</button></div>` : ""}</div></div>` : ""}</td>
         <td class="nowrap">${actionText(i)}</td>
         <td class="num nowrap hide-narrow">${bytes(i.baseline.bytes)}</td>
         <td class="num nowrap">${i.mark.status === "here" && i.now ? bytes(i.now.bytes) : html`<span class="muted">Moved?</span>`}</td>
@@ -204,8 +207,8 @@ function planCard(p) {
           : i.saving?.saves != null ? html`${i.saving.estimate ? "about " : ""}${charge(i.saving.saves, s.currency)}${i.saving.estimate
           ? html`<div class="sub">${bytes(i.saving.freed)} freed, estimated</div>` : ""}` : html`<span class="muted">${i.inside ? "with the folder around it" : "—"}</span>`}</td>
         <td class="hide-narrow nowrap">${date(i.added_at)}<div class="sub">${i.added_by || ""}</div></td>
-        <td class="right nowrap"><button class="btn btn-ghost btn-sm" data-item="${i.id}" data-do="change">Change</button>
-          <button class="icon-btn" title="Take it out" aria-label="Take ${i.name} out of the plan" data-item="${i.id}" data-do="remove">${icon("x")}</button></td></tr>`)}
+        <td class="right nowrap">${can ? html`<button class="btn btn-ghost btn-sm" data-item="${i.id}" data-do="change">Change</button>
+          <button class="icon-btn" title="Take it out" aria-label="Take ${i.name} out of the plan" data-item="${i.id}" data-do="remove">${icon("x")}</button>` : ""}</td></tr>`)}
       </tbody></table></div>${savingsNote(s)}` : ""}
     ${done.length ? html`<h3 style="margin:0;padding:${todo.length ? "4px" : "0"} 22px 6px">Done</h3><div class="table-wrap"><table class="table"><thead><tr><th>Folder</th><th>What was done</th>
         <th class="num">Freed</th><th>By the scan of</th><th class="hide-narrow">Added</th><th></th></tr></thead><tbody>
@@ -213,7 +216,7 @@ function planCard(p) {
         <td class="nowrap">${actionText(i)}</td><td class="num nowrap">${bytes(i.progress.freed)}</td>
         <td class="nowrap">${i.progress.since ? date(i.progress.since) : "—"}</td>
         <td class="hide-narrow nowrap">${date(i.added_at)}<div class="sub">${i.added_by || ""}</div></td>
-        <td class="right"><button class="icon-btn" title="Take it out" aria-label="Take ${i.name} out of the plan" data-item="${i.id}" data-do="remove">${icon("x")}</button></td></tr>`)}
+        <td class="right">${can ? html`<button class="icon-btn" title="Take it out" aria-label="Take ${i.name} out of the plan" data-item="${i.id}" data-do="remove">${icon("x")}</button>` : ""}</td></tr>`)}
       </tbody></table></div>` : ""}
     ${!p.items.length ? html`<div style="padding:0 22px 18px">${emptyState("archive", "Nothing planned yet", "Open a folder on the age map and add it from its panel, or add a suggestion below.")}</div>`
       : html`<div class="toolbar" style="padding:0 22px 16px"><button class="btn btn-ghost btn-sm" data-csv="${p.lab.slug}">${icon("download")}Download CSV</button></div>`}
@@ -224,7 +227,7 @@ function planCard(p) {
 const SUGGESTED = { workflow: "Made again by running the workflow", compress: "Compresses well", cold: "Could go to cheaper storage" };
 
 /** Folders worth adding to the plan, each with what it would free and save on its own. */
-function suggestionsTable(list, currency) {
+function suggestionsTable(list, currency, can = true) {
   if (!list.length) return html`<p class="small muted" style="padding:0 22px 16px;margin:0">No suggestions: no workflow working folders, uncompressed sequencing data, or large cold folders outside the plan.</p>`;
   return html`<h3 style="margin:0;padding:4px 22px 6px">Suggestions</h3><div class="table-wrap"><table class="table"><thead><tr><th>Folder</th><th>Why</th>
       <th class="num">Size</th><th class="num">Frees</th><th class="num">Saves a month</th><th></th></tr></thead><tbody>
@@ -232,7 +235,7 @@ function suggestionsTable(list, currency) {
       <td>${s.what}<div class="sub">${SUGGESTED[s.kind]}</div></td><td class="num nowrap">${bytes(s.bytes)}</td>
       <td class="num nowrap">${s.estimate ? "about " : ""}${bytes(s.freed)}</td>
       <td class="num nowrap">${s.saves == null ? html`<span class="muted">no price</span>` : `${s.estimate ? "about " : s.action === "move" ? "up to " : ""}${charge(s.saves, currency)}`}</td>
-      <td class="right"><button class="btn btn-secondary btn-sm" data-suggestion="${i}">${icon("plus")}Add</button></td></tr>`)}
+      <td class="right">${can ? html`<button class="btn btn-secondary btn-sm" data-suggestion="${i}">${icon("plus")}Add</button>` : ""}</td></tr>`)}
     </tbody></table></div>
     <p class="small muted" style="margin:0;padding:8px 22px 16px">Each saving is the folder's on its own, at today's prices; moving cold data saves less than deleting it, by what it costs where it goes.</p>`;
 }

@@ -204,14 +204,14 @@ def _job(session: Session, identity: Identity, job_id: int):
 
 @router.get("/files/jobs")
 def searches(identity: Identity = Depends(current_identity), session: Session = Depends(get_session)):
-    """A person's searches in the background (every one's, for administrators), newest first."""
+    """A person's searches in the background (every one's, for administrators and auditors), newest first."""
     from sqlalchemy import select
 
     from .. import jobs
     from ..models import SearchJob
 
     q = select(SearchJob).order_by(SearchJob.created_at.desc())
-    if not identity.is_admin:
+    if not identity.sees_all:
         q = q.where(SearchJob.user_id == identity.user.id)
     return {"searches": [jobs.job_json(session, j) for j in session.scalars(q.limit(200))],
             "days": get_settings().job_days}

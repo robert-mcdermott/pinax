@@ -67,8 +67,8 @@ source of folder ownership, the import files are how to keep it in step.
 ## People and access
 
 Who can sign in, what each person sees, and who administers Pinax. *People* lists everyone, with their username,
-labs and roles, and status; the tabs narrow it to administrators, people with no access, and inactive people;
-*Search* finds by name, username, email, or title.
+labs and roles, and status; the tabs narrow it to administrators, people with site roles, people with no access,
+and inactive people; *Search* finds by name, username, email, or title.
 
 ![People and access](images/people-light.webp "People and access: two storage administrators, PIs, delegates, and a staff scientist in a lab and a department.")
 
@@ -78,12 +78,33 @@ you save. A person's page has their profile, their labs and roles, the administr
 changes from the audit log:
 
 - **Labs**: add them to a lab or department as PI (or owner) or delegate, change the role, or take them out.
-- **Administrator**: grant or remove the storage administrator role.
+- **Site roles**: storage administrator, auditor, finance, or head of one or more divisions, beside any labs
+  ([Site roles](#site-roles)).
 - **Deactivate**: they cannot sign in, and their memberships and role are kept, unused, until *Reactivate*.
 - **Set a new temporary password** (local sign-in): Pinax shows it once; they must change it when they next sign
   in. It also unlocks a locked account and ends their sessions.
 
 ![A person's page](images/person-light.webp "Jordan Okafor's page: a delegate for two labs.")
+
+### Site roles
+
+Beside lab memberships, a person can have site roles, given and taken away on their page, each change audited. A
+person can have several (a finance officer who is also a PI), and every role works with every way of signing in.
+
+| Role | Sees | Changes |
+| --- | --- | --- |
+| Storage administrator | Everything | Everything: people, labs, folder ownership, prices, capacity, the tags, and any lab's tags and plan |
+| Auditor | Everything a storage administrator sees, people and the audit log included | Nothing |
+| Finance | Every lab's and department's charges (*Storage charges* of any of them, *Chargeback* and its statement), and the prices, free tiers, and capacities behind them | Nothing; sees no folders, files, or people |
+| Division head | Each lab in the divisions chosen (a lab's *Division*) as its members see it: its folders and every report, its charges, its plan, and its collections | Nothing: tagging and planning stay with each lab's PI and delegates |
+| PI, owner, or delegate | Their lab's or department's folders and every report, its charges, plan, and collections | Its folders' tags and its cleanup plan |
+
+Pages show each person what they may use: an auditor sees the administration pages without their buttons, and
+finance a sidebar of charges. Every check is made on the server, for every request
+([Security](ARCHITECTURE.md#security)). A division head's labs follow the labs' *Division*: change a lab's division,
+and its folders move to the new division's heads.
+
+![A division head's page](images/person-roles-light.webp "Grace Whitfield, head of Basic Sciences: no lab of her own, and the folders of its three labs to read.")
 
 **Labs and departments** lists every lab and department with its members and folders. *Add lab or department*
 adds one: a slug (its short ID), a name, whether it is a lab or a department (which decides its free tier), its

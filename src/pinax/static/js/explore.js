@@ -56,7 +56,7 @@ export async function viewExplore(el, query) {
 
   mount(el, html`
     ${scopeHeader("explore", place, { asOf, lab: node.lab && !place ? node.lab : null,
-      lede: place ? "" : state.me.is_admin ? "Every filesystem, as of its latest scan." : "Every folder your labs own.",
+      lede: place ? "" : state.me.sees_all ? "Every filesystem, as of its latest scan." : "Every folder your labs own.",
       actions: parentCrumb ? html`<a class="btn btn-ghost btn-sm" href="${placeHash("explore", parentCrumb.fs ? { fs: parentCrumb.fs, path: parentCrumb.path } : null, keep)}">${icon("arrowUp")}Up one level</a>` : "" })}
     <div class="toolbar">
       ${select("ctl-size", "Size by", metricOptions(), q.size)}

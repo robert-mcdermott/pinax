@@ -53,6 +53,9 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
   change audited; costs: each filesystem's price
   per month and the free tiers for labs and departments, from a day on; and chargeback: every lab's and
   department's charges for a month, totals by filesystem, the storage no one owns, and a CSV statement for finance.
+- **Roles beyond labs**: auditors see everything and change nothing; finance sees every lab's charges and the
+  prices behind them, and no folders; division heads see their divisions' labs as the labs' members do. Given on a
+  person's page, beside their labs, with every way of signing in; checked on the server for every request.
 - **Sign-in three ways**: the demo's persona switcher, to show Pinax with the seeded people (no setup; refused in
   production); usernames and passwords Pinax keeps, for sites without single sign-on; or single sign-on, such as
   Entra ID behind oauth2-proxy. People, labs, and access are managed the same way in all three.

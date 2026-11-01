@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import capacity, costs
-from ..auth import Identity, require_admin
+from ..auth import Identity, require_admin, require_sees_charges
 from ..db import get_session, utcnow
 from ..models import Capacity, Filesystem
 
@@ -40,7 +40,7 @@ def _apply(session: Session, fs: Filesystem, change) -> dict:
 
 
 @admin.get("")
-def overview(_: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+def overview(_: Identity = Depends(require_sees_charges), session: Session = Depends(get_session)):
     """Every active filesystem's capacity, its schedule, and when it fills."""
     filesystems = session.scalars(select(Filesystem).where(Filesystem.active.is_(True)).order_by(Filesystem.name))
     return {"today": utcnow().date().isoformat(), "units": list(capacity.UNITS),

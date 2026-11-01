@@ -34,7 +34,7 @@ from sqlalchemy import select
 from . import capacity, costs, plans, tags
 from .config import Settings, get_settings
 from .db import init_db, reset_catalog, reset_engine, session_scope
-from .models import AuditEvent, Filesystem, Lab, LabFolder, LabMembership, User
+from .models import AuditEvent, Filesystem, Lab, LabFolder, LabMembership, User, UserRole
 from .snapshots import indexes, ingest_scan
 
 KB, MB, GB, TB = 1000, 1000**2, 1000**3, 1000**4
@@ -161,7 +161,12 @@ PEOPLE = [
     ("rpatel", "Riya Patel", "Postdoctoral Research Fellow", False, []),  # no lab access yet
     ("pnatarajan", "Priya Natarajan", "Storage Engineering Lead", True, []),
     ("srivera", "Sam Rivera", "Research Data Services, Scientific Computing", True, []),
+    ("hmarsh", "Helen Marsh", "Research Compliance Officer", False, []),
+    ("dosei", "Daniel Osei", "Research Finance Analyst", False, []),
+    ("gwhitfield", "Grace Whitfield", "Associate Director, Basic Sciences", False, []),
 ]
+# Site roles beside labs (auth.py): an auditor, finance, and the head of a division of three labs.
+DEMO_ROLES = [("hmarsh", "auditor", ""), ("dosei", "finance", ""), ("gwhitfield", "division", "Basic Sciences")]
 
 # Extra file-system accounts (lab members who are not Pinax users), and accounts that no longer exist.
 MEMBER_NAMES = ["tnguyen", "bokoro", "lfischer", "dmendes", "yzhou", "kpatel", "jkim", "mrossi", "asato", "ebrown",
@@ -753,6 +758,9 @@ def run_seed(scale: float = 1.0) -> None:
             s.flush()
             for slug, role in memberships:
                 s.add(LabMembership(user_id=u.id, lab_id=labs[slug].id, role=role))
+        users = {u.username: u for u in s.scalars(select(User))}
+        for username, role, division in DEMO_ROLES:
+            s.add(UserRole(user_id=users[username].id, role=role, division=division))
         s.add(AuditEvent(action="demo.seeded", summary="Demo data created by pinax seed"))
         s.flush()
         admin = s.scalar(select(User).where(User.is_admin.is_(True)).order_by(User.id).limit(1))

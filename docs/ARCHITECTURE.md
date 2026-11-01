@@ -584,12 +584,17 @@ the month shows at once; adding up the ranges overstates the range); storage no 
     refused. `scripts/sso-check.py` checks this behind a real oauth2-proxy.
 - **Authorization is on the server, for every request.** A request names a filesystem and path; Pinax checks
   that the path is canonical (no `.`, `..`, or empty components) and inside the filesystem root, takes its
-  top-level folder, and allows it only for administrators or members of the lab that owns that folder.
+  top-level folder, and allows it only for those who see everything or who see the lab that owns that folder.
   Otherwise it answers 404, so the existence of other labs' folders is not revealed.
+- **Seeing and changing are separate** (`auth.Identity`). Storage administrators and auditors see everything
+  (`sees_all`), and finance every lab's charges and the prices behind them (`sees_charges`); a lab's members, and
+  the heads of its division (a site role, `user_role`), see its folders. Only storage administrators change the
+  site's settings (`require_admin`), and only a lab's PI and delegates, or an administrator, tag its folders or plan
+  its cleanup. Reads an administrator once made alone take `require_sees_all` or `require_sees_charges`.
 - File queries read only the Parquet files of the top-level folders in scope.
 - People, labs, memberships, and folder ownership use the same model as Tundra (`Lab`, `LabFolder`,
   `User`, `LabMembership`); changes are audited. People are never deleted: a deactivated person cannot sign in,
-  and keeps their memberships and administrator role, unused, until reactivated. At least one active storage
+  and keeps their memberships and roles, unused, until reactivated. At least one active storage
   administrator always remains, and nobody can remove their own administrator role or deactivate themselves
   (`people.py`, shared by *People and access* and `pinax import`).
 - Pinax never reads file contents or writes to the file system it reports on; it reads scan output.

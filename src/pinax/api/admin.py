@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import capacity, explore
-from ..auth import Identity, require_admin
+from ..auth import Identity, require_sees_all
 from ..db import get_session
 from ..index import Stats
 from ..models import AuditEvent, Filesystem, Heartbeat, Snapshot
@@ -33,7 +33,7 @@ NAME_FLAGS = [
 
 
 @router.get("/overview")
-def overview(_: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+def overview(_: Identity = Depends(require_sees_all), session: Session = Depends(get_session)):
     """Per filesystem: the latest scan, its totals, and how much of it is mapped to labs."""
     out = []
     for fs in session.scalars(select(Filesystem).where(Filesystem.active.is_(True)).order_by(Filesystem.name)):
@@ -57,7 +57,7 @@ def overview(_: Identity = Depends(require_admin), session: Session = Depends(ge
 @router.get("/health")
 def health(fs: str, path: str | None = None, huge_entries: int = Query(100_000, ge=1),
            many_files: int = Query(10_000, ge=1), small_bytes: int = Query(65_536, ge=1),
-           identity: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+           identity: Identity = Depends(require_sees_all), session: Session = Depends(get_session)):
     """Scan errors, oversized directories, small-file hotspots, problem names, and unknown owners."""
     place = explore.resolve(session, identity, fs, path)[0]
     idx = place.idx
@@ -86,7 +86,7 @@ def health(fs: str, path: str | None = None, huge_entries: int = Query(100_000, 
 
 @router.get("/names")
 def names(fs: str, flag: int, path: str | None = None, limit: int = Query(200, ge=1, le=2000),
-          identity: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+          identity: Identity = Depends(require_sees_all), session: Session = Depends(get_session)):
     """Files whose names have a given problem flag."""
     place = explore.resolve(session, identity, fs, path)[0]
     rows = place.idx.files(place.path, where="(name_flags & ?) <> 0", params=[flag], order="path", limit=limit)
@@ -94,17 +94,17 @@ def names(fs: str, flag: int, path: str | None = None, limit: int = Query(200, g
 
 
 @router.get("/snapshots")
-def snapshots(_: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+def snapshots(_: Identity = Depends(require_sees_all), session: Session = Depends(get_session)):
     rows = session.scalars(select(Snapshot).order_by(Snapshot.started_at.desc())).all()
     return [snapshot_json(s) for s in rows]
 
 
 @router.get("/ingest")
-def ingest_status(_: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+def ingest_status(_: Identity = Depends(require_sees_all), session: Session = Depends(get_session)):
     """Whether automatic ingest (`pinax ingest --watch`) is running, and what its last pass did."""
     return {"watch": heartbeat_json(session.get(Heartbeat, HEARTBEAT))}
 
 
 @router.get("/filesystems")
-def filesystems(_: Identity = Depends(require_admin), session: Session = Depends(get_session)):
+def filesystems(_: Identity = Depends(require_sees_all), session: Session = Depends(get_session)):
     return [fs_json(f) for f in session.scalars(select(Filesystem).order_by(Filesystem.name))]

@@ -112,7 +112,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | A7 | An access recertification report | planned (wave 12) |
 | A9 | Sign in without single sign-on: passwords Pinax keeps, temporary passwords that must be changed, lockout, sessions, audit; the first administrator from the command line; the demo's sign-in-as-anyone refused in production | done (wave 4, slice 2: `PINAX_AUTH_MODE=local`) |
 | A8 | Manage people in the app, as in Tundra: add people, change their details, lab memberships, and administrator role, deactivate and reactivate them; every change audited; an administrator always remains | done (wave 4, slice 1: *People and access*) |
-| A10 | Roles beyond administrator, PI, and delegate: finance (charges, statements, and prices, without folders), auditor (everything to read, and the audit log, without changing anything), and division head or data steward (a division's labs); given in the app, or from directory groups where sign-in uses them | planned (wave 12, slice 1) |
+| A10 | Roles beyond administrator, PI, and delegate: finance (charges, statements, and prices, without folders), auditor (everything to read, and the audit log, without changing anything), and division head or data steward (a division's labs); given in the app, or from directory groups where sign-in uses them | done (wave 12, slice 1: in *People and access*, with every way of signing in; checked for each role in `tests/test_roles.py`) |
 | A11 | API tokens for scripts: personal or service tokens, stored hashed, with the person's access or read-only, expiring, revocable, each use audited; with every way of signing in | planned (wave 12) |
 
 ## IT operations
