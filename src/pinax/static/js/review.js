@@ -34,7 +34,8 @@ function render(el, r) {
     <div class="grid split">
       <div class="stack">
         ${r.attention.length ? html`<div class="card"><div class="card-head"><h2>Worth a look</h2></div>
-          <ul class="feed">${r.attention.map((a) => html`<li data-find="${text(a.text)}">${icon("alert")}<a href="${a.href}">${a.text}</a></li>`)}</ul></div>` : ""}
+          <ul class="feed">${r.attention.map((a) => html`<li data-find="${text(a.text)}">${icon("alert")}<span><a href="${a.href}">${a.text}</a>
+            ${a.kind === "token" ? html`<div class="tiny muted" style="margin-top:2px">Until ${date(a.expires_at)} · ${a.last_used_at ? html`last used ${when(a.last_used_at)}` : "never used"}</div>` : ""}</span></li>`)}</ul></div>` : ""}
         <div class="card flush"><div class="card-head"><h2>Site roles</h2></div>
           <div class="table-wrap"><table class="table compact"><thead><tr><th>Role</th><th>Person</th><th>Since</th></tr></thead><tbody>
           ${r.roles.map((x) => html`<tr data-find="${text(x.label, x.division, x.person.display_name, x.person.username)}">
@@ -71,6 +72,9 @@ function render(el, r) {
             <li><b>Since</b>: when the role or membership was given. Pinax began recording it in 0.12.0; earlier ones say <i>Not recorded</i>.</li>
             <li>A folder's date is when its lab came to own it, where that was changed in Pinax.</li>
             <li>A division head sees the folders of their division's labs, to read.</li>
+            <li>A <b>token that can make changes</b> is kept by a script, not behind a sign-in: whoever has it acts as its
+              person, with whatever access they have now. Check that it is still used and still needs to change things,
+              or revoke it and make one that only reads.</li>
             ${local ? html`<li>Worth a look includes people with access who have not signed in for ${r.idle_days} days.</li>` : ""}
           </ul>
           <p class="small" style="margin-top:10px">The <b>CSV</b> has a row for each piece of access each person has, for a spreadsheet or a sign-off record.</p></div>

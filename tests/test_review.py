@@ -127,8 +127,10 @@ def test_tokens_and_idle_people_are_worth_a_look(people, monkeypatch):
     people.post("/api/tokens", json={"name": "Pipeline", "days": 30, "read_only": False})
     people.post("/api/tokens", json={"name": "Report", "days": 30})
     r = _review(people)
-    assert any(a["kind"] == "token" and "“Pipeline”" in a["text"] for a in r["attention"])
-    assert not any("Report" in a["text"] for a in r["attention"])
+    token = next(a for a in r["attention"] if a["kind"] == "token")
+    assert token["text"] == "The token “Pipeline” can make changes as Ada, not only read"
+    assert token["href"] == "#/access/people/ada" and token["expires_at"] and token["last_used_at"] is None
+    assert not any("Report" in a["text"] for a in r["attention"])  # reads only
     ada = {p["username"]: p for p in r["people"]}["ada"]
     assert ada["tokens"] == 2 and ada["tokens_with_access"] == 1
     assert not any(a["kind"] == "idle" for a in r["attention"])  # sign-ins are not known behind single sign-on

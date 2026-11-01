@@ -210,10 +210,10 @@ files are sparse, on a laptop's disk), so the capacities are set, and use is mea
     for every token made and revoked, or the filesystem *Fast* and the folder `dasgupta_r` for everything done to
     that lab's folder. *Download CSV* has them all.
 20. **Access review.** Still as Helen, *Access review*: two things worth a look (Riya Patel, who can sign in and
-    sees nothing, and Rohan Dasgupta's token that changes his lab's tags), every site role, each lab's members and
-    folders, and each person's access, with when each was given. Type `Basic Sciences` in *Find* for that division:
-    its three labs and Grace Whitfield. Her review is under *Reviews*; *Record a review* adds another, and it is in
-    the audit log.
+    sees nothing, and Rohan Dasgupta's *Sequencing pipeline tags*, a token that can make changes as Rohan, such as
+    tagging the lab's folders), every site role, each lab's members and folders, and each person's access, with when
+    each was given. Type `Basic Sciences` in *Find* for that division: its three labs and Grace Whitfield.
+    Helen's review is under *Reviews*; *Record a review* adds another, and it is in the audit log.
 21. **Import from CSV.** In a terminal, `uv run pinax import examples/import` lists the 14 changes the example
     files would make: two departments, a lab, three people, their memberships, and owners for the three unmapped
     folders. Add `--apply`, and *Folders and labs* shows no unmapped folders; every change is in the audit log.

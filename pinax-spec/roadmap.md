@@ -1459,6 +1459,9 @@ reach, at the maintainer's request.
      ledger import's token; Grace Whitfield, head of Basic Sciences, on her division's three labs, reading a
      folder's tags and plan. Each checked on a fresh demo. A plan with nothing in it now tells those who read it
      who adds to it, rather than inviting them to. The demo has 23 people.
+   - The access review's token item says why it is worth a look: *The token “…” can make changes as …, not only
+     read*, with when it expires and was last used; *Reading it* says what such a token risks (kept by a script, it
+     acts as its person, with whatever access they have now) and what to check. The screenshot re-captured.
    - Version 0.12.0 in `pyproject.toml`, `pinax.__version__`, and `uv.lock`; `CHANGELOG.md` dated, with notes on
      upgrading from 0.11.0 (migrations `0002` to `0005`, the oauth2-proxy's `skip_auth_routes`, and
      `PINAX_TOKEN_MAX_DAYS`); the deployment guide installs v0.12.0; the website's home page names the release.

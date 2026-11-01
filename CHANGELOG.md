@@ -49,7 +49,7 @@ restart Pinax ([Upgrading](docs/DEPLOYMENT.md#upgrading)).
   Every audit event now records the address of the request that made it. The demo's site roles are given by its
   administrator, so they are in its audit log.
 - **Access review.** *Access review*, for administrators and auditors: what is worth a look (labs with no PI,
-  people who see nothing, tokens that change things, and, with local sign-in, people who have not signed in for 90
+  people who see nothing, tokens that can make changes as their person, and, with local sign-in, people who have not signed in for 90
   days), every site role, each lab's members and folders, and each person's access and what they see, with when
   each was given; *Find* across them; a CSV with a row for each piece of access; and *Record a review*, audited
   (`access.reviewed`), which auditors may do too ([Access review](docs/ADMINISTRATION.md#access-review)). Pinax now

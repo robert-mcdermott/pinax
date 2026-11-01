@@ -6,8 +6,9 @@
   members and their roles (with when each was given), and the heads of its division.
 - **People**: each active person's access, the folders they see and why, when they last signed in (local sign-in),
   and their live API tokens.
-- **Worth a look**: active labs with no PI or owner, people who can sign in and see nothing, tokens that change
-  what their person may change, and, with local sign-in, people with access who have not signed in for 90 days.
+- **Worth a look**: active labs with no PI or owner, people who can sign in and see nothing, tokens that can make
+  changes as their person (a credential kept by a script, with whatever access its person has now), and, with local
+  sign-in, people with access who have not signed in for 90 days.
 - **Sign-off**: recording that the access was reviewed, with a note, is audited (`access.reviewed`) and listed;
   it changes no one's access, so auditors may record it too.
 
@@ -143,8 +144,9 @@ def gather(session: Session) -> dict:
     for u in active_users:
         for t in tokens.get(u.id, []):
             if not t.read_only:
-                attention.append({"kind": "token", "text": f"{u.display_name}'s token “{t.name}” changes what they may "
-                                  f"change, until {t.expires_at:%Y-%m-%d}", "href": f"#/access/people/{u.username}"})
+                attention.append({"kind": "token", "text": f"The token “{t.name}” can make changes as {u.display_name}, "
+                                  "not only read", "href": f"#/access/people/{u.username}",
+                                  "expires_at": iso(t.expires_at), "last_used_at": iso(t.last_used_at)})
     if local:
         idle = now - timedelta(days=IDLE_DAYS)
         for p, u in zip(people, active_users, strict=True):
