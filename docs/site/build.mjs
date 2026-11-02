@@ -50,7 +50,7 @@ const DOCS = [
     { slug: 'scans', title: 'Scans and storage health', file: 'ADMINISTRATION.md', sections: ['Scans', 'Storage health'], lede: 'Every snapshot and its state, automatic ingest, and what the scans say is wrong with the storage.' },
     { slug: 'capacity', title: 'Capacity', file: 'ADMINISTRATION.md', sections: ['Capacity'], lede: 'How much each filesystem holds, how fast it fills, and when.' },
     { slug: 'costs', title: 'Costs and chargeback', file: 'ADMINISTRATION.md', sections: ['Costs', 'Chargeback'], lede: 'Prices and free tiers from a day on, and every lab\'s charges with a statement for finance.' },
-    { slug: 'tags-admin', title: 'Tags, plans, and the audit log', file: 'ADMINISTRATION.md', sections: ['Tags', "Every lab's cleanup plans", 'The audit log'], lede: 'The standard tags, every lab\'s cleanup plans, and the record of every change.' },
+    { slug: 'tags-admin', title: 'Tags, categories, plans, and the audit log', file: 'ADMINISTRATION.md', sections: ['Tags', 'File categories', "Every lab's cleanup plans", 'The audit log'], lede: 'The standard tags, the file categories, every lab\'s cleanup plans, and the record of every change.' },
     { slug: 'import', title: 'Importing labs and people', file: 'IMPORT.md', lede: 'Labs, people, memberships, and folder ownership from CSV files, with a dry run first.' },
   ] },
   { group: 'Installation and operations', pages: [

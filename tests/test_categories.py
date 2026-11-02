@@ -164,3 +164,97 @@ def test_categories_are_checked(tmp_path, scan):
     with pytest.raises(BuildError, match="file categories cannot be used"):
         build_index(scan, tmp_path / "index", categories=(other, DEFAULTS[0]), progress=lambda m: None)
     assert not Path(tmp_path / "index").exists()
+
+
+# ---------- For administrators: *File categories* ----------
+
+def _auditor(name: str = "nobody") -> None:
+    from pinax.db import session_scope
+    from pinax.models import User, UserRole
+
+    with session_scope() as s:
+        s.add(UserRole(user_id=s.scalar(select(User).where(User.username == name)).id, role="auditor", division=""))
+
+
+def _audited(action: str) -> list[dict]:
+    from pinax.db import session_scope
+    from pinax.models import AuditEvent
+
+    with session_scope() as s:
+        return [e.detail for e in s.scalars(select(AuditEvent).where(AuditEvent.action == action))]
+
+
+def test_administrators_change_categories_and_auditors_read_them(client):
+    _auditor()
+    listing = login(client, "nobody").get("/api/admin/categories")
+    assert listing.status_code == 200 and listing.json()["can_change"] is False
+    assert [c["key"] for c in listing.json()["categories"]] == [c.key for c in DEFAULTS]
+    assert listing.json()["rebuild"] == {"snapshots": 1, "outdated": 0, "seconds": 0, "latest": 0, "latest_seconds": 0}
+    assert listing.json()["bytes"]["genomics"] == 5000 + 50 + 3000 + 2000 + 9000
+    assert client.put("/api/admin/categories/genomics", json={"label": "Reads"}).status_code == 403
+    assert login(client, "ada").get("/api/admin/categories").status_code == 403
+
+    c = login(client, "ivy")
+    r = c.post("/api/admin/categories", json={"label": "Raw runs", "description": "Not yet processed",
+                                              "extensions": [".BAI", "bai"], "patterns": [r"^raw_"]})
+    assert r.status_code == 201, r.text
+    cats = r.json()["categories"]
+    assert [x["key"] for x in cats][-2:] == ["raw_runs", "other"] and cats[-2]["extensions"] == ["bai"]
+    assert r.json()["rebuild"]["outdated"] == 1 and r.json()["rebuild"]["latest"] == 1
+    assert _audited("category.added") == [{"category": "raw_runs", "fingerprint": r.json()["fingerprint"],
+                                           "extensions": ["bai"], "patterns": ["^raw_"]}]
+    assert c.post("/api/admin/categories", json={"label": "Raw runs"}).status_code == 409
+
+    without_sam = [e for e in DEFAULTS[0].extensions if e != "sam"]
+    assert c.put("/api/admin/categories/genomics", json={"extensions": without_sam}).status_code == 200
+    changed = _audited("category.changed")[0]
+    assert changed["extensions"]["to"] == without_sam and "label" not in changed
+
+    for path, body, says in (("other", {"extensions": ["dat"]}, "no extensions or patterns"),
+                             ("raw_runs", {"patterns": ["raw_("]}, "not a regular expression"),
+                             ("raw_runs", {"extensions": ["no spaces"]}, "is not an extension"),
+                             ("raw_runs", {"patterns": [f"^x{i}" for i in range(26)]}, "At most 25 patterns"),
+                             ("raw_runs", {"label": " "}, "needs a name")):
+        r = c.put(f"/api/admin/categories/{path}", json=body)
+        assert r.status_code == 422 and says in r.json()["detail"], (path, r.text)
+    assert c.put("/api/admin/categories/nonesuch", json={"label": "X"}).status_code == 404
+
+    r = c.post("/api/admin/categories/raw_runs/move", json={"to": 0})
+    assert r.json()["categories"][0]["key"] == "raw_runs" and _audited("category.moved")[0]["position"] == 1
+    assert c.post("/api/admin/categories/other/move", json={"to": 0}).status_code == 422
+    assert c.delete("/api/admin/categories/genomics").status_code == 422  # built in: changed, not removed
+    r = c.delete("/api/admin/categories/raw_runs")
+    assert r.status_code == 200 and "raw_runs" not in [x["key"] for x in r.json()["categories"]]
+    assert _audited("category.removed")[0]["category"] == "raw_runs"
+    audit = c.get("/api/admin/audit?action=category").json()
+    assert {e["action"] for e in audit["events"]} == {"category.added", "category.changed", "category.moved",
+                                                      "category.removed"}
+
+
+def test_what_a_change_would_do(client):
+    """Before saving: moves by extension from the latest scan's table of types, exactly; by name patterns, from a
+    sample of its files; and which snapshots would be outdated. Nothing is saved."""
+    from pinax.categories import current
+    from pinax.db import session_scope
+
+    c = login(client, "ivy")
+    without_sam = [e for e in DEFAULTS[0].extensions if e != "sam"]
+    p = c.post("/api/admin/categories/preview", json={"key": "genomics", "extensions": without_sam}).json()
+    (fast,) = p["moves"]
+    assert fast["by_type"] == [{"ext": "sam", "from": "genomics", "to": "other", "files": 1, "bytes": 9000}]
+    assert fast["sample"] is None and p["rebuild"]["outdated"] == 1
+
+    p = c.post("/api/admin/categories/preview", json={"label": "Raw runs", "patterns": [r"^raw_", r"\.bam$"]}).json()
+    (fast,) = p["moves"]
+    assert fast["by_type"] == [] and fast["sample"]["files"] == fast["sample"]["of"] == len(FILES)  # all, it is small
+    moved = {(m["from"], m["to"]): m for m in fast["sample"]["moves"]}
+    assert moved[("genomics", "raw_runs")]["estimate_files"] == 2
+    assert sorted(moved[("genomics", "raw_runs")]["examples"]) == ["raw_2014.sam", "run1.bam"]
+    assert c.post("/api/admin/categories/preview", json={"key": "other", "patterns": ["x"]}).status_code == 422
+
+    t = c.post("/api/admin/categories/try", json={"pattern": r"^raw_"}).json()
+    assert t["problem"] is None and t["filesystems"][0]["matches"] == 1 and t["filesystems"][0]["examples"] == ["raw_2014.sam"]
+    assert "regular expression" in c.post("/api/admin/categories/try", json={"pattern": r"(a)\1"}).json()["problem"]
+    with session_scope() as s:
+        assert [x.key for x in current(s)] == [x.key for x in DEFAULTS]  # nothing saved
+    assert login(client, "ada").post("/api/admin/categories/preview", json={"label": "X"}).status_code == 403

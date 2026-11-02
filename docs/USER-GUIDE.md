@@ -139,9 +139,9 @@ you can see which subfolders hold the old data.
 
 ![The age report](images/age-report-light.webp "The age report for fujimoto_a: each subfolder's data by age.")
 
-**File types**: how much of each kind of data (sequencing and genomics, imaging, tabular, archives, and so on) and
-each file type, with a callout for uncompressed sequencing data, which could be compressed. Click a type to list
-its files.
+**File types**: how much of each kind of data (sequencing and genomics, imaging, tabular, archives, and so on: the
+site's file categories) and each file type, with a callout for uncompressed sequencing data, which could be
+compressed. Click a type to list its files.
 
 ![File types](images/file-types-light.webp "File types for lindqvist_h: terabytes of uncompressed SAM alignments are called out.")
 

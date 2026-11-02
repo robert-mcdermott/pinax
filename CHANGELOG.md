@@ -31,6 +31,11 @@ Wave 14 ("load"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
 
 ### Added
 
+- **File categories, under Administration** (R14), for storage administrators, and read by auditors: each
+  category's name, description, extensions, and patterns, changed, added, removed, and put in order; each pattern
+  checked, and tried against a sample of the latest scans' names; before saving, how the latest scans' files would
+  move between categories (by extension exactly, by name an estimate from a sample) and which snapshots would be
+  outdated, with about how long `pinax rebuild --outdated` takes. Every change is audited (*File categories*).
 - **`PINAX_WEB_THREADS`** (40): the threads that answer the web app's requests, and with SQLite its catalog
   connections. Fewer serve more quick pages a second when the server is saturated, and leave less for requests that
   wait or run long ([Sizing](docs/DEPLOYMENT.md#sizing)).

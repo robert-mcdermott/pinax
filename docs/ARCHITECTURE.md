@@ -174,13 +174,14 @@ A file's type is its lowercased extension, joined with the one before when the l
 `S1_R1.fastq.gz` is `fastq.gz`, `brain.nii.gz` is `nii.gz`. Its category comes from the inner type, so compressed
 sequencing data is still sequencing data.
 
-The categories are the catalog's (`file_category`), so a site can change them: the twelve built in (sequencing and
-genomics, imaging, tabular and array data, mass spectrometry, archives, models, code, documents, media, containers,
-logs and temporary, and *other*, last), filled the first time Pinax starts from `categories.DEFAULTS`, and any it
-adds, up to 24. Each lists extensions, and may also list patterns: regular expressions on the file's name, in RE2's
-syntax as DuckDB has it, so none can take exponential time, and at most 25 in all. Patterns are checked before any
-extension, category by category and in order, and the first match wins; then the extension (the first category to list
-it); then *other*. So `^Undetermined_.*\.fastq` can be a category of its own although `fastq` is sequencing data's.
+The categories are the catalog's (`file_category`), so a site can change them (*File categories*, under
+Administration, [ADMINISTRATION.md](ADMINISTRATION.md#file-categories)): the twelve built in (sequencing and genomics,
+imaging, tabular and array data, mass spectrometry, archives, models, code, documents, media, containers, logs and
+temporary, and *other*, last), filled the first time Pinax starts from `categories.DEFAULTS`, and any it adds, up to
+24. Each lists extensions, and may also list patterns: regular expressions on the file's name, in RE2's syntax as
+DuckDB has it, so none can take exponential time, and at most 25 in all. Patterns are checked before any extension,
+category by category and in order, and the first match wins; then the extension (the first category to list it); then
+*other*. So `^Undetermined_.*\.fastq` can be a category of its own although `fastq` is sequencing data's.
 
 A file's category is decided when its index is built, not when it is read: deciding at query time would read every
 file for reports that now read only folders. The build joins each file's extension with a small table, as before, so a

@@ -747,6 +747,20 @@ class SnapshotIndex:
             n, b = self._raw(f"SELECT count(*), coalesce(sum(size), 0) FROM read_parquet({quoted})", [])[0]
         return int(n), int(b)
 
+    def sample_files(self, n: int = 50_000, extra: str = "", params: list | None = None) -> list[dict]:
+        """About `n` files' names, types, categories, and sizes, without reading every file: the first files of up to
+        50 of the index's file parts, spread over its top-level folders (each part holds a group of them, in path
+        order). For estimates, such as what a pattern on file names would take; not a random sample. `extra` adds
+        columns over `name`."""
+        parts = sorted(self.index_dir.glob("files/*/*.parquet"))
+        if not parts:
+            return []
+        chosen = parts[:: max(1, len(parts) // 50)][:50]
+        each = max(1, n // len(chosen))
+        union = " UNION ALL ".join(f"(SELECT name, ext, cat, size FROM read_parquet('{str(p).replace(chr(39), chr(39) * 2)}') "
+                                   f"LIMIT {each})" for p in chosen)
+        return self._rows(f"SELECT *{extra} FROM ({union})", params or [])
+
     def files_summary(self, path: str, *, where: str = "", params: list | None = None) -> dict:
         src = self.file_sources(self.scope_tops(path))
         if src is None:

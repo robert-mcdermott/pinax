@@ -1720,8 +1720,8 @@ pilot, which still waits for it, at the maintainer's request; the pilot runs the
 | 3 | Turns and the catalog (Q6) | Whole-filesystem searches by several administrators at once while others browse: the waiting ones finish within the time limit or stop with Pinax's explanation, and other people's pages stay within the budgets; many people signing in at once (each password is checked with scrypt, slow by design); SQLite's locking and PostgreSQL's connection pool under the same load. What fails is found and fixed | Done |
 | 4 | Tuning and sizing (Q6) | What slices 2 and 3 found fixed, or its defaults changed (such as the web server's 40 threads, `PINAX_QUERY_THREADS`, `PINAX_WIDE_QUERIES`, `PINAX_DATABASE_POOL_SIZE`, or more than one web process), each change measured again; the deployment guide's sizing says how many people a server of a given size serves, and what to change for more | Done |
 | 5 | File categories in the catalog (R14) | The categories, with their extensions and name patterns, kept in the catalog (a migration fills it with today's twelve) rather than in `categories.py`; an index built with the catalog's categories, recorded in it, and every query reading each index's own; name patterns as regular expressions, checked before extensions; the indexes built with other categories than the catalog's are outdated, so `pinax rebuild --outdated` builds them again; the reports, *Find files*, the age map's *one category*, and the change between scans work the same with the default categories, and with added ones. Measured at 10 million files and extrapolated to a billion, as decided below: build time and index size with the default categories unchanged (within 3%), with 25 patterns at most 10% more build time, and with 24 categories the index within Q5's 60 bytes a file; no report slower | Done |
-| 6 | Categories for administrators (R14) | *File categories*, under Administration: each category's name, description, extensions, and patterns, changed, added, and removed by storage administrators, and read by auditors; each pattern checked before it is saved, and tried against file names; how the latest scan's types would move between categories, before saving, from its table of types (no file read), and for patterns an estimate from a sample of its files, never a whole-filesystem read from the page; which snapshots will be rebuilt, how, and about how long it takes; every change audited; the guides | Next |
-| 7 | Release 0.14.0 | Version 0.14.0, changelog with notes on upgrading from 0.13.0; pull request, tag, release | To come |
+| 6 | Categories for administrators (R14) | *File categories*, under Administration: each category's name, description, extensions, and patterns, changed, added, and removed by storage administrators, and read by auditors; each pattern checked before it is saved, and tried against file names; how the latest scan's types would move between categories, before saving, from its table of types (no file read), and for patterns an estimate from a sample of its files, never a whole-filesystem read from the page; which snapshots will be rebuilt, how, and about how long it takes; every change audited; the guides | Done |
+| 7 | Release 0.14.0 | Version 0.14.0, changelog with notes on upgrading from 0.13.0; pull request, tag, release | Next |
 
 ### Decisions for wave 14
 
@@ -1916,6 +1916,29 @@ pilot, which still waits for it, at the maintainer's request; the pilot runs the
      In a demo (seeded to a scratch folder): the age map sized and colored by a category, and a category added by
      pattern (`\.bam$`, *Alignments*), the latest snapshots rebuilt with `--latest`: *File types* lists it, and an
      older scan, not rebuilt, keeps `.bam` as sequencing data.
+6. **Categories for administrators (R14).**
+   - *File categories*, under Administration (`categories.js`, `api/categories.py`): the list in order, with each
+     category's extensions, patterns, and bytes in the latest scans; **Add category**, **Change**, **Up** and
+     **Down**, and removing one a site added, for storage administrators; auditors read it. Changes go through
+     `categories.proposed` (one change to the list, checked whole: *other* last and empty, a key of its own from the
+     name, extensions as such, patterns DuckDB takes, the limits) and `categories.apply`, which audits
+     `category.added`, `.changed` (with each field's before and after), `.moved`, and `.removed`, a new kind in the
+     audit log.
+   - Before saving: **Try the patterns** (`/try`), each pattern checked and matched against a sample of each
+     filesystem's latest scan; **What would change** (`/preview`): by extension, exactly, the latest scan's types
+     whose category comes from their extension (from its table of types, no file read); by name, an estimate
+     from a sample (`SnapshotIndex.sample_files`: the first files of up to 50 of the index's file parts, at most
+     50,000, so never a whole-filesystem read); and the snapshots that would be outdated, with their last builds'
+     time, all of them and each filesystem's latest. Snapshot info records each build's fingerprint (since slice
+     5), so this opens no index.
+   - The page never rebuilds: it says how many snapshots are outdated and how long `pinax rebuild --outdated` (or
+     `--latest`) takes on the server.
+   - Checked in the browser, in a demo seeded to a scratch folder: trying `\.bam$` (274 of a sample of 18,851 names
+     on *Fast*) and `raw_(` (refused with DuckDB's reason); a preview moving about 108 `.bai` files by name;
+     saving, moving, removing, each audited with the person; an auditor sees it without buttons, a PI is refused;
+     dark theme and 375 pixels with no page scroll. Screenshots `categories-admin` and `categories-change`, light
+     and dark. `tests/test_categories.py`: who may read and change, each change and its audit, the checks, the
+     preview (a type moved by extension, files moved by pattern with examples), and trying a pattern.
 
 ## Later waves (outlined)
 
