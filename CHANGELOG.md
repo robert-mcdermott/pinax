@@ -1,18 +1,47 @@
 # Changelog
 
-## Unreleased
+## 0.14.0 (2026-11-02)
 
-Wave 14 ("load"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+Fourteenth release (wave 14, "load"): many people at once, measured and fixed, and file categories a site defines.
+A load test of people signing in and clicking through the interface, on a laptop against scans of 10 million files,
+on SQLite and PostgreSQL, found a stall past about 20 pages a second, now fixed, and pages that asked the catalog
+hundreds of questions, which now ask a few; the deployment guide says how many people one process serves. Storage
+administrators define the file categories, by extension and by patterns on file names, on a page of their own. See
+[pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+
+Upgrading from 0.13.0: back the catalog up ([Backups](docs/DEPLOYMENT.md#backups)), install the new version, and
+restart Pinax ([Upgrading](docs/DEPLOYMENT.md#upgrading)).
+- **The catalog has one migration**, `0007` (the file categories), which Pinax applies when it starts, filling it
+  with the twelve built-in categories; with `PINAX_DB_AUTO_UPGRADE=false` it refuses to start until `pinax db
+  upgrade` has applied it. The snapshot indexes are unchanged, and were built with the twelve, so nothing needs
+  rebuilding.
+- **`PINAX_QUERY_MEMORY_LIMIT` is for all the open indexes together** now, 8 GB by default; it was 4 GB for each. A
+  site that set it should set the total it allows.
+- **Scripts that read `cat_bytes` or `cat_files`** from the API read them by category now: they are objects keyed by
+  category, not lists.
+- **With Prometheus**, copy `deploy/prometheus/pinax-alerts.yml` again for the new rule `PinaxBusy`.
+- No new dependencies.
+
+### Added
+
+- **File categories, under Administration** (R14), for storage administrators, and read by auditors: each
+  category's name, description, extensions, and patterns, changed, added, removed, and put in order; each pattern
+  checked, and tried against a sample of the latest scans' names; before saving, how the latest scans' files would
+  move between categories (by extension exactly, by name an estimate from a sample) and which snapshots would be
+  outdated, with about how long `pinax rebuild --outdated` takes. Every change is audited (*File categories*).
+- **`PINAX_WEB_THREADS`** (40): the threads that answer the web app's requests, and with SQLite its catalog
+  connections. Fewer serve more quick pages a second when the server is saturated, and leave less for requests that
+  wait or run long ([Sizing](docs/DEPLOYMENT.md#sizing)).
+- **The load test** (`bench/load.py`, with `bench/load_setup.py` to make the installation it runs against): simulated
+  people of each role signing in with passwords and opening the interface's pages as browsers do, with pauses
+  between clicks; administrators searching whole filesystems (`--searchers`); everyone signing in at once (`--ramp
+  0`); a report of each page's and API route's times, errors, and the server's memory and cores, against wave 14's
+  budgets, and `--compare` for two runs ([The load test](docs/DEVELOPMENT.md#the-load-test)). The architecture
+  guide's *Many people at once* has what it measured, and the deployment guide's sizing how many people one process
+  serves.
 
 ### Changed
 
-- **The roadmap.** Load comes next, as wave 14 (0.14.0): a load test of many people using Pinax at once, run on a
-  laptop against synthetic scans of 10 million files, on SQLite and PostgreSQL; the baseline at 10 to 100 people;
-  whole-filesystem searches taking turns, many sign-ins at once, and the catalog under load; what it finds fixed or
-  tuned, and the deployment guide's sizing says how many people a server serves (Q6). It was planned for hardening.
-  The pilot becomes wave 15, and runs the same test again on its server; hardening becomes wave 16 (1.0.0). Wave 14
-  also lets storage administrators define file categories, by extensions and by patterns on file names, applied when
-  an index is built (R14).
 - **File categories are the catalog's** (R14), with the twelve built-in ones filled in when Pinax first starts after
   the upgrade (migration `0007`), so a site can change them, and add its own: up to 24, each by extensions and by
   patterns on file names (regular expressions, up to 25 in all), checked before any extension. They are decided when
@@ -28,17 +57,13 @@ Wave 14 ("load"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
 - **`PINAX_QUERY_MEMORY_LIMIT` is for all the open indexes together**, 8 GB by default. It was 4 GB for each, and up
   to eight stay open, so up to 32 GB in all; now each open index has an equal share, set again as indexes open and
   close, and one alone has all of it. A site that set it should set the total it allows.
-
-### Added
-
-- **File categories, under Administration** (R14), for storage administrators, and read by auditors: each
-  category's name, description, extensions, and patterns, changed, added, removed, and put in order; each pattern
-  checked, and tried against a sample of the latest scans' names; before saving, how the latest scans' files would
-  move between categories (by extension exactly, by name an estimate from a sample) and which snapshots would be
-  outdated, with about how long `pinax rebuild --outdated` takes. Every change is audited (*File categories*).
-- **`PINAX_WEB_THREADS`** (40): the threads that answer the web app's requests, and with SQLite its catalog
-  connections. Fewer serve more quick pages a second when the server is saturated, and leave less for requests that
-  wait or run long ([Sizing](docs/DEPLOYMENT.md#sizing)).
+- **The roadmap.** Load comes next, as wave 14 (0.14.0): a load test of many people using Pinax at once, run on a
+  laptop against synthetic scans of 10 million files, on SQLite and PostgreSQL; the baseline at 10 to 100 people;
+  whole-filesystem searches taking turns, many sign-ins at once, and the catalog under load; what it finds fixed or
+  tuned, and the deployment guide's sizing says how many people a server serves (Q6). It was planned for hardening.
+  The pilot becomes wave 15, and runs the same test again on its server; hardening becomes wave 16 (1.0.0). Wave 14
+  also lets storage administrators define file categories, by extensions and by patterns on file names, applied when
+  an index is built (R14).
 
 ### Fixed
 

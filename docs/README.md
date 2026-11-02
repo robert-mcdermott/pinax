@@ -19,10 +19,10 @@ Read in this order when setting Pinax up for the first time:
 | Guide | What it covers |
 | --- | --- |
 | [Trying Pinax on your own data](SETUP.md) | One machine, one filesystem, a first scan, and your first people, in a few minutes |
-| [Deployment](DEPLOYMENT.md) | Installing on a server (services, single sign-on or passwords), scans on a schedule and automatic ingest, checking the numbers, the catalog on SQLite or PostgreSQL, backups, upgrades, sizing, charges, logs, metrics, and day-to-day tasks |
+| [Deployment](DEPLOYMENT.md) | Installing on a server (services, single sign-on or passwords), scans on a schedule and automatic ingest, checking the numbers, the catalog on SQLite or PostgreSQL, backups, upgrades, sizing (for a filesystem's size and for many people at once), charges, logs, metrics, and day-to-day tasks |
 | [Configuration](CONFIGURATION.md) | Every setting, with its default |
 | [Signing in with Entra ID](ENTRA-ID.md) | Optional single sign-on with Microsoft Entra ID, or another OpenID Connect provider, in Pinax itself: the request for IT, the settings, roles from Entra ID, the emergency sign-in, trying it with Dex, and its errors |
-| [Administration guide](ADMINISTRATION.md) | The administrator's pages, and what auditors and finance read: All data, folders and labs, people and access with site roles, API tokens, the access review, scans, storage health, capacity, costs, chargeback, tags, every lab's plans, and the audit log |
+| [Administration guide](ADMINISTRATION.md) | The administrator's pages, and what auditors and finance read: All data, folders and labs, people and access with site roles, API tokens, the access review, scans, storage health, capacity, costs, chargeback, tags, file categories, every lab's plans, and the audit log |
 | [Importing labs and people](IMPORT.md) | The CSV files for labs, people, memberships, and folder ownership |
 | [Command line](CLI.md) | Every `pinax` command and option |
 | [Troubleshooting](TROUBLESHOOTING.md) | What a problem looks like, why, and what to do |
@@ -32,4 +32,4 @@ Read in this order when setting Pinax up for the first time:
 | Guide | What it covers |
 | --- | --- |
 | [Architecture](ARCHITECTURE.md) | The design: the snapshot index and how it is built, checked, and queried, the catalog, security, and measured performance |
-| [Development](DEVELOPMENT.md) | Working on Pinax: setup, code layout, conventions, tests (on PostgreSQL too) and CI, migrations, the HTTP API, benchmarks |
+| [Development](DEVELOPMENT.md) | Working on Pinax: setup, code layout, conventions, tests (on PostgreSQL too) and CI, migrations, the HTTP API, benchmarks and the load test |

@@ -16,14 +16,14 @@ decisions taken are recorded here. Later waves are outlined at the end.
 **Progress** is marked here as each slice is committed: done, next or to come. Each requirement's status is
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
-**Where things stand:** waves 1 to 13 are released as 0.1.0 to 0.13.0 (tags on `main`). Besides forecasts, 0.6.0
+**Where things stand:** waves 1 to 14 are released as 0.1.0 to 0.14.0 (tags on `main`). Besides forecasts, 0.6.0
 has what was merged since 0.5.0:
 - labs and departments can be added, changed, and deactivated in the app, so a site needs no CSV files at all;
 - guidance for operating Pinax;
 - time limits for requests, and new and removed files recorded at ingest, for filesystems of two billion files.
 
-After load (wave 14) comes the production pilot (wave 15), when production storage is reachable. Ideas kept for later but
-not planned are in the [parking lot](#parking-lot).
+Next is the production pilot (wave 15), when production storage is reachable. Ideas kept for later but not planned are
+in the [parking lot](#parking-lot).
 
 The order follows one principle:
 1. **Trust first.** Totals that agree with an independent computation on every directory, and that say when
@@ -1721,7 +1721,7 @@ pilot, which still waits for it, at the maintainer's request; the pilot runs the
 | 4 | Tuning and sizing (Q6) | What slices 2 and 3 found fixed, or its defaults changed (such as the web server's 40 threads, `PINAX_QUERY_THREADS`, `PINAX_WIDE_QUERIES`, `PINAX_DATABASE_POOL_SIZE`, or more than one web process), each change measured again; the deployment guide's sizing says how many people a server of a given size serves, and what to change for more | Done |
 | 5 | File categories in the catalog (R14) | The categories, with their extensions and name patterns, kept in the catalog (a migration fills it with today's twelve) rather than in `categories.py`; an index built with the catalog's categories, recorded in it, and every query reading each index's own; name patterns as regular expressions, checked before extensions; the indexes built with other categories than the catalog's are outdated, so `pinax rebuild --outdated` builds them again; the reports, *Find files*, the age map's *one category*, and the change between scans work the same with the default categories, and with added ones. Measured at 10 million files and extrapolated to a billion, as decided below: build time and index size with the default categories unchanged (within 3%), with 25 patterns at most 10% more build time, and with 24 categories the index within Q5's 60 bytes a file; no report slower | Done |
 | 6 | Categories for administrators (R14) | *File categories*, under Administration: each category's name, description, extensions, and patterns, changed, added, and removed by storage administrators, and read by auditors; each pattern checked before it is saved, and tried against file names; how the latest scan's types would move between categories, before saving, from its table of types (no file read), and for patterns an estimate from a sample of its files, never a whole-filesystem read from the page; which snapshots will be rebuilt, how, and about how long it takes; every change audited; the guides | Done |
-| 7 | Release 0.14.0 | Version 0.14.0, changelog with notes on upgrading from 0.13.0; pull request, tag, release | Next |
+| 7 | Release 0.14.0 | Version 0.14.0, changelog with notes on upgrading from 0.13.0; pull request, tag, release | Done |
 
 ### Decisions for wave 14
 
@@ -1939,6 +1939,12 @@ pilot, which still waits for it, at the maintainer's request; the pilot runs the
      dark theme and 375 pixels with no page scroll. Screenshots `categories-admin` and `categories-change`, light
      and dark. `tests/test_categories.py`: who may read and change, each change and its audit, the checks, the
      preview (a type moved by extension, files moved by pattern with examples), and trying a pattern.
+7. **Release 0.14.0.**
+   - An upgrade from 0.13.0 walked through on a scratch install: its catalog and indexes, the new code started on
+     them, migration `0007` applied and the twelve categories filled in, every snapshot current with them
+     (`pinax rebuild --outdated` has nothing to do), and the pages answering.
+   - Version 0.14.0; the changelog dated, with notes on upgrading from 0.13.0; the deployment guide installs
+     v0.14.0; the website's home page names the release; the parking lot has more than one web process.
 
 ## Later waves (outlined)
 
@@ -1980,6 +1986,7 @@ Ideas kept for later, and not on a path to be built. An idea leaves the parking 
 | Recognizing data by its folder names: sequencing runs, cryo-EM sessions, imaging plates | Partly covered by the *Source* tag (wave 8) |
 | Searching files within a collection | Within a lab, as fast as Find in a folder; across the organization, a whole-filesystem search under the time limits |
 | Tags on single files | At two billion files, every tagged view would become a file-level query; tags stay on folders (wave 8) |
+| More than one web process (wave 14) | One process serves about 250 to 300 people at once on the laptop, bound by Python's work for each page; more would need the whole-filesystem turns, the metrics, and the searches in the background shared between them |
 | Folder history exported as Parquet, for Tableau or Power BI | |
 | An MCP server, so an AI assistant can answer storage questions with the person's own access | |
 

@@ -764,10 +764,10 @@ minute's ramp-up:
 | 3 times | 0.13.0 | SQLite | 28.4 | 43 ms | 282 ms | 942 ms | 3 | 1.3 |
 | 4 times | 0.13.0 | SQLite | 15.3 | 1.4 s | 3.3 s | 88 s | 89 | 2.9 |
 | 5 times | 0.13.0 | SQLite | 0.8 | 89 s | 145 s | 149 s | 156 | 0 |
-| 3 times | wave 14 | SQLite | 28.0 | 45 ms | 400 ms | 1.0 s | 0 | 1.4 |
-| 4 times | wave 14 | SQLite | 26.1 | 857 ms | 4.1 s | 7.2 s | 0 | 3.3 |
-| 5 times | wave 14 | SQLite | 24.0 | 1.5 s | 6.6 s | 9.5 s | 0 | 3.4 |
-| 4 times | wave 14 | PostgreSQL | 30.0 | 344 ms | 2.6 s | 4.5 s | 0 | 2.4 |
+| 3 times | 0.14.0 | SQLite | 28.0 | 45 ms | 400 ms | 1.0 s | 0 | 1.4 |
+| 4 times | 0.14.0 | SQLite | 26.1 | 857 ms | 4.1 s | 7.2 s | 0 | 3.3 |
+| 5 times | 0.14.0 | SQLite | 24.0 | 1.5 s | 6.6 s | 9.5 s | 0 | 3.4 |
+| 4 times | 0.14.0 | PostgreSQL | 30.0 | 344 ms | 2.6 s | 4.5 s | 0 | 2.4 |
 
 The 3 errors of 0.13.0 at three times were the load test's: a request sent on a kept-alive connection just as the
 server closed it, unused for 5 seconds, which a browser sends again (the load test now does too). 0.13.0, at four and

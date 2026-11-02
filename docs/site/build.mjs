@@ -59,7 +59,7 @@ const DOCS = [
     { slug: 'scanning', title: 'Scans and ingest', file: 'DEPLOYMENT.md', sections: ['Scans', "Checking a filesystem's numbers"], lede: 'Scanning on a schedule, automatic ingest, what to keep, and checking the numbers.' },
     { slug: 'database', title: 'The catalog and backups', file: 'DEPLOYMENT.md', sections: ['Catalog database', 'Backups'], lede: 'SQLite or PostgreSQL, moving between them, and backing up what cannot be made again.' },
     { slug: 'upgrading', title: 'Upgrading', file: 'DEPLOYMENT.md', sections: ['Upgrading'], lede: 'A new release, its migrations, and rebuilding indexes.' },
-    { slug: 'sizing', title: 'Sizing', file: 'DEPLOYMENT.md', sections: ['Sizing'], lede: 'The server, disk, and memory a filesystem of a billion files needs.' },
+    { slug: 'sizing', title: 'Sizing', file: 'DEPLOYMENT.md', sections: ['Sizing'], lede: 'The server, disk, and memory a filesystem of a billion files needs, and how many people one process serves.' },
     { slug: 'statements', title: 'Charges and statements', file: 'DEPLOYMENT.md', sections: ['Charges and statements'], lede: 'How charges are worked out, and when a past month can change.' },
     { slug: 'operations', title: 'Logs, metrics, and operations', file: 'DEPLOYMENT.md', sections: ['Monitoring and operations'], lede: 'Health, logs and the audit trail, Prometheus metrics and alerts, and day-to-day tasks.' },
     { slug: 'entra-id', title: 'Signing in with Entra ID', file: 'ENTRA-ID.md', lede: 'Optional single sign-on with Microsoft Entra ID in Pinax itself: what to ask IT for, the settings, roles from Entra ID, the emergency sign-in, a trial with a stand-in, and its errors.' },
