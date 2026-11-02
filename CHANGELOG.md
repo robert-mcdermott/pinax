@@ -13,6 +13,12 @@ Wave 13 ("reach"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
   sessions. Pinax refuses to start until its settings are complete. `scripts/dex/dex.sh` runs Dex as a stand-in
   to try it on a laptop ([Signing in with Entra ID](docs/ENTRA-ID.md)). New dependencies: Authlib (with joserfc
   and `cryptography`), httpx2, and itsdangerous.
+- **Roles from Entra ID**, optional: with sign-in through Entra ID, `PINAX_OIDC_ROLE_MAP` maps Entra ID app roles
+  (or groups, `PINAX_OIDC_ROLES_CLAIM=groups`) onto storage administrator, auditor, finance, and division head. Each
+  role it names is then set at every sign-in, audited as the provider's change, and shown as *From Entra ID* rather
+  than changed in the app; roles it does not name are still given in Pinax, and local sign-in ignores the map. With
+  too many groups to list, mapped roles are taken away rather than guessed
+  ([Roles from Entra ID](docs/ENTRA-ID.md#roles-from-entra-id)).
 - **An emergency sign-in for when Entra ID fails.** With sign-in through Entra ID, a storage administrator marked as
   an emergency account on the server (`pinax user emergency USERNAME`, which prints a new 32-character password)
   signs in with a password at `/auth/emergency`, for an hour, with local sign-in's lockout. It is off unless such an

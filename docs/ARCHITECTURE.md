@@ -598,6 +598,11 @@ the month shows at once; adding up the ranges overstates the range); storage no 
     `PINAX_OIDC_USERNAME_DOMAINS`, never made, and then gets a server-side session as with `local`; refusals are
     audited with why. Pinax refuses to start until its settings are complete. `scripts/dex/dex.sh` runs Dex as a
     stand-in for Entra ID.
+  - With `oidc` and a role map (`PINAX_OIDC_ROLE_MAP`), `people.roles_from_provider` sets each role the map names
+    (the administrator role among them) from the ID token's `roles` (app roles) or `groups` claim at every sign-in,
+    audited with `source: oidc`; `people.save_person` leaves those roles as they are when the change comes from the
+    app, and the command line can still set any. With too many groups to list, mapped roles are taken away, not
+    guessed (`auth.roles_unknown`). With any other sign-in, the map is ignored.
   - With `oidc`, the emergency sign-in (`/auth/emergency`, A12): a password form for storage administrators marked
     `user.emergency` from the command line only (`pinax user emergency`, which makes a 32-character password), for
     when the provider fails. It answers 404 unless one exists; `signin.sign_in(emergency=True)` keeps local

@@ -109,12 +109,28 @@ class Settings(BaseSettings):
     oidc_username_domains: str = ""
     public_url: str = ""
     session_secret: SecretStr | None = None
+    # Roles from the identity provider (oidc), optional. OIDC_ROLE_MAP, as JSON, maps Pinax's roles ("admin",
+    # "auditor", "finance", and "division:<Division>") to the values of OIDC_ROLES_CLAIM ("roles": Entra ID's app
+    # roles; or "groups": group IDs) that give them. A role it names is set at every sign-in, and only there.
+    oidc_roles_claim: Literal["roles", "groups"] = "roles"
+    oidc_role_map: dict[str, list[str] | str] = {}
 
     @model_validator(mode="after")
     def _default_sign_in(self) -> "Settings":
         if self.auth_mode is None:
             self.auth_mode = "demo" if self.environment == "demo" else "local"
         return self
+
+    @property
+    def mapped_roles(self) -> dict[tuple[str, str], set[str]]:
+        """(role, division), "admin" among them, to the claim values that give it; only with sign-in by a provider."""
+        if self.auth_mode != "oidc":
+            return {}
+        out: dict[tuple[str, str], set[str]] = {}
+        for key, values in self.oidc_role_map.items():
+            role, _, division = key.partition(":")
+            out[(role.strip(), division.strip())] = {values} if isinstance(values, str) else set(values)
+        return out
 
     @property
     def oidc_domains(self) -> list[str]:

@@ -1492,8 +1492,8 @@ It needs no production storage, and comes before the pilot, which still waits fo
 | 1 | Local sign-in the default outside the demo (A9) | With `PINAX_ENVIRONMENT` set to `dev` or `prod` and no `PINAX_AUTH_MODE`, Pinax signs people in with passwords it keeps; the demo environment keeps its persona switcher as it is; the server kit (`deploy/pinax.env`) and the deployment guide set up local sign-in first, with single sign-on as an option; the configuration and setup guides and the tests follow | Done |
 | 2 | Sign-in with Entra ID in Pinax itself (A6, in part) | A mode configured by settings and checked at start-up: any OpenID Connect provider by its discovery document, the authorization code flow with PKCE, the ID token checked against the provider's keys (issuer, audience, expiry, nonce); people matched by one claim, within the site's domains, and never made; a server-side session, as local sign-in makes; refused sign-ins audited with why; signing out ends the provider's session too; the whole flow tested against a stand-in provider (forged, expired, and replayed sign-ins, guests, unknown and deactivated people), and checked against Dex in Podman; the guide's request for IT, and a table of Entra ID's errors | Done |
 | 3 | The emergency administrator sign-in (A12) | As decided below, each part tested: off unless an emergency account exists; marked only from the command line; an address of its own; the password rules and lockout, a longer minimum password, and short sessions; every use audited, logged as a warning, and counted in the metrics; the accounts listed in the access review; the guide | Done |
-| 4 | Roles from Entra ID (A6, in part) | Optionally, Entra ID app roles (the token's `roles` claim) or groups mapped by settings onto the administrator role and the site roles, applied at each sign-in and audited; roles given in the app stay possible; a group overage said, not guessed; tested against the stand-in provider; app roles and groups checked in a real tenant when a test registration is available | Next |
-| 5 | CI and a container image (P6) | GitHub Actions run the linter and the suite on SQLite and PostgreSQL for every push and pull request; a container image (a `Containerfile`) runs the web app and automatic ingest with `/var/lib/pinax` as a volume, built and run with Podman, the demo included; the deployment guide's container section | To come |
+| 4 | Roles from Entra ID (A6, in part) | Optionally, Entra ID app roles (the token's `roles` claim) or groups mapped by settings onto the administrator role and the site roles, applied at each sign-in and audited; roles given in the app stay possible; a group overage said, not guessed; tested against the stand-in provider; app roles and groups checked in a real tenant when a test registration is available | Done, but for the check in a real tenant |
+| 5 | CI and a container image (P6) | GitHub Actions run the linter and the suite on SQLite and PostgreSQL for every push and pull request; a container image (a `Containerfile`) runs the web app and automatic ingest with `/var/lib/pinax` as a volume, built and run with Podman, the demo included; the deployment guide's container section | Next |
 | 6 | Release 0.13.0 | The walk-through and the guides for each way of signing in; version 0.13.0, changelog with notes on upgrading from 0.12.0; pull request, tag, release | To come |
 
 ### Decisions for wave 13
@@ -1501,6 +1501,9 @@ It needs no production storage, and comes before the pilot, which still waits fo
 - **Not in this wave:** local sign-in's two-factor codes and per-address limits (in the parking lot), and a
   security review (an organization's own, outside the roadmap).
 - **CI runs on GitHub Actions.** For a private repository, it uses the account's included minutes.
+- **A role the map names belongs to Entra ID.** Pinax gives or takes it away at each sign-in and the People page
+  only shows it; roles the map does not name stay Pinax's. Adding roles from Entra ID to those given in Pinax was
+  set aside: Pinax could not tell which to take away when someone leaves a group in Entra ID.
 
 **Local sign-in is the default; Entra ID is optional.** Pinax may run for a small company or a team with no access
 to its organization's Entra ID, so it must work fully with passwords it keeps, with nothing else to set up, and
@@ -1633,6 +1636,28 @@ sign-in, and access policies, so it is kept small:
      on *Access review* and the person's page. The guides: *When Entra ID fails* in *Signing in with Entra ID*, the
      CLI, deployment (a task, the metric, the alert), architecture, troubleshooting, and administration guides, and
      the README.
+4. **Roles from Entra ID (A6, in part).**
+   - `PINAX_OIDC_ROLE_MAP` (JSON: `admin`, `auditor`, `finance`, or `division:<Division>`, each to the claim values
+     that give it) and `PINAX_OIDC_ROLES_CLAIM` (`roles`, Entra ID's app roles, by default, or `groups`), read only
+     in `oidc` mode (`Settings.mapped_roles`); a key that is not a role, or one without values, stops Pinax at
+     start-up.
+   - `people.roles_from_provider`, at each sign-in through the provider before the session starts: each mapped role
+     given or taken away from the claim, the administrator role among them, audited with `source: oidc` and no
+     actor (*Pinax* in the audit log); a warning when no active administrator remains. With groups, Entra ID's
+     overage (`_claim_names` naming `groups`, or `hasgroups`) takes every mapped role away, audited as
+     `auth.roles_unknown`, rather than keeping or guessing them.
+   - `people.save_person` keeps mapped roles as they are when the change comes from the app; the command line can
+     still give any (`pinax user add --admin`). `/api/config` names the mapped roles; a person's page shows them as
+     *From Entra ID*, without their checkboxes.
+   - Tests (`tests/test_oidc_roles.py`, 9): a mapped role following the token at each sign-in; the administrator
+     role, given and taken away, and the warning when none remains; a division head; a role the map does not name
+     kept; the People page leaving mapped roles alone; groups, and too many to list; the command line; local
+     sign-in ignoring the map; a wrong map.
+   - *Done*: with Dex and a map of auditor and finance, Helen Marsh's page showed both as *From Entra ID* and locked,
+     and the administrator and division heads still editable. Dex sends no app roles or groups, so they are checked
+     in a real tenant when a test registration is available. The guides: *Roles from Entra ID* in *Signing in with
+     Entra ID*, the configuration, administration, and architecture guides, the README, and the examples of
+     settings.
 
 ## Later waves (outlined)
 

@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import logs, signin
+from . import logs, people, signin
 from .config import Settings, get_settings
 from .db import get_session, utcnow
 from .models import User
@@ -56,6 +56,12 @@ def problems(settings: Settings) -> list[str]:
     local = ("http://localhost", "http://127.0.0.1")
     if settings.public_url and not settings.public_url.startswith(("https://", *local)):
         found.append("PINAX_PUBLIC_URL must start with https:// (http:// only for localhost)")
+    for (role, division), values in settings.mapped_roles.items():
+        if role not in ("admin", "auditor", "finance", "division") or bool(division) != (role == "division"):
+            found.append(f"PINAX_OIDC_ROLE_MAP: {role + (':' + division if division else '')!r} is not a role: use admin, "
+                         "auditor, finance, or division:<Division>")
+        elif not values or not all(isinstance(v, str) and v for v in values):
+            found.append(f"PINAX_OIDC_ROLE_MAP: {role + (':' + division if division else '')!r} needs the values that give it")
     return found
 
 
@@ -181,6 +187,8 @@ async def callback(request: Request, settings: Settings = Depends(_oidc_settings
                      [("/auth/logout", "Sign in as someone else")], status=403)
     target = request.session.get("next", "/app/")
     request.session.clear()  # the sign-in's state is spent
+    if settings.mapped_roles:
+        people.roles_from_provider(session, user, claims, settings)
     user.failed_logins, user.locked_until, user.last_login_at = 0, None, utcnow()
     cookie = signin.start_session(session, user, address)
     signin.audit(session, "auth.signed_in", f"{user.display_name} signed in", user, identity=shown, method="oidc",

@@ -68,6 +68,8 @@ Settings are `PINAX_*` environment variables, or a `.env` file in the folder you
 | `PINAX_OIDC_USERNAME_CLAIM` | `preferred_username` | `oidc`: the ID token's claim that names the person (Entra ID's user principal name); `email` for test providers |
 | `PINAX_OIDC_USERNAME_DOMAINS` | unset | `oidc`: allowed domains, comma-separated. With `example.org`, `jdoe@example.org` signs in as a person named `jdoe@example.org` or `jdoe`, and other domains are refused. Unset, the claim must be a username exactly |
 | `PINAX_PUBLIC_URL` | unset | `oidc`: how people reach Pinax, such as `https://pinax.example.org` (`https://`, or `http://` for localhost only); the provider returns people to it |
+| `PINAX_OIDC_ROLE_MAP` | unset | `oidc`, optional: Pinax's roles from Entra ID, as JSON, such as `{"admin": ["Pinax.Admin"], "division:Basic Sciences": ["Pinax.Head.Basic"]}`. Each role it names (`admin`, `auditor`, `finance`, `division:<Division>`) is set at every sign-in and not in the app ([Roles from Entra ID](ENTRA-ID.md#roles-from-entra-id)) |
+| `PINAX_OIDC_ROLES_CLAIM` | `roles` | `oidc`: the ID token's claim the role map reads: `roles` (Entra ID's app roles) or `groups` (group object IDs) |
 | `PINAX_SESSION_SECRET` | unset | `oidc`: signs the sign-in's own state, for the minutes a sign-in takes; at least 32 characters (`openssl rand -hex 32`) |
 | `PINAX_SESSION_HOURS` | `12` | Local sign-in and `oidc`: how long a session lasts from signing in |
 | `PINAX_LOGIN_MAX_FAILURES` | `5` | Local sign-in: failed sign-ins in a row that lock an account |

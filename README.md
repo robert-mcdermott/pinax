@@ -64,7 +64,8 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
 - **Access review**: who has access to what, with when each was given and what is worth a look, as a page and a
   CSV, and a recorded sign-off, for periodic recertification.
 - **Sign-in your way**: usernames and passwords Pinax keeps, the default, with nothing else to set up; or, for a
-  site that has it, single sign-on with Microsoft Entra ID (or another OpenID Connect provider) in Pinax itself, or
+  site that has it, single sign-on with Microsoft Entra ID (or another OpenID Connect provider) in Pinax itself,
+  with roles given in Pinax or from Entra ID app roles, or
   behind oauth2-proxy, with an emergency sign-in for when Entra ID fails; and, in the demo, a persona switcher to
   show Pinax with the seeded people (refused in production). People, labs, roles, and access are managed the same
   way in all of them.

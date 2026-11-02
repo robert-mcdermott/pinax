@@ -104,6 +104,9 @@ person can have several (a finance officer who is also a PI), and every role wor
 | Division head | Each lab in the divisions chosen (a lab's *Division*) as its members see it: its folders and every report, its charges, its plan, and its collections | Nothing: tagging and planning stay with each lab's PI and delegates |
 | PI, owner, or delegate | Their lab's or department's folders and every report, its charges, plan, and collections | Its folders' tags and its cleanup plan |
 
+With sign-in through Entra ID, a site may map some or all of these roles from Entra ID instead: those show *From
+Entra ID* on a person's page, and are set when the person signs in ([Roles from Entra ID](ENTRA-ID.md#roles-from-entra-id)).
+
 Pages show each person what they may use: an auditor sees the administration pages without their buttons, and
 finance a sidebar of charges. Every check is made on the server, for every request
 ([Security](ARCHITECTURE.md#security)). A division head's labs follow the labs' *Division*: change a lab's division,

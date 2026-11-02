@@ -8,9 +8,13 @@ memberships and administrator role, unused, so reactivating them restores exactl
 end, though, and their API tokens are revoked). Every change is audited with the fields before and after. At least
 one active storage administrator always remains, and no one can remove their own administrator role or deactivate
 themselves.
+
+With sign-in through an identity provider and a role map (PINAX_OIDC_ROLE_MAP), each role the map names belongs to
+the provider: `roles_from_provider` sets it at every sign-in, and the People page leaves it as it is.
 """
 
 import getpass
+import logging
 import re
 from collections.abc import Iterable
 from typing import Any
@@ -18,9 +22,12 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from .config import Settings, get_settings
 from .models import SITE_ROLES, AuditEvent, Lab, LabMembership, User, UserRole
 from .signin import end_sessions
 from .tokens import revoke_all
+
+log = logging.getLogger("pinax.people")
 
 ROLES = ("pi", "delegate")
 ROLE_TEXT = {"auditor": "auditor", "finance": "finance", "division": "division head"}
@@ -122,6 +129,12 @@ def save_person(session: Session, actor: User | None, user: User | None, data: d
         before = {k: getattr(user, k) for k in PROFILE}
     wanted = _memberships(session, data["memberships"]) if "memberships" in data else None
     wanted_roles = _roles(session, data["roles"]) if "roles" in data else None
+    mapped = get_settings().mapped_roles if actor is not None else {}  # the command line still sets any role
+    if ("admin", "") in mapped:
+        profile["is_admin"] = bool(user.is_admin)  # the provider's, at sign-in
+    if wanted_roles is not None and mapped:
+        current = set() if creating else {(r.role, r.division) for r in user.roles}
+        wanted_roles = {k for k in wanted_roles if k not in mapped} | {k for k in current if k in mapped}
     for k, v in profile.items():
         setattr(user, k, v)
     session.flush()
@@ -141,6 +154,49 @@ def save_person(session: Session, actor: User | None, user: User | None, data: d
         _set_roles(session, actor, user, wanted_roles)
     session.flush()
     return user
+
+
+def roles_from_provider(session: Session, user: User, claims: dict, settings: Settings) -> None:
+    """At a sign-in through the identity provider: set each role the role map names from the ID token's claim,
+    giving or taking it away, audited as the provider's (`source: oidc`). Roles the map does not name are left as the
+    People page set them. When Entra ID sends too many groups to list (more than about 200), it names a link in
+    their place; Pinax does not guess, and takes every mapped role away until it can read them."""
+    mapped = settings.mapped_roles
+    claim = settings.oidc_roles_claim
+    overage = claim == "groups" and claim not in claims and (
+        "groups" in (claims.get("_claim_names") or {}) or bool(claims.get("hasgroups")))
+    have = set() if overage else {str(v) for v in (claims.get(claim) or [])}
+    if overage:
+        session.add(AuditEvent(actor_id=user.id, action="auth.roles_unknown",
+                               summary=f"{user.display_name}'s groups could not be read: the identity provider sent too "
+                                       "many; their mapped roles are taken away until it can send them",
+                               detail={"username": user.username, "reason": "group overage", "source": "oidc"}))
+        log.warning("%s's groups could not be read (too many to list): mapped roles taken away", user.username)
+    wanted = {key for key, values in mapped.items() if values & have}
+
+    def note(action: str, summary: str, detail: dict) -> None:
+        session.add(AuditEvent(actor_id=None, action=action, summary=summary + ", from the identity provider at sign-in",
+                               detail={"username": user.username, **detail, "source": "oidc"}))
+
+    if ("admin", "") in mapped and bool(user.is_admin) != (("admin", "") in wanted):
+        user.is_admin = not user.is_admin
+        note("person.updated", f"{user.display_name}: " + ("granted the storage administrator role" if user.is_admin
+                                                            else "removed the storage administrator role"),
+             {"fields": {"is_admin": {"before": not user.is_admin, "after": user.is_admin}}})
+        if not user.is_admin and not active_admins(session):
+            log.warning("No active storage administrator remains after %s's sign-in", user.username)
+    current = {(r.role, r.division): r for r in session.scalars(select(UserRole).where(UserRole.user_id == user.id))}
+    for key in sorted(k for k in mapped if k[0] != "admin"):
+        if key in wanted and key not in current:
+            session.add(UserRole(user_id=user.id, role=key[0], division=key[1]))
+            note("person.role", f"{user.display_name} is now {role_text(*key)}",
+                 {"role": key[0], "division": key[1], "given": True})
+        elif key not in wanted and key in current:
+            session.delete(current[key])
+            note("person.role", f"{user.display_name} is no longer {role_text(*key)}",
+                 {"role": key[0], "division": key[1], "given": False})
+    session.flush()
+    session.expire(user, ["roles"])
 
 
 def _roles(session: Session, rows: list[dict]) -> set[tuple[str, str]]:
