@@ -49,7 +49,18 @@ from pathlib import Path
 
 import duckdb
 
-from ..categories import AGE_BUCKETS, CATEGORIES, COMPRESSION_SUFFIXES, OTHER, bucket_edges, describe, extension_map
+from ..categories import (
+    AGE_BUCKETS,
+    COMPRESSION_SUFFIXES,
+    DEFAULTS,
+    Category,
+    bucket_edges,
+    check,
+    describe,
+    extension_map,
+    from_dimensions,
+)
+from ..categories import patterns as category_patterns
 
 log = logging.getLogger("pinax.build")
 
@@ -58,7 +69,6 @@ INDEX_VERSION = 7
 # file open and buffered for each partition, so one per top-level folder does not scale to thousands of them.
 FILE_GROUPS = 64
 NB = len(AGE_BUCKETS)
-NC = len(CATEGORIES)
 US_PER_DAY = 86_400_000_000
 EPOCH = datetime(1970, 1, 1)
 
@@ -67,13 +77,23 @@ REQUIRED_COLUMNS = {
     "mtime", "atime", "ctime", "nlink", "name_flags", "dir_entries", "error", "is_mount_point",
 }
 
-# Additive subtree measures (summed up the tree) and extremes (min/max up the tree).
-ADDITIVE = (
+# Additive subtree measures (summed up the tree) and extremes (min/max up the tree). Each category adds a file count
+# and a size, cf{i} and cb{i}, so how many depends on the categories an index is built with.
+LINK_COLUMNS = ("hl_files", "hl_bytes")  # extra hard links, and the bytes they would have counted again (R7)
+BASE_ADDITIVE = (
     ["files", "bytes", "alloc", "m_wsum", "m_fsum", "m_n", "a_wsum", "a_n"]
     + [f"mf{i}" for i in range(NB)] + [f"mb{i}" for i in range(NB)] + [f"ab{i}" for i in range(NB)]
-    + [f"cf{i}" for i in range(NC)] + [f"cb{i}" for i in range(NC)]
-    + ["hl_files", "hl_bytes"]  # extra hard links, and the bytes they would have counted again (R7)
 )
+
+
+def category_columns(nc: int) -> list[str]:
+    return [f"cf{i}" for i in range(nc)] + [f"cb{i}" for i in range(nc)]
+
+
+def additive(nc: int) -> list[str]:
+    return BASE_ADDITIVE + category_columns(nc) + list(LINK_COLUMNS)
+
+
 EXTREMES = {"mtime_min": "min", "mtime_max": "max", "atime_max": "max", "ctime_max": "max"}
 FLOAT_COLUMNS = {"m_wsum", "m_fsum", "a_wsum"}
 
@@ -92,6 +112,7 @@ class BuildResult:
     totals: dict
     steps: dict[str, float] = field(default_factory=dict)
     compared: dict | None = None  # the previous scan this one was compared with
+    dimensions: dict = field(default_factory=dict)  # the categories and age buckets it was built with
 
 
 def read_manifest(scan_dir: Path) -> dict:
@@ -192,7 +213,7 @@ def _bucket_case(age_us: str) -> str:
 
 
 def _direct_aggregates() -> str:
-    """Per-directory totals over a directory's own (non-directory) entries."""
+    """Per-directory totals over a directory's own (non-directory) entries, but for each category's (`direct_cat`)."""
     cols = [
         "count(*)::BIGINT AS files",
         "coalesce(sum(size), 0)::BIGINT AS bytes",
@@ -208,8 +229,6 @@ def _direct_aggregates() -> str:
     cols += [f"count(*) FILTER (WHERE mbk = {i})::BIGINT AS mf{i}" for i in range(NB)]
     cols += [f"coalesce(sum(size) FILTER (WHERE mbk = {i}), 0)::BIGINT AS mb{i}" for i in range(NB)]
     cols += [f"coalesce(sum(size) FILTER (WHERE abk = {i}), 0)::BIGINT AS ab{i}" for i in range(NB)]
-    cols += [f"count(*) FILTER (WHERE cat = {i})::BIGINT AS cf{i}" for i in range(NC)]
-    cols += [f"coalesce(sum(size) FILTER (WHERE cat = {i}), 0)::BIGINT AS cb{i}" for i in range(NC)]
     return ",\n  ".join(cols)
 
 
@@ -259,7 +278,8 @@ CHANGE_MEASURES = (["files", "dirs", "bytes", "alloc", "m_wsum"] + [f"mf{i}" for
                    + [f"mb{i}" for i in range(NB)])
 
 
-def _compare(con: duckdb.DuckDBPyConnection, previous: Path, root: str, files_dir: Path, step: Callable) -> dict | None:
+def _compare(con: duckdb.DuckDBPyConnection, previous: Path, root: str, files_dir: Path, step: Callable,
+             categories: tuple[Category, ...] | list[Category]) -> dict | None:
     """Join this scan's directories with the previous scan's by path, keeping both scans' totals (`o_` for the
     previous, `n_` for this one): a directory in only one of them is new or removed. Ages are each scan's own,
     measured from its start. Then the files new and removed since (`_compare_files`). Returns what the comparison
@@ -281,7 +301,12 @@ def _compare(con: duckdb.DuckDBPyConnection, previous: Path, root: str, files_di
         """)
         new, removed = con.execute("SELECT count(*) FILTER (WHERE NOT in_old), count(*) FILTER (WHERE NOT in_new) "
                                    "FROM changes").fetchone()
-        files = _compare_files(con, previous / "files", files_dir, step)
+        # The previous scan's removed files keep their categories, numbered as in this index (a category it no longer
+        # has is *other*).
+        mine = {c.key: i for i, c in enumerate(categories)}
+        renumber = [mine.get(c.key, len(categories) - 1) for c in from_dimensions(meta.get("dimensions"))]
+        recat = None if renumber == list(range(len(renumber))) else f"{renumber}[cat + 1]::UTINYINT"
+        files = _compare_files(con, previous / "files", files_dir, step, recat)
         return {"scan_id": meta.get("scan_id"), "started_at": meta.get("started_at"), "ref_day": meta.get("ref_day"),
                 "index_version": meta.get("index_version"), "new_dirs": int(new), "removed_dirs": int(removed),
                 **files}
@@ -303,7 +328,8 @@ def file_folders(con: duckdb.DuckDBPyConnection, file_parts: str) -> dict[int, s
     return {tid: f"g{grp:06d}" if grp is not None else f"t{tid:06d}" for tid, grp in rows}
 
 
-def _compare_files(con: duckdb.DuckDBPyConnection, old_files: Path, new_files: Path, step: Callable) -> dict:
+def _compare_files(con: duckdb.DuckDBPyConnection, old_files: Path, new_files: Path, step: Callable,
+                   recat: str | None = None) -> dict:
     """Every file new since the previous scan and every file removed since, matched by path, into `file_changes`
     (`change` is 'new' or 'removed'; ordered by change and path), so *What changed* reads a range of it instead of
     comparing two scans' files. A top-level folder is compared with the previous scan's folder of the same name, one
@@ -328,6 +354,7 @@ def _compare_files(con: duckdb.DuckDBPyConnection, old_files: Path, new_files: P
         return parquet_source([base / f / "*.parquet" for f in sorted(set(folders))])
 
     fields = ", ".join(FILE_FIELDS)
+    old_fields = ", ".join(f"{recat} AS cat" if recat and k == "cat" else k for k in FILE_FIELDS)
     con.execute(f"CREATE TABLE s.file_changes (change VARCHAR, {', '.join(f'{k} {t}' for k, t in FILE_FIELDS.items())})")
     for folder, tops in sorted(groups.items()):
         mine = files(new_files, [folder])
@@ -338,10 +365,10 @@ def _compare_files(con: duckdb.DuckDBPyConnection, old_files: Path, new_files: P
                  f"WHERE top_id IN ({', '.join(str(int(t)) for t in tops)}))"
         step("file_changes", f"INSERT INTO s.file_changes SELECT 'new', {fields} FROM {mine} "
                              f"ANTI JOIN (SELECT path FROM {theirs}) USING (path)")
-        step("file_changes", f"INSERT INTO s.file_changes SELECT 'removed', {fields} FROM {theirs} "
+        step("file_changes", f"INSERT INTO s.file_changes SELECT 'removed', {old_fields} FROM {theirs} "
                              f"ANTI JOIN (SELECT path FROM {mine}) USING (path)")
     for folder, tops in sorted(gone.items()):
-        step("file_changes", f"INSERT INTO s.file_changes SELECT 'removed', {fields} FROM {files(old_files, [folder])} "
+        step("file_changes", f"INSERT INTO s.file_changes SELECT 'removed', {old_fields} FROM {files(old_files, [folder])} "
                              f"WHERE top_id IN ({', '.join(str(int(t)) for t in tops)})")
     step("file_changes", "CREATE TABLE file_changes AS SELECT * FROM s.file_changes ORDER BY change, path")
     counts = con.execute("SELECT count(*) FILTER (WHERE change = 'new'), coalesce(sum(size) FILTER (WHERE change = 'new'), 0), "
@@ -358,6 +385,7 @@ def build_index(
     threads: int = 0,
     allow_incomplete: bool = False,
     previous: Path | None = None,
+    categories: tuple[Category, ...] | list[Category] = DEFAULTS,
     progress: Callable[[str], None] | None = None,
 ) -> BuildResult:
     """Build `index_dir` from the fs-inventory scan in `scan_dir`. Writes to a temporary sibling
@@ -366,6 +394,20 @@ def build_index(
     say = progress or (lambda m: log.info(m))
     t0 = time.monotonic()
     steps: dict[str, float] = {}
+    try:
+        check(categories)
+    except ValueError as e:
+        raise BuildError(f"The file categories cannot be used: {e}") from e
+    nc, other = len(categories), len(categories) - 1
+    added = additive(nc)
+    # A file's category: the first pattern its name matches, then its extension, then *other*. One expression of
+    # every pattern together finds the few names any matches, and only those are checked pattern by pattern.
+    found = category_patterns(categories)
+    by_name = ""
+    if found:
+        either = "|".join(f"(?:{pattern})" for pattern, _ in found)
+        each = " ".join(f"WHEN regexp_matches(e.name, {_sql_str(pattern)}) THEN {i}" for pattern, i in found)
+        by_name = f"CASE WHEN regexp_matches(e.name, {_sql_str(either)}) THEN (CASE {each} END) END, "
 
     scan_dir = scan_dir.resolve()
     manifest = read_manifest(scan_dir)
@@ -433,7 +475,7 @@ def build_index(
         FROM entries WHERE kind = 'dir' AND depth = 1
     """)
     con.execute("CREATE TEMP TABLE ext_cat (ext VARCHAR PRIMARY KEY, cat UTINYINT)")
-    con.executemany("INSERT INTO ext_cat VALUES (?, ?)", list(extension_map().items()))
+    con.executemany("INSERT INTO ext_cat VALUES (?, ?)", list(extension_map(categories).items()))
 
     # ---- Stage every non-directory entry with its top-level folder, type, category, and age buckets ----
     say("Classifying files")
@@ -472,7 +514,7 @@ def build_index(
           SELECT coalesce(t.top_id, 0)::INTEGER AS top_id, (coalesce(t.top_id, 0) % {groups})::INTEGER AS grp,
                  e.path, e.parent_id, e.name, e.depth::INTEGER AS depth,
                  CASE WHEN e.inner_ext <> '' THEN e.inner_ext || '.' || e.extension ELSE e.extension END AS ext,
-                 coalesce(c.cat, {OTHER})::UTINYINT AS cat,
+                 coalesce({by_name}c.cat, {other})::UTINYINT AS cat,
                  e.kind, e.size, e.alloc_bytes, e.uid, e.gid, e.mtime, e.atime, e.ctime, e.nlink, e.name_flags,
                  e.extra_link
           FROM e
@@ -590,27 +632,33 @@ def build_index(
 
     # ---- Subtree totals, bottom-up one depth level at a time ----
     say("Rolling up subtree totals")
+    # Each directory's files and bytes by category, from its totals by type (a few rows a directory), rather than
+    # two filtered sums for each category over every file: the same numbers, at a cost the categories barely change.
+    by_cat = ", ".join([f"sum(files) FILTER (WHERE cat = {i})::BIGINT AS cf{i}" for i in range(nc)]
+                       + [f"sum(bytes) FILTER (WHERE cat = {i})::BIGINT AS cb{i}" for i in range(nc)])
+    step("direct_cat", f"CREATE TABLE s.direct_cat AS SELECT dir_id, {by_cat} FROM s.ext_raw GROUP BY dir_id")
+    cats = set(category_columns(nc))
     step("join_direct", f"""
         CREATE TABLE s.base AS
         SELECT b.dir_id, b.parent_id, b.depth, b.incomplete_self,
-               {", ".join(f"coalesce(x.{c}, 0) AS {c}" for c in ADDITIVE)},
+               {", ".join(f"coalesce({'k' if c in cats else 'x'}.{c}, 0) AS {c}" for c in added)},
                {", ".join(f"x.{c}" for c in EXTREMES)}
-        FROM s.dirbase b LEFT JOIN s.direct x USING (dir_id)
+        FROM s.dirbase b LEFT JOIN s.direct x USING (dir_id) LEFT JOIN s.direct_cat k USING (dir_id)
         ORDER BY b.depth
     """)
     con.execute(f"""
         CREATE TABLE s.sub AS SELECT dir_id, parent_id, depth, 0::BIGINT AS dirs, 0::BIGINT AS incomplete,
-            {", ".join(ADDITIVE)}, {", ".join(EXTREMES)} FROM s.base WHERE false
+            {", ".join(added)}, {", ".join(EXTREMES)} FROM s.base WHERE false
     """)
     max_depth = con.execute("SELECT max(depth) FROM s.dirbase").fetchone()[0]
     child_cols = ", ".join(
         ["sum(dirs + 1) AS dirs", "sum(incomplete) AS incomplete"]
-        + [f"sum({c}) AS {c}" for c in ADDITIVE]
+        + [f"sum({c}) AS {c}" for c in added]
         + [f"{fn}({c}) AS {c}" for c, fn in EXTREMES.items()]
     )
     merged = ", ".join(
         ["coalesce(c.dirs, 0)", "b.incomplete_self + coalesce(c.incomplete, 0)"]
-        + [f"b.{c} + coalesce(c.{c}, 0)" for c in ADDITIVE]
+        + [f"b.{c} + coalesce(c.{c}, 0)" for c in added]
         + [f"{'least' if fn == 'min' else 'greatest'}(b.{c}, c.{c})" for c, fn in EXTREMES.items()]
     )
     for d in range(max_depth, -1, -1):
@@ -630,7 +678,7 @@ def build_index(
                b.is_mount_point, b.dir_entries, b.dev, b.ino,
                coalesce(x.files, 0) AS d_files, coalesce(x.bytes, 0) AS d_bytes,
                x.mtime_min AS d_mtime_min, x.mtime_max AS d_mtime_max, x.atime_max AS d_atime_max,
-               u.dirs, u.incomplete, {", ".join(f"u.{c}" for c in ADDITIVE)}, {", ".join(f"u.{c}" for c in EXTREMES)}
+               u.dirs, u.incomplete, {", ".join(f"u.{c}" for c in added)}, {", ".join(f"u.{c}" for c in EXTREMES)}
         FROM s.dirbase b JOIN s.sub u USING (dir_id) LEFT JOIN s.direct x USING (dir_id)
         ORDER BY b.depth, b.path
     """)
@@ -644,7 +692,7 @@ def build_index(
     compared = None
     if previous is not None:
         say("Comparing with the previous scan")
-        compared = _compare(con, Path(previous), root, work / "files", step)
+        compared = _compare(con, Path(previous), root, work / "files", step, categories)
 
     say("Writing type and owner tables")
     step("dir_ext", """
@@ -715,7 +763,7 @@ def build_index(
         "tool_version": manifest.get("tool_version"),
         "schema_version": manifest.get("schema_version"),
         "built_at": datetime.now(UTC).isoformat(),
-        "dimensions": describe(),
+        "dimensions": describe(categories),
         "build": {"threads": all_threads, "scan_threads": scan_threads, "memory_limit": memory_limit},
         "totals": totals,
         "previous": compared,
@@ -734,4 +782,5 @@ def build_index(
     seconds = time.monotonic() - t0
     say(f"Index built in {seconds:.1f}s")
     return BuildResult(index_dir=index_dir, manifest=manifest, root=root, started_at=started_at, seconds=seconds,
-                       totals=totals, steps={k: round(v, 3) for k, v in steps.items()}, compared=compared)
+                       totals=totals, steps={k: round(v, 3) for k, v in steps.items()}, compared=compared,
+                       dimensions=meta["dimensions"])

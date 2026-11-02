@@ -101,6 +101,14 @@ database that IT runs, backs up, replicates, and monitors as it does others, and
 file's lock. Pinax is still one server: indexes and background searches are on its disk. The whole test suite runs
 on both.
 
+**Connections.** The web app answers requests in threads, `PINAX_WEB_THREADS` (40) for the whole process, and runs
+each request's sign-in check and then its page in a thread each, one after the other. A request holds a catalog
+connection only while it runs in one of them: it gives it back once it knows who is signed in, and before checking a
+password (`db.release`), so threads never all wait for connections held by requests waiting for threads. With SQLite
+the web app keeps a connection for each thread; with PostgreSQL, `PINAX_DATABASE_POOL_SIZE` (10, and as many more at
+busy times), which costs the database server. A request that finds no connection free within 10 seconds is told Pinax
+is busy (503), and counted in `pinax_catalog_busy_total`. Measured in [Many people at once](#many-people-at-once).
+
 **Migrations** (Alembic, in `src/pinax/migrations`, `migrate.py`) create the catalog and upgrade it in place. They
 run when Pinax starts, as new tables and columns were added before, unless `PINAX_DB_AUTO_UPGRADE=false` leaves them
 to `pinax db upgrade`, which can also print its SQL for a database administrator. Processes that start together
@@ -162,14 +170,36 @@ match. The sort orders turn every query Pinax makes into a contiguous read:
 
 ### File types and categories
 
-A file's type is its lowercased extension, joined with the one before when the last is a compression
-suffix: `S1_R1.fastq.gz` is `fastq.gz`, `brain.nii.gz` is `nii.gz`. Its category comes from the inner
-type, so compressed sequencing data is still sequencing data. There are twelve categories (sequencing and
-genomics, imaging, tabular and array data, mass spectrometry, archives, models, code, documents, media,
-containers, logs and temporary, other) defined in `categories.py`. Seven age buckets run from under 90 days
-to ten years or more. Both lists are recorded in each snapshot, so changing them affects only new snapshots.
-Ages are whole microseconds from the scan's start, so a file exactly on an edge is in the older bucket, and
-times after the scan started count as under 90 days.
+A file's type is its lowercased extension, joined with the one before when the last is a compression suffix:
+`S1_R1.fastq.gz` is `fastq.gz`, `brain.nii.gz` is `nii.gz`. Its category comes from the inner type, so compressed
+sequencing data is still sequencing data.
+
+The categories are the catalog's (`file_category`), so a site can change them (*File categories*, under
+Administration, [ADMINISTRATION.md](ADMINISTRATION.md#file-categories)): the twelve built in (sequencing and genomics,
+imaging, tabular and array data, mass spectrometry, archives, models, code, documents, media, containers, logs and
+temporary, and *other*, last), filled the first time Pinax starts from `categories.DEFAULTS`, and any it adds, up to
+24. Each lists extensions, and may also list patterns: regular expressions on the file's name, in RE2's syntax as
+DuckDB has it, so none can take exponential time, and at most 25 in all. Patterns are checked before any extension,
+category by category and in order, and the first match wins; then the extension (the first category to list it); then
+*other*. So `^Undetermined_.*\.fastq` can be a category of its own although `fastq` is sequencing data's.
+
+A file's category is decided when its index is built, not when it is read: deciding at query time would read every
+file for reports that now read only folders. The build joins each file's extension with a small table, as before, so a
+site that changes only extensions pays nothing more; with patterns, one expression of all of them together finds the
+few names any matches, and only those are checked pattern by pattern. Each category adds a file count and a size to
+every folder (`cf{i}` and `cb{i}`), summed from the folder's totals by type rather than over its files. At 10 million
+files, 25 patterns added 4% to a build and 24 categories 6%, and with 24 the index was 56.9 bytes a file
+(`bench/bench_index.py --patterns 25`, `--categories 24`). The index records the categories it was built with and a
+fingerprint of what decides a file's category (`categories.fingerprint`: keys, extensions, patterns, and their order;
+not labels), and reports read each index's own list: totals come back keyed by category (`cat_bytes`, `cat_files`), so
+totals from indexes built with different lists add up by category, a category an index was built without measures
+nothing in it, and the removed files of *What changed* keep the categories of the scan they were in. An index built
+with other categories than the catalog's is outdated, and `pinax rebuild --outdated` builds it again, or `--latest`
+only each filesystem's latest, letting older snapshots keep theirs.
+
+Seven age buckets run from under 90 days to ten years or more, fixed in `categories.py` (the interface's color ramp
+has seven validated steps), and recorded in each snapshot. Ages are whole microseconds from the scan's start, so a
+file exactly on an edge is in the older bucket, and times after the scan started count as under 90 days.
 
 ## Building the index
 
@@ -253,7 +283,7 @@ folder must still exist for this part of the check. At 100 million files (2.44 m
 nearly all of it the two rollups, and every directory was equal (between two synthetic scans with the same
 contents). Between changed scans from `synth_scan.py --evolve` at one million files, comparing takes 0.2 seconds
 of a six-second build and checking it 1.1 seconds, every directory equal; changed scans at 100 million files wait
-for server-class hardware (wave 14).
+for server-class hardware (wave 15).
 
 ## Real filesystems
 
@@ -281,7 +311,7 @@ A real scan was checked the same way: the maintainer's documents folder on a lap
 builds in 0.8 s and every query takes under 25 ms. It also showed common types that were counted as *other*:
 camera photo and video formats, macro-enabled spreadsheets, diagrams, executables, and disk images, 35% of its
 bytes. With those added, *other* is 0.8% of its bytes, nearly all of it files without an extension. Production
-storage, with many owners and a billion files, is measured in wave 14.
+storage, with many owners and a billion files, is measured in wave 15.
 
 ## Querying
 
@@ -684,7 +714,7 @@ million, so minutes at two billion, beyond the time limit), and is best asked of
 from synthetic data, which has about 41 files per folder; production filesystems often have fewer, so two billion
 files may mean 50 to 200 million folders, beyond anything measured so far. Reports that read every folder of a
 whole filesystem, like the folder lists of *What changed* (about 0.1 s per 250,000 folders here) and the icicle
-and sunburst of a filesystem's root (about 2 ms per million folders), grow with them. The pilot (wave 14) measures
+and sunburst of a filesystem's root (about 2 ms per million folders), grow with them. The pilot (wave 15) measures
 production storage.
 
 Index size is about 56 bytes per file, mostly the per-file Parquet (which is kept sorted and compressed). A
@@ -701,6 +731,117 @@ uv run python bench/synth_scan.py --files 10000000 -o /scratch/synth-10m
 ```bash
 uv run python bench/bench_index.py /scratch/synth-10m --index /scratch/synth-10m-index
 ```
+
+### Many people at once
+
+Measured with the load test ([The load test](DEVELOPMENT.md#the-load-test)) on the same laptop, with Pinax and the
+load test sharing it, against three scans of 10 million files a month apart, 200 labs, and 615 people. Each person
+pauses 5 to 15 seconds between pages, so 100 people open about 9.5 pages a second; five minutes measured after a
+minute's ramp-up:
+
+| People at once | Catalog | Pages a second | Median page | 95th percentile | 99th percentile | Errors | Memory at most |
+|---|---|---|---|---|---|---|---|
+| 10 | SQLite | 0.97 | 41 ms | 98 ms | 154 ms | 0 | 1.2 GB |
+| 25 | SQLite | 2.39 | 42 ms | 93 ms | 160 ms | 0 | 1.3 GB |
+| 50 | SQLite | 4.73 | 40 ms | 96 ms | 158 ms | 0 | 1.4 GB |
+| 100 | SQLite | 9.48 | 38 ms | 106 ms | 168 ms | 0 | 2.5 GB |
+| 10 | PostgreSQL | 0.96 | 66 ms | 140 ms | 382 ms | 0 | 1.1 GB |
+| 25 | PostgreSQL | 2.38 | 64 ms | 174 ms | 385 ms | 0 | 1.4 GB |
+| 50 | PostgreSQL | 4.72 | 60 ms | 162 ms | 387 ms | 0 | 1.5 GB |
+| 100 | PostgreSQL | 9.47 | 55 ms | 146 ms | 377 ms | 0 | 2.3 GB |
+
+Times do not grow from 10 to 100 people, and the server keeps about one core busy. Folder pages stay within
+143 ms at the 95th percentile (172 ms on PostgreSQL) and a lab's searches within 65 ms (85 ms), far inside wave 14's
+budgets of 1 and 2 seconds. A search of every filesystem takes about 0.4 s, and *All data* 157 ms (385 ms on
+PostgreSQL).
+
+**More than that.** The same 100 people clicking two to five times as often, three minutes measured after half a
+minute's ramp-up:
+
+| Clicking | Pinax | Catalog | Pages a second | Median page | 95th percentile | 99th percentile | Errors | Cores busy |
+|---|---|---|---|---|---|---|---|---|
+| Twice as often | 0.13.0 | SQLite | 19.0 | 37 ms | 132 ms | 278 ms | 0 | 0.9 |
+| 3 times | 0.13.0 | SQLite | 28.4 | 43 ms | 282 ms | 942 ms | 3 | 1.3 |
+| 4 times | 0.13.0 | SQLite | 15.3 | 1.4 s | 3.3 s | 88 s | 89 | 2.9 |
+| 5 times | 0.13.0 | SQLite | 0.8 | 89 s | 145 s | 149 s | 156 | 0 |
+| 3 times | 0.14.0 | SQLite | 28.0 | 45 ms | 400 ms | 1.0 s | 0 | 1.4 |
+| 4 times | 0.14.0 | SQLite | 26.1 | 857 ms | 4.1 s | 7.2 s | 0 | 3.3 |
+| 5 times | 0.14.0 | SQLite | 24.0 | 1.5 s | 6.6 s | 9.5 s | 0 | 3.4 |
+| 4 times | 0.14.0 | PostgreSQL | 30.0 | 344 ms | 2.6 s | 4.5 s | 0 | 2.4 |
+
+The 3 errors of 0.13.0 at three times were the load test's: a request sent on a kept-alive connection just as the
+server closed it, unused for 5 seconds, which a browser sends again (the load test now does too). 0.13.0, at four and
+five times, stopped answering for 30 seconds at a time and failed requests with *Internal error*, its processors idle.
+Every thread's stack, dumped at the stall, was waiting for a catalog connection: a request took one to check who was
+signed in and kept it while it waited for one of the web server's 40 threads to run the page, and with 15 connections
+on SQLite (20 on PostgreSQL), once 40 requests were waiting for a connection, those holding them waited for a thread,
+until the pool gave up after 30 seconds. A request now holds a connection only while it runs in a thread
+([Connections](#the-catalog-database)), and nothing fails: one process serves about 28 pages a second on this laptop,
+some 300 people at the baseline's pace, and past that pages wait their turn and slow down. Those that ask the catalog
+many small questions wait longest (below: *All data* took 10 s at four times, *My folders* 5 s), with three or four of
+the ten cores busy, most likely because that work is Python's, one thread at a time. At three times the 95th
+percentile is higher than 0.13.0's (400 against 282 ms), with up to 40 requests running at once where the pool let 15.
+At the baseline's 100 people nothing changed on SQLite: run back to back with 0.13.0, the median page took 38 ms in
+both, and the 95th percentile 104 and 108 ms (it varies by a third between runs).
+
+**Searches of whole filesystems while others browse.** Eight storage administrators each searched the whole filesystem
+one search after another (by name, by path, and by age, each with a count of all that match, a second pass), with a
+pause of 1 to 3 seconds, while the 100 people browsed at the baseline's pace (`--searchers 8`). Two run at once
+(`PINAX_WIDE_QUERIES`) and the others wait for a turn, so the cores stay busy (8.5 of 10). On SQLite every budget was
+met: the others' pages took a median 98 ms and 410 ms at the 95th percentile (folder pages at most 751 ms, *What
+changed*; a lab's searches 199 ms), and the 299 searches finished in a median 2.7 s, the longest 7.6 s, waiting included. With a time
+limit of 5 seconds instead of 180 (`--set PINAX_QUERY_TIMEOUT=5`), 33 searches of 280 did not finish, and each stopped
+at the limit, within a quarter of a second, with Pinax's explanation: 16 still waiting for a turn (503, "already
+running as many searches of whole filesystems as it allows"), 17 running (504, "stopped this after 5 seconds"). On
+PostgreSQL, with the database in a virtual machine on the same cores, nothing failed and the 212 searches finished,
+the longest in 17 s, but *What changed* reached 1.2 s at the 95th percentile, past the budget of 1 s, and the others'
+pages took a median 173 ms; the searches' DuckDB threads (every core, `PINAX_QUERY_THREADS`) leave the rest little.
+
+**Many sign-ins at once.** 200 people signing in at the same moment (`--people 200 --ramp 0`): no errors, and every
+sign-in done within 5.7 s on SQLite and 5.9 s on PostgreSQL, with up to 40 passwords checked at once (scrypt uses
+32 MB for each, so about 1.3 GB more memory while they run). On PostgreSQL, sign-ins first took up to 8.4 s, each
+holding one of the 20 connections while its password was checked; it is now given back first. Their first pages
+then waited, up to 59 s on SQLite and 19 s on PostgreSQL. The server finished about 25 requests a second with 3 of
+its 10 cores busy, and requests that take a few milliseconds alone, such as `/api/config`, waited up to half a
+minute for one of the 40 threads. With cores to spare, what they were most likely short of is Python's interpreter,
+which runs one thread's Python at a time, and which they share with the event loop that receives the requests. People arriving
+over a minute, as in the baseline, do not wait.
+
+**PostgreSQL is slower by its round trips,** on pages that ask the catalog many small questions. In 0.13.0 an
+administrator's *All data* made 1,023 catalog queries (306 ms on PostgreSQL, 111 ms on SQLite), *People and access*
+620 (187 and 66 ms), a lab's suggested folders 175 (91 and 46 ms), and a lab's charges 51 (56 and 10 ms); the age map,
+change map, and cold folders of a filesystem's root 131, 133, and 283. Most were each lab's PI, found by loading the
+lab's members and then each member, lab by lab, and each person's site roles, person by person. Since wave 14 every
+lab's PIs come in one query (`models.pi_names`), people come with their roles, and a lab's suggested folders look up
+each filesystem's price and free tier once: *All data* makes 24 queries, *People and access* 13, the root's pages 12
+to 14, and the suggested folders 58. One request at a time, *All data*'s catalog request took 69 to 129 ms on
+PostgreSQL instead of 400 to 576 ms, and *People and access* 59 to 103 instead of 252 to 447 (on SQLite, 30 to 49
+instead of 125 to 161, and 31 to 45 instead of 75 to 170; measured while the laptop was in use, hence the ranges). A
+lab's charges still read prices once for each month of their history, 51 queries. Giving a request's connection back
+after the sign-in check (above) adds a few round trips, as the request takes one again for its page: about 4 ms a
+request here, where each round trip to the database, in its virtual machine, takes about 1.5 ms. At 100 people
+PostgreSQL's median page took 62 ms, against 55 ms in 0.13.0.
+
+**Memory** grows as DuckDB caches the indexes' blocks: 2.5 GB after five minutes of 100 people, and over 20 minutes it
+rose and fell between 1.4 and 3.0 GB. Each open index is a DuckDB database with a memory limit of its own (what its
+queries use at once, and the blocks it keeps), and up to eight stay open: 0.13.0 gave each `PINAX_QUERY_MEMORY_LIMIT`
+(4 GB), so up to 32 GB in all, past the 16 GB of [Sizing](DEPLOYMENT.md#sizing) at a billion files. Since wave 14 the
+setting is for all of them together (8 GB), each with an equal share, set again as indexes open and close
+(`snapshots.IndexCache`), and DuckDB lets go of cached blocks when a share falls. At rest an index keeps little: 43
+MB, after all of a 10-million-file index was read once; at a billion files its folders alone are gigabytes.
+
+**Threads.** Measured while the laptop was in use, so each run is compared only with its neighbours. Fewer of the web
+app's threads (`PINAX_WEB_THREADS`) served more pages a second when the process was saturated: at four times the
+baseline's pace, 8 threads served 24.7 pages a second against 18.5 with 40 in the run before, and 18.3 against 13.4
+with 16, with a 95th percentile of 2.5 s against 8.7 s; and 200 people signing in at once had their first pages within
+31 s, against 40 s with 16 and 57 s with 40. Python runs one thread's code at a time, and fewer threads share it, and
+the event loop, among fewer. But each request waiting for a whole-filesystem turn holds a thread: with eight
+administrators searching, 8 threads left the others' pages a 95th percentile of 1.2 s and a lab's searches 1.7 s,
+against 0.5 and 0.3 s with 40. At a billion files the root's reports and the searches take seconds and hold threads
+longer, so the default stays 40. Fewer DuckDB threads did not help the pages beside the searches: with
+`PINAX_QUERY_THREADS=5` of 10, on PostgreSQL with eight searching, the others' pages took 642 ms at the 95th
+percentile against 733 ms and 2.0 s in the runs either side with all ten, and the searches a median 5.7 s against 4.2
+and 5.0 s. A search and the pages of the same index share its threads.
 
 ### Charges
 

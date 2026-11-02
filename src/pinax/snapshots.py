@@ -20,11 +20,12 @@ from sqlalchemy.orm import Session
 
 from . import marks
 from .capacity import record_storage, scan_storage
-from .categories import AGE_BUCKETS, CATEGORY_KEYS, bucket_edges
+from .categories import AGE_BUCKETS, bucket_edges, fingerprint
+from .categories import current as current_categories
 from .config import Settings, get_settings
 from .db import utcnow
 from .index import SnapshotIndex, Stats
-from .ingest.build import INDEX_VERSION, BuildError, build_index, check_manifest, read_manifest
+from .ingest.build import INDEX_VERSION, BuildError, build_index, check_manifest, parse_size, read_manifest
 from .models import AuditEvent, Filesystem, FolderStat, Snapshot, SnapshotStatus
 
 log = logging.getLogger("pinax.snapshots")
@@ -55,7 +56,11 @@ def _stamp(index_dir: str) -> tuple[int, int] | None:
 
 class IndexCache:
     """Keeps recently used snapshot indexes open (each is a read-only DuckDB connection). An index rebuilt since
-    it was opened (`pinax rebuild`, in another process) is a new file, and is opened again."""
+    it was opened (`pinax rebuild`, in another process) is a new file, and is opened again.
+
+    PINAX_QUERY_MEMORY_LIMIT is for all of them together: each open index is a DuckDB database with a memory limit
+    of its own (what its queries use at once, and the blocks it keeps cached), so each gets an equal share, set
+    again as indexes open and close. One index alone has all of it."""
 
     def __init__(self, size: int = 8):
         self.size = size
@@ -72,25 +77,39 @@ class IndexCache:
             if item is not None:
                 self._items.pop(snap.id)
                 item[0].close()
+            # Opened as everywhere else (DuckDB refuses a second connection to a file open in this process with other
+            # settings), then given its share.
             s = get_settings()
             idx = SnapshotIndex(Path(snap.index_dir), memory_limit=s.query_memory_limit, threads=s.query_threads)
             self._items[snap.id] = (idx, stamp)
             while len(self._items) > self.size:
                 _, (old, _) = self._items.popitem(last=False)
                 old.close()
+            self._share()
             return idx
+
+    def _share(self) -> None:
+        share = _memory_share(len(self._items))
+        for idx, _ in self._items.values():
+            idx.set_memory_limit(share)
 
     def drop(self, snapshot_id: int) -> None:
         with self._lock:
             item = self._items.pop(snapshot_id, None)
             if item:
                 item[0].close()
+                self._share()
 
     def clear(self) -> None:
         with self._lock:
             for idx, _ in self._items.values():
                 idx.close()
             self._items.clear()
+
+
+def _memory_share(open_indexes: int) -> str:
+    """Each of `open_indexes` indexes' part of PINAX_QUERY_MEMORY_LIMIT, in bytes, as DuckDB reads a size."""
+    return f"{parse_size(get_settings().query_memory_limit) // max(1, open_indexes)}B"
 
 
 indexes = IndexCache()
@@ -250,7 +269,8 @@ def _ingest(session: Session, scan_dir: Path, *, fs_slug: str | None, allow_inco
     try:
         result = build_index(scan_dir, index_dir, memory_limit=settings.build_memory_limit,
                              threads=settings.build_threads, allow_incomplete=allow_incomplete,
-                             previous=Path(prev.index_dir) if prev else None, progress=progress)
+                             previous=Path(prev.index_dir) if prev else None,
+                             categories=current_categories(session), progress=progress)
     except Exception as e:  # record the failure, then re-raise for the caller
         snap.status = SnapshotStatus.FAILED
         snap.message = str(e)
@@ -290,7 +310,8 @@ def _record_build(session: Session, snap: Snapshot, index_dir: Path, result, man
     snap.bytes, snap.alloc_bytes, snap.errors = t["bytes"], t["alloc_bytes"], t["errors"]
     snap.index_bytes = sum(p.stat().st_size for p in index_dir.rglob("*") if p.is_file())
     snap.info = {"steps": result.steps, "incomplete_dirs": t["incomplete_dirs"], "tops": t["tops"],
-                 "categories": list(CATEGORY_KEYS), "age_buckets": [b.short for b in AGE_BUCKETS],
+                 "categories": [c["key"] for c in result.dimensions["categories"]],
+                 "categories_id": result.dimensions["categories_id"], "age_buckets": [b.short for b in AGE_BUCKETS],
                  "errors_by_kind": manifest.get("errors_by_kind", []), "index_version": INDEX_VERSION,
                  "compared_with": prev.id if prev and result.compared else None}
     if storage := scan_storage(Path(snap.scan_dir)):
@@ -299,14 +320,15 @@ def _record_build(session: Session, snap: Snapshot, index_dir: Path, result, man
     _record_folder_stats(session, snap, index_dir, settings)
 
 
-def index_version(snap: Snapshot) -> int | None:
-    """The format version of a snapshot's index on disk; None if it is missing or unreadable."""
+def index_state(snap: Snapshot) -> tuple[int, str] | None:
+    """A snapshot's index on disk: its format version, and the fingerprint of the file categories it was built with
+    (categories.fingerprint); None if it is missing or unreadable."""
     try:
         idx = SnapshotIndex(Path(snap.index_dir), memory_limit="256MB", threads=1)
     except (OSError, duckdb.Error):
         return None
     try:
-        return int(idx.meta.get("index_version", 0))
+        return int(idx.meta.get("index_version", 0)), idx.categories_id or fingerprint(idx.categories)
     finally:
         idx.close()
 
@@ -334,7 +356,8 @@ def rebuild_snapshot(session: Session, snap: Snapshot, *, settings: Settings | N
         try:
             result = build_index(scan_dir, index_dir, memory_limit=settings.build_memory_limit,
                                  threads=settings.build_threads, allow_incomplete=snap.scan_status != "complete",
-                                 previous=Path(prev.index_dir) if prev else None, progress=progress)
+                                 previous=Path(prev.index_dir) if prev else None,
+                                 categories=current_categories(session), progress=progress)
         except Exception as e:  # record it, keep the old index, then re-raise for the caller
             snap.message = f"Rebuild failed; the previous index is still in use: {e}"
             session.commit()
@@ -373,7 +396,7 @@ def _record_folder_stats(session: Session, snap: Snapshot, index_dir: Path, sett
                 bytes=j["bytes"], alloc_bytes=j["alloc"], files=j["files"], dirs=j["dirs"],
                 cold_bytes=sum(j["age_bytes"][cold_from:]), mean_age_days=j["mean_age_days"],
                 newest_mtime=_dt(j["newest"]), oldest_mtime=_dt(j["oldest"]), incomplete=j["incomplete"],
-                age_bytes=j["age_bytes"], cat_bytes=dict(zip(CATEGORY_KEYS, j["cat_bytes"])),
+                age_bytes=j["age_bytes"], cat_bytes=j["cat_bytes"],
             ))
         later = session.scalar(select(Snapshot.id).where(
             Snapshot.filesystem_id == snap.filesystem_id, Snapshot.id != snap.id,

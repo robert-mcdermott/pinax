@@ -51,11 +51,12 @@ def submit(session: Session, ident: Identity, fs_slug, path, flt, sort: str, *, 
            wait: bool = False) -> SearchJob:
     """Check the search as a page would (the person may see the place), then queue it (or, with `wait`, run it
     now, as the demo's seed does)."""
-    from .explore import FILE_SORTS, resolve
+    from .explore import FILE_SORTS, check_category, resolve
 
     if sort not in FILE_SORTS:
         raise JobError("Unknown sort")
     places = resolve(session, ident, fs_slug, path, scan, lab_slug)
+    check_category(session, flt.category, places)
     request = {"fs": fs_slug, "path": path, "lab": lab_slug, "sort": sort, "filter": dataclasses.asdict(flt),
                "places": [{"fs": p.fs.slug, "path": p.path, "snapshot": p.snap.id} for p in places]}
     job = SearchJob(user_id=ident.user.id, request=request, status=QUEUED)
@@ -96,7 +97,7 @@ def _run(job_id: int) -> None:
                 if snap is None or snap.status != "ready":
                     raise JobError("A scan it searches is no longer kept in full")
                 idx = indexes.get(snap)
-                where, args = flt.sql(idx.ref_epoch)
+                where, args = flt.sql(idx)
                 n, b = idx.files_to(p["path"], out / f"part-{i:03d}.parquet", where=where, params=args,
                                     order=FILE_SORTS[request["sort"]], direct_only=flt.direct)
                 files, size = files + n, size + b

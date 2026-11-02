@@ -9,6 +9,7 @@ Settings are `PINAX_*` environment variables, or a `.env` file in the folder you
 |---|---|---|
 | `PINAX_APP_NAME` | `Pinax` | Name shown by the API |
 | `PINAX_ENVIRONMENT` | `demo` | `demo`, `dev`, or `prod`. `pinax seed` deletes the catalog and indexes, so it runs only in `demo`; use `dev` for real data on a workstation ([SETUP.md](SETUP.md)) and `prod` on a server |
+| `PINAX_WEB_THREADS` | `40` | Threads that answer the web app's requests (each request's sign-in check, then its page). Python runs one thread's code at a time, so when the server is saturated with quick pages, fewer (8) answer more of them a second; but each request waiting for a turn at a whole-filesystem search, or running a long report, holds one, so fewer leave less for everyone else ([Sizing](DEPLOYMENT.md#sizing)) |
 
 ## Locations
 
@@ -19,7 +20,7 @@ Settings are `PINAX_*` environment variables, or a `.env` file in the folder you
 | `PINAX_DEMO_ROOT` | `demo/` | Demo filesystems and scans written by `pinax seed` |
 | `PINAX_DATABASE_URL` | SQLite in `VAR_ROOT` | The catalog's database. Empty for SQLite in `VAR_ROOT`, or a PostgreSQL URL such as `postgresql://pinax@db.example.org/pinax?sslmode=verify-full`, with Pinax installed with its `postgres` extra ([PostgreSQL](DEPLOYMENT.md#postgresql)). Leave the password out: PostgreSQL's driver reads it from `~/.pgpass` or `PGPASSWORD` |
 | `PINAX_DB_AUTO_UPGRADE` | `true` | Upgrade the catalog when Pinax starts, if a release needs it. `false` leaves that to `pinax db upgrade` (which can print its SQL), and Pinax refuses to start with a catalog that is behind ([The catalog database](ARCHITECTURE.md#the-catalog-database)) |
-| `PINAX_DATABASE_POOL_SIZE` | `10` | PostgreSQL connections each Pinax process keeps open, with as many more at busy times |
+| `PINAX_DATABASE_POOL_SIZE` | `10` | PostgreSQL connections each Pinax process keeps open, with as many more at busy times. A request waits up to 10 seconds for one, then is turned away as busy. With SQLite, the web app keeps one for each of its threads (`PINAX_WEB_THREADS`) |
 
 ## Scanning
 
@@ -43,8 +44,8 @@ Settings are `PINAX_*` environment variables, or a `.env` file in the folder you
 
 | Setting | Default | What it does |
 |---|---|---|
-| `PINAX_QUERY_MEMORY_LIMIT` | `4GB` | DuckDB memory limit for each open snapshot index |
-| `PINAX_QUERY_THREADS` | `0` | DuckDB threads per open index; 0 means one per CPU. On a busy server, fewer than the CPUs keeps one long search from slowing every other page |
+| `PINAX_QUERY_MEMORY_LIMIT` | `8GB` | DuckDB's memory for the open snapshot indexes together: what their queries use at once, and the blocks they keep cached. Each open index has an equal share, set again as indexes open and close (one alone has all of it, eight an eighth). A size such as `8GB` or `16GiB` |
+| `PINAX_QUERY_THREADS` | `0` | DuckDB threads per open index; 0 means one per CPU. A search and the pages that read the same index share them: in the load test, 5 of 10 slowed whole-filesystem searches by about a quarter and gave other pages little back ([Sizing](DEPLOYMENT.md#many-people-at-once)) |
 | `PINAX_QUERY_TIMEOUT` | `180` | Seconds a request may run before Pinax stops its queries and says why; 0 for no limit. A request is also stopped when the browser leaves the page. Keep it below the proxy's timeout (oauth2-proxy's `upstream_timeout`, 5 minutes in `deploy/oauth2-proxy/pinax.cfg`) |
 | `PINAX_WIDE_QUERIES` | `2` | How many file-level queries of a whole filesystem (a search at its root, the new and removed files of *What changed* against an older scan, problem file names) run at once; others wait their turn within their time limit. 0 for no limit |
 | `PINAX_SEARCH_MAX_ROWS` | `500` | Most files a search shows on screen |
@@ -97,6 +98,7 @@ Settings are `PINAX_*` environment variables, or a `.env` file in the folder you
 
 ## Dimensions
 
-The age buckets and file categories are defined in `src/pinax/categories.py`, not in settings, because the
-interface's color ramp has exactly seven validated steps (one per age bucket). Each snapshot records the
+The age buckets are defined in `src/pinax/categories.py`, not in settings, because the interface's color ramp has
+exactly seven validated steps (one per age bucket). The file categories are the catalog's, with the twelve built-in
+ones to start ([File types and categories](ARCHITECTURE.md#file-types-and-categories)). Each snapshot records the
 buckets and categories it was built with.

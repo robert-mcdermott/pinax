@@ -11,6 +11,7 @@ import { viewCapacity } from "/js/capacity.js";
 import { viewCosts } from "/js/costs.js";
 import { viewPlans } from "/js/plans.js";
 import { viewTags } from "/js/tags.js";
+import { viewCategories } from "/js/categories.js";
 import { bindSave, viewsCard } from "/js/views.js";
 import { viewCollections } from "/js/collections.js";
 import { viewSearches } from "/js/searches.js";
@@ -90,6 +91,7 @@ const routes = [
   [/^#\/capacity$/, viewCapacity],
   [/^#\/plans(\?.*)?$/, viewPlans],
   [/^#\/tags$/, viewTags],
+  [/^#\/categories$/, viewCategories],
   [/^#\/collections(\?.*)?$/, viewCollections],
   [/^#\/searches(\?.*)?$/, viewSearches],
   [/^#\/charges(\?.*)?$/, viewCharges],

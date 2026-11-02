@@ -50,7 +50,7 @@ const DOCS = [
     { slug: 'scans', title: 'Scans and storage health', file: 'ADMINISTRATION.md', sections: ['Scans', 'Storage health'], lede: 'Every snapshot and its state, automatic ingest, and what the scans say is wrong with the storage.' },
     { slug: 'capacity', title: 'Capacity', file: 'ADMINISTRATION.md', sections: ['Capacity'], lede: 'How much each filesystem holds, how fast it fills, and when.' },
     { slug: 'costs', title: 'Costs and chargeback', file: 'ADMINISTRATION.md', sections: ['Costs', 'Chargeback'], lede: 'Prices and free tiers from a day on, and every lab\'s charges with a statement for finance.' },
-    { slug: 'tags-admin', title: 'Tags, plans, and the audit log', file: 'ADMINISTRATION.md', sections: ['Tags', "Every lab's cleanup plans", 'The audit log'], lede: 'The standard tags, every lab\'s cleanup plans, and the record of every change.' },
+    { slug: 'tags-admin', title: 'Tags, categories, plans, and the audit log', file: 'ADMINISTRATION.md', sections: ['Tags', 'File categories', "Every lab's cleanup plans", 'The audit log'], lede: 'The standard tags, the file categories, every lab\'s cleanup plans, and the record of every change.' },
     { slug: 'import', title: 'Importing labs and people', file: 'IMPORT.md', lede: 'Labs, people, memberships, and folder ownership from CSV files, with a dry run first.' },
   ] },
   { group: 'Installation and operations', pages: [
@@ -59,7 +59,7 @@ const DOCS = [
     { slug: 'scanning', title: 'Scans and ingest', file: 'DEPLOYMENT.md', sections: ['Scans', "Checking a filesystem's numbers"], lede: 'Scanning on a schedule, automatic ingest, what to keep, and checking the numbers.' },
     { slug: 'database', title: 'The catalog and backups', file: 'DEPLOYMENT.md', sections: ['Catalog database', 'Backups'], lede: 'SQLite or PostgreSQL, moving between them, and backing up what cannot be made again.' },
     { slug: 'upgrading', title: 'Upgrading', file: 'DEPLOYMENT.md', sections: ['Upgrading'], lede: 'A new release, its migrations, and rebuilding indexes.' },
-    { slug: 'sizing', title: 'Sizing', file: 'DEPLOYMENT.md', sections: ['Sizing'], lede: 'The server, disk, and memory a filesystem of a billion files needs.' },
+    { slug: 'sizing', title: 'Sizing', file: 'DEPLOYMENT.md', sections: ['Sizing'], lede: 'The server, disk, and memory a filesystem of a billion files needs, and how many people one process serves.' },
     { slug: 'statements', title: 'Charges and statements', file: 'DEPLOYMENT.md', sections: ['Charges and statements'], lede: 'How charges are worked out, and when a past month can change.' },
     { slug: 'operations', title: 'Logs, metrics, and operations', file: 'DEPLOYMENT.md', sections: ['Monitoring and operations'], lede: 'Health, logs and the audit trail, Prometheus metrics and alerts, and day-to-day tasks.' },
     { slug: 'entra-id', title: 'Signing in with Entra ID', file: 'ENTRA-ID.md', lede: 'Optional single sign-on with Microsoft Entra ID in Pinax itself: what to ask IT for, the settings, roles from Entra ID, the emergency sign-in, a trial with a stand-in, and its errors.' },

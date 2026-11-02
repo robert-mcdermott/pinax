@@ -231,6 +231,19 @@ const scenes = {
     await js(`document.querySelector('[data-fold]').click()`);
     await sleep(600);
   },
+  async 'categories-admin'() { await open('pnatarajan', '#/categories'); },
+  async 'categories-change'() {
+    // A category of the site's own, by pattern: what it would take, tried against a sample of names, before saving.
+    await open('pnatarajan', '#/categories');
+    await js(`document.querySelector('#c-add').click()`);
+    await sleep(300);
+    await js(`(() => { const m = document.querySelector('.modal');
+      m.querySelector('[name=label]').value = 'Tumor samples';
+      m.querySelector('[name=description]').value = 'Files of the tumor atlas, by name';
+      m.querySelector('[name=patterns]').value = '\\\\.tumor\\\\.';
+      m.querySelector('[data-preview]').click(); })()`);
+    await sleep(1500);
+  },
   async costs() { await open('pnatarajan', '#/costs'); },
   async chargeback() { await open('pnatarajan', `#/chargeback?month=${facts.lastMonth}`); },
   async 'every-plan'() { await open('pnatarajan', '#/plans'); },

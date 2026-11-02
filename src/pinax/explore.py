@@ -18,7 +18,8 @@ from sqlalchemy.orm import Session, selectinload
 
 from . import capacity
 from .auth import Identity, folder_owners
-from .categories import AGE_BUCKETS, CATEGORIES, CATEGORY_KEYS
+from .categories import AGE_BUCKETS, DEFAULTS, OTHER_KEY
+from .categories import current as current_categories
 from .config import get_settings
 from .forecast import forecast
 from .index import CHANGE_METRICS, DAY, METRICS, SnapshotIndex, Stats, add_pairs, iso_from_epoch, pattern_to_like
@@ -214,12 +215,24 @@ def _snap_brief(snap: Snapshot) -> dict:
     return {"id": snap.id, "started_at": iso(snap.started_at), "filesystem": snap.filesystem.slug}
 
 
+def _check_metric(metric: str) -> None:
+    """A treemap's size: a fixed one, or a category's (`cat:<key>`), which an index built without it measures as 0."""
+    if metric not in METRICS and not (metric.startswith("cat:") and len(metric) > 4):
+        raise HTTPException(422, f"Unknown size metric {metric!r}")
+
+
+def check_category(session: Session, key: str, places: list[Place]) -> None:
+    """A category to search for: the catalog's, or one a scan searched was built with."""
+    if key and key not in {c.key for c in current_categories(session)} \
+            and not any(p.idx.category_number(key) is not None for p in places):
+        raise HTTPException(422, "Unknown category")
+
+
 # ---------- Treemap ----------
 
 def tree(session: Session, ident: Identity, fs_slug: str | None, path: str | None, *, metric: str = "bytes",
          depth: int = 1, scan: Scan = None, lab_slug: str | None = None) -> dict:
-    if metric not in METRICS:
-        raise HTTPException(422, f"Unknown size metric {metric!r}")
+    _check_metric(metric)
     places = resolve(session, ident, fs_slug, path, scan, lab_slug)
     if fs_slug:
         return _tree_dir(session, ident, places[0], metric, depth)
@@ -302,8 +315,7 @@ def depth_tree(session: Session, ident: Identity, fs_slug: str | None, path: str
                levels: int = 6, scan: Scan = None, lab_slug: str | None = None) -> dict:
     """A place's folders `levels` levels deep, each with the folders inside it, leaving out those holding less than
     DEPTH_SHARE of the place by `metric`. Home's first level is its places (filesystems, or the person's folders)."""
-    if metric not in METRICS:
-        raise HTTPException(422, f"Unknown size metric {metric!r}")
+    _check_metric(metric)
     places = resolve(session, ident, fs_slug, path, scan, lab_slug)
     owners = folder_owners(session) if ident.sees_all and any(p.path == p.idx.root for p in places) else None
     if fs_slug:
@@ -561,10 +573,13 @@ def what_changed(session: Session, ident: Identity, fs_slug: str | None, path: s
 def types(session: Session, ident: Identity, fs_slug, path, scan=None, lab_slug=None) -> dict:
     places = resolve(session, ident, fs_slug, path, scan, lab_slug)
     merged: dict[tuple, dict] = {}
+    labels = {}  # each category's label: the catalog's, or the index's for one the catalog no longer has
     for p in places:
+        labels |= {c.key: c.label for c in p.idx.categories}
         for r in p.idx.types(p.path):
-            key = (r["ext"], r["cat"])
-            m = merged.setdefault(key, {"ext": r["ext"], "cat": r["cat"], "files": 0, "bytes": 0, "alloc": 0,
+            cat = p.idx.category_keys[r["cat"]]
+            key = (r["ext"], cat)
+            m = merged.setdefault(key, {"ext": r["ext"], "cat": cat, "files": 0, "bytes": 0, "alloc": 0,
                                         "age_wsum": 0.0, "oldest": None, "newest": None, "last_access": None})
             m["files"] += r["files"]
             m["bytes"] += r["bytes"]
@@ -576,16 +591,20 @@ def types(session: Session, ident: Identity, fs_slug, path, scan=None, lab_slug=
     rows = []
     for m in sorted(merged.values(), key=lambda m: -m["bytes"]):
         rows.append({
-            "ext": m["ext"], "category": CATEGORY_KEYS[m["cat"]], "files": m["files"], "bytes": m["bytes"],
+            "ext": m["ext"], "category": m["cat"], "files": m["files"], "bytes": m["bytes"],
             "alloc": m["alloc"], "mean_age_days": round(m["age_wsum"] / m["bytes"], 1) if m["bytes"] else None,
             "oldest": _iso_epoch(m["oldest"]), "newest": _iso_epoch(m["newest"]),
             "last_access": _iso_epoch(m["last_access"]),
         })
+    catalog = current_categories(session)
+    labels |= {c.key: c.label for c in catalog}
+    found = {r["category"] for r in rows}
+    order = [c.key for c in catalog if c.key != OTHER_KEY] + sorted(found - {c.key for c in catalog}) + [OTHER_KEY]
     cats = []
-    for i, c in enumerate(CATEGORIES):
-        sel = [r for r in rows if r["category"] == c.key]
+    for key in order:
+        sel = [r for r in rows if r["category"] == key]
         b = sum(r["bytes"] for r in sel)
-        cats.append({"key": c.key, "label": c.label, "files": sum(r["files"] for r in sel), "bytes": b,
+        cats.append({"key": key, "label": labels.get(key, key), "files": sum(r["files"] for r in sel), "bytes": b,
                      "types": len(sel),
                      "mean_age_days": round(sum((r["mean_age_days"] or 0) * r["bytes"] for r in sel) / b, 1) if b else None})
     return {"categories": cats, "types": rows, **_scope_meta(places)}
@@ -625,7 +644,9 @@ def _merge_key(sort: str):
 
 
 def _file_json(fs: str, r: dict) -> dict:
-    return {"fs": fs, "path": r["path"], "name": r["name"], "ext": r["ext"], "category": CATEGORY_KEYS[r["cat"]],
+    # Searches in the background kept before categories were the catalog's have the number, of the defaults.
+    category = r["category"] if "category" in r else DEFAULTS[r["cat"]].key
+    return {"fs": fs, "path": r["path"], "name": r["name"], "ext": r["ext"], "category": category,
             "kind": r["kind"], "size": r["size"], "alloc": r["alloc_bytes"], "uid": r["uid"], "gid": r["gid"],
             "mtime": _iso_epoch(r["mtime"]), "atime": _iso_epoch(r["atime"]), "nlink": r["nlink"],
             "name_flags": r["name_flags"]}
@@ -644,16 +665,16 @@ class FileFilter:
     uid: int | None = None
     direct: bool = False
 
-    def sql(self, ref_epoch: float) -> tuple[str, list]:
+    def sql(self, idx: SnapshotIndex) -> tuple[str, list]:
+        ref_epoch = idx.ref_epoch
         cond, args = [], []
         if self.q:
             cond.append(f"{'path' if self.in_path else 'name'} ILIKE ? ESCAPE '\\'")
             args.append(pattern_to_like(self.q))
         if self.category:
-            if self.category not in CATEGORY_KEYS:
-                raise HTTPException(422, "Unknown category")
-            cond.append("cat = ?")
-            args.append(CATEGORY_KEYS.index(self.category))
+            number = idx.category_number(self.category)  # None: built without it, so none of its files are
+            cond.append("cat = ?" if number is not None else "false")
+            args += [number] if number is not None else []
         if self.ext:
             cond.append("ext = ?")
             args.append(self.ext.lower().lstrip("."))
@@ -681,10 +702,11 @@ def files(session: Session, ident: Identity, fs_slug, path, *, flt: FileFilter, 
     if sort not in FILE_SORTS:
         raise HTTPException(422, "Unknown sort")
     places = resolve(session, ident, fs_slug, path, scan, lab_slug)
+    check_category(session, flt.category, places)
     limit = max(1, min(limit, get_settings().export_max_rows))
     streams = []
     for p in places:
-        where, args = flt.sql(p.idx.ref_epoch)
+        where, args = flt.sql(p.idx)
         rows = p.idx.files(p.path, where=where, params=args, order=FILE_SORTS[sort], limit=limit,
                            direct_only=flt.direct)
         streams.append([_file_json(p.fs.slug, r) | {"_r": r} for r in rows])
@@ -706,7 +728,7 @@ def files(session: Session, ident: Identity, fs_slug, path, *, flt: FileFilter, 
 def _count(places: list[Place], flt: FileFilter) -> dict:
     files = size = 0
     for p in places:
-        where, args = flt.sql(p.idx.ref_epoch)
+        where, args = flt.sql(p.idx)
         if flt.direct:
             where, args = (where + " AND " if where else "") + "depth = ?", [*args, p.idx.depth_of(p.path) + 1]
         s = p.idx.files_summary(p.path, where=where, params=args)
@@ -718,6 +740,7 @@ def _count(places: list[Place], flt: FileFilter) -> dict:
 def files_count(session: Session, ident: Identity, fs_slug, path, *, flt: FileFilter, scan=None, lab_slug=None) -> dict:
     """How many files match `flt`, and their total size: a second pass over what `files` searched."""
     places = resolve(session, ident, fs_slug, path, scan, lab_slug)
+    check_category(session, flt.category, places)
     return _count(places, flt) | _scope_meta(places)
 
 

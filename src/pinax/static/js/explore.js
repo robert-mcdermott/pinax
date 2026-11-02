@@ -12,7 +12,7 @@ import { scopeHeader } from "/js/shell.js";
 import { renderIcicle, renderSunburst } from "/js/depth.js";
 import { renderTreemap } from "/js/treemap.js";
 import {
-  ageBar, ageHistogram, bars, categories, coldBytes, colorFor, colorOptions, daysSince, legend, metricLabel,
+  ageBar, ageHistogram, bars, catBytes, catLabel, coldBytes, colorFor, colorOptions, daysSince, legend, metricLabel,
   metricOptions, metricText, metricValue, thresholdText,
 } from "/js/viz.js";
 
@@ -70,7 +70,7 @@ export async function viewExplore(el, query) {
         ${q.view === "table" ? childTable(tiles, q, asOf, cb, hrefFor, total, tagsOf)
           : html`<div class="tm${q.view === "sunburst" ? " square" : ""}" id="tm" role="group" aria-label="${{ map: "Treemap", icicle: "Icicle", sunburst: "Sunburst" }[q.view] || "Treemap"} of ${node.name}: ${metricLabel(q.size)} by ${colorOptions().find((c) => c.key === q.color)?.label}"></div>`}
         ${legend(q.color, cb)}
-        <p class="small muted" style="margin:10px 0 0">${caption(q, node, depth)}</p>
+        <p class="small muted" style="margin:10px 0 0">${caption(q, node, depth, tiles)}</p>
       </div>
       ${detailPanel(node, data, q, cb)}
     </div>`);
@@ -120,11 +120,51 @@ export async function viewExplore(el, query) {
 const pills = (label, aria, key, options, value) => html`<div class="ctl"><span>${label}</span><div class="pills" role="group" aria-label="${aria}">
   ${options.map(([k, text]) => html`<button data-${key}="${k}" class="${k === value ? "active" : ""}" aria-pressed="${k === value}">${text}</button>`)}</div></div>`;
 
-function caption(q, node, depth) {
+// What a map leaves out, at the level drawn deepest (each tile's folders, with two levels): the smallest folders,
+// combined into one tile, and the folders with none of what it is sized by, which have no area.
+function leftOut(tiles, q) {
+  const two = q.levels === "2" && tiles.some((t) => t.children);
+  const groups = two ? tiles.filter((t) => t.children).map((t) => [t.name, t.children]) : [[null, tiles]];
+  let total = 0, holding = 0, unsure = false;
+  const folded = [];
+  for (const [name, kids] of groups) {
+    let all = 0, combined = 0;
+    for (const t of kids) {
+      if (t.kind === "other") {
+        all += t.count;
+        if (metricValue(t.stats, q.size) > 0) { combined += t.count; unsure = true; } // drawn; how many of them have it, the tile cannot say
+      } else if (t.kind === "dir" || t.kind === "fs") {
+        all += 1;
+        if (metricValue(t.stats, q.size) > 0) holding += 1;
+      }
+    }
+    total += all;
+    if (combined) folded.push({ name, combined, all });
+  }
+  const within = two ? (tiles.some((t) => t.kind === "fs") ? "on these filesystems" : "inside these") : "here";
+  const out = [];
+  if (folded.length) {
+    const f = folded[0], drawn = num(f.all - f.combined);
+    out.push(two ? `Inside each ${tiles.some((t) => t.kind === "fs") ? "filesystem" : "folder"}, its ${drawn} largest folders are drawn and the rest put
+      in one tile: ${folded.slice(0, 3).map((x) => `${num(x.combined)} of the ${num(x.all)} in ${x.name}`).join(", ")}${folded.length > 3 ? `, and in ${num(folded.length - 3)} more` : ""}.`
+      : `The ${drawn} largest of its ${num(f.all)} folders are drawn, and the other ${num(f.combined)} put in one tile.`);
+  }
+  if (total && holding < total && !unsure) {
+    const [kind, arg] = q.size.split(":");
+    const what = kind === "cat" ? catLabel(arg).toLowerCase() : kind === "older" ? `data ${metricLabel(q.size).replace(/^Size /, "")}`
+      : q.size === "files" ? "any files" : q.size === "alloc" ? "data on disk" : "any data";
+    out.push(holding ? `Only ${num(holding)} of the ${num(total)} folders ${within} ${holding === 1 ? "holds" : "hold"} ${what}; the others are not drawn.`
+      : `None of the ${num(total)} folders ${within} holds ${what}.`);
+  }
+  return out.join(" ").replace(/\s+/g, " ");
+}
+
+function caption(q, node, depth, tiles) {
   const measure = metricLabel(q.size).toLowerCase();
   if (q.view === "table") return "Click a folder to open it.";
   if (!depth) {
-    return `Tile area is ${measure}. ${node.subdirs > 60 ? `The largest 60 of ${num(node.subdirs)} subfolders are drawn; the rest are combined. ` : ""}Click a folder to open it.`;
+    const left = leftOut(tiles, q);
+    return `Tile area is ${measure}. ${left ? `${left} ` : ""}Click a folder to open it.`;
   }
   const how = q.view === "icicle" ? `Each column is a level deeper, and a folder's height is its ${measure}`
     : `Each ring is a level deeper, and a folder's angle is its ${measure}; compare angles, since outer rings are drawn larger`;
@@ -178,7 +218,7 @@ function detailPanel(node, data, q, cb) {
   const place = node.fs ? { fs: node.fs, path: node.path } : null;
   const extra = node.lab && !place ? { lab: node.lab.slug } : {};
   const cold = coldBytes(s, cb);
-  const cats = categories().map((c, i) => ({ key: c.key, label: c.label, bytes: s.cat_bytes[i] })).filter((c) => c.bytes > 0)
+  const cats = catBytes(s).filter((c) => c.bytes > 0)
     .sort((a, b) => b.bytes - a.bytes).slice(0, 6);
   const sparse = s.alloc > 0 && s.alloc < s.bytes * 0.5; // compressed, deduplicated, sparse, or tiered
   return html`<aside class="card detail" aria-label="About this folder">

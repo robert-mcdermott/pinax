@@ -272,6 +272,40 @@ tag can **protect** folders: a flag (*Legal hold*) or a date (*Keep until*) keep
 To tag many folders at once, `pinax tags import` reads a CSV of filesystem, path, tag, and value, with a dry run
 first ([CLI.md](CLI.md#pinax-tags)).
 
+## File categories
+
+What each file counts as on *File types*, the age map's sizes and colors, and *Find files*: the twelve built in to
+start, and a site's own, up to 24. A category lists **extensions** (a compressed file counts by the one inside, so
+`fastq` takes `.fastq.gz`), and may list **patterns** on file names: regular expressions, at most 25 in all, checked
+before any extension, in the order of the list. A file's category is the first whose pattern its name matches, then
+the one listing its extension, then *Other*. A pattern matches anywhere in a name unless anchored with `^` and `$`,
+and `(?i)` ignores case, so `(?i)^undetermined_` takes the reads a sequencer could not assign to a sample, although
+`fastq` is sequencing data's.
+
+![File categories](images/categories-admin-light.webp "The twelve built-in categories, each with its share of the latest scans.")
+
+- **Add category**, and **Change** on each, open its name, what it holds, its extensions, and its patterns. **Try the
+  patterns** checks each as DuckDB reads regular expressions (RE2's syntax: no backreferences, so none can take
+  exponential time), and shows which names it matches in a sample of each filesystem's latest scan. **What would
+  change** shows, before anything is saved, how the latest scans' files would move between categories: by extension
+  exactly, from each scan's table of types, and by name an estimate from a sample of about 50,000 of its files (the
+  first of each part of its index, a spread over its top-level folders, never a read of the whole filesystem); and
+  which snapshots would then be outdated.
+- **Up** and **Down** change the order: the order patterns are checked in, and, for an extension two categories list,
+  which one takes it. *Other* stays last, with no extensions or patterns.
+- A built-in category can be renamed and its rules changed, but not removed; one the site added can be removed (the
+  cross), and its files then count by their extensions.
+- Every change is in the audit log (*File categories*), with what changed. Auditors see the page without its buttons.
+
+![What a change would do](images/categories-change-light.webp "A category of the site's own, by a pattern on names, before saving: about 215 files of the latest scan would move to it from sequencing data.")
+
+**A change applies to the scans indexed after it.** A file's category is decided when its scan is indexed, so each
+snapshot keeps the categories it was built with, and reports read each one's own. The page says how many snapshots
+were built with other categories, and about how long rebuilding them takes, from their last builds. Rebuilding runs on
+the server, not from the page: `pinax rebuild --outdated` rebuilds them all, oldest first, and `pinax rebuild
+--outdated --latest` only each filesystem's latest, so the latest scans use the new categories and older ones keep
+theirs ([CLI.md](CLI.md#pinax-rebuild)).
+
 ## Every lab's cleanup plans
 
 An administrator's or auditor's *Cleanup plans* shows every lab's plan at once: what they would free and save in all, by

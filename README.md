@@ -219,7 +219,7 @@ src/pinax/
   serialize.py, api/               JSON views; FastAPI routers
   seed.py, cli.py, main.py         demo data, command line, app
   static/                          HTML, css/pinax.css (themes, chart colors), js/ (core, treemap, views), img/
-bench/                             synthetic scans of any size, index and charges benchmarks
+bench/                             synthetic scans of any size, index and charges benchmarks, the load test
 scripts/install-fs-inventory.sh    installs the pinned fs-inventory release into bin/
 tests/                             pytest suite
 .github/workflows/ci.yml           CI: the linter and the suite on SQLite and PostgreSQL, for every push

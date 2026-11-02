@@ -20,13 +20,15 @@ from typing import Any
 import duckdb
 
 from . import limits
-from .categories import AGE_BUCKETS, CATEGORIES, CATEGORY_KEYS
-from .ingest.build import ADDITIVE, EXTREMES, NB, NC, file_folders
+from .categories import AGE_BUCKETS, Category, from_dimensions
+from .ingest.build import BASE_ADDITIVE, EXTREMES, NB, category_columns, file_folders
 
 # A folder's extra hard links and their bytes (index version 7) are read on their own (`links`), so the queries
-# below stay the same for indexes without them.
-LINK_COLUMNS = ("hl_files", "hl_bytes")
-QUERY_ADDITIVE = [c for c in ADDITIVE if c not in LINK_COLUMNS]
+# below stay the same for indexes without them. Each category's file count and size (cf{i}, cb{i}) come back named
+# by the category (cf:genomics, cb:genomics), since indexes may be built with different categories
+# (`SnapshotIndex.categories`): totals from several add up by category, and the API names them so.
+QUERY_ADDITIVE = list(BASE_ADDITIVE)
+CATEGORY_PREFIXES = ("cf:", "cb:")
 
 DAY = 86400.0
 # Comparing two scans' files, groups of top-level folders are compared together up to this many files, and a larger
@@ -37,32 +39,30 @@ COMPARE_FILES = 10_000_000
 # timezone conversion happens in the database driver.
 
 
-def dir_columns(alias: str = "") -> str:
+def dir_columns(categories: dict[str, str], alias: str = "") -> str:
+    """Every directory column, each category's named by the category (`categories`: column -> name)."""
     a = f"{alias}." if alias else ""
     return (
         f"{a}dir_id, {a}parent_id, {a}depth, {a}top_id, {a}path, {a}name, {a}error, {a}is_mount_point, "
         f"{a}dir_entries, {a}d_files, {a}d_bytes, epoch({a}d_mtime_min) AS d_mtime_min, "
         f"epoch({a}d_mtime_max) AS d_mtime_max, epoch({a}d_atime_max) AS d_atime_max, {a}dirs, {a}incomplete, "
-        + ", ".join(f"{a}{c}" for c in QUERY_ADDITIVE) + ", "
+        + ", ".join([f"{a}{c}" for c in QUERY_ADDITIVE] + [f'{a}{c} AS "{n}"' for c, n in categories.items()]) + ", "
         + ", ".join(f"epoch({a}{c}) AS {c}" for c in EXTREMES)
     )
 
 
-DIR_COLUMNS = dir_columns()
-ROW_KEYS = (
-    ["dir_id", "parent_id", "depth", "top_id", "path", "name", "error", "is_mount_point", "dir_entries", "d_files",
-     "d_bytes", "d_mtime_min", "d_mtime_max", "d_atime_max", "dirs", "incomplete"] + QUERY_ADDITIVE + list(EXTREMES)
-)
-SUM_KEYS = ["dirs", "incomplete"] + QUERY_ADDITIVE
+HEAD_KEYS = ["dir_id", "parent_id", "depth", "top_id", "path", "name", "error", "is_mount_point", "dir_entries",
+             "d_files", "d_bytes", "d_mtime_min", "d_mtime_max", "d_atime_max"]
+SUM_KEYS = ["dirs", "incomplete"] + QUERY_ADDITIVE  # and each category's, named
 
-FILE_COLUMNS = ("path, name, ext, cat, kind, size, alloc_bytes, uid, gid, epoch(mtime) AS mtime, epoch(atime) AS atime, "
-                "nlink, name_flags")
-FILE_KEYS = ["path", "name", "ext", "cat", "kind", "size", "alloc_bytes", "uid", "gid", "mtime", "atime", "nlink",
+# A file's columns; its category comes back as the category's key, from the index's own list (`file_columns`).
+FILE_COLUMNS = ("path, name, ext, {category} AS category, kind, size, alloc_bytes, uid, gid, epoch(mtime) AS mtime, "
+                "epoch(atime) AS atime, nlink, name_flags")
+FILE_KEYS = ["path", "name", "ext", "category", "kind", "size", "alloc_bytes", "uid", "gid", "mtime", "atime", "nlink",
              "name_flags"]
 
 # Sizing metrics the treemap can use. Each maps to a SQL expression over `dirs` columns.
-METRICS: dict[str, str] = {"bytes": "bytes", "alloc": "alloc", "files": "files"}
-METRICS.update({f"cat:{k}": f"cb{i}" for i, k in enumerate(CATEGORY_KEYS)})
+METRICS: dict[str, str] = {"bytes": "bytes", "alloc": "alloc", "files": "files"}  # and cat:<key> (`SnapshotIndex.metric`)
 METRICS.update({f"older:{i}": "(" + " + ".join(f"mb{j}" for j in range(i, NB)) + ")" for i in range(1, NB)})
 
 
@@ -117,7 +117,12 @@ class Stats:
 
     @classmethod
     def from_row(cls, row: dict) -> "Stats":
-        return cls({k: row.get(k) for k in SUM_KEYS + list(EXTREMES)})
+        return cls({**{k: row.get(k) for k in SUM_KEYS + list(EXTREMES)},
+                    **{k: v for k, v in row.items() if k[:3] in CATEGORY_PREFIXES}})
+
+    @staticmethod
+    def _categories(values: dict) -> list[str]:
+        return [k for k in values if k[:3] in CATEGORY_PREFIXES]
 
     @classmethod
     def zero(cls) -> "Stats":
@@ -125,7 +130,7 @@ class Stats:
 
     def add(self, other: "Stats", count_as_dir: bool = False) -> "Stats":
         v = dict(self.values)
-        for k in SUM_KEYS:
+        for k in SUM_KEYS + self._categories(other.values):  # a category only `self` has stays as it is
             v[k] = (v.get(k) or 0) + (other.values.get(k) or 0)
         if count_as_dir:
             v["dirs"] += 1
@@ -137,7 +142,7 @@ class Stats:
     def sub(self, other: "Stats") -> "Stats":
         """Additive difference (extremes are left as self's; callers fill them when known)."""
         v = dict(self.values)
-        for k in SUM_KEYS:
+        for k in SUM_KEYS + self._categories(other.values):
             v[k] = max(0, (v.get(k) or 0) - (other.values.get(k) or 0))
         return Stats(v)
 
@@ -160,8 +165,8 @@ class Stats:
             "age_bytes": [int(v.get(f"mb{i}") or 0) for i in range(NB)],
             "age_files": [int(v.get(f"mf{i}") or 0) for i in range(NB)],
             "atime_bytes": [int(v.get(f"ab{i}") or 0) for i in range(NB)],
-            "cat_bytes": [int(v.get(f"cb{i}") or 0) for i in range(NC)],
-            "cat_files": [int(v.get(f"cf{i}") or 0) for i in range(NC)],
+            "cat_bytes": {k[3:]: int(n) for k, n in v.items() if k.startswith("cb:") and n},
+            "cat_files": {k[3:]: int(n) for k, n in v.items() if k.startswith("cf:") and n},
         }
 
 
@@ -196,6 +201,18 @@ class SnapshotIndex:
         self.prefix = self.root if self.root.endswith("/") else self.root + "/"
         self.ref_day: float = meta["ref_day"]
         self.ref_epoch = self.ref_day * DAY
+        # The categories it was built with, and its directory columns, each category's named by the category.
+        self.categories: tuple[Category, ...] = from_dimensions(meta.get("dimensions"))
+        self.category_keys = [c.key for c in self.categories]
+        self.categories_id: str | None = (meta.get("dimensions") or {}).get("categories_id")
+        cols = category_columns(len(self.categories))
+        self._cat_names = {c: f"{c[:2]}:{self.category_keys[int(c[2:])]}" for c in cols}
+        self.dir_sql = dir_columns(self._cat_names)
+        self.row_keys = HEAD_KEYS + SUM_KEYS + list(self._cat_names.values()) + list(EXTREMES)
+        self.sum_cols = SUM_KEYS + cols  # for sum(...), in SQL
+        self.sum_keys = SUM_KEYS + list(self._cat_names.values())  # what each sum is called
+        keys = ", ".join("'" + k.replace("'", "''") + "'" for k in self.category_keys)
+        self.file_sql = FILE_COLUMNS.format(category=f"[{keys}][cat + 1]")
         tops = self._con.execute("SELECT top_id, name, path FROM tops ORDER BY top_id").fetchall()
         self.top_ids = {name: tid for tid, name, _ in tops}
         self.top_names = {tid: name for tid, name, _ in tops}
@@ -220,6 +237,11 @@ class SnapshotIndex:
 
     def close(self) -> None:
         self._con.close()
+
+    def set_memory_limit(self, limit: str) -> None:
+        """What this index's queries use at once and the blocks it keeps cached; lowering it lets cached blocks go."""
+        with self._lock:
+            self._con.execute(f"SET memory_limit = '{limit}'")
 
     def _cursor(self) -> duckdb.DuckDBPyConnection:
         with self._lock:
@@ -280,9 +302,20 @@ class SnapshotIndex:
         return [self.top_ids[top]] if top in self.top_ids else []
 
     # ---- Directories ----
+    def category_number(self, key: str) -> int | None:
+        """A category's number in this index's `cat` column; None if it was built without it."""
+        return self.category_keys.index(key) if key in self.category_keys else None
+
+    def metric(self, metric: str) -> str:
+        """A treemap metric as SQL over `dirs`: a category this index was built without measures nothing."""
+        if metric.startswith("cat:"):
+            i = self.category_number(metric[4:])
+            return "CAST(0 AS BIGINT)" if i is None else f"cb{i}"  # not `0`, which ORDER BY reads as a column's place
+        return METRICS[metric]
+
     def node(self, path: str) -> dict | None:
-        rows = self._rows(f"SELECT {DIR_COLUMNS} FROM dirs WHERE depth = ? AND path = ?",
-                          [self.depth_of(path), path], ROW_KEYS)
+        rows = self._rows(f"SELECT {self.dir_sql} FROM dirs WHERE depth = ? AND path = ?",
+                          [self.depth_of(path), path], self.row_keys)
         return rows[0] if rows else None
 
     def links(self, path: str) -> dict | None:
@@ -301,8 +334,8 @@ class SnapshotIndex:
         for i in range(0, len(paths), 1000):
             chunk = paths[i:i + 1000]
             marks = ", ".join("?" * len(chunk))
-            for row in self._rows(f"SELECT {DIR_COLUMNS}, {ident} FROM dirs WHERE path IN ({marks})", chunk,
-                                  [*ROW_KEYS, "dev", "ino"]):
+            for row in self._rows(f"SELECT {self.dir_sql}, {ident} FROM dirs WHERE path IN ({marks})", chunk,
+                                  [*self.row_keys, "dev", "ino"]):
                 out[row["path"]] = row
         return out
 
@@ -312,8 +345,9 @@ class SnapshotIndex:
         if not self.has_work_dirs:
             return []
         lo, hi = child_range(path)
-        rows = self._rows(f"SELECT {dir_columns('d')}, w.kind FROM work_dirs w JOIN dirs d ON d.depth = w.depth AND d.path = w.path "
-                          "WHERE w.path = ? OR (w.path >= ? AND w.path < ?) ORDER BY d.path", [path, lo, hi], [*ROW_KEYS, "kind"])
+        rows = self._rows(f"SELECT {dir_columns(self._cat_names, 'd')}, w.kind FROM work_dirs w JOIN dirs d "
+                          "ON d.depth = w.depth AND d.path = w.path WHERE w.path = ? OR (w.path >= ? AND w.path < ?) "
+                          "ORDER BY d.path", [path, lo, hi], [*self.row_keys, "kind"])
         top = [r for i, r in enumerate(rows) if not any(r["path"].startswith(o["path"] + "/") for o in rows[:i])]
         return sorted(top, key=lambda r: -r["bytes"])[:limit]
 
@@ -342,12 +376,12 @@ class SnapshotIndex:
     def children(self, path: str, *, metric: str = "bytes", limit: int = 60, grand_limit: int = 0) -> dict:
         """The children of `path`, largest first by `metric`, the rest folded into one "other" entry.
         With grand_limit, each listed child also gets its own largest children."""
-        expr = METRICS[metric]
+        expr = self.metric(metric)
         depth = self.depth_of(path)
         lo, hi = child_range(path)
         rows = self._rows(
-            f"SELECT {DIR_COLUMNS} FROM dirs WHERE depth = ? AND path >= ? AND path < ? "
-            f"ORDER BY {expr} DESC, path LIMIT ?", [depth + 1, lo, hi, limit], ROW_KEYS)
+            f"SELECT {self.dir_sql} FROM dirs WHERE depth = ? AND path >= ? AND path < ? "
+            f"ORDER BY {expr} DESC, path LIMIT ?", [depth + 1, lo, hi, limit], self.row_keys)
         ids = [r["dir_id"] for r in rows]
         all_sum, rest = self._child_sums(depth + 1, lo, hi, ids)
         out = {"rows": rows, "all": all_sum, "rest": rest}
@@ -357,29 +391,29 @@ class SnapshotIndex:
 
     def measure(self, path: str, metric: str = "bytes") -> float:
         """How much `path` holds by `metric` (0 if it is not in this scan)."""
-        row = self._one(f"SELECT {METRICS[metric]} FROM dirs WHERE depth = ? AND path = ?", [self.depth_of(path), path])
+        row = self._one(f"SELECT {self.metric(metric)} FROM dirs WHERE depth = ? AND path = ?", [self.depth_of(path), path])
         return float(row[0] or 0) if row else 0.0
 
     def partition(self, path: str, *, metric: str = "bytes", levels: int = 6, least: float = 1) -> list[dict]:
         """Every folder up to `levels` levels below `path` that holds at least `least` by `metric`, level by level and
         the largest first, for the icicle and the sunburst. A folder holds at least as much as any folder inside it,
         so each one's parent is listed too and the rows form a tree, with at most total / `least` folders on a level."""
-        expr = METRICS[metric]
+        expr = self.metric(metric)
         depth = self.depth_of(path)
         lo, hi = child_range(path)
         return self._rows(
-            f"SELECT {DIR_COLUMNS} FROM dirs WHERE depth > ? AND depth <= ? AND path >= ? AND path < ? AND {expr} >= ? "
-            f"ORDER BY depth, {expr} DESC, path", [depth, depth + levels, lo, hi, max(least, 1)], ROW_KEYS)
+            f"SELECT {self.dir_sql} FROM dirs WHERE depth > ? AND depth <= ? AND path >= ? AND path < ? AND {expr} >= ? "
+            f"ORDER BY depth, {expr} DESC, path", [depth, depth + levels, lo, hi, max(least, 1)], self.row_keys)
 
     def _child_sums(self, depth: int, lo: str, hi: str, listed: list[int]) -> tuple[dict, dict]:
         """Totals over all the children, and over those not listed. One aggregate pass split by whether a child
         is listed, rather than ranking every child: a folder can have hundreds of thousands of subfolders."""
-        keys = ["n"] + SUM_KEYS + list(EXTREMES)
-        agg = ", ".join([f"sum({k})" for k in SUM_KEYS] + [f"{fn}(epoch({k}))" for k, fn in EXTREMES.items()])
+        keys = ["n"] + self.sum_keys + list(EXTREMES)
+        agg = ", ".join([f"sum({k})" for k in self.sum_cols] + [f"{fn}(epoch({k}))" for k, fn in EXTREMES.items()])
         res = {bool(r[0]): dict(zip(keys, r[1:])) for r in self._raw(
             f"SELECT list_contains(?::BIGINT[], dir_id), count(*), {agg} FROM dirs "
             "WHERE depth = ? AND path >= ? AND path < ? GROUP BY 1", [listed, depth, lo, hi])}
-        empty = {"n": 0, **{k: None for k in SUM_KEYS + list(EXTREMES)}}
+        empty = {"n": 0, **{k: None for k in self.sum_keys + list(EXTREMES)}}
         parts = [res[k] for k in (True, False) if k in res]
         if not parts:
             return dict(empty), dict(empty)
@@ -400,19 +434,19 @@ class SnapshotIndex:
         """The largest children of each listed child (`parents`); the others are not drawn."""
         lo, hi = child_range(path)
         rows = self._rows(f"""
-            WITH g AS (SELECT {DIR_COLUMNS}, {expr} AS m,
+            WITH g AS (SELECT {self.dir_sql}, {expr} AS m,
                               row_number() OVER (PARTITION BY parent_id ORDER BY {expr} DESC, path) AS rn
                        FROM dirs WHERE depth = ? AND path >= ? AND path < ? AND list_contains(?::BIGINT[], parent_id))
             SELECT * EXCLUDE (m) FROM g WHERE rn <= ? ORDER BY parent_id, rn
         """, [depth + 2, lo, hi, parents, limit])
         # Group by (parent, beyond-the-limit) rather than using FILTER aggregates: one pass, and far faster.
-        agg = ", ".join([f"sum({k})" for k in SUM_KEYS] + [f"{fn}(epoch({k}))" for k, fn in EXTREMES.items()])
+        agg = ", ".join([f"sum({k})" for k in self.sum_cols] + [f"{fn}(epoch({k}))" for k, fn in EXTREMES.items()])
         sums = self._raw(f"""
             WITH g AS (SELECT *, (row_number() OVER (PARTITION BY parent_id ORDER BY {expr} DESC, path) > ?) AS rest
                        FROM dirs WHERE depth = ? AND path >= ? AND path < ? AND list_contains(?::BIGINT[], parent_id))
             SELECT parent_id, rest, count(*), {agg} FROM g GROUP BY parent_id, rest
         """, [limit, depth + 2, lo, hi, parents])
-        keys = SUM_KEYS + list(EXTREMES)
+        keys = self.sum_keys + list(EXTREMES)
         out: dict[int, dict] = {}
         for r in rows:
             out.setdefault(r["parent_id"], {"rows": [], "all": None, "rest": None})["rows"].append(r)
@@ -435,8 +469,8 @@ class SnapshotIndex:
         """Directories anywhere below `path` (not `path` itself), filtered by a fixed SQL fragment."""
         lo, hi = child_range(path)
         cond = f"path >= ? AND path < ?{' AND ' + where if where else ''}"
-        return self._rows(f"SELECT {DIR_COLUMNS} FROM dirs WHERE {cond} ORDER BY {order} LIMIT ?",
-                          [lo, hi, *(params or []), limit], ROW_KEYS)
+        return self._rows(f"SELECT {self.dir_sql} FROM dirs WHERE {cond} ORDER BY {order} LIMIT ?",
+                          [lo, hi, *(params or []), limit], self.row_keys)
 
     # ---- Changes between scans ----
     def attach(self, other: Path) -> str:
@@ -547,7 +581,7 @@ class SnapshotIndex:
         lo, hi = child_range(path)
         if self.has_file_changes and self.previous and other.meta.get("scan_id") == self.previous.get("scan_id"):
             cond, params = "change = ? AND path >= ? AND path < ?", [kind, lo, hi]
-            rows = self._rows(f"SELECT {FILE_COLUMNS} FROM file_changes WHERE {cond} ORDER BY size DESC, path LIMIT ?",
+            rows = self._rows(f"SELECT {self.file_sql} FROM file_changes WHERE {cond} ORDER BY size DESC, path LIMIT ?",
                               [*params, limit], FILE_KEYS)
             n, b = self._one(f"SELECT count(*), coalesce(sum(size), 0) FROM file_changes WHERE {cond}", params)
             return {"rows": rows, "files": int(n), "bytes": int(b)}
@@ -583,7 +617,7 @@ class SnapshotIndex:
                 src += (f" ANTI JOIN (SELECT path FROM {other.file_sources(theirs)} WHERE path >= ? AND path < ? "
                         f"AND top_id IN ({', '.join(str(int(t)) for t in theirs)})) USING (path)")
                 params += [lo, hi]
-            got = self._rows(f"SELECT {FILE_COLUMNS}, count(*) OVER () AS _n, sum(size) OVER () AS _b FROM {src} "
+            got = self._rows(f"SELECT {self.file_sql}, count(*) OVER () AS _n, sum(size) OVER () AS _b FROM {src} "
                              "ORDER BY size DESC, path LIMIT ?", [*params, limit], [*FILE_KEYS, "_n", "_b"])
             if got:
                 n += got[0]["_n"]
@@ -613,9 +647,9 @@ class SnapshotIndex:
         params = [older, lo, hi]
         total = self._one(f"SELECT count(*), coalesce(sum(bytes), 0), coalesce(sum(files), 0) FROM ({units})", params)
         rows = self._rows(
-            f"SELECT {dir_columns('d')} FROM (SELECT * FROM ({units}) WHERE bytes >= ? ORDER BY bytes DESC LIMIT ?) u "
-            "JOIN dirs d ON d.depth = u.depth AND d.path = u.path ORDER BY u.bytes DESC, d.path",
-            [*params, min_bytes, limit], ROW_KEYS)
+            f"SELECT {dir_columns(self._cat_names, 'd')} FROM (SELECT * FROM ({units}) WHERE bytes >= ? "
+            "ORDER BY bytes DESC LIMIT ?) u JOIN dirs d ON d.depth = u.depth AND d.path = u.path ORDER BY u.bytes DESC, d.path",
+            [*params, min_bytes, limit], self.row_keys)
         return {"rows": rows, "count": int(total[0]), "bytes": int(total[1]), "files": int(total[2])}
 
     def _cold_scan(self, path: str, cutoff_epoch: float, *, min_bytes: int = 0, limit: int = 200) -> dict:
@@ -632,9 +666,9 @@ class SnapshotIndex:
         params = [lo, hi, depth, path, cutoff_epoch, cutoff_epoch]
         total = self._one(base + "SELECT count(*), coalesce(sum(bytes), 0), coalesce(sum(files), 0) FROM c", params)
         rows = self._rows(
-            base + f"SELECT {dir_columns('d')} FROM c JOIN dirs d USING (dir_id) "
+            base + f"SELECT {dir_columns(self._cat_names, 'd')} FROM c JOIN dirs d USING (dir_id) "
             "WHERE c.bytes >= ? ORDER BY c.bytes DESC LIMIT ?",
-            [*params, min_bytes, limit], ROW_KEYS)
+            [*params, min_bytes, limit], self.row_keys)
         return {"rows": rows, "count": int(total[0]), "bytes": int(total[1]), "files": int(total[2])}
 
     # ---- Types and owners ----
@@ -688,7 +722,7 @@ class SnapshotIndex:
             cond.append(where)
             args.extend(params or [])
         with self._turn(path):
-            return self._rows(f"SELECT {FILE_COLUMNS} FROM {src} WHERE {' AND '.join(cond)} ORDER BY {order} LIMIT ?",
+            return self._rows(f"SELECT {self.file_sql} FROM {src} WHERE {' AND '.join(cond)} ORDER BY {order} LIMIT ?",
                               [*args, limit], FILE_KEYS)
 
     def files_to(self, path: str, out: Path, *, where: str = "", params: list | None = None, order: str = "size DESC",
@@ -708,10 +742,24 @@ class SnapshotIndex:
             args.extend(params or [])
         quoted = "'" + str(out).replace("'", "''") + "'"
         with self._turn(path):
-            self._raw(f"COPY (SELECT {FILE_COLUMNS} FROM {src} WHERE {' AND '.join(cond)} ORDER BY {order}) "
+            self._raw(f"COPY (SELECT {self.file_sql} FROM {src} WHERE {' AND '.join(cond)} ORDER BY {order}) "
                       f"TO {quoted} (FORMAT parquet, COMPRESSION zstd)", args)
             n, b = self._raw(f"SELECT count(*), coalesce(sum(size), 0) FROM read_parquet({quoted})", [])[0]
         return int(n), int(b)
+
+    def sample_files(self, n: int = 50_000, extra: str = "", params: list | None = None) -> list[dict]:
+        """About `n` files' names, types, categories, and sizes, without reading every file: the first files of up to
+        50 of the index's file parts, spread over its top-level folders (each part holds a group of them, in path
+        order). For estimates, such as what a pattern on file names would take; not a random sample. `extra` adds
+        columns over `name`."""
+        parts = sorted(self.index_dir.glob("files/*/*.parquet"))
+        if not parts:
+            return []
+        chosen = parts[:: max(1, len(parts) // 50)][:50]
+        each = max(1, n // len(chosen))
+        union = " UNION ALL ".join(f"(SELECT name, ext, cat, size FROM read_parquet('{str(p).replace(chr(39), chr(39) * 2)}') "
+                                   f"LIMIT {each})" for p in chosen)
+        return self._rows(f"SELECT *{extra} FROM ({union})", params or [])
 
     def files_summary(self, path: str, *, where: str = "", params: list | None = None) -> dict:
         src = self.file_sources(self.scope_tops(path))
@@ -745,12 +793,6 @@ class SnapshotIndex:
                           "GROUP BY flag ORDER BY flag", ids)
 
 
-def category_index(key: str) -> int:
-    return CATEGORY_KEYS.index(key)
-
-
 def dimensions() -> dict:
-    return {
-        "categories": [{"key": c.key, "label": c.label, "description": c.description} for c in CATEGORIES],
-        "age_buckets": [{"label": b.label, "short": b.short, "max_days": b.max_days} for b in AGE_BUCKETS],
-    }
+    """The age buckets, as the interface shows them; the categories are the catalog's (categories.current)."""
+    return {"age_buckets": [{"label": b.label, "short": b.short, "max_days": b.max_days} for b in AGE_BUCKETS]}

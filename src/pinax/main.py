@@ -7,6 +7,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlsplit
 
+import anyio.to_thread
+import sqlalchemy.exc
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -15,7 +17,7 @@ from . import __version__, jobs, metrics, migrate
 from .api import router as api_router
 from .auth import ScriptPrefix
 from .config import get_settings, unsafe
-from .db import get_engine, init_db
+from .db import POOL_TIMEOUT, get_engine, init_db
 from .limits import BUSY, GONE, QueryBudget, Stopped
 from .logs import RequestLog
 from .oidc import SignInState
@@ -31,6 +33,7 @@ async def lifespan(_app: FastAPI):
     settings = get_settings()
     if problem := unsafe(settings):
         raise RuntimeError(f"Refusing to start: {problem}")
+    anyio.to_thread.current_default_thread_limiter().total_tokens = settings.web_threads
     init_db()
     jobs.recover()
     log.info("Pinax %s started: environment %s, sign-in %s, catalog %s, data in %s", __version__, settings.environment,
@@ -89,6 +92,15 @@ async def stopped(request: Request, exc: Stopped):
     detail = (f"Pinax stopped this after {seconds}. Searching or comparing a whole filesystem reads every file in "
               "it: look within a folder, or narrow the search by name, type, size, or age.")
     return JSONResponse({"detail": detail}, status_code=504)
+
+
+@app.exception_handler(sqlalchemy.exc.TimeoutError)
+async def catalog_busy(request: Request, _exc: Exception):
+    """Every catalog connection stayed in use for POOL_TIMEOUT seconds: more at once than this process serves."""
+    metrics.CATALOG_BUSY.inc()
+    log.warning("Turned away %s: no catalog connection was free within %d s", request.url.path, POOL_TIMEOUT)
+    return JSONResponse({"detail": "Pinax is busy: more people are using it at once than it can serve. Try again in a "
+                                   "moment."}, status_code=503, headers={"Retry-After": "5"})
 
 
 @app.exception_handler(Exception)

@@ -48,11 +48,13 @@ of data nobody has touched in a long time. Click a tile to go into it; *Up one l
 The controls above it:
 
 - **Size by**: tiles sized by *Size* (the files' size), *Space on disk*, *Number of files*, data of one kind (such as
-  *Sequencing and genomics*), or data older than a threshold.
+  *Sequencing and genomics*), or data older than a threshold. A folder with none of it has no area, so it is not
+  drawn, and the line under the map says how many folders hold it.
 - **Color by**: *Average age (by size)*, *Time since the last change*, *Age of the oldest file*, *Time since the last
   access* (where the filesystem records it), *Share that is cold*, or the share of one kind of data.
 - **Levels**: one level of subfolders, or two, with each tile's own subfolders drawn inside it. For the icicle and
-  the sunburst: four, six, or eight levels.
+  the sunburst: four, six, or eight levels. The map draws up to 60 subfolders of a folder, and with two levels up to
+  12 inside each tile; the rest go into one tile (*5 smaller folders*), and the line under the map says how many.
 - **View**: the map; the same folders several levels deep as an [icicle or a sunburst](#icicle-and-sunburst); or the
   folder's subfolders as a table, which can be sorted and read by a screen reader.
 
@@ -139,9 +141,9 @@ you can see which subfolders hold the old data.
 
 ![The age report](images/age-report-light.webp "The age report for fujimoto_a: each subfolder's data by age.")
 
-**File types**: how much of each kind of data (sequencing and genomics, imaging, tabular, archives, and so on) and
-each file type, with a callout for uncompressed sequencing data, which could be compressed. Click a type to list
-its files.
+**File types**: how much of each kind of data (sequencing and genomics, imaging, tabular, archives, and so on: the
+site's file categories) and each file type, with a callout for uncompressed sequencing data, which could be
+compressed. Click a type to list its files.
 
 ![File types](images/file-types-light.webp "File types for lindqvist_h: terabytes of uncompressed SAM alignments are called out.")
 

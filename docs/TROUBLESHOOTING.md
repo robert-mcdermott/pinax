@@ -75,7 +75,7 @@ request ID, which is also the `X-Request-ID` of the response a person saw ([Logs
 | --- | --- | --- |
 | *Pinax stopped this after 180 seconds* | A search or comparison of a whole filesystem read for longer than `PINAX_QUERY_TIMEOUT` | Search within a folder or narrow it; an administrator can run it in the background (*Searches*); or raise the limit with the proxy's ([Configuration](CONFIGURATION.md#queries)) |
 | *Pinax is already running as many searches of whole filesystems as it allows* | `PINAX_WIDE_QUERIES` turns were all in use | Try again shortly, or raise it if the server has the cores and memory |
-| Pages are slow while a search runs | Searches use every core | Set `PINAX_QUERY_THREADS` below the number of cores |
+| Pages are slow while a search runs | Searches of whole filesystems use every core, `PINAX_WIDE_QUERIES` (2) at a time | Fewer at once leave the rest more of the cores, and searches wait longer for a turn ([Many people at once](DEPLOYMENT.md#many-people-at-once)) |
 | Lines marked *(slow)* in the log | Requests over `PINAX_SLOW_REQUEST_SECONDS` | The line names the route and the time in index queries; see [Sizing](DEPLOYMENT.md#sizing) |
 | *Something went wrong* on a page | An error on the server | The log has it, with the request's ID |
 

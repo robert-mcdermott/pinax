@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     database_url: str = ""
     db_auto_upgrade: bool = True
     database_pool_size: int = Field(10, ge=1, le=100)
+    # Threads that run the web app's requests (each request's sign-in check and page, one after the other).
+    web_threads: int = Field(40, ge=2, le=200)
 
     # fs-inventory. Defaults to bin/fs-inventory (scripts/install-fs-inventory.sh), then the PATH.
     fs_inventory: str = ""
@@ -46,8 +48,9 @@ class Settings(BaseSettings):
 
     # Query side. A request's queries stop after QUERY_TIMEOUT seconds (0: no limit), or when the browser leaves;
     # keep it below the proxy's timeout, so people see why. At most WIDE_QUERIES file-level queries of a whole
-    # filesystem (searches and comparisons that read every file) run at once (0: no limit).
-    query_memory_limit: str = "4GB"
+    # filesystem (searches and comparisons that read every file) run at once (0: no limit). QUERY_MEMORY_LIMIT is
+    # for every open index together, each with an equal share (snapshots.IndexCache).
+    query_memory_limit: str = Field("8GB", pattern=r"(?i)^\s*\d+(\.\d+)?\s*([KMGT]i?B|B)\s*$")
     query_threads: int = 0
     query_timeout: int = 180
     wide_queries: int = 2

@@ -195,22 +195,22 @@ def test_rebuild_outdated_after_an_upgrade(catalog, monkeypatch, capsys):
 
     from pinax import cli
     from pinax.ingest.build import INDEX_VERSION
-    from pinax.snapshots import index_version, indexes
+    from pinax.snapshots import index_state, indexes
 
     snap = _snap()
     indexes.clear()
     with duckdb.connect(str(Path(snap.index_dir) / "index.duckdb")) as con:  # as if built by an older Pinax
         con.execute("UPDATE meta SET value = '1' WHERE key = 'index_version'")
-    assert index_version(snap) == 1
+    assert index_state(snap)[0] == 1
     for argv, code, says in ((["pinax", "rebuild", "--outdated"], 0, f"Snapshot {snap.id}: rebuilt"),
-                             (["pinax", "rebuild", "--outdated"], 0, f"is current (version {INDEX_VERSION})"),
+                             (["pinax", "rebuild", "--outdated"], 0, f"is current (version {INDEX_VERSION}, with the catalog's"),
                              (["pinax", "rebuild", "999"], 2, "no ready snapshot 999")):
         monkeypatch.setattr("sys.argv", argv)
         with pytest.raises(SystemExit) as done:
             cli.main()
         out = capsys.readouterr()
         assert done.value.code == code and says in out.out + out.err
-    assert index_version(_snap()) == INDEX_VERSION
+    assert index_state(_snap())[0] == INDEX_VERSION
 
 
 def test_rebuild_keeps_the_old_index_if_the_scan_is_gone(catalog):

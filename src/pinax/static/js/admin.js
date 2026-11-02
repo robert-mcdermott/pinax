@@ -8,7 +8,7 @@ import { fillChip, fillRange, fillShort } from "/js/capacity.js";
 import { renderSidebar } from "/js/shell.js";
 import { bindPersonTokens, personTokens } from "/js/tokens.js";
 import { viewsCard } from "/js/views.js";
-import { ageBar, ageHistogram, bars, categories, coldBytes, thresholdText } from "/js/viz.js";
+import { ageBar, ageHistogram, bars, catBytes, coldBytes, thresholdText } from "/js/viz.js";
 
 const signed = (n) => (n ? `${n > 0 ? "+" : "−"}${bytes(Math.abs(n))}` : "—");
 const opt = (value, label, current) => html`<option value="${value}" ${String(value) === String(current ?? "") ? raw("selected") : ""}>${label}</option>`;
@@ -25,7 +25,7 @@ export async function viewOverview(el) {
   const names = ov.filesystems.reduce((t, f) => t + (f.name_issues || 0), 0);
   const largest = [...folders].sort((a, b) => b.latest.bytes - a.latest.bytes).slice(0, 12);
   const movers = folders.filter((f) => f.change && f.change.bytes).sort((a, b) => Math.abs(b.change.bytes) - Math.abs(a.change.bytes)).slice(0, 8);
-  const cats = categories().map((c, i) => ({ label: c.label, key: c.key, bytes: s.cat_bytes[i] })).filter((c) => c.bytes).sort((a, b) => b.bytes - a.bytes);
+  const cats = catBytes(s).filter((c) => c.bytes).sort((a, b) => b.bytes - a.bytes);
   const cold = coldBytes(s, cb);
   const filling = ov.filesystems.filter((f) => f.capacity && (f.capacity.soon || f.capacity.full));
   mount(el, html`

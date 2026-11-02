@@ -41,6 +41,7 @@ export function renderSidebar() {
       ${link("scans", "database", "Scans", false)}
       ${link("capacity", "server", "Capacity", false)}
       ${link("tags", "tag", "Tags", false)}
+      ${link("categories", "grid", "File categories", false)}
       ${link("costs", "banknote", "Costs", false)}
       ${link("chargeback", "table", "Chargeback", false)}
       ${link("access", "lock", "People and access", false)}

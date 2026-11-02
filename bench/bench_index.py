@@ -5,6 +5,10 @@ Prints the scan's shape and the timings without any path or name, so the output 
 filesystem can be recorded as it is.
 
     uv run python bench/bench_index.py /scratch/synth-10m --index /scratch/synth-10m-index
+
+`--patterns N` and `--categories N` build with file categories a site might define instead of the defaults (wave
+14): N patterns on file names, of the kinds a site writes, before every extension; or N categories, the defaults and
+one for each of the synthetic scan's own types, so the extra ones hold files.
 """
 
 import argparse
@@ -14,9 +18,28 @@ import statistics
 import time
 from pathlib import Path
 
+from pinax.categories import DEFAULTS, Category
 from pinax.explore import DEPTH_SHARE
 from pinax.index import SnapshotIndex
 from pinax.ingest.build import build_index
+
+# Patterns a site might write: anchored and not, on names, some matching a few of the synthetic scan's files.
+PATTERNS = [r"^file_0012\d{4}\.", r"_R[12]_001\.fastq\.gz$", r"(?i)^undetermined_", r"\.g\.vcf\.gz$", r"^core\.\d+$",
+            r"\.(nd2|czi|lif)$", r"^file_\d{4}7\d{3}\.bam$", r"(?i)checkpoint", r"^slurm-\d+\.out$", r"\.sorted\.bam$",
+            r"^file_00(3|4)\d{5}\.log$", r"_S\d+_L00\d_", r"\.ome\.zarr$", r"^nohup\.out$", r"\.(swp|swo)$",
+            r"^~\$", r"\.part\d+$", r"(?i)^thumbs\.db$", r"^file_\d{7}9\.png$", r"\.tmp\d*$", r"^\.nfs\w+",
+            r"\.ckpt-\d+", r"^Undetermined_S0_", r"_md5\.txt$", r"^file_000\d{5}\.raw$"]
+# One category for each of the synthetic scan's types (bench/synth_scan.py), ahead of the defaults, which list them.
+OWN = ["bam", "bai", "vcf", "csv", "txt", "h5ad", "log", "py", "png", "raw", "pdf", "json"]
+
+
+def categories(patterns: int = 0, count: int = 0) -> tuple[Category, ...]:
+    """The defaults, with `patterns` patterns in a category of their own, or `count` categories in all."""
+    if patterns:
+        named = Category("named", "Named", "Found by name", (), tuple((PATTERNS * 2)[:patterns]))
+        return (named, *DEFAULTS)
+    extra = tuple(Category(f"own_{e}", e, "", (e,)) for e in OWN[: max(0, count - len(DEFAULTS))])
+    return (*extra, *DEFAULTS)
 
 
 def timed(fn, repeat: int = 5) -> tuple[float, object]:
@@ -54,13 +77,16 @@ def main() -> None:
     ap.add_argument("--memory", default="8GB", help="Build memory limit")
     ap.add_argument("--skip-build", action="store_true")
     ap.add_argument("--json", type=Path, help="Also write the results to this file")
+    ap.add_argument("--patterns", type=int, default=0, help="Build with this many patterns on file names")
+    ap.add_argument("--categories", type=int, default=0, help="Build with this many categories (up to 24)")
     args = ap.parse_args()
 
     result: dict = {}
     if not args.skip_build:
         if args.index.exists():
             shutil.rmtree(args.index)
-        r = build_index(args.scan_dir, args.index, memory_limit=args.memory, progress=lambda m: None)
+        r = build_index(args.scan_dir, args.index, memory_limit=args.memory, progress=lambda m: None,
+                        categories=categories(args.patterns, args.categories))
         size = sum(p.stat().st_size for p in args.index.rglob("*") if p.is_file())
         result["build"] = {"seconds": round(r.seconds, 1), "index_bytes": size, "steps": r.steps}
         print(f"build: {r.seconds:.1f}s for {r.totals['files']:,} files and {r.totals['dirs']:,} directories; "

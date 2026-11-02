@@ -181,6 +181,7 @@ them, the person's home), and `lab` to limit home to one lab:
 | `GET /api/plans?lab=`, `/api/plans/here?fs=&path=`; `POST /api/plans`, `PUT`, `DELETE /api/plans/{id}`, `POST /api/plans/{id}/moved` | A person's labs' cleanup plans; a folder's place in its lab's plan; adding, changing, and taking out a folder; confirming or dismissing a move |
 | `GET /api/plans/suggestions?lab=`, `/api/plans/all` | Folders worth adding to a lab's plan; every lab's plan, for administrators and auditors |
 | `GET`, `POST /api/admin/tags`; `PUT`, `DELETE /api/admin/tags/{id}`, `POST /api/admin/tags/{id}/active` | The standard tags and labs' own; adding, changing, retiring, and deleting an unused one |
+| `GET`, `POST /api/admin/categories`; `PUT`, `DELETE /api/admin/categories/{key}`, `POST /api/admin/categories/{key}/move`; `POST /api/admin/categories/preview`, `/api/admin/categories/try` | The file categories in order, each's bytes in the latest scans, and the snapshots built with others and how long rebuilding them takes; adding, changing, removing, and moving one; what a change would do before it is saved; trying a pattern on a sample of names |
 | `GET /api/tags/here?fs=&path=`, `/api/tags/below?fs=&path=`; `POST /api/tags/folders`, `DELETE /api/tags/folders/{id}`; `POST /api/tags/custom`; `POST /api/admin/tags/{id}/merge` | A folder's tags and those it inherits; the tagged folders below one; tagging and untagging; a lab's own tag; folding one into a standard tag |
 | `GET /api/tags/filters`, `/api/tags/collection?want=ID[:value]` (repeated) | The tags a person can look for, with their values; the folders that have every wanted tag, with totals, history, and forecast |
 | `GET`, `POST /api/views`; `PUT`, `DELETE /api/views/{id}` | A person's views and those shared with their labs; saving, renaming, sharing, deleting |
@@ -277,7 +278,9 @@ builds a temporary index from the same scan and compares every directory with fs
 `synth_scan.py --wide N --deep D` adds what real filesystems have and the model lacks: a folder of N files, a
 folder of N/10 subfolders, and a chain D folders deep. `bench_index.py` prints the scan's shape (counts only:
 depth, widest folders, longest path, flagged names, links, mount points) and the query timings, never a path or
-a name, so a run on a real filesystem can be recorded as it is (`--json FILE` saves it).
+a name, so a run on a real filesystem can be recorded as it is (`--json FILE` saves it). `--patterns N` builds with
+N patterns on file names, of the kinds a site writes, and `--categories N` with N file categories (one for each of the
+synthetic scan's types, ahead of the defaults), to measure what a site's own categories cost a build.
 
 `synth_scan.py --evolve SCAN -o OUT --days 30` writes SCAN as it might look 30 days later, for checking and timing
 comparisons between scans: `--remove` (2%) of its projects deleted, `--grow` (5%) of its folders with files gaining
@@ -290,6 +293,50 @@ fs-inventory rollup of both:
 ```bash
 uv run python bench/synth_scan.py --evolve /scratch/synth-10m -o /scratch/synth-10m-next --days 30
 ```
+
+`--started` dates a scan in the past, so a scan and the ones evolved from it can end today.
+
+### The load test
+
+The benchmarks above time one request at a time; the load test measures many people at once. `bench/load_setup.py`
+makes an installation in a folder of its own: three synthetic scans a month apart, the last one today, ingested in
+order; a lab for each top-level folder, with a PI and members, over five divisions; storage administrators, an
+auditor, finance, and a head of each division; a price and a free tier; and one made-up password for everyone. It
+takes about two minutes at ten million files, and 2.8 GB. `--database-url` puts the catalog on an empty PostgreSQL
+database instead of SQLite.
+
+```bash
+uv run python bench/load_setup.py /scratch/load-10m --files 10000000
+```
+
+`bench/load.py` starts `pinax serve` from it (or uses `--url`), and simulated people each sign in with the password,
+as a browser does on a first visit, then open one page after another, `--think` seconds apart (5 to 15). A page is
+the API requests the interface makes for it, sent together; each role has its sidebar's pages, people of labs in
+their lab's folders and its projects, administrators everywhere. `--people` arrive over `--ramp` seconds (60), and
+`--minutes` (5) are measured after that, in the proportions of `--mix`. Who does what follows `--seed`, so two runs
+make the same requests.
+
+```bash
+uv run python bench/load.py /scratch/load-10m --people 50 --minutes 5
+```
+
+Two harder cases. `--searchers N` adds N storage administrators searching whole filesystems, by name, path, and age,
+one search after another: each reads every file, `PINAX_WIDE_QUERIES` run at once, and the others wait for a turn.
+`--ramp 0` has everyone sign in at the same moment, each password checked with scrypt, slow by design. `--set
+PINAX_SETTING=VALUE` (repeatable) gives the server it starts a setting of its own, to measure a change without editing
+the installation.
+
+```bash
+uv run python bench/load.py /scratch/load-10m --people 100 --searchers 6 --set PINAX_QUERY_TIMEOUT=30
+```
+
+The report, in the installation's `reports/` as Markdown and JSON, has each page's and each API route's median,
+95th and 99th percentile times, errors, and requests a second; the server's memory and the cores it keeps busy,
+sampled every second; the searchers' searches, finished and stopped, with what Pinax said; and whether the budgets
+of wave 14 are met. A request on a kept-alive connection the server closed just then is sent again, as browsers do,
+and counted. `--compare A.json B.json` says whether two runs agree: each page's median,
+and the pages a second, within 10%. The load test and Pinax share the computer, so a laptop shows where Pinax slows
+and why more than what a server does. `tests/test_load.py` runs a small one, so it keeps working.
 
 ## Deployment files
 

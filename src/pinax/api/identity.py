@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from .. import __version__
+from .. import __version__, categories
 from ..auth import DEMO_COOKIE, Identity, current_identity
 from ..config import get_settings
 from ..db import get_session
@@ -29,9 +29,10 @@ def public_config(session: Session = Depends(get_session)):
     return {
         "filesystems": [fs_json(f) for f in filesystems],
         "app_name": s.app_name, "version": __version__, "environment": s.environment, "auth_mode": s.auth_mode,
-        "cold_bucket": cold_bucket(s), "metrics": list(METRICS), "search_max_rows": s.search_max_rows,
+        "cold_bucket": cold_bucket(s), "search_max_rows": s.search_max_rows,
+        "metrics": list(METRICS) + [f"cat:{c.key}" for c in categories.current(session)],
         "export_max_rows": s.export_max_rows, "password_min_length": s.password_min_length,
-        "currency": s.currency, **dimensions(),
+        "currency": s.currency, **dimensions(), "categories": categories.brief(categories.current(session)),
         # Roles set from the identity provider at sign-in, not here (oidc with OIDC_ROLE_MAP): "admin", "auditor", ...
         "mapped_roles": sorted(f"{r}:{d}" if d else r for r, d in s.mapped_roles),
     }

@@ -7,7 +7,7 @@ import duckdb
 import pytest
 from conftest import FILES, ROOT
 
-from pinax.categories import CATEGORY_KEYS, bucket_for_days
+from pinax.categories import DEFAULTS, bucket_for_days
 from pinax.ingest.build import BuildError, build_index
 
 
@@ -29,7 +29,7 @@ def expected(prefix: str):
 def test_subtree_totals_match_brute_force(index):
     _, con = index
     rows = con.execute("SELECT path, files, bytes, " + ", ".join(f"mb{i}" for i in range(7)) + ", "
-                       + ", ".join(f"cb{i}" for i in range(len(CATEGORY_KEYS))) + " FROM dirs").fetchall()
+                       + ", ".join(f"cb{i}" for i in range(len(DEFAULTS))) + " FROM dirs").fetchall()
     assert rows
     for path, files, nbytes, *rest in rows:
         sel = expected(path)
@@ -40,18 +40,31 @@ def test_subtree_totals_match_brute_force(index):
             assert ages[i] == sum(f["size"] for f in sel if bucket_for_days(f["age_days"]) == i), (path, i)
 
 
+def test_category_totals_match_the_files(index):
+    """Each folder's files and bytes by category, summed up the tree, against its files' own categories."""
+    out, con = index
+    n = len(DEFAULTS)
+    cols = ", ".join([f"cf{i}" for i in range(n)] + [f"cb{i}" for i in range(n)])
+    files = duckdb.connect().execute(f"SELECT path, cat, size FROM read_parquet('{out}/files/*/*.parquet')").fetchall()
+    for path, *totals in con.execute(f"SELECT path, {cols} FROM dirs").fetchall():
+        inside = [(cat, size) for p, cat, size in files if p.startswith(path.rstrip("/") + "/")]
+        assert totals[:n] == [sum(1 for c, _ in inside if c == i) for i in range(n)], path
+        assert totals[n:] == [sum(size for c, size in inside if c == i) for i in range(n)], path
+
+
 def test_file_types_and_categories(index):
     out, _ = index
     con = duckdb.connect()
     rows = dict(con.execute(f"SELECT name, ext || ':' || cat FROM read_parquet('{out}/files/*/*.parquet')").fetchall())
-    cat = lambda key: str(CATEGORY_KEYS.index(key))
+    keys = [c.key for c in DEFAULTS]
+    cat = lambda key: str(keys.index(key))
     assert rows["S1_R1.fastq.gz"] == "fastq.gz:" + cat("genomics")
     assert rows["run1.bam.bai"] == "bai:" + cat("genomics")
     assert rows["brain.nii.gz"] == "nii.gz:" + cat("imaging")
     assert rows["backup.tar.gz"] == "tar.gz:" + cat("compressed")
     assert rows["raw_2014.sam"] == "sam:" + cat("genomics")
     assert con.execute(f"SELECT ext, cat FROM read_parquet('{out}/files/*/*.parquet') WHERE name = 'README'").fetchone() \
-        == (None, CATEGORY_KEYS.index("other"))
+        == (None, keys.index("other"))
 
 
 def test_files_are_grouped_by_top_folder_and_sorted(tmp_path, scan, monkeypatch):
@@ -155,12 +168,12 @@ def test_nanosecond_times_are_truncated_to_microseconds(tmp_path):
 def test_every_extension_has_one_category():
     from collections import Counter
 
-    from pinax.categories import CATEGORIES, extension_map
+    from pinax.categories import DEFAULTS, extension_map
 
-    counts = Counter(e for c in CATEGORIES for e in c.extensions)
+    counts = Counter(e for c in DEFAULTS for e in c.extensions)
     assert [e for e, n in counts.items() if n > 1] == []
-    keys = [c.key for c in CATEGORIES]
-    m = extension_map()
+    keys = [c.key for c in DEFAULTS]
+    m = extension_map(DEFAULTS)
     # Types found on a real disk that 0.1.0 counted as "other".
     assert {e: keys[m[e]] for e in ("heic", "xlsm", "vsdx", "insv", "exe", "asif")} == {
         "heic": "imaging", "xlsm": "tabular", "vsdx": "documents", "insv": "media", "exe": "code",
