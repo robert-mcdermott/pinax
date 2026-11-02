@@ -169,8 +169,12 @@ no Pinax account, and a guest whose name matches a staff member's.
 scripts/dex/dex.sh up
 ```
 
-It prints the settings for running the demo against it on <http://localhost:8001>. `pnatarajan@example.org` signs
-in as Priya Natarajan, a storage administrator, and the other two are refused with a message. `dex.sh down`
+It prints the settings for running the demo against it on <http://localhost:8001>; seed the demo first
+(`uv run pinax seed`). `pnatarajan@example.org` signs in as Priya Natarajan, a storage administrator, and
+`afujimoto@example.org` as Aiko Fujimoto, a PI who sees her lab's folders; the other two are refused, each with a
+message saying why. To try the emergency sign-in too, make an account for it, with the same settings in the shell:
+`uv run pinax user add emergency-1 --name "Emergency 1" --email it@example.org --admin`, then
+`uv run pinax user emergency emergency-1`, and sign in at <http://localhost:8001/auth/emergency>. `dex.sh down`
 removes Dex. The test suite also runs the whole sign-in against a stand-in provider, including forged and expired
 tokens, replayed sign-ins, and guest accounts (`tests/test_oidc.py`).
 

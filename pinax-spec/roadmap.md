@@ -16,8 +16,7 @@ decisions taken are recorded here. Later waves are outlined at the end.
 **Progress** is marked here as each slice is committed: done, next or to come. Each requirement's status is
 in `requirements.md`; release changes are in `CHANGELOG.md`.
 
-**Where things stand:** waves 1 to 12 are released as 0.1.0 to 0.12.0 (tags on `main`); wave 13 (0.13.0, reach)
-is being built. Besides forecasts, 0.6.0
+**Where things stand:** waves 1 to 13 are released as 0.1.0 to 0.13.0 (tags on `main`). Besides forecasts, 0.6.0
 has what was merged since 0.5.0:
 - labs and departments can be added, changed, and deactivated in the app, so a site needs no CSV files at all;
 - guidance for operating Pinax;
@@ -1494,7 +1493,7 @@ It needs no production storage, and comes before the pilot, which still waits fo
 | 3 | The emergency administrator sign-in (A12) | As decided below, each part tested: off unless an emergency account exists; marked only from the command line; an address of its own; the password rules and lockout, a longer minimum password, and short sessions; every use audited, logged as a warning, and counted in the metrics; the accounts listed in the access review; the guide | Done |
 | 4 | Roles from Entra ID (A6, in part) | Optionally, Entra ID app roles (the token's `roles` claim) or groups mapped by settings onto the administrator role and the site roles, applied at each sign-in and audited; roles given in the app stay possible; a group overage said, not guessed; tested against the stand-in provider; app roles and groups checked in a real tenant when a test registration is available | Done, but for the check in a real tenant |
 | 5 | Continuous integration | GitHub Actions run the linter and the whole suite on SQLite and on PostgreSQL for every push, and for pull requests from forks, with the pinned fs-inventory installed so that the tests that run it run too; the development guide says what runs | Done |
-| 6 | Release 0.13.0 | The walk-through and the guides for each way of signing in; version 0.13.0, changelog with notes on upgrading from 0.12.0; pull request, tag, release | To come |
+| 6 | Release 0.13.0 | The walk-through and the guides for each way of signing in; version 0.13.0, changelog with notes on upgrading from 0.12.0; pull request, tag, release | Done |
 
 ### Decisions for wave 13
 
@@ -1678,6 +1677,26 @@ sign-in, and access policies, so it is kept small:
    - *Done*: the first run on GitHub, on the branch's first push, passed in about seven minutes: the linter clean,
      392 passed on SQLite and 391 on PostgreSQL (the one about SQLite catalogs skipped), with fs-inventory 1.0.0
      installed in each, the same as each job's steps run here.
+6. **Release 0.13.0.**
+   - Each way of signing in walked through on fresh installs, from its guide as written. Passwords, from *Running
+     Pinax on your own data*: the first administrator's temporary password, a scan and its check, `pinax seed`
+     refused outside the demo, signing in and changing the password. Entra ID, with Dex from *Trying it before
+     Entra ID is ready*: the administrator and the PI signed in, the guest and the unknown person refused with why,
+     signing out; then an emergency account made as the guide advises and signed in at `/auth/emergency`, for an
+     hour, with the warning logged. Header mode: the username believed from this host, unknown people and requests
+     without it refused, the demo's and the emergency sign-in's addresses closed; oauth2-proxy and its
+     configuration are unchanged since 0.12.0. The demo: its persona switcher as before.
+   - What the walk-through found: the Entra ID guide's trial left out the PI, and now says how to try the
+     emergency sign-in too; `pinax user emergency` printed `<PINAX_PUBLIC_URL>` rather than the address it has;
+     `.env.example` and the refusal of the demo in production did not name `oidc`; the setup guide named only
+     oauth2-proxy for single sign-on.
+   - Every guide and the website checked against the wave: the documentation index and the website's page on Entra
+     ID name roles and the emergency sign-in; the home page names the release, passwords or Entra ID, and the
+     emergency sign-in. Requirements A6, A9, and A12 say how each was walked through.
+   - Version 0.13.0 in `pyproject.toml`, `pinax.__version__`, and `uv.lock`; `CHANGELOG.md` dated, with notes on
+     upgrading from 0.12.0 (migration `0006`, the new dependencies, the default sign-in for a `dev` install without
+     `PINAX_AUTH_MODE`, and the new alert rule); the deployment guide installs v0.13.0.
+   - Pull request to `main`, then tag `v0.13.0` and the release.
 
 ## Later waves (outlined)
 

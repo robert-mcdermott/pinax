@@ -1,8 +1,26 @@
 # Changelog
 
-## Unreleased
+## 0.13.0 (2026-11-01)
 
-Wave 13 ("reach"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+Thirteenth release (wave 13, "reach"): sign-in for any site. Out of the box, outside the demo, people sign in with
+passwords Pinax keeps, with nothing else to set up. Optionally, Pinax signs people in with Microsoft Entra ID itself,
+with Pinax's roles from Entra ID's app roles if the site wants, and an emergency sign-in for when Entra ID fails. CI
+checks every push on SQLite and on PostgreSQL. The demo is unchanged. See
+[pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+
+Upgrading from 0.12.0: back the catalog up ([Backups](docs/DEPLOYMENT.md#backups)), install the new version, and
+restart Pinax ([Upgrading](docs/DEPLOYMENT.md#upgrading)).
+- **The catalog has one migration**, `0006` (the emergency account mark), which Pinax applies when it starts; with
+  `PINAX_DB_AUTO_UPGRADE=false` it refuses to start until `pinax db upgrade` has applied it. The snapshot indexes
+  are unchanged, so nothing needs rebuilding.
+- **New dependencies** (Authlib, httpx2, and itsdangerous) come with `uv sync --frozen --no-dev`, as in the upgrade
+  steps.
+- **A site that sets `PINAX_AUTH_MODE` signs in as before.** One that leaves it out with `PINAX_ENVIRONMENT=dev` had
+  the demo's persona switcher, and now asks for passwords: make the first administrator with `pinax user add
+  USERNAME --admin`, or set `PINAX_AUTH_MODE=demo` to keep the switcher. Production always had to set it.
+- **With Prometheus**, copy `deploy/prometheus/pinax-alerts.yml` again for the new rule `PinaxEmergencySignIn`.
+- Sign-in with Entra ID, its roles, and emergency accounts are off until a site sets them up
+  ([Signing in with Entra ID](docs/ENTRA-ID.md)).
 
 ### Added
 

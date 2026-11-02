@@ -136,7 +136,8 @@ CSV statement. The currency is `PINAX_CURRENCY` (USD by default).
 ## Next
 
 - **A server:** [DEPLOYMENT.md](DEPLOYMENT.md) installs Pinax with systemd services, scheduled scans and automatic
-  ingest, an HTTPS proxy for local sign-in or single sign-on with oauth2-proxy, upgrades, sizing, and backups.
+  ingest, an HTTPS proxy for local sign-in, single sign-on with Entra ID or oauth2-proxy, upgrades, sizing, and
+  backups.
 - **Every setting:** [CONFIGURATION.md](CONFIGURATION.md).
 - **Scripts:** API tokens let a script read Pinax, or make changes, with a person's access
   ([API tokens for scripts](USER-GUIDE.md#api-tokens-for-scripts)).

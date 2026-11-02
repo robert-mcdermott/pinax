@@ -565,14 +565,16 @@ def _user(args) -> None:
                 return
             print(f"{user.display_name} ({user.username}) is an emergency account. Its password, shown only now:")
             print(password)
-            print("Keep it in your organization's password vault. It signs in at <PINAX_PUBLIC_URL>/auth/emergency, "
+            where = (get_settings().public_url.rstrip("/") or "<PINAX_PUBLIC_URL>") + "/auth/emergency"
+            print(f"Keep it in your organization's password vault. It signs in at {where}, "
                   "for an hour at a time, and every use is audited and logged as a warning.")
             return
         if not local:
             mode = get_settings().auth_mode
             print("Pinax keeps no passwords here: "
                   + (f"people sign in through single sign-on (PINAX_AUTH_MODE={mode})." if mode in ("header", "oidc")
-                     else "this is the demo, with no sign-in (PINAX_AUTH_MODE=demo)."))
+                     else "this is the demo, with no sign-in (PINAX_AUTH_MODE=demo).")
+                  + (" `pinax user emergency` makes an emergency account, with a password." if mode == "oidc" else ""))
             if args.user_command == "password":
                 sys.exit(1)
             return

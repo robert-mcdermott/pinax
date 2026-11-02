@@ -141,7 +141,7 @@ def test_only_the_command_line_marks_an_account(catalog, monkeypatch, capsys):
     assert run("emergency", "ada") == 1 and "Only an active storage administrator" in capsys.readouterr().err
     assert run("emergency", "ivy") == 0
     out = capsys.readouterr().out
-    assert "is an emergency account" in out and "/auth/emergency" in out
+    assert "is an emergency account" in out and f"{PUBLIC_URL}/auth/emergency," in out
     assert _events("person.emergency_set")[-1]["source"] == "cli"
     assert run("list") == 0 and "administrator, emergency" in capsys.readouterr().out
     with session_scope() as s:  # the app's people page cannot mark anyone

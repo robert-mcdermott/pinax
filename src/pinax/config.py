@@ -172,7 +172,8 @@ def unsafe(settings: Settings) -> str | None:
     """Why these settings must not run, or None."""
     if settings.environment == "prod" and settings.auth_mode == "demo":
         return ("PINAX_AUTH_MODE=demo lets anyone sign in as anyone, so it is refused when PINAX_ENVIRONMENT=prod. "
-                "Use local (passwords Pinax keeps) or header (single sign-on), or a demo or dev environment.")
+                "Use local (passwords Pinax keeps), oidc (Entra ID), or header (a single sign-on proxy), or a demo or "
+                "dev environment.")
     from .oidc import problems
 
     if found := problems(settings):
