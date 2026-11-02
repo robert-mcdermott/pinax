@@ -175,6 +175,7 @@ them, the person's home), and `lab` to limit home to one lab:
 | `GET /api/admin/audit?person=&action=&lab=&fs=&path=&since=&until=&offset=&limit=&fmt=csv` | A page of audit events, newest first, with the total and what to filter by; every one that matches as CSV |
 | `GET /api/admin/access-review?fmt=csv`, `POST /api/admin/access-review/sign-off` | Who has access to what, with when each was given and what is worth a look, or its CSV; recording a review |
 | `GET /auth/login?next=`, `/auth/callback`, `/auth/logout`, `/auth/signed-out` | With `PINAX_AUTH_MODE=oidc` only (404 otherwise): to the provider, back with its code, signing out of Pinax and the provider, and the page after |
+| `GET`, `POST /auth/emergency` | The emergency sign-in (a form), with `oidc` and an emergency account only (404 otherwise) |
 | `GET /api/health`; `GET /metrics` | Health for load balancers (no sign-in); Prometheus metrics, only with `PINAX_METRICS_TOKEN` as a bearer token |
 
 ## Frontend conventions

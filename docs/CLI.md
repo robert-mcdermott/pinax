@@ -21,7 +21,7 @@ error is one line beginning `error:` with a non-zero exit.
 | [`pinax snapshots`](#pinax-snapshots) | List snapshots |
 | [`pinax rebuild`](#pinax-rebuild) | Build snapshots' indexes again, after an upgrade or a lost index |
 | [`pinax check`](#pinax-check) | Check an index against `fs-inventory rollup`, directory by directory |
-| [`pinax user`](#pinax-user) | Add people, give temporary passwords, list people |
+| [`pinax user`](#pinax-user) | Add people, give temporary passwords, mark emergency accounts, list people |
 | [`pinax import`](#pinax-import) | Import labs, people, memberships, and folder ownership from CSV |
 | [`pinax tags`](#pinax-tags) | Tag folders in bulk from CSV |
 | [`pinax db`](#pinax-db) | The catalog's database: status, upgrades, copying it |
@@ -177,9 +177,21 @@ access*.
 
 Local sign-in: prints a new temporary password for `USERNAME`, unlocks their account, and ends their sessions.
 
+### pinax user emergency
+
+With sign-in through an identity provider (`PINAX_AUTH_MODE=oidc`): makes `USERNAME`, an active storage
+administrator, an emergency account, which signs in with a password at `/auth/emergency` when the provider fails,
+and prints its new password, 32 characters, once. Run again, it replaces the password. `--off` ends it, with its
+password. Only here, never in the app; every change is audited ([When Entra ID fails](ENTRA-ID.md#when-entra-id-fails-the-emergency-sign-in)).
+
+```bash
+pinax user emergency emergency-1
+```
+
 ### pinax user list
 
-Lists people, whether they are administrators, and whether they are active and can sign in.
+Lists people, whether they are administrators (and emergency accounts), and whether they are active and can sign
+in.
 
 ## pinax import
 

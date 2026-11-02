@@ -65,8 +65,9 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
   CSV, and a recorded sign-off, for periodic recertification.
 - **Sign-in your way**: usernames and passwords Pinax keeps, the default, with nothing else to set up; or, for a
   site that has it, single sign-on with Microsoft Entra ID (or another OpenID Connect provider) in Pinax itself, or
-  behind oauth2-proxy; and, in the demo, a persona switcher to show Pinax with the seeded people (refused in
-  production). People, labs, roles, and access are managed the same way in all of them.
+  behind oauth2-proxy, with an emergency sign-in for when Entra ID fails; and, in the demo, a persona switcher to
+  show Pinax with the seeded people (refused in production). People, labs, roles, and access are managed the same
+  way in all of them.
 - **Built for scale**: each scan is indexed once into directory-level totals, so a treemap of a petabyte
   draws in tens of milliseconds: at 100 million files, every directory-level query takes 50 ms or less, and the
   index builds in two minutes. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and measured

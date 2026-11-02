@@ -22,6 +22,8 @@ request ID, which is also the `X-Request-ID` of the response a person saw ([Logs
 
 | What you see | Why | What to do |
 | --- | --- | --- |
+| Nobody can sign in, because Entra ID is failing | The provider is down, or a setting is wrong or has expired (such as the client secret) | An emergency account signs in at `/auth/emergency` ([When Entra ID fails](ENTRA-ID.md#when-entra-id-fails-the-emergency-sign-in)); on the server, fix the settings, or switch to local sign-in for a while |
+| The alert `PinaxEmergencySignIn` fires | Someone signed in, or tried to, with an emergency account | The audit log's `auth.emergency_*` events name the account and address; ask who holds its password |
 | *You can't use Pinax yet*, or another message after signing in with Entra ID | Pinax refused the sign-in, or could not finish it, and says why | [Signing in with Entra ID](ENTRA-ID.md#troubleshooting) lists each message and what to do |
 | *Unknown user*, after signing in through single sign-on | The username the proxy sends is not a person in Pinax, or differs from theirs | Add them, with the exact name the header carries (with Entra ID, usually the user principal name) ([People and access](ADMINISTRATION.md#people-and-access)) |
 | *Sign in through the single sign-on proxy* | A request with the sign-on header that did not come from a trusted proxy | Make `PINAX_TRUSTED_PROXIES` the proxy's address; requests must not reach Pinax's port around the proxy |

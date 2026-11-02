@@ -13,6 +13,12 @@ Wave 13 ("reach"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
   sessions. Pinax refuses to start until its settings are complete. `scripts/dex/dex.sh` runs Dex as a stand-in
   to try it on a laptop ([Signing in with Entra ID](docs/ENTRA-ID.md)). New dependencies: Authlib (with joserfc
   and `cryptography`), httpx2, and itsdangerous.
+- **An emergency sign-in for when Entra ID fails.** With sign-in through Entra ID, a storage administrator marked as
+  an emergency account on the server (`pinax user emergency USERNAME`, which prints a new 32-character password)
+  signs in with a password at `/auth/emergency`, for an hour, with local sign-in's lockout. It is off unless such an
+  account exists, and never set in the app; every use is audited, logged as a warning, and caught by a new alert
+  rule (`PinaxEmergencySignIn`); *Access review* lists the accounts. Migration `0006` adds the mark
+  ([When Entra ID fails](docs/ENTRA-ID.md#when-entra-id-fails-the-emergency-sign-in)).
 
 ### Changed
 

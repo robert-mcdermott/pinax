@@ -598,6 +598,11 @@ the month shows at once; adding up the ranges overstates the range); storage no 
     `PINAX_OIDC_USERNAME_DOMAINS`, never made, and then gets a server-side session as with `local`; refusals are
     audited with why. Pinax refuses to start until its settings are complete. `scripts/dex/dex.sh` runs Dex as a
     stand-in for Entra ID.
+  - With `oidc`, the emergency sign-in (`/auth/emergency`, A12): a password form for storage administrators marked
+    `user.emergency` from the command line only (`pinax user emergency`, which makes a 32-character password), for
+    when the provider fails. It answers 404 unless one exists; `signin.sign_in(emergency=True)` keeps local
+    sign-in's lockout, gives an hour's session, audits `auth.emergency_signed_in` and `_failed`, and logs each as a
+    warning, which the alert rule `PinaxEmergencySignIn` watches through `pinax_audit_events_total`.
 - **API tokens** (`tokens.py`), with every way of signing in: `Authorization: Bearer pinax_…`, 256 random bits, of
   which the catalog keeps only the SHA-256 and the first characters. A personal token takes its person's access as
   it is at each request, or reads only (GET, and starting a search); a service token belongs to no one and reads as

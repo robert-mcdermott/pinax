@@ -103,3 +103,10 @@ groups:
         annotations:
           summary: "{{ $value }} failed sign-ins to Pinax in 15 minutes"
           description: "With local sign-in: the audit log (pinax.audit) names each account and address."
+
+      - alert: PinaxEmergencySignIn
+        expr: sum(increase(pinax_audit_events_total{action=~"auth.emergency_signed_in|auth.emergency_sign_in_failed"}[10m])) > 0
+        labels: {severity: critical}
+        annotations:
+          summary: "Someone used Pinax's emergency sign-in"
+          description: "An emergency account signed in, or tried to, with a password at /auth/emergency. Expected only while sign-in with Entra ID is failing: check the audit log (auth.emergency_*) for the account and address, and who holds its password."

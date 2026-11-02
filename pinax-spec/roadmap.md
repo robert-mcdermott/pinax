@@ -1491,8 +1491,8 @@ It needs no production storage, and comes before the pilot, which still waits fo
 | --- | --- | --- | --- |
 | 1 | Local sign-in the default outside the demo (A9) | With `PINAX_ENVIRONMENT` set to `dev` or `prod` and no `PINAX_AUTH_MODE`, Pinax signs people in with passwords it keeps; the demo environment keeps its persona switcher as it is; the server kit (`deploy/pinax.env`) and the deployment guide set up local sign-in first, with single sign-on as an option; the configuration and setup guides and the tests follow | Done |
 | 2 | Sign-in with Entra ID in Pinax itself (A6, in part) | A mode configured by settings and checked at start-up: any OpenID Connect provider by its discovery document, the authorization code flow with PKCE, the ID token checked against the provider's keys (issuer, audience, expiry, nonce); people matched by one claim, within the site's domains, and never made; a server-side session, as local sign-in makes; refused sign-ins audited with why; signing out ends the provider's session too; the whole flow tested against a stand-in provider (forged, expired, and replayed sign-ins, guests, unknown and deactivated people), and checked against Dex in Podman; the guide's request for IT, and a table of Entra ID's errors | Done |
-| 3 | The emergency administrator sign-in (A12) | As decided below, each part tested: off unless an emergency account exists; marked only from the command line; an address of its own; the password rules and lockout, a longer minimum password, and short sessions; every use audited, logged as a warning, and counted in the metrics; the accounts listed in the access review; the guide | Next |
-| 4 | Roles from Entra ID (A6, in part) | Optionally, Entra ID app roles (the token's `roles` claim) or groups mapped by settings onto the administrator role and the site roles, applied at each sign-in and audited; roles given in the app stay possible; a group overage said, not guessed; tested against the stand-in provider; app roles and groups checked in a real tenant when a test registration is available | To come |
+| 3 | The emergency administrator sign-in (A12) | As decided below, each part tested: off unless an emergency account exists; marked only from the command line; an address of its own; the password rules and lockout, a longer minimum password, and short sessions; every use audited, logged as a warning, and counted in the metrics; the accounts listed in the access review; the guide | Done |
+| 4 | Roles from Entra ID (A6, in part) | Optionally, Entra ID app roles (the token's `roles` claim) or groups mapped by settings onto the administrator role and the site roles, applied at each sign-in and audited; roles given in the app stay possible; a group overage said, not guessed; tested against the stand-in provider; app roles and groups checked in a real tenant when a test registration is available | Next |
 | 5 | CI and a container image (P6) | GitHub Actions run the linter and the suite on SQLite and PostgreSQL for every push and pull request; a container image (a `Containerfile`) runs the web app and automatic ingest with `/var/lib/pinax` as a volume, built and run with Podman, the demo included; the deployment guide's container section | To come |
 | 6 | Release 0.13.0 | The walk-through and the guides for each way of signing in; version 0.13.0, changelog with notes on upgrading from 0.12.0; pull request, tag, release | To come |
 
@@ -1611,6 +1611,28 @@ sign-in, and access policies, so it is kept small:
      guide *Signing in with Entra ID* (`docs/ENTRA-ID.md`): how it works, the request for IT, the settings, a trial
      with Dex, and Entra ID's errors; the deployment, configuration, architecture, development, CLI, and
      troubleshooting guides, the README, the examples of settings, and the website follow.
+3. **The emergency administrator sign-in (A12).**
+   - Migration `0006`: `user.emergency`. `pinax user emergency USERNAME` (with `oidc` only) marks an active storage
+     administrator and prints a new password of 32 characters (`signin.set_emergency`), once; `--off` ends it, with
+     its password; both audited (`person.emergency_set`, `_removed`) as made from the command line. The people page
+     cannot set it.
+   - `/auth/emergency` (`oidc.py`): 404 unless Pinax is in `oidc` mode and an active storage administrator is an
+     emergency account; a form in Pinax's look, its post refused from another site's page. `signin.sign_in(emergency
+     =True)` lets in only emergency accounts that are active administrators, keeps local sign-in's lockout and its
+     one message for every failure, gives an hour's session, audits `auth.emergency_signed_in` and
+     `auth.emergency_sign_in_failed` (with why), and logs each as a warning; `pinax_audit_events_total` counts them,
+     and the alert rule `PinaxEmergencySignIn` fires on any.
+   - *Access review* lists each emergency account under *Worth a look*, with its last emergency sign-in, and says
+     what to check; a person's page has an *Emergency account* card, and the people list a badge.
+   - Tests (`tests/test_emergency.py`, 8): off without an account and outside `oidc`; a sign-in short, audited,
+     logged, and counted; failures and the lockout; administrators not marked, no longer administrators, and
+     deactivated refused; a post from another site; the command line only (not with local sign-in, not for a
+     non-administrator, not from the people page), and ending it; the access review.
+   - *Done*: on the demo with Dex: the account marked from the command line, the form and a wrong password in the
+     browser, a sign-in with the password (by script, so it was never shown), both warnings in the log, the account
+     on *Access review* and the person's page. The guides: *When Entra ID fails* in *Signing in with Entra ID*, the
+     CLI, deployment (a task, the metric, the alert), architecture, troubleshooting, and administration guides, and
+     the README.
 
 ## Later waves (outlined)
 

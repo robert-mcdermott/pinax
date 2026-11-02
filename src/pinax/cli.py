@@ -94,6 +94,12 @@ def main() -> None:
     user_password = user_sub.add_parser("password", help="Local sign-in: print a new temporary password for a person, "
                                                           "which unlocks their account and ends their sessions")
     user_password.add_argument("username")
+    user_emergency = user_sub.add_parser(
+        "emergency", help="Sign-in through an identity provider: make a storage administrator an emergency account, "
+                          "which signs in with a password at /auth/emergency when the provider fails, and print its "
+                          "new password; or, with --off, no longer one")
+    user_emergency.add_argument("username")
+    user_emergency.add_argument("--off", action="store_true", help="No longer an emergency account; its password goes")
     user_sub.add_parser("list", help="List people, their role, and whether they can sign in")
 
     db = sub.add_parser("db", help="The catalog's database: whether it is up to date, and upgrading it")
@@ -510,8 +516,8 @@ def _check(args: argparse.Namespace) -> int:
 
 
 def _user(args) -> None:
-    """`pinax user add | password | list`: changes are audited as made from the command line, by the operating-system
-    user who ran them."""
+    """`pinax user add | password | emergency | list`: changes are audited as made from the command line, by the
+    operating-system user who ran them."""
     from sqlalchemy import select
 
     from . import people, signin
@@ -527,7 +533,8 @@ def _user(args) -> None:
                 state = "active" if u.active else "inactive"
                 if local:
                     state += ", no password" if not u.password_hash else ", must change password" if u.must_change_password else ""
-                print(f"{u.username:24} {u.display_name:28} {'administrator' if u.is_admin else '':14} {state}")
+                role = ("administrator, emergency" if u.emergency else "administrator") if u.is_admin else ""
+                print(f"{u.username:24} {u.display_name:28} {role:25} {state}")
             return
         if args.user_command == "add":
             try:
@@ -543,6 +550,24 @@ def _user(args) -> None:
             if user is None:
                 print(f"error: no person {args.username!r}", file=sys.stderr)
                 sys.exit(1)
+        if args.user_command == "emergency":
+            if not args.off and get_settings().auth_mode != "oidc":
+                print("error: emergency accounts are for sign-in through an identity provider (PINAX_AUTH_MODE=oidc); "
+                      "with local sign-in, `pinax user password` gives a temporary password", file=sys.stderr)
+                sys.exit(1)
+            try:
+                password = signin.set_emergency(session, user, not args.off)
+            except signin.SignInError as e:
+                print(f"error: {e}", file=sys.stderr)
+                sys.exit(1)
+            if password is None:
+                print(f"{user.display_name} ({user.username}) is no longer an emergency account; its password is gone.")
+                return
+            print(f"{user.display_name} ({user.username}) is an emergency account. Its password, shown only now:")
+            print(password)
+            print("Keep it in your organization's password vault. It signs in at <PINAX_PUBLIC_URL>/auth/emergency, "
+                  "for an hour at a time, and every use is audited and logged as a warning.")
+            return
         if not local:
             mode = get_settings().auth_mode
             print("Pinax keeps no passwords here: "

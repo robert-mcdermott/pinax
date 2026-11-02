@@ -88,6 +88,41 @@ Then restart `pinax-web`. Behind nginx or another HTTPS proxy, as for local sign
 - `PINAX_SESSION_SECRET` signs only the sign-in's own state. Change it if it may have leaked: sign-ins under way
   must start again, and nobody is signed out.
 
+## When Entra ID fails: the emergency sign-in
+
+If Entra ID, or Pinax's setup for it, stops working (an expired client secret, a wrong setting, an outage, someone
+removed from the group that is assigned), nobody can sign in. Someone with a shell on the server can always fix the
+settings, or switch to local sign-in for a while (`PINAX_AUTH_MODE=local` and a restart, then `pinax user
+password`). The **emergency sign-in** is for an administrator who needs Pinax itself meanwhile: a password form at
+`https://<pinax host>/auth/emergency`, for **emergency accounts** only, as Microsoft advises emergency access
+accounts for Entra ID itself.
+
+It is a way into Pinax with a password alone, past the organization's sign-in and its multi-factor step, so it is
+kept small:
+- **Off unless an emergency account exists.** Without one, `/auth/emergency` answers *Not Found*, and no one signs in
+  with a password at all. A site whose policy forbids it simply makes none.
+- **Only storage administrators marked as emergency accounts**, marked only on the server, never in the app, so an
+  administrator's Entra ID account, if taken over, cannot make one:
+
+  ```bash
+  pinax user emergency emergency-1
+  ```
+
+  It prints a new password of 32 characters, once. The account must be an active storage administrator; making it
+  one again replaces its password, and `pinax user emergency emergency-1 --off` ends it, with its password.
+- **Short and locked like local sign-in:** an hour's session, and the same lockout after five failures in a row.
+- **Loud:** every emergency sign-in and failure is in the audit log (`auth.emergency_signed_in`,
+  `auth.emergency_sign_in_failed`), logged as a warning, and counted in `/metrics`; the alert rule
+  `PinaxEmergencySignIn` (`deploy/prometheus/pinax-alerts.yml`) fires on any. *Access review* lists each emergency
+  account under *Worth a look*, with when it was last used, and a person's page says they are one.
+- Behind oauth2-proxy (header mode) there is no emergency sign-in: every request passes the proxy, and the way back
+  is on the server.
+
+Advice: make **two** accounts for the purpose (such as `emergency-1` and `emergency-2`), not anyone's own, as
+storage administrators with no lab, so their use is plainly an emergency. Keep their passwords in the
+organization's password vault, with who may open them. Sign in with each now and then to check it still works,
+which the audit log records, and say so in the access review's note.
+
 ## Trying it before Entra ID is ready
 
 [`scripts/dex/dex.sh`](../scripts/dex/dex.sh) starts Dex, an OpenID Connect provider, in Podman, standing in for
@@ -119,3 +154,5 @@ test accounts have no user principal name.
 | *Pinax could not confirm the sign-in (CSRF Warning! State not equal in request and response.)* | The browser's address differs from `PINAX_PUBLIC_URL`, so the sign-in's cookie was not kept, or the sign-in took more than ten minutes | Correct `PINAX_PUBLIC_URL` and restart; or try again |
 | *Pinax could not reach the sign-in service* | No outbound HTTPS to `login.microsoftonline.com` | Open the network path from Pinax's server |
 | Pinax does not start: *… needs its settings: PINAX_… is not set* | A setting is missing or too short | Set it, as above |
+| Nobody can sign in, because Entra ID is failing | The provider, or Pinax's settings for it | An emergency account signs in at `/auth/emergency`; or, on the server, fix the settings, or switch to local sign-in for a while ([When Entra ID fails](#when-entra-id-fails-the-emergency-sign-in)) |
+| `/auth/emergency` answers *Not Found* | No active storage administrator is an emergency account, or Pinax is not in `oidc` mode | `pinax user emergency USERNAME` on the server |

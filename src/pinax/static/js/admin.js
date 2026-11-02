@@ -287,6 +287,7 @@ const ROLE_BADGE = { auditor: "Auditor", finance: "Finance" };
 const roleBadge = (r) => (r.role === "division" ? `Head of ${r.division}` : ROLE_BADGE[r.role] || r.role);
 const accessBadges = (p) => html`<div class="tags">
   ${p.is_admin ? html`<span class="badge badge-archived">${icon("shield")}Storage administrator</span>` : ""}
+  ${p.emergency ? html`<span class="badge badge-requested" title="Signs in with a password at /auth/emergency when sign-in with the organization's account fails; marked from the server's command line">${icon("alert")}Emergency account</span>` : ""}
   ${p.roles.map((r) => html`<span class="badge badge-archived">${icon(r.role === "finance" ? "receipt" : r.role === "auditor" ? "eye" : "users")}${roleBadge(r)}</span>`)}
   ${p.labs.map((l) => html`<span class="badge badge-inside">${l.name} · ${l.role === "pi" ? (l.kind === "department" ? "Owner" : "PI") : "Delegate"}</span>`)}
   ${!p.is_admin && !p.labs.length && !p.roles.length ? html`<span class="small muted">No access</span>` : ""}</div>`;
@@ -450,6 +451,11 @@ export async function viewPerson(el, username) {
             ${person.history.length ? html`<div class="row between" style="margin-top:14px"><h3>Recent changes</h3><a class="small" href="#/audit?person=${encodeURIComponent(person.username)}">All</a></div><ul class="feed">${person.history.map((h) => html`<li style="padding:6px 0"><span><span class="small">${h.summary}</span><br>
               <span class="tiny muted">${date(h.ts, true)}${h.by ? ` · ${h.by}` : ""}${h.token ? ` · with the token “${h.token}”` : ""}</span></span></li>`)}</ul>` : ""}</div>` : ""}
           ${person ? personTokens(person) : ""}
+          ${person && person.emergency ? html`<div class="card"><h3>Emergency account</h3>
+            <p class="small" style="margin-top:8px">${icon("alert")} Signs in with a password at <span class="mono">/auth/emergency</span>
+              when sign-in with the organization's account fails, for an hour at a time; every use is audited and reported.</p>
+            <p class="small muted">Marked from the server's command line, and ended there:</p>
+            <div class="mono small" style="white-space:nowrap;overflow-x:auto">pinax user emergency ${person.username} --off</div></div>` : ""}
           ${person && state.config.auth_mode === "local" && state.me.is_admin ? html`<div class="card"><h3>Password</h3>
             <p class="small" style="margin-top:8px">${passwordState(person)}</p>
             ${person.active ? html`<button class="btn btn-secondary btn-sm" id="set-password">${icon("lock")}${person.has_password ? "Set a new temporary password" : "Set a temporary password"}</button>` : ""}</div>` : ""}

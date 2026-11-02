@@ -8,10 +8,14 @@ browser. The person is then matched to Pinax's people by one claim, never made, 
 local sign-in gives (signin.py), so signing out and deactivation work the same. Only the sign-in's own state (its
 `state`, nonce, and PKCE verifier) is kept in a signed cookie, for the minutes a sign-in takes. /auth/logout ends
 Pinax's session and the provider's. Following Tundra's.
+
+/auth/emergency (A12) is a password form for emergency accounts, storage administrators marked from the command line
+(`pinax user emergency`), for when the provider fails. It answers 404 unless one exists; the sign-in itself is
+signin.sign_in(emergency=True).
 """
 
 import html
-from urllib.parse import urlencode
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 import httpx2
 from authlib.integrations.starlette_client import OAuth, OAuthError, StarletteOAuth2App
@@ -20,6 +24,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from joserfc.errors import JoseError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 from starlette.middleware.sessions import SessionMiddleware
 
 from . import logs, signin
@@ -213,11 +218,59 @@ def signed_out(settings: Settings = Depends(_oidc_settings)):
     return _page("You have signed out", "You have signed out of Pinax.", [("/auth/login", "Sign in again")])
 
 
+def _emergency_accounts(session: Session) -> int:
+    return session.scalar(select(func.count()).select_from(User).where(User.emergency, User.is_admin, User.active))
+
+
+@router.get("/emergency")
+def emergency_page(settings: Settings = Depends(_oidc_settings), session: Session = Depends(get_session)):
+    if not _emergency_accounts(session):
+        raise HTTPException(404)
+    return _emergency_form()
+
+
+@router.post("/emergency")
+async def emergency_sign_in(request: Request, settings: Settings = Depends(_oidc_settings),
+                            session: Session = Depends(get_session)):
+    if not _emergency_accounts(session):
+        raise HTTPException(404)
+    origin = request.headers.get("origin")
+    if origin and urlsplit(origin).netloc != request.headers.get("host"):
+        return _emergency_form("Refused: the request did not come from this page.", status=403)
+    body = await request.body()
+    if len(body) > 4096:
+        raise HTTPException(413)
+    form = {k: v[0] for k, v in parse_qs(body.decode(errors="replace")).items()}
+    try:  # scrypt takes a moment: off the event loop
+        _, token = await run_in_threadpool(signin.sign_in, session, form.get("username", ""), form.get("password", ""),
+                                           _address(request), emergency=True)
+    except signin.SignInError as e:
+        return _emergency_form(str(e), status=e.status)
+    response = RedirectResponse("/app/", status_code=303)
+    response.set_cookie(signin.COOKIE, token, httponly=True, samesite="lax", secure=settings.secure_cookies,
+                        max_age=signin.EMERGENCY_SESSION_HOURS * 3600, path="/")
+    return response
+
+
+def _emergency_form(problem: str = "", status: int = 200) -> HTMLResponse:
+    form = f"""{f'<div class="alert alert-reject" role="alert">{html.escape(problem)}</div>' if problem else ""}
+<form method="post" action="/auth/emergency" style="margin-top:12px">
+<div class="field"><label for="username">Username</label>
+<input class="input" id="username" name="username" autocomplete="username" required></div>
+<div class="field"><label for="password">Password</label>
+<input class="input" id="password" name="password" type="password" autocomplete="current-password" required></div>
+<p><button class="btn btn-primary" type="submit">Sign in</button></p></form>"""
+    return _page("Emergency sign-in", "For a storage administrator's emergency account, when signing in with your "
+                 "organization's account is not working. Each sign-in lasts an hour, and every use is recorded and "
+                 "reported to the site's monitoring.", [], status=status, extra=form)
+
+
 TRY_AGAIN = [("/auth/login", "Try again")]
 
 
-def _page(title: str, message: str, actions: list[tuple[str, str]], status: int = 200) -> HTMLResponse:
-    """A sign-in page in Pinax's look: the top bar, a message, and what to do next."""
+def _page(title: str, message: str, actions: list[tuple[str, str]], status: int = 200,
+          extra: str = "") -> HTMLResponse:
+    """A sign-in page in Pinax's look: the top bar, a message, and what to do next (`extra`: markup Pinax wrote)."""
     buttons = " ".join(f'<a class="btn {"btn-primary" if i == 0 else "btn-secondary"}" href="{href}">'
                        f'{html.escape(label)}</a>' for i, (href, label) in enumerate(actions))
     body = f"""<!doctype html>
@@ -229,6 +282,6 @@ def _page(title: str, message: str, actions: list[tuple[str, str]], status: int 
 <header class="topbar"><a class="brand" href="/" aria-label="Pinax home"><img class="brand-mark" src="/img/pinax-mark.svg" alt="">
 <span class="signpost"><span class="signpost-name">Pinax</span><span class="signpost-sub">Explore your data</span></span></a></header>
 <main style="max-width:640px;margin:48px auto;padding:0 16px"><div class="card">
-<h1 style="margin-top:0">{html.escape(title)}</h1><p>{html.escape(message)}</p><p>{buttons}</p>
+<h1 style="margin-top:0">{html.escape(title)}</h1><p>{html.escape(message)}</p>{extra}{f"<p>{buttons}</p>" if buttons else ""}
 </div></main></body></html>"""
     return HTMLResponse(body, status_code=status)

@@ -585,12 +585,12 @@ From the web app itself, since it started (with `rate()` for rates):
 | `pinax_queries_stopped_total{reason}` | Requests stopped: `timeout`, `busy` (no whole-filesystem turn in time), or `gone` (the browser left) |
 | `pinax_wide_queries{state}` | Whole-filesystem file queries running, and waiting for a turn |
 | `pinax_search_jobs_finished_total{status}` | Searches in the background finished: done, failed, or stopped |
-| `pinax_audit_events_total{action}` | Audit events, by action: `auth.signed_in`, `auth.sign_in_failed`, and `auth.locked` are sign-ins |
+| `pinax_audit_events_total{action}` | Audit events, by action: `auth.signed_in`, `auth.sign_in_failed`, and `auth.locked` are sign-ins; `auth.emergency_signed_in` and `auth.emergency_sign_in_failed` the emergency sign-in |
 
 and, on Linux, the process's own memory, CPU, and open files (`process_*`). `deploy/prometheus/pinax-alerts.yml` has alert rules
 to start from: Pinax or its catalog down, a scan not ingested, a filesystem with no new scan for eight days,
 automatic ingest stopped, a filesystem filling within 90 days or 90% full, Pinax's own disk 90% full, slow pages,
-server errors, searches turned away for want of a turn, and many failed sign-ins.
+server errors, searches turned away for want of a turn, many failed sign-ins, and any use of the emergency sign-in.
 
 ### Tasks
 
@@ -609,6 +609,7 @@ server errors, searches turned away for want of a turn, and many failed sign-ins
 | Read the audit log | *Audit log*, for administrators and auditors: found by person, change, lab, folder, and day, with CSV ([The audit log](ADMINISTRATION.md#the-audit-log)); each person's and lab's page shows its recent changes, and *All data* the latest under *Recent activity*; every event is in the log too (`pinax.audit`, and `PINAX_AUDIT_LOG` if set), and the whole log is the catalog's `audit_event` table (below) |
 | Review who has access to what | *Access review*: what is worth a look, every role and membership with when it was given, a CSV, and *Record a review* ([Access review](ADMINISTRATION.md#access-review)) |
 | Someone leaves | *Deactivate* them on their page: they cannot sign in, their sessions end, and their API tokens are revoked; a service token is no one's, so revoke it under *API tokens* when its service ends |
+| Entra ID is failing, and nobody can sign in | An emergency account signs in at `/auth/emergency`; or fix the settings on the server, or switch to local sign-in for a while ([When Entra ID fails](ENTRA-ID.md#when-entra-id-fails-the-emergency-sign-in)) |
 | A script stops working | Its token expired, was revoked, or its person was deactivated: [Troubleshooting](TROUBLESHOOTING.md#api-tokens-and-scripts) |
 | A lab asks why a past month's charge changed | See [Charges and statements](#charges-and-statements) |
 | Someone cannot see their lab's data | Check *People and access* (membership) and *Folders and labs* (the folder is mapped to their lab) |
