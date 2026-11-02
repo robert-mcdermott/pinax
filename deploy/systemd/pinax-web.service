@@ -1,4 +1,4 @@
-# The Pinax web app, behind oauth2-proxy on the same host (docs/DEPLOYMENT.md).
+# The Pinax web app, behind an HTTPS proxy (or oauth2-proxy, for single sign-on) on the same host (docs/DEPLOYMENT.md).
 [Unit]
 Description=Pinax web app
 Documentation=https://github.com/robert-mcdermott/pinax/blob/main/docs/DEPLOYMENT.md
@@ -11,7 +11,7 @@ User=pinax
 Group=pinax
 WorkingDirectory=/opt/pinax
 EnvironmentFile=/etc/pinax/pinax.env
-# Listen on this host only: the sign-on header is trusted from oauth2-proxy, not the network.
+# Listen on this host only, behind the proxy; with single sign-on, the username header is trusted from it, not the network.
 ExecStart=/opt/pinax/.venv/bin/pinax serve --host 127.0.0.1 --port 8001
 Restart=on-failure
 RestartSec=5

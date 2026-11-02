@@ -38,11 +38,11 @@ The demo's catalog is SQLite in `var/`, with nothing else to run. It runs the sa
 installed (`uv sync --extra postgres`) and `PINAX_DATABASE_URL` pointing at an empty database, `pinax seed` fills it
 and `pinax serve` uses it ([PostgreSQL](DEPLOYMENT.md#postgresql)).
 
-Sign-in in the demo is a persona switcher (`PINAX_AUTH_MODE=demo`, the default): anyone can be anyone, and
-*Switch identity* (top right) changes who you are. That is fine on a laptop and wrong anywhere else, so Pinax
+Sign-in in the demo is a persona switcher (`PINAX_AUTH_MODE=demo`, the default in the demo): anyone can be anyone,
+and *Switch identity* (top right) changes who you are. That is fine on a laptop and wrong anywhere else, so Pinax
 refuses to start in demo mode when `PINAX_ENVIRONMENT=prod`. And since seeding deletes the catalog, `pinax seed`
-runs only when `PINAX_ENVIRONMENT=demo` (the default), never on a catalog set up for real data. To try Pinax on
-real data instead, see [SETUP.md](SETUP.md).
+runs only when `PINAX_ENVIRONMENT=demo` (the default), never on a catalog set up for real data. To try Pinax on real
+data instead, see [SETUP.md](SETUP.md).
 
 ## Who is who
 

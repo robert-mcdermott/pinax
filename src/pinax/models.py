@@ -183,6 +183,9 @@ class User(Base):
     failed_logins: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     locked_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # With sign-in through an identity provider, a storage administrator marked from the command line may sign in
+    # with a password at /auth/emergency when the provider fails (A12; signin.sign_in, oidc.py).
+    emergency: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
 
     memberships: Mapped[list["LabMembership"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     roles: Mapped[list["UserRole"]] = relationship(back_populates="user", cascade="all, delete-orphan")

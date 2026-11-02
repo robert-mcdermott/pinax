@@ -63,10 +63,12 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
   change, lab, folder, and day, for administrators and auditors, with CSV.
 - **Access review**: who has access to what, with when each was given and what is worth a look, as a page and a
   CSV, and a recorded sign-off, for periodic recertification.
-- **Sign-in three ways**: the demo's persona switcher, to show Pinax with the seeded people (no setup; refused in
-  production); usernames and passwords Pinax keeps, for sites without single sign-on; or single sign-on, such as
-  Entra ID behind oauth2-proxy. People, labs, and access are managed the same way in all three. Sign-in with
-  Entra ID in Pinax itself, with no proxy, is planned (wave 14 in the roadmap).
+- **Sign-in your way**: usernames and passwords Pinax keeps, the default, with nothing else to set up; or, for a
+  site that has it, single sign-on with Microsoft Entra ID (or another OpenID Connect provider) in Pinax itself,
+  with roles given in Pinax or from Entra ID app roles, or
+  behind oauth2-proxy, with an emergency sign-in for when Entra ID fails; and, in the demo, a persona switcher to
+  show Pinax with the seeded people (refused in production). People, labs, roles, and access are managed the same
+  way in all of them.
 - **Built for scale**: each scan is indexed once into directory-level totals, so a treemap of a petabyte
   draws in tens of milliseconds: at 100 million files, every directory-level query takes 50 ms or less, and the
   index builds in two minutes. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and measured
@@ -100,7 +102,7 @@ The guides are in [docs/](docs/README.md), and make a website with screenshots o
 | [docs/CLI.md](docs/CLI.md) | Every `pinax` command and option |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | What a problem looks like, why, and what to do |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Design; what Pinax keeps (catalog, indexes, scans) and what to back up; the snapshot index, how it is built and queried, security, measured performance and sizing |
-| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Code layout, conventions, the HTTP API, the interface, themes and chart colors, tests, benchmarks |
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Code layout, conventions, the HTTP API, the interface, themes and chart colors, tests and CI, benchmarks |
 | [pinax-spec/roadmap.md](pinax-spec/roadmap.md) | The plan: waves (one release each) and their slices, what is done, what is next, decisions |
 | [pinax-spec/requirements.md](pinax-spec/requirements.md) | What Pinax must do, with stable IDs and each requirement's status |
 | [CHANGELOG.md](CHANGELOG.md) | What each release contains |
@@ -141,11 +143,11 @@ sign-in when `PINAX_ENVIRONMENT=prod`.
 
 ## Use your own data
 
-To try Pinax on a real filesystem from this checkout, keep its data apart from the demo's and sign in with
-passwords Pinax keeps:
+To try Pinax on a real filesystem from this checkout, keep its data apart from the demo's; outside the demo,
+people sign in with passwords Pinax keeps:
 
 ```bash
-printf 'PINAX_ENVIRONMENT=dev\nPINAX_AUTH_MODE=local\nPINAX_VAR_ROOT=data/var\nPINAX_SCAN_ROOT=data/scans\n' > .env
+printf 'PINAX_ENVIRONMENT=dev\nPINAX_VAR_ROOT=data/var\nPINAX_SCAN_ROOT=data/scans\n' > .env
 ```
 
 Add yourself as the first administrator (it prints a temporary password), register the filesystem by its root,
@@ -190,7 +192,7 @@ scheduled scans, and single sign-on, follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT
 | `uv run pinax ingest --watch [FOLDER] [--interval N] [--once] [--no-verify]` | Ingest each new verified scan under a folder (default `PINAX_SCAN_ROOT`) once |
 | `uv run pinax snapshots` | List snapshots |
 | `uv run pinax rebuild SNAPSHOT_ID... \| --outdated` | Build ready snapshots' indexes again from their scans, after an upgrade or a lost index |
-| `uv run pinax user add USERNAME --name NAME --email EMAIL [--admin]` | Add a person, for example the first administrator; with `PINAX_AUTH_MODE=local`, prints a temporary password (`pinax user password USERNAME` makes a new one, `pinax user list` lists people) |
+| `uv run pinax user add USERNAME --name NAME --email EMAIL [--admin]` | Add a person, for example the first administrator; with local sign-in (the default outside the demo), prints a temporary password (`pinax user password USERNAME` makes a new one, `pinax user list` lists people) |
 | `uv run pinax import FOLDER [--apply]` | Import labs, people, memberships, and folder ownership from CSV; a dry run unless `--apply` ([docs/IMPORT.md](docs/IMPORT.md)) |
 | `uv run pinax check SNAPSHOT_ID \| SCAN_DIR [--index DIR] [--age-depth N] [--json]` | Check an index, and its changes since the previous scan, against `fs-inventory rollup`, directory by directory |
 | `uv run pinax tags import FILE [--apply]` | Tag folders from CSV; a dry run unless `--apply` |
@@ -220,6 +222,7 @@ src/pinax/
 bench/                             synthetic scans of any size, index and charges benchmarks
 scripts/install-fs-inventory.sh    installs the pinned fs-inventory release into bin/
 tests/                             pytest suite
+.github/workflows/ci.yml           CI: the linter and the suite on SQLite and PostgreSQL, for every push
 docs/                              demo, setup, architecture, configuration, deployment, import, development
 pinax-spec/                        requirements and roadmap
 bin/  var/  scans/  demo/  data/  fs-inventory binary and runtime data (gitignored)

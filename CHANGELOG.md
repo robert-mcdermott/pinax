@@ -1,5 +1,68 @@
 # Changelog
 
+## 0.13.0 (2026-11-01)
+
+Thirteenth release (wave 13, "reach"): sign-in for any site. Out of the box, outside the demo, people sign in with
+passwords Pinax keeps, with nothing else to set up. Optionally, Pinax signs people in with Microsoft Entra ID itself,
+with Pinax's roles from Entra ID's app roles if the site wants, and an emergency sign-in for when Entra ID fails. CI
+checks every push on SQLite and on PostgreSQL. The demo is unchanged. See
+[pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+
+Upgrading from 0.12.0: back the catalog up ([Backups](docs/DEPLOYMENT.md#backups)), install the new version, and
+restart Pinax ([Upgrading](docs/DEPLOYMENT.md#upgrading)).
+- **The catalog has one migration**, `0006` (the emergency account mark), which Pinax applies when it starts; with
+  `PINAX_DB_AUTO_UPGRADE=false` it refuses to start until `pinax db upgrade` has applied it. The snapshot indexes
+  are unchanged, so nothing needs rebuilding.
+- **New dependencies** (Authlib, httpx2, and itsdangerous) come with `uv sync --frozen --no-dev`, as in the upgrade
+  steps.
+- **A site that sets `PINAX_AUTH_MODE` signs in as before.** One that leaves it out with `PINAX_ENVIRONMENT=dev` had
+  the demo's persona switcher, and now asks for passwords: make the first administrator with `pinax user add
+  USERNAME --admin`, or set `PINAX_AUTH_MODE=demo` to keep the switcher. Production always had to set it.
+- **With Prometheus**, copy `deploy/prometheus/pinax-alerts.yml` again for the new rule `PinaxEmergencySignIn`.
+- Sign-in with Entra ID, its roles, and emergency accounts are off until a site sets them up
+  ([Signing in with Entra ID](docs/ENTRA-ID.md)).
+
+### Added
+
+- **Sign-in with Entra ID in Pinax itself**, optional: `PINAX_AUTH_MODE=oidc` signs people in with Microsoft Entra
+  ID, or another OpenID Connect provider, behind the same HTTPS proxy as local sign-in, with no sign-on proxy. The
+  ID token is checked against the provider's keys, with PKCE; people are matched to Pinax's people by their user
+  principal name, within the site's domains, never made; refusals are explained and audited; signing out ends both
+  sessions. Pinax refuses to start until its settings are complete. `scripts/dex/dex.sh` runs Dex as a stand-in
+  to try it on a laptop ([Signing in with Entra ID](docs/ENTRA-ID.md)). New dependencies: Authlib (with joserfc
+  and `cryptography`), httpx2, and itsdangerous.
+- **Roles from Entra ID**, optional: with sign-in through Entra ID, `PINAX_OIDC_ROLE_MAP` maps Entra ID app roles
+  (or groups, `PINAX_OIDC_ROLES_CLAIM=groups`) onto storage administrator, auditor, finance, and division head. Each
+  role it names is then set at every sign-in, audited as the provider's change, and shown as *From Entra ID* rather
+  than changed in the app; roles it does not name are still given in Pinax, and local sign-in ignores the map. With
+  too many groups to list, mapped roles are taken away rather than guessed
+  ([Roles from Entra ID](docs/ENTRA-ID.md#roles-from-entra-id)).
+- **An emergency sign-in for when Entra ID fails.** With sign-in through Entra ID, a storage administrator marked as
+  an emergency account on the server (`pinax user emergency USERNAME`, which prints a new 32-character password)
+  signs in with a password at `/auth/emergency`, for an hour, with local sign-in's lockout. It is off unless such an
+  account exists, and never set in the app; every use is audited, logged as a warning, and caught by a new alert
+  rule (`PinaxEmergencySignIn`); *Access review* lists the accounts. Migration `0006` adds the mark
+  ([When Entra ID fails](docs/ENTRA-ID.md#when-entra-id-fails-the-emergency-sign-in)).
+- **Continuous integration.** GitHub Actions run the linter and the whole suite, on SQLite and on PostgreSQL, with
+  fs-inventory installed, for every push ([Continuous integration](docs/DEVELOPMENT.md#continuous-integration)).
+
+### Changed
+
+- **Local sign-in is the default outside the demo.** With no `PINAX_AUTH_MODE`, a `dev` or `prod` install signs
+  people in with passwords Pinax keeps, with nothing else to set up; the demo environment keeps its persona
+  switcher. The server kit's `deploy/pinax.env` now sets `PINAX_AUTH_MODE=local`, with oauth2-proxy's settings
+  there to uncomment, and the deployment guide sets up passwords first and single sign-on as an option
+  ([Signing in](docs/DEPLOYMENT.md#6-signing-in)). A site that set `PINAX_AUTH_MODE` keeps it; a `dev` install
+  that left it out, and so had the persona switcher, now asks for passwords: `pinax user add --admin` makes the
+  first administrator.
+- **The roadmap.** Reach comes next, as wave 13 (0.13.0): local sign-in the default out of the box outside the
+  demo, in the code and in the server kit; sign-in with Entra ID in Pinax itself, optional and configured by
+  settings, with roles from its app roles or groups; an emergency administrator sign-in for when Entra ID or its
+  setup fails (A12); and CI. The pilot becomes wave 14, and takes lab membership from the directory (A6).
+  Two-factor codes and per-address limits for local sign-in, and a container image, move to the parking lot (a
+  container could not scan: fs-inventory names owners from the scanning host's accounts), and the security review
+  is taken off the roadmap.
+
 ## 0.12.0 (2026-11-01)
 
 Twelfth release (wave 12, "access"): who may see and do what beyond labs' members and storage administrators,
@@ -15,7 +78,7 @@ restart Pinax ([Upgrading](docs/DEPLOYMENT.md#upgrading)).
   `PINAX_DB_AUTO_UPGRADE=false` it refuses to start until `pinax db upgrade` has applied them. The snapshot indexes
   are unchanged, so nothing needs rebuilding.
 - **Behind oauth2-proxy**, add `"^/script/api/"` to `skip_auth_routes` in its configuration and restart it, so
-  scripts with API tokens get through ([Sign-on with oauth2-proxy](docs/DEPLOYMENT.md#6-sign-on-with-oauth2-proxy)).
+  scripts with API tokens get through ([Single sign-on with oauth2-proxy](docs/DEPLOYMENT.md#single-sign-on-with-oauth2-proxy)).
   Without it, the proxy stops scripts, and nothing else changes.
 - **One new setting**, `PINAX_TOKEN_MAX_DAYS` (365 by default), the longest an API token may last. No new
   dependency.

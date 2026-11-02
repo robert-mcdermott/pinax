@@ -6,7 +6,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -79,11 +79,13 @@ class Settings(BaseSettings):
     # (`Authorization: Bearer ...`); unset, /metrics is off.
     metrics_token: SecretStr | None = None
 
-    # Identity. "demo" uses a persona cookie: anyone picks anyone, for showing Pinax with the seeded people (refused
-    # when ENVIRONMENT=prod). "local": people sign in with a password Pinax keeps, for sites without single sign-on.
-    # "header" trusts a username header (X-Remote-User by default) set by a single sign-on proxy, and only on
-    # requests from TRUSTED_PROXIES (addresses or networks; a JSON list).
-    auth_mode: Literal["demo", "local", "header"] = "demo"
+    # Identity. "local": people sign in with a password Pinax keeps, the default outside the demo, with nothing else
+    # to set up. "demo" uses a persona cookie: anyone picks anyone, for showing Pinax with the seeded people, the
+    # default in the demo environment (refused when ENVIRONMENT=prod). "header" trusts a username header
+    # (X-Remote-User by default) set by a single sign-on proxy, and only on requests from TRUSTED_PROXIES (addresses
+    # or networks; a JSON list). "oidc": Pinax signs people in with Microsoft Entra ID, or another OpenID Connect
+    # provider, itself (oidc.py).
+    auth_mode: Literal["demo", "local", "header", "oidc"] | None = None
     auth_header: str = "X-Remote-User"
     trusted_proxies: list[str] = ["127.0.0.1", "::1"]
     # Local sign-in. A session lasts this long from signing in. This many failed sign-ins in a row lock the account
@@ -96,6 +98,43 @@ class Settings(BaseSettings):
     cookie_secure: bool | None = None
     # API tokens (tokens.py) expire after at most this many days.
     token_max_days: int = 365
+    # Sign-in with an identity provider (oidc). OIDC_ISSUER for Entra ID: https://login.microsoftonline.com/<tenant
+    # ID>/v2.0. The username is OIDC_USERNAME_CLAIM (Entra ID's user principal name by default); with
+    # OIDC_USERNAME_DOMAINS (comma-separated), only those domains, and `jdoe@example.org` may be `jdoe` in Pinax.
+    # PUBLIC_URL is how people reach Pinax; SESSION_SECRET signs the sign-in's state (at least 32 characters).
+    oidc_issuer: str = ""
+    oidc_client_id: str = ""
+    oidc_client_secret: SecretStr | None = None
+    oidc_username_claim: str = "preferred_username"
+    oidc_username_domains: str = ""
+    public_url: str = ""
+    session_secret: SecretStr | None = None
+    # Roles from the identity provider (oidc), optional. OIDC_ROLE_MAP, as JSON, maps Pinax's roles ("admin",
+    # "auditor", "finance", and "division:<Division>") to the values of OIDC_ROLES_CLAIM ("roles": Entra ID's app
+    # roles; or "groups": group IDs) that give them. A role it names is set at every sign-in, and only there.
+    oidc_roles_claim: Literal["roles", "groups"] = "roles"
+    oidc_role_map: dict[str, list[str] | str] = {}
+
+    @model_validator(mode="after")
+    def _default_sign_in(self) -> "Settings":
+        if self.auth_mode is None:
+            self.auth_mode = "demo" if self.environment == "demo" else "local"
+        return self
+
+    @property
+    def mapped_roles(self) -> dict[tuple[str, str], set[str]]:
+        """(role, division), "admin" among them, to the claim values that give it; only with sign-in by a provider."""
+        if self.auth_mode != "oidc":
+            return {}
+        out: dict[tuple[str, str], set[str]] = {}
+        for key, values in self.oidc_role_map.items():
+            role, _, division = key.partition(":")
+            out[(role.strip(), division.strip())] = {values} if isinstance(values, str) else set(values)
+        return out
+
+    @property
+    def oidc_domains(self) -> list[str]:
+        return [d.strip().lower().lstrip("@") for d in self.oidc_username_domains.split(",") if d.strip()]
 
     @property
     def secure_cookies(self) -> bool:
@@ -133,7 +172,12 @@ def unsafe(settings: Settings) -> str | None:
     """Why these settings must not run, or None."""
     if settings.environment == "prod" and settings.auth_mode == "demo":
         return ("PINAX_AUTH_MODE=demo lets anyone sign in as anyone, so it is refused when PINAX_ENVIRONMENT=prod. "
-                "Use local (passwords Pinax keeps) or header (single sign-on), or a demo or dev environment.")
+                "Use local (passwords Pinax keeps), oidc (Entra ID), or header (a single sign-on proxy), or a demo or "
+                "dev environment.")
+    from .oidc import problems
+
+    if found := problems(settings):
+        return "Sign-in with an identity provider (PINAX_AUTH_MODE=oidc) needs its settings: " + "; ".join(found) + "."
     token = settings.metrics_token.get_secret_value() if settings.metrics_token else ""
     if token and len(token) < METRICS_TOKEN_LENGTH:
         return (f"PINAX_METRICS_TOKEN must be at least {METRICS_TOKEN_LENGTH} characters, since it is all that guards "

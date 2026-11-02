@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Pinax app shell: sign-in, sidebar, routes, and the home pages.
 import {
-  $, ageText, api, bytes, date, emptyState, html, icon, loadIdentity, mount, num, pct, placeHash, renderTopbar,
-  setActiveNav, showPasswordChange, showPersonaPicker, showSignIn, startRouter, state,
+  $, ageText, api, bytes, date, emptyState, html, icon, isOidc, loadIdentity, mount, num, pct, placeHash,
+  renderTopbar, setActiveNav, showPasswordChange, showPersonaPicker, showSignIn, signInHref, startRouter, state,
 } from "/js/core.js";
 import { folderCard, renderSidebar } from "/js/shell.js";
 import { viewChanged } from "/js/changed.js";
@@ -107,6 +107,9 @@ renderTopbar({ mode: "app" });
 if (!state.me && state.config.auth_mode === "local") {
   mount(main, html`<div class="card">${emptyState("lock", "Sign in to Pinax", "Sign in with the username and password your Pinax administrator gave you.")}</div>`);
   showSignIn();
+} else if (!state.me && isOidc()) {
+  mount(main, html`<div class="card">${emptyState("lock", "Sign in to Pinax", "Sign in with your organization's account.",
+    html`<a class="btn btn-primary" href="${signInHref()}">Sign in</a>`)}</div>`);
 } else if (!state.me) {
   mount(main, html`<div class="card">${emptyState("user", "Choose who you are", "Pick a demo identity to explore Pinax.")}</div>`);
   showPersonaPicker(true);

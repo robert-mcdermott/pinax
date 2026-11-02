@@ -35,7 +35,8 @@ function render(el, r) {
       <div class="stack">
         ${r.attention.length ? html`<div class="card"><div class="card-head"><h2>Worth a look</h2></div>
           <ul class="feed">${r.attention.map((a) => html`<li data-find="${text(a.text)}">${icon("alert")}<span><a href="${a.href}">${a.text}</a>
-            ${a.kind === "token" ? html`<div class="tiny muted" style="margin-top:2px">Until ${date(a.expires_at)} · ${a.last_used_at ? html`last used ${when(a.last_used_at)}` : "never used"}</div>` : ""}</span></li>`)}</ul></div>` : ""}
+            ${a.kind === "token" ? html`<div class="tiny muted" style="margin-top:2px">Until ${date(a.expires_at)} · ${a.last_used_at ? html`last used ${when(a.last_used_at)}` : "never used"}</div>` : ""}
+            ${a.kind === "emergency" ? html`<div class="tiny muted" style="margin-top:2px">${a.last_used_at ? html`Last used ${when(a.last_used_at)}` : "Never used"} · marked from the server's command line</div>` : ""}</span></li>`)}</ul></div>` : ""}
         <div class="card flush"><div class="card-head"><h2>Site roles</h2></div>
           <div class="table-wrap"><table class="table compact"><thead><tr><th>Role</th><th>Person</th><th>Since</th></tr></thead><tbody>
           ${r.roles.map((x) => html`<tr data-find="${text(x.label, x.division, x.person.display_name, x.person.username)}">
@@ -72,6 +73,9 @@ function render(el, r) {
             <li><b>Since</b>: when the role or membership was given. Pinax began recording it in 0.12.0; earlier ones say <i>Not recorded</i>.</li>
             <li>A folder's date is when its lab came to own it, where that was changed in Pinax.</li>
             <li>A division head sees the folders of their division's labs, to read.</li>
+            <li>An <b>emergency account</b> signs in with a password at <span class="mono">/auth/emergency</span>
+              when sign-in with the organization's account fails. Check that it is still needed and that its password
+              is in the vault; <span class="mono">pinax user emergency USERNAME --off</span> ends it.</li>
             <li>A <b>token that can make changes</b> is kept by a script, not behind a sign-in: whoever has it acts as its
               person, with whatever access they have now. Check that it is still used and still needs to change things,
               or revoke it and make one that only reads.</li>

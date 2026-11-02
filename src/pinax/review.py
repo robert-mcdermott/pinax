@@ -4,11 +4,11 @@
 - **Site roles**: storage administrators, auditors, finance, and division heads, each with when it was given.
 - **Labs and departments**: each one's folders (with when it came to own each, where Pinax recorded the change),
   members and their roles (with when each was given), and the heads of its division.
-- **People**: each active person's access, the folders they see and why, when they last signed in (local sign-in),
-  and their live API tokens.
+- **People**: each active person's access, the folders they see and why, when they last signed in (where Pinax
+  signs people in itself: local sign-in or an identity provider), and their live API tokens.
 - **Worth a look**: active labs with no PI or owner, people who can sign in and see nothing, tokens that can make
-  changes as their person (a credential kept by a script, with whatever access its person has now), and, with local
-  sign-in, people with access who have not signed in for 90 days.
+  changes as their person (a credential kept by a script, with whatever access its person has now), and, where
+  Pinax signs people in itself, people with access who have not signed in for 90 days.
 - **Sign-off**: recording that the access was reviewed, with a note, is audited (`access.reviewed`) and listed;
   it changes no one's access, so auditors may record it too.
 
@@ -21,7 +21,7 @@ import io
 from collections import defaultdict
 from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from .config import get_settings
@@ -60,7 +60,7 @@ def _folder_since(session: Session) -> dict[tuple[int, str], datetime]:
 
 def gather(session: Session) -> dict:
     now = utcnow()
-    local = get_settings().auth_mode == "local"
+    local = get_settings().auth_mode in ("local", "oidc")  # Pinax sees each sign-in
     labs = session.scalars(select(Lab).options(
         selectinload(Lab.folders).selectinload(LabFolder.filesystem),
         selectinload(Lab.memberships).selectinload(LabMembership.user)).order_by(Lab.name)).all()
@@ -147,6 +147,14 @@ def gather(session: Session) -> dict:
                 attention.append({"kind": "token", "text": f"The token “{t.name}” can make changes as {u.display_name}, "
                                   "not only read", "href": f"#/access/people/{u.username}",
                                   "expires_at": iso(t.expires_at), "last_used_at": iso(t.last_used_at)})
+    emergency_used = dict(session.execute(
+        select(AuditEvent.actor_id, func.max(AuditEvent.ts)).where(AuditEvent.action == "auth.emergency_signed_in")
+        .group_by(AuditEvent.actor_id)).all())
+    for u in active_users:
+        if u.emergency and u.is_admin:
+            attention.append({"kind": "emergency", "text": f"{u.display_name} is an emergency account: it signs in with "
+                              "a password when sign-in with the organization's account fails",
+                              "href": f"#/access/people/{u.username}", "last_used_at": iso(emergency_used.get(u.id))})
     if local:
         idle = now - timedelta(days=IDLE_DAYS)
         for p, u in zip(people, active_users, strict=True):

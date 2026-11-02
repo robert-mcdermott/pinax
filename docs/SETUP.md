@@ -19,12 +19,11 @@ scheduled scans, and single sign-on, follow [DEPLOYMENT.md](DEPLOYMENT.md); ever
 ## 1. Settings
 
 Settings are `PINAX_*` environment variables, or a `.env` file in the folder you run Pinax from. Keep your data
-apart from the demo's, and sign in with passwords Pinax keeps:
+apart from the demo's:
 
 ```bash
 cat > .env <<'EOF'
 PINAX_ENVIRONMENT=dev
-PINAX_AUTH_MODE=local
 PINAX_VAR_ROOT=data/var
 PINAX_SCAN_ROOT=data/scans
 EOF
@@ -32,9 +31,8 @@ EOF
 
 - `PINAX_ENVIRONMENT=dev`: this catalog holds real data, so `pinax seed`, which deletes the catalog to write the
   demo, refuses to run (it runs only in `demo`). To go back to the demo, move `.env` aside, or keep the demo in a
-  separate checkout.
-- `PINAX_AUTH_MODE=local`: people sign in with a username and a password. (The demo's persona switcher lets
-  anyone be anyone; single sign-on needs a proxy, set up in [DEPLOYMENT.md](DEPLOYMENT.md).)
+  separate checkout. Outside the demo, people sign in with a username and a password Pinax keeps, with nothing
+  else to set up; single sign-on is an option a site configures ([DEPLOYMENT.md](DEPLOYMENT.md)).
 - `PINAX_VAR_ROOT` holds the catalog (`pinax.db`) and the snapshot indexes; `PINAX_SCAN_ROOT` is where
   `pinax scan` writes scans. `data/` is ignored by git, so no scan, path, or name is committed by accident.
 - This replaces any `.env` you have; [.env.example](../.env.example) lists every setting with its default.
@@ -138,7 +136,8 @@ CSV statement. The currency is `PINAX_CURRENCY` (USD by default).
 ## Next
 
 - **A server:** [DEPLOYMENT.md](DEPLOYMENT.md) installs Pinax with systemd services, scheduled scans and automatic
-  ingest, an HTTPS proxy for local sign-in or single sign-on with oauth2-proxy, upgrades, sizing, and backups.
+  ingest, an HTTPS proxy for local sign-in, single sign-on with Entra ID or oauth2-proxy, upgrades, sizing, and
+  backups.
 - **Every setting:** [CONFIGURATION.md](CONFIGURATION.md).
 - **Scripts:** API tokens let a script read Pinax, or make changes, with a person's access
   ([API tokens for scripts](USER-GUIDE.md#api-tokens-for-scripts)).

@@ -287,6 +287,7 @@ const ROLE_BADGE = { auditor: "Auditor", finance: "Finance" };
 const roleBadge = (r) => (r.role === "division" ? `Head of ${r.division}` : ROLE_BADGE[r.role] || r.role);
 const accessBadges = (p) => html`<div class="tags">
   ${p.is_admin ? html`<span class="badge badge-archived">${icon("shield")}Storage administrator</span>` : ""}
+  ${p.emergency ? html`<span class="badge badge-requested" title="Signs in with a password at /auth/emergency when sign-in with the organization's account fails; marked from the server's command line">${icon("alert")}Emergency account</span>` : ""}
   ${p.roles.map((r) => html`<span class="badge badge-archived">${icon(r.role === "finance" ? "receipt" : r.role === "auditor" ? "eye" : "users")}${roleBadge(r)}</span>`)}
   ${p.labs.map((l) => html`<span class="badge badge-inside">${l.name} · ${l.role === "pi" ? (l.kind === "department" ? "Owner" : "PI") : "Delegate"}</span>`)}
   ${!p.is_admin && !p.labs.length && !p.roles.length ? html`<span class="small muted">No access</span>` : ""}</div>`;
@@ -374,6 +375,9 @@ export async function viewPerson(el, username) {
   const off = (cond) => (cond ? raw("disabled") : "");
   const divisions = [...new Set(labs.map((l) => l.division).filter(Boolean))].sort();
   const has = (role, division = "") => form.roles.some((r) => r.role === role && (r.division || "") === division);
+  // Roles the identity provider sets at sign-in (PINAX_OIDC_ROLE_MAP): shown, not changed here.
+  const mapped = new Set(state.config.mapped_roles || []);
+  const fromIdp = (key) => (mapped.has(key) ? html` <span class="badge badge-inside">From Entra ID</span>` : "");
   const toggle = (role, division, on) => {
     form.roles = form.roles.filter((r) => !(r.role === role && (r.division || "") === division));
     if (on) form.roles.push({ role, division });
@@ -424,15 +428,16 @@ export async function viewPerson(el, username) {
           </div>
           <div class="card"><div class="card-head"><h2>Site roles</h2></div>
             <p class="small muted" style="margin-top:-6px">Beside any labs and departments. Only storage administrators change anything; the others read.</p>
-            <label class="check-row ${form.is_admin ? "checked" : ""}"><input type="checkbox" data-field="is_admin" ${form.is_admin ? raw("checked") : ""} ${off(locked || self)}>
-              <span><b>Storage administrator</b><br><span class="small muted">Sees every filesystem and folder, the IT views, and Scans, and manages people, labs, and folder ownership.</span></span></label>
+            ${mapped.size ? html`<p class="small muted">Roles marked <i>From Entra ID</i> are set when the person signs in, from their app roles or groups there.</p>` : ""}
+            <label class="check-row ${form.is_admin ? "checked" : ""}"><input type="checkbox" data-field="is_admin" ${form.is_admin ? raw("checked") : ""} ${off(locked || self || mapped.has("admin"))}>
+              <span><b>Storage administrator</b>${fromIdp("admin")}<br><span class="small muted">Sees every filesystem and folder, the IT views, and Scans, and manages people, labs, and folder ownership.</span></span></label>
             ${self ? html`<p class="small muted">You cannot change your own administrator role.</p>` : ""}
-            <label class="check-row ${has("auditor") ? "checked" : ""}"><input type="checkbox" data-role="auditor" ${has("auditor") ? raw("checked") : ""} ${off(locked)}>
-              <span><b>Auditor</b><br><span class="small muted">Sees everything a storage administrator does, people and the audit log included, and changes nothing.</span></span></label>
-            <label class="check-row ${has("finance") ? "checked" : ""}"><input type="checkbox" data-role="finance" ${has("finance") ? raw("checked") : ""} ${off(locked)}>
-              <span><b>Finance</b><br><span class="small muted">Sees every lab's and department's charges, with the prices, free tiers, and capacities behind them; no folders or files.</span></span></label>
+            <label class="check-row ${has("auditor") ? "checked" : ""}"><input type="checkbox" data-role="auditor" ${has("auditor") ? raw("checked") : ""} ${off(locked || mapped.has("auditor"))}>
+              <span><b>Auditor</b>${fromIdp("auditor")}<br><span class="small muted">Sees everything a storage administrator does, people and the audit log included, and changes nothing.</span></span></label>
+            <label class="check-row ${has("finance") ? "checked" : ""}"><input type="checkbox" data-role="finance" ${has("finance") ? raw("checked") : ""} ${off(locked || mapped.has("finance"))}>
+              <span><b>Finance</b>${fromIdp("finance")}<br><span class="small muted">Sees every lab's and department's charges, with the prices, free tiers, and capacities behind them; no folders or files.</span></span></label>
             <div class="check-row ${heads.length ? "checked" : ""}"><span><b>Division head</b><br><span class="small muted">Sees the labs of each division chosen, as their members do, and changes nothing.</span>
-              ${divisions.length ? html`<span class="tags" style="margin-top:8px">${divisions.map((d) => html`<label class="radio"><input type="checkbox" data-division="${d}" ${has("division", d) ? raw("checked") : ""} ${off(locked)}> <span>${d}</span></label>`)}</span>`
+              ${divisions.length ? html`<span class="tags" style="margin-top:8px">${divisions.map((d) => html`<label class="radio"><input type="checkbox" data-division="${d}" ${has("division", d) ? raw("checked") : ""} ${off(locked || mapped.has(`division:${d}`))}> <span>${d}</span>${fromIdp(`division:${d}`)}</label>`)}</span>`
                 : html`<br><span class="small muted">No lab has a division yet: give one on a lab's page.</span>`}</span></div>
           </div>
           ${locked ? "" : html`<div class="row between"><a class="btn btn-ghost" href="#/access?tab=people">Cancel</a>
@@ -450,6 +455,11 @@ export async function viewPerson(el, username) {
             ${person.history.length ? html`<div class="row between" style="margin-top:14px"><h3>Recent changes</h3><a class="small" href="#/audit?person=${encodeURIComponent(person.username)}">All</a></div><ul class="feed">${person.history.map((h) => html`<li style="padding:6px 0"><span><span class="small">${h.summary}</span><br>
               <span class="tiny muted">${date(h.ts, true)}${h.by ? ` · ${h.by}` : ""}${h.token ? ` · with the token “${h.token}”` : ""}</span></span></li>`)}</ul>` : ""}</div>` : ""}
           ${person ? personTokens(person) : ""}
+          ${person && person.emergency ? html`<div class="card"><h3>Emergency account</h3>
+            <p class="small" style="margin-top:8px">${icon("alert")} Signs in with a password at <span class="mono">/auth/emergency</span>
+              when sign-in with the organization's account fails, for an hour at a time; every use is audited and reported.</p>
+            <p class="small muted">Marked from the server's command line, and ended there:</p>
+            <div class="mono small" style="white-space:nowrap;overflow-x:auto">pinax user emergency ${person.username} --off</div></div>` : ""}
           ${person && state.config.auth_mode === "local" && state.me.is_admin ? html`<div class="card"><h3>Password</h3>
             <p class="small" style="margin-top:8px">${passwordState(person)}</p>
             ${person.active ? html`<button class="btn btn-secondary btn-sm" id="set-password">${icon("lock")}${person.has_password ? "Set a new temporary password" : "Set a temporary password"}</button>` : ""}</div>` : ""}

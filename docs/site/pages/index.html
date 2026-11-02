@@ -1,6 +1,6 @@
     <section class="hero">
       <div class="container hero-grid">
-        <a class="eyebrow" href="{{github}}/releases"><span class="pill">v{{version}}</span> Site roles, API tokens, and the audit log</a>
+        <a class="eyebrow" href="{{github}}/releases"><span class="pill">v{{version}}</span> Passwords out of the box, or sign-in with Entra ID</a>
         <h1>See what your research storage holds, <span class="accent">and what it costs</span></h1>
         <p class="lede">Pinax turns scans of filesystems with billions of files into an age map, history, forecasts, and
           monthly charges that every lab can explore for its own folders, and that IT can check, directory by directory.
@@ -10,7 +10,7 @@
           <a class="btn" href="docs/my-data.html">Read the user guide</a>
           <a class="btn" href="docs/install.html">Install on a server</a>
         </div>
-        <p class="hero-meta">Free and open source (Apache 2.0) · Built on fs-inventory scans · SQLite or PostgreSQL · Single sign-on or passwords</p>
+        <p class="hero-meta">Free and open source (Apache 2.0) · Built on fs-inventory scans · SQLite or PostgreSQL · Passwords or Entra ID</p>
         {{shot age-map "The age map of a lab's projects folder, sized by size and colored by average age" "" window eager}}
       </div>
     </section>
@@ -127,7 +127,7 @@
           <div class="feature-text">
             <span class="kicker">Access and audit</span>
             <h3>Who sees what, and a record of who did what</h3>
-            <p>Auditors who see everything and change nothing, finance who see every lab's charges, and division heads who read their division's labs. API tokens let scripts read Pinax or act with a person's access. Every change is in the audit log, with where it came from, and the access review shows who has access to what, since when, with a recorded sign-off.</p>
+            <p>People sign in with passwords Pinax keeps, with nothing else to set up, or with Microsoft Entra ID, whose app roles can give Pinax's roles. Auditors who see everything and change nothing, finance who see every lab's charges, and division heads who read their division's labs. API tokens let scripts read Pinax or act with a person's access. Every change is in the audit log, with where it came from, and the access review shows who has access to what, since when, with a recorded sign-off.</p>
             <a class="more-link" href="docs/people.html">People and access</a>
           </div>
           {{shot access-review "The access review: what is worth a look, the site roles, and the latest review"}}
@@ -137,7 +137,7 @@
           <div class="feature-text">
             <span class="kicker">Operations</span>
             <h3>Ready for production</h3>
-            <p>Scans on a schedule and automatic ingest; SQLite with nothing to install, or PostgreSQL with migrations; a log line for every request and audit event, as text or JSON; Prometheus metrics with alert rules to start from; systemd units, and single sign-on behind oauth2-proxy.</p>
+            <p>Scans on a schedule and automatic ingest; SQLite with nothing to install, or PostgreSQL with migrations; a log line for every request and audit event, as text or JSON; Prometheus metrics with alert rules to start from; systemd units; an emergency sign-in for when Entra ID fails.</p>
             <a class="more-link" href="docs/operations.html">Logs, metrics, and operations</a>
           </div>
           {{shot capacity "Capacity: how full each filesystem is and when it fills"}}

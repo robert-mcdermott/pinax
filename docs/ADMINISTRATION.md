@@ -104,6 +104,9 @@ person can have several (a finance officer who is also a PI), and every role wor
 | Division head | Each lab in the divisions chosen (a lab's *Division*) as its members see it: its folders and every report, its charges, its plan, and its collections | Nothing: tagging and planning stay with each lab's PI and delegates |
 | PI, owner, or delegate | Their lab's or department's folders and every report, its charges, plan, and collections | Its folders' tags and its cleanup plan |
 
+With sign-in through Entra ID, a site may map some or all of these roles from Entra ID instead: those show *From
+Entra ID* on a person's page, and are set when the person signs in ([Roles from Entra ID](ENTRA-ID.md#roles-from-entra-id)).
+
 Pages show each person what they may use: an auditor sees the administration pages without their buttons, and
 finance a sidebar of charges. Every check is made on the server, for every request
 ([Security](ARCHITECTURE.md#security)). A division head's labs follow the labs' *Division*: change a lab's division,
@@ -149,10 +152,13 @@ Who has access to what, as of now, for a periodic review (a recertification) and
 *Access review*, in the sidebar of administrators and auditors, has:
 
 - **Worth a look**: active labs and departments with no PI or owner, people who can sign in and see nothing, API
-  tokens that can make changes, and, with local sign-in, people with access who have not signed in for 90 days. A
-  token that can make changes is kept by a script, not behind a sign-in, so whoever has it acts as its person, with
-  whatever access that person has now (more, if they are given more): each shows when it expires and was last used.
-  Check that it is still used and still needs to change things; if not, revoke it and make one that only reads.
+  tokens that can make changes, emergency accounts (with when each was last used), and, where Pinax signs people in
+  itself, people with access who have not signed in for 90 days. A token that can make changes is kept by a script,
+  not behind a sign-in, so whoever has it acts as its person, with whatever access that person has now (more, if
+  they are given more): each shows when it expires and was last used. Check that it is still used and still needs to
+  change things; if not, revoke it and make one that only reads. An emergency account signs in with a password when
+  sign-in with Entra ID fails ([When Entra ID fails](ENTRA-ID.md#when-entra-id-fails-the-emergency-sign-in)); check
+  that each is still needed.
 - **Site roles**: every storage administrator, auditor, finance officer, and division head, with when each was
   given.
 - **Labs and departments**: each one's members and their roles, with when each was given, the heads of its

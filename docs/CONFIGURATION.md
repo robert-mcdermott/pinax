@@ -59,14 +59,23 @@ Settings are `PINAX_*` environment variables, or a `.env` file in the folder you
 
 | Setting | Default | What it does |
 |---|---|---|
-| `PINAX_AUTH_MODE` | `demo` | How people sign in. `demo`: a persona switcher, anyone can be anyone, for showing Pinax with the seeded people (refused when `PINAX_ENVIRONMENT=prod`). `local`: usernames and passwords Pinax keeps, for sites without single sign-on. `header`: trust the username in `AUTH_HEADER`, set by a single sign-on proxy such as oauth2-proxy in front of Entra ID |
+| `PINAX_AUTH_MODE` | `local`; `demo` in the demo environment | How people sign in. `local`: usernames and passwords Pinax keeps, with nothing else to set up. `demo`: a persona switcher, anyone can be anyone, for showing Pinax with the seeded people (refused when `PINAX_ENVIRONMENT=prod`). `header`: trust the username in `AUTH_HEADER`, set by a single sign-on proxy such as oauth2-proxy in front of Entra ID ([Single sign-on with oauth2-proxy](DEPLOYMENT.md#single-sign-on-with-oauth2-proxy)). `oidc`: Pinax signs people in with Microsoft Entra ID, or another OpenID Connect provider, itself ([Signing in with Entra ID](ENTRA-ID.md)) |
 | `PINAX_AUTH_HEADER` | `X-Remote-User` | The header the proxy sets the username in; behind oauth2-proxy, `X-Forwarded-Preferred-Username`, `X-Forwarded-Email`, or `X-Forwarded-User` |
 | `PINAX_TRUSTED_PROXIES` | `["127.0.0.1", "::1"]` | The proxies in front of Pinax, as addresses or networks (a JSON list, such as `'["10.1.2.3", "10.8.0.0/16"]'`). In header mode, the header is believed only from them; from anywhere else a request gets 401. In every mode, a request from one of them is logged and audited with the person's own address from `X-Forwarded-For`, and keeps the proxy's `X-Request-ID` |
-| `PINAX_SESSION_HOURS` | `12` | Local sign-in: how long a session lasts from signing in |
+| `PINAX_OIDC_ISSUER` | unset | `oidc`: the identity provider's issuer; for Entra ID, `https://login.microsoftonline.com/<tenant ID>/v2.0` |
+| `PINAX_OIDC_CLIENT_ID` | unset | `oidc`: Pinax's application (client) ID with the provider |
+| `PINAX_OIDC_CLIENT_SECRET` | unset | `oidc`: its client secret; it expires, so note when ([Secrets](ENTRA-ID.md#setting-up-pinax)) |
+| `PINAX_OIDC_USERNAME_CLAIM` | `preferred_username` | `oidc`: the ID token's claim that names the person (Entra ID's user principal name); `email` for test providers |
+| `PINAX_OIDC_USERNAME_DOMAINS` | unset | `oidc`: allowed domains, comma-separated. With `example.org`, `jdoe@example.org` signs in as a person named `jdoe@example.org` or `jdoe`, and other domains are refused. Unset, the claim must be a username exactly |
+| `PINAX_PUBLIC_URL` | unset | `oidc`: how people reach Pinax, such as `https://pinax.example.org` (`https://`, or `http://` for localhost only); the provider returns people to it |
+| `PINAX_OIDC_ROLE_MAP` | unset | `oidc`, optional: Pinax's roles from Entra ID, as JSON, such as `{"admin": ["Pinax.Admin"], "division:Basic Sciences": ["Pinax.Head.Basic"]}`. Each role it names (`admin`, `auditor`, `finance`, `division:<Division>`) is set at every sign-in and not in the app ([Roles from Entra ID](ENTRA-ID.md#roles-from-entra-id)) |
+| `PINAX_OIDC_ROLES_CLAIM` | `roles` | `oidc`: the ID token's claim the role map reads: `roles` (Entra ID's app roles) or `groups` (group object IDs) |
+| `PINAX_SESSION_SECRET` | unset | `oidc`: signs the sign-in's own state, for the minutes a sign-in takes; at least 32 characters (`openssl rand -hex 32`) |
+| `PINAX_SESSION_HOURS` | `12` | Local sign-in and `oidc`: how long a session lasts from signing in |
 | `PINAX_LOGIN_MAX_FAILURES` | `5` | Local sign-in: failed sign-ins in a row that lock an account |
 | `PINAX_LOGIN_LOCKOUT_MINUTES` | `15` | Local sign-in: how long a locked account stays locked (a new temporary password unlocks it at once) |
 | `PINAX_PASSWORD_MIN_LENGTH` | `12` | Local sign-in: the shortest password allowed (it also may not contain the username) |
-| `PINAX_COOKIE_SECURE` | unset | Local sign-in: mark the session cookie Secure, so it is sent only over HTTPS. Unset means yes when `PINAX_ENVIRONMENT=prod`, no otherwise |
+| `PINAX_COOKIE_SECURE` | unset | Local sign-in and `oidc`: mark the session cookie Secure, so it is sent only over HTTPS. Unset means yes when `PINAX_ENVIRONMENT=prod`, no otherwise |
 | `PINAX_TOKEN_MAX_DAYS` | `365` | The longest an API token may last, in days; people choose from a week up to this ([API tokens](ADMINISTRATION.md#api-tokens)) |
 
 ## Logs

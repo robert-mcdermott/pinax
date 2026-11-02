@@ -62,13 +62,14 @@ const DOCS = [
     { slug: 'sizing', title: 'Sizing', file: 'DEPLOYMENT.md', sections: ['Sizing'], lede: 'The server, disk, and memory a filesystem of a billion files needs.' },
     { slug: 'statements', title: 'Charges and statements', file: 'DEPLOYMENT.md', sections: ['Charges and statements'], lede: 'How charges are worked out, and when a past month can change.' },
     { slug: 'operations', title: 'Logs, metrics, and operations', file: 'DEPLOYMENT.md', sections: ['Monitoring and operations'], lede: 'Health, logs and the audit trail, Prometheus metrics and alerts, and day-to-day tasks.' },
+    { slug: 'entra-id', title: 'Signing in with Entra ID', file: 'ENTRA-ID.md', lede: 'Optional single sign-on with Microsoft Entra ID in Pinax itself: what to ask IT for, the settings, roles from Entra ID, the emergency sign-in, a trial with a stand-in, and its errors.' },
     { slug: 'configuration', title: 'Configuration', file: 'CONFIGURATION.md', lede: 'Every setting, with its default.' },
   ] },
   { group: 'Reference', pages: [
     { slug: 'cli', title: 'Command line', file: 'CLI.md', lede: 'Every pinax command and option.' },
     { slug: 'troubleshooting', title: 'Troubleshooting', file: 'TROUBLESHOOTING.md', lede: 'What a problem looks like, why it happens, and what to do.' },
     { slug: 'architecture', title: 'Architecture', file: 'ARCHITECTURE.md', lede: 'How Pinax is built: the snapshot index, checking it, querying it, the catalog, security, and measured performance.' },
-    { slug: 'development', title: 'Development', file: 'DEVELOPMENT.md', lede: 'Working on Pinax: setup, conventions, tests, migrations, the HTTP API, and benchmarks.' },
+    { slug: 'development', title: 'Development', file: 'DEVELOPMENT.md', lede: 'Working on Pinax: setup, conventions, tests and CI, migrations, the HTTP API, and benchmarks.' },
   ] },
 ];
 const PAGES = DOCS.flatMap((g) => g.pages);

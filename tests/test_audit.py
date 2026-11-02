@@ -5,7 +5,7 @@ lab, folder, and day, newest first, a page at a time or as CSV, with where each 
 import csv
 import io
 import json
-from datetime import date, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from conftest import ROOT, login
@@ -74,7 +74,7 @@ def test_by_person_action_lab_and_day(changes):
     assert _actions(client, lab="alpha") == ["folder.tagged", "plan.added"]
     assert _actions(client, lab="beta") == ["folder.mapped"]  # a folder given to it
     assert _actions(client, person="ada", action="plan") == ["plan.added"]
-    today = date.today()
+    today = datetime.now(UTC).date()  # the log's days are UTC days
     assert _log(client, since=str(today + timedelta(days=1)))["total"] == 0
     assert _log(client, until=str(today - timedelta(days=1)))["total"] == 0
     assert _log(client, since=str(today), until=str(today))["total"] == _log(client)["total"]

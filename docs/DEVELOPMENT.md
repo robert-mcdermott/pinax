@@ -53,6 +53,21 @@ PINAX_TEST_DATABASE_URL=postgresql://pinax:pinax-test@127.0.0.1:55432/pinax uv r
 
 `docker` takes the same arguments. Tests about SQLite catalogs only (`conftest.sqlite_only`) are skipped there.
 
+### Continuous integration
+
+GitHub Actions run the same checks for every push (`.github/workflows/ci.yml`), each job on a fresh Ubuntu runner:
+
+| Job | What it runs |
+|---|---|
+| Lint | `uvx ruff check src tests bench`, with ruff pinned |
+| Tests on SQLite | `scripts/install-fs-inventory.sh`, `uv sync --frozen`, `uv run pytest` |
+| Tests on PostgreSQL | the throwaway PostgreSQL above, then the same with `--extra postgres` and `PINAX_TEST_DATABASE_URL` |
+
+Both suites install the pinned fs-inventory, so the tests that run the real binary run there rather than being
+skipped. A pull request from a branch of this repository shows the runs of its pushes; one from a fork gets its own.
+The workflow pins uv (`0.13.1`), ruff, and the actions (by commit, with the version beside each), so a run means the
+same thing from one month to the next; update them together, deliberately.
+
 ## Code layout
 
 ```text
@@ -77,6 +92,7 @@ src/pinax/
   people.py        people: adding, editing, site roles, deactivation (shared by the app and the CLI)
   labs.py          labs and departments: adding, editing, deactivation; slug rules shared with the import
   signin.py        local sign-in: password hashes, sessions, lockout
+  oidc.py          sign-in with Entra ID, or another OpenID Connect provider (Authlib), at /auth/; sessions as local
   tokens.py        API tokens: making (hashed, shown once), finding, what each may do, revoking
   audit.py         the audit log: filters, pages of events, and its CSV
   review.py        the access review: who has access to what, since when, what is worth a look; its sign-off
@@ -90,7 +106,7 @@ src/pinax/
   tags.py          folder tags: the standard list, labs' own tags, and tagging folders
   views.py         saved views: pages people keep and share with their labs
   jobs.py          searches in the background: worker threads, results kept as Parquet
-  auth.py          identity (demo cookie, SSO header, local session, or API token), what each person sees and may
+  auth.py          identity (demo cookie, SSO header, Pinax's session, or API token), what each person sees and may
                    change, and `/script/api/` for scripts
   explore.py       explore and report services: resolving places, merging results across places
   serialize.py     JSON views of catalog objects
@@ -173,6 +189,8 @@ them, the person's home), and `lab` to limit home to one lab:
 | `GET`, `POST /api/tokens`, `DELETE /api/tokens/{id}`; `GET`, `POST /api/admin/tokens` | A person's API tokens, making one (its secret is in this answer only), revoking one; everyone's, and making a service token |
 | `GET /api/admin/audit?person=&action=&lab=&fs=&path=&since=&until=&offset=&limit=&fmt=csv` | A page of audit events, newest first, with the total and what to filter by; every one that matches as CSV |
 | `GET /api/admin/access-review?fmt=csv`, `POST /api/admin/access-review/sign-off` | Who has access to what, with when each was given and what is worth a look, or its CSV; recording a review |
+| `GET /auth/login?next=`, `/auth/callback`, `/auth/logout`, `/auth/signed-out` | With `PINAX_AUTH_MODE=oidc` only (404 otherwise): to the provider, back with its code, signing out of Pinax and the provider, and the page after |
+| `GET`, `POST /auth/emergency` | The emergency sign-in (a form), with `oidc` and an emergency account only (404 otherwise) |
 | `GET /api/health`; `GET /metrics` | Health for load balancers (no sign-in); Prometheus metrics, only with `PINAX_METRICS_TOKEN` as a bearer token |
 
 ## Frontend conventions

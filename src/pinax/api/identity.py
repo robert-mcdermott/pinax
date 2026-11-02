@@ -32,6 +32,8 @@ def public_config(session: Session = Depends(get_session)):
         "cold_bucket": cold_bucket(s), "metrics": list(METRICS), "search_max_rows": s.search_max_rows,
         "export_max_rows": s.export_max_rows, "password_min_length": s.password_min_length,
         "currency": s.currency, **dimensions(),
+        # Roles set from the identity provider at sign-in, not here (oidc with OIDC_ROLE_MAP): "admin", "auditor", ...
+        "mapped_roles": sorted(f"{r}:{d}" if d else r for r, d in s.mapped_roles),
     }
 
 

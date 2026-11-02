@@ -62,6 +62,7 @@ def user_json(u: User) -> dict:
         "has_password": bool(u.password_hash), "must_change_password": bool(u.must_change_password),
         "password_set_at": iso(u.password_set_at), "locked_until": iso(u.locked_until),
         "last_login_at": iso(u.last_login_at),
+        "emergency": bool(u.emergency),  # an emergency account (A12), marked from the command line only
     }
 
 

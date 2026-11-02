@@ -9,7 +9,7 @@ request ID, which is also the `X-Request-ID` of the response a person saw ([Logs
 
 | What you see | Why | What to do |
 | --- | --- | --- |
-| `PINAX_AUTH_MODE=demo lets anyone sign in as anyone, so it is refused when PINAX_ENVIRONMENT=prod` | The demo's sign-in on a production server | Set `PINAX_AUTH_MODE` to `local` or `header` ([Sign-in](DEPLOYMENT.md#6-sign-on-with-oauth2-proxy)) |
+| `PINAX_AUTH_MODE=demo lets anyone sign in as anyone, so it is refused when PINAX_ENVIRONMENT=prod` | The demo's sign-in on a production server | Set `PINAX_AUTH_MODE` to `local` (or leave it out: outside the demo, `local` is the default) or `header` ([Signing in](DEPLOYMENT.md#6-signing-in)) |
 | `PINAX_METRICS_TOKEN must be at least 16 characters` | A metrics token too short to guard `/metrics` | `openssl rand -hex 32` makes one ([Metrics](DEPLOYMENT.md#metrics)) |
 | `The catalog (...) is at revision ..., and this Pinax needs revision ...` | A release with a migration, with `PINAX_DB_AUTO_UPGRADE=false` | Back the catalog up, then `pinax db upgrade` (or apply `pinax db upgrade --sql`) ([Upgrading](DEPLOYMENT.md#upgrading)) |
 | `... which this Pinax does not know: a newer Pinax has upgraded it` | An older release started on a catalog a newer one upgraded | Run the newer release, or restore the backup made before the upgrade |
@@ -22,6 +22,9 @@ request ID, which is also the `X-Request-ID` of the response a person saw ([Logs
 
 | What you see | Why | What to do |
 | --- | --- | --- |
+| Nobody can sign in, because Entra ID is failing | The provider is down, or a setting is wrong or has expired (such as the client secret) | An emergency account signs in at `/auth/emergency` ([When Entra ID fails](ENTRA-ID.md#when-entra-id-fails-the-emergency-sign-in)); on the server, fix the settings, or switch to local sign-in for a while |
+| The alert `PinaxEmergencySignIn` fires | Someone signed in, or tried to, with an emergency account | The audit log's `auth.emergency_*` events name the account and address; ask who holds its password |
+| *You can't use Pinax yet*, or another message after signing in with Entra ID | Pinax refused the sign-in, or could not finish it, and says why | [Signing in with Entra ID](ENTRA-ID.md#troubleshooting) lists each message and what to do |
 | *Unknown user*, after signing in through single sign-on | The username the proxy sends is not a person in Pinax, or differs from theirs | Add them, with the exact name the header carries (with Entra ID, usually the user principal name) ([People and access](ADMINISTRATION.md#people-and-access)) |
 | *Sign in through the single sign-on proxy* | A request with the sign-on header that did not come from a trusted proxy | Make `PINAX_TRUSTED_PROXIES` the proxy's address; requests must not reach Pinax's port around the proxy |
 | *This account has been deactivated* | They were deactivated | Reactivate them in *People and access* |
@@ -84,7 +87,7 @@ request ID, which is also the `X-Request-ID` of the response a person saw ([Logs
 | *403 The token '...' only reads* | A change made with a token that reads only | Make a token with *Your access* for a script that changes things ([API tokens for scripts](USER-GUIDE.md#api-tokens-for-scripts)) |
 | *403 A search in the background is a person's* | A service token starting a search in the background | Start it with a person's own token |
 | *403 Tokens are made and revoked, and passwords changed, in Pinax's pages* | A token used on the token or password routes | As designed: a leaked token cannot make another |
-| Through oauth2-proxy, a script gets a sign-in page or a redirect | The proxy's configuration does not let `/script/api/` through, or the script calls `/api/` | `skip_auth_routes` in `deploy/oauth2-proxy/pinax.cfg` includes `^/script/api/`; scripts call `https://pinax.example.org/script/api/...` ([Sign-on with oauth2-proxy](DEPLOYMENT.md#6-sign-on-with-oauth2-proxy)) |
+| Through oauth2-proxy, a script gets a sign-in page or a redirect | The proxy's configuration does not let `/script/api/` through, or the script calls `/api/` | `skip_auth_routes` in `deploy/oauth2-proxy/pinax.cfg` includes `^/script/api/`; scripts call `https://pinax.example.org/script/api/...` ([Single sign-on with oauth2-proxy](DEPLOYMENT.md#single-sign-on-with-oauth2-proxy)) |
 | A token made with *Your access* no longer changes what it did | Its person's access changed: a token is never more than its person | As designed; it follows their access as it is now |
 
 ## Monitoring

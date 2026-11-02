@@ -1,6 +1,6 @@
 [project]
 name = "pinax"
-version = "0.12.0"
+version = "0.13.0"
 description = "Pinax: explore your data. File system reporting for research storage, built on fs-inventory scans."
 authors = [
     { name = "Robert McDermott", email = "robert.c.mcdermott@gmail.com" }
@@ -11,8 +11,11 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.16",
+    "authlib>=1.9.1",
     "duckdb>=2.0.0",
     "fastapi>=0.161.1",
+    "httpx2>=2.16.0",
+    "itsdangerous>=2.2.0",
     "prometheus-client>=0.21",
     "pydantic-settings>=2.16.1",
     "sqlalchemy>=2.0",
