@@ -32,6 +32,9 @@ restart Pinax ([Upgrading](docs/DEPLOYMENT.md#upgrading)).
 - **`PINAX_WEB_THREADS`** (40): the threads that answer the web app's requests, and with SQLite its catalog
   connections. Fewer serve more quick pages a second when the server is saturated, and leave less for requests that
   wait or run long ([Sizing](docs/DEPLOYMENT.md#sizing)).
+- **The age map says what it leaves out**, in the line under it: how many folders are drawn and how many put into
+  one tile (up to 60 subfolders of a folder, and with two levels 12 inside each tile), and, sized by a kind of data
+  or by age, how many folders hold any, since one with none has no area and is not drawn.
 - **The load test** (`bench/load.py`, with `bench/load_setup.py` to make the installation it runs against): simulated
   people of each role signing in with passwords and opening the interface's pages as browsers do, with pauses
   between clicks; administrators searching whole filesystems (`--searchers`); everyone signing in at once (`--ramp
