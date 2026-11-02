@@ -76,6 +76,8 @@ request ID, which is also the `X-Request-ID` of the response a person saw ([Logs
 | *Pinax stopped this after 180 seconds* | A search or comparison of a whole filesystem read for longer than `PINAX_QUERY_TIMEOUT` | Search within a folder or narrow it; an administrator can run it in the background (*Searches*); or raise the limit with the proxy's ([Configuration](CONFIGURATION.md#queries)) |
 | *Pinax is already running as many searches of whole filesystems as it allows* | `PINAX_WIDE_QUERIES` turns were all in use | Try again shortly, or raise it if the server has the cores and memory |
 | Pages are slow while a search runs | Searches of whole filesystems use every core, `PINAX_WIDE_QUERIES` (2) at a time | Fewer at once leave the rest more of the cores, and searches wait longer for a turn ([Many people at once](DEPLOYMENT.md#many-people-at-once)) |
+| *Pinax is busy: more people are using it at once than it can serve* | No catalog connection was free within 10 seconds (`pinax_catalog_busy_total`, and `Turned away` in the log) | Usually a moment of heavy use: try again shortly. If it recurs, with PostgreSQL raise `PINAX_DATABASE_POOL_SIZE` within the database's `max_connections` ([Many people at once](DEPLOYMENT.md#many-people-at-once)) |
+| Every page is slow at busy times, with only two or three cores busy | One web process does each page's Python work one thread at a time: about 250 to 300 people at once on a laptop | A server with faster cores; see [Many people at once](DEPLOYMENT.md#many-people-at-once), and `PINAX_WEB_THREADS` for when fewer threads serve more |
 | Lines marked *(slow)* in the log | Requests over `PINAX_SLOW_REQUEST_SECONDS` | The line names the route and the time in index queries; see [Sizing](DEPLOYMENT.md#sizing) |
 | *Something went wrong* on a page | An error on the server | The log has it, with the request's ID |
 
@@ -98,3 +100,4 @@ request ID, which is also the `X-Request-ID` of the response a person saw ([Logs
 | `/metrics` answers 401 | The token is missing or different | Prometheus sends it as `Authorization: Bearer ...` from `credentials_file` |
 | Through oauth2-proxy, Prometheus gets a sign-in page | The proxy's configuration does not let `/metrics` through | `skip_auth_routes` in `deploy/oauth2-proxy/pinax.cfg` includes `GET=^/metrics$` |
 | No `process_*` metrics | They exist on Linux only | |
+| The alert `PinaxBusy` fires | Requests were turned away as busy in the last 15 minutes | As for *Pinax is busy* under [Pages and queries](#pages-and-queries) |

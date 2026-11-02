@@ -82,7 +82,8 @@ src/pinax/
                    the web app's requests, queries, and audit events
   models.py        catalog schema: people and their site roles, labs, folder ownership, filesystems, snapshots,
                    folder history, capacity, marked folders, API tokens, audit
-  categories.py    file categories, type normalization, age buckets
+  categories.py    file categories (the built-in ones, the catalog's, and changing, checking, and previewing
+                   them), type normalization, age buckets
   ingest/build.py  fs-inventory scan -> snapshot index (DuckDB SQL)
   crosscheck.py    `pinax check`: every directory of an index against fs-inventory rollup
   index.py         SnapshotIndex: read-only queries over one index; Stats: additive totals
@@ -110,13 +111,14 @@ src/pinax/
                    change, and `/script/api/` for scripts
   explore.py       explore and report services: resolving places, merging results across places
   serialize.py     JSON views of catalog objects
-  api/             routers: identity, sign-in, explore, admin, access, costs, capacity, plans, tags, views, tokens,
-                   audit, review, health
+  api/             routers: identity, sign-in, explore, admin, access, costs, capacity, categories, plans, tags,
+                   views, tokens, audit, review, health
   seed.py          demo filesystems, people, and scans
   cli.py, main.py  command line and FastAPI app
   static/          index.html, app/, css/pinax.css, js/, img/
 bench/             synth_scan.py (synthetic scans of any size), bench_index.py (build and query timings),
-                   bench_charges.py (monthly charges over a synthetic year of weekly scans)
+                   bench_charges.py (monthly charges over a synthetic year of weekly scans), load_setup.py and
+                   load.py (the load test: many people at once)
 tests/             pytest suite; scanfix.py writes exact fs-inventory-shaped scans
 ```
 

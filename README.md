@@ -45,14 +45,15 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
 - **Saved views and searches in the background**: any report can be saved under a name and shared with a lab; a
   search of a whole filesystem can run in the background, past a page's time limit, its results kept for a week.
   Hard-linked files are counted once.
-- **For IT**: an overview of every filesystem, the largest folders and biggest changes, unmapped folders,
-  storage health (scan errors, very large directories, small-file hotspots, problem file names, deleted
-  owners), the scan history, each filesystem's capacity and the month it fills at its trend, and people and
-  access: add people, change their details, lab memberships, and roles, and deactivate and
-  reactivate them; add labs and departments, change their details, and deactivate and reactivate them; every
-  change audited; costs: each filesystem's price
+- **For IT**: an overview of every filesystem, the largest folders and biggest changes, unmapped folders, storage
+  health (scan errors, very large directories, small-file hotspots, problem file names, deleted owners), the scan
+  history, each filesystem's capacity and the month it fills at its trend, and people and access: add people,
+  change their details, lab memberships, and roles, and deactivate and reactivate them; add labs and departments,
+  change their details, and deactivate and reactivate them; every change audited; costs: each filesystem's price
   per month and the free tiers for labs and departments, from a day on; and chargeback: every lab's and
-  department's charges for a month, totals by filesystem, the storage no one owns, and a CSV statement for finance.
+  department's charges for a month, totals by filesystem, the storage no one owns, and a CSV statement for
+  finance; and the file categories, by extension and by patterns on file names, with what a change would do before
+  it is saved.
 - **Roles beyond labs**: auditors see everything and change nothing; finance sees every lab's charges and the
   prices behind them, and no folders; division heads see their divisions' labs as the labs' members do. Given on a
   person's page, beside their labs, with every way of signing in; checked on the server for every request.
@@ -69,10 +70,11 @@ A *pinax* was a tablet or register; the *Pinakes* was the catalog of the Library
   behind oauth2-proxy, with an emergency sign-in for when Entra ID fails; and, in the demo, a persona switcher to
   show Pinax with the seeded people (refused in production). People, labs, roles, and access are managed the same
   way in all of them.
-- **Built for scale**: each scan is indexed once into directory-level totals, so a treemap of a petabyte
-  draws in tens of milliseconds: at 100 million files, every directory-level query takes 50 ms or less, and the
-  index builds in two minutes. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and measured
-  performance.
+- **Built for scale**: each scan is indexed once into directory-level totals, so a treemap of a petabyte draws in
+  tens of milliseconds: at 100 million files, every directory-level query takes 50 ms or less, and the index
+  builds in two minutes. A load test of people clicking through the interface measures many at once: one process
+  serves some 250 to 300 on a laptop ([sizing](docs/DEPLOYMENT.md#many-people-at-once)). See
+  [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and measured performance.
 - **Numbers you can check**: `pinax check` compares every directory's totals with `fs-inventory rollup`, an
   independent implementation, and reports any difference.
 - **Ready to run**: new scans are ingested automatically, labs and people are imported from CSV with a dry run
@@ -207,7 +209,7 @@ Every command and option is in [docs/CLI.md](docs/CLI.md). API documentation is 
 src/pinax/
   config.py, db.py, models.py      settings, catalog engine, catalog schema
   migrate.py, migrations/          the catalog's migrations (Alembic), on SQLite or PostgreSQL
-  categories.py                    file categories, type normalization, age buckets
+  categories.py                    file categories (built in, and the site's own), type normalization, age buckets
   ingest/build.py                  scan -> snapshot index (DuckDB + Parquet)
   crosscheck.py                    an index against fs-inventory rollup, directory by directory
   index.py                         read-only queries over one snapshot index
