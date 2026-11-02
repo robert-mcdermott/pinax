@@ -39,17 +39,17 @@ _engine: Engine | None = None
 _SessionLocal: sessionmaker[Session] | None = None
 
 
-# FastAPI runs each of a request's dependencies, and then its endpoint, in a thread of their own, from anyio's 40 for
-# the whole process. A request holds a catalog connection only within one of them (`release`), so a pool as large
-# as that never keeps a thread waiting; PostgreSQL's is smaller, a cost on the database server (PINAX_DATABASE_POOL_SIZE).
-THREADS = 40
+# FastAPI runs each of a request's dependencies, and then its endpoint, in a thread of their own, from the
+# PINAX_WEB_THREADS of the whole process. A request holds a catalog connection only within one of them (`release`),
+# so a pool as large as that never keeps a thread waiting; PostgreSQL's is smaller, a cost on the database server
+# (PINAX_DATABASE_POOL_SIZE).
 POOL_TIMEOUT = 10  # seconds a request waits for a catalog connection before it is turned away as busy
 
 
 def make_engine(url: str) -> Engine:
     if url.startswith("sqlite"):
-        engine = create_engine(url, connect_args={"check_same_thread": False, "timeout": 30}, pool_size=THREADS,
-                               max_overflow=0, pool_timeout=POOL_TIMEOUT)
+        engine = create_engine(url, connect_args={"check_same_thread": False, "timeout": 30},
+                               pool_size=get_settings().web_threads, max_overflow=0, pool_timeout=POOL_TIMEOUT)
 
         @event.listens_for(engine, "connect")
         def _sqlite_pragmas(dbapi_conn, _record):

@@ -101,14 +101,13 @@ database that IT runs, backs up, replicates, and monitors as it does others, and
 file's lock. Pinax is still one server: indexes and background searches are on its disk. The whole test suite runs
 on both.
 
-**Connections.** The web app answers requests in threads, 40 for the whole process, and runs each request's sign-in
-check and then its page in a thread each, one after the other. A request holds a catalog connection only while it
-runs in one of them: it gives it back once it knows who is signed in, and before checking a password
-(`db.release`), so threads never all wait for connections held by requests waiting for threads. With SQLite the web
-app keeps up to 40 connections, one for each thread; with PostgreSQL, `PINAX_DATABASE_POOL_SIZE` (10, and as many
-more at busy times), which costs the database server. A request that finds no connection free within 10 seconds is
-told Pinax is busy (503), and counted in `pinax_catalog_busy_total`. Measured in
-[Many people at once](#many-people-at-once).
+**Connections.** The web app answers requests in threads, `PINAX_WEB_THREADS` (40) for the whole process, and runs
+each request's sign-in check and then its page in a thread each, one after the other. A request holds a catalog
+connection only while it runs in one of them: it gives it back once it knows who is signed in, and before checking a
+password (`db.release`), so threads never all wait for connections held by requests waiting for threads. With SQLite
+the web app keeps a connection for each thread; with PostgreSQL, `PINAX_DATABASE_POOL_SIZE` (10, and as many more at
+busy times), which costs the database server. A request that finds no connection free within 10 seconds is told Pinax
+is busy (503), and counted in `pinax_catalog_busy_total`. Measured in [Many people at once](#many-people-at-once).
 
 **Migrations** (Alembic, in `src/pinax/migrations`, `migrate.py`) create the catalog and upgrade it in place. They
 run when Pinax starts, as new tables and columns were added before, unless `PINAX_DB_AUTO_UPGRADE=false` leaves them
@@ -767,8 +766,8 @@ both, and the 95th percentile 104 and 108 ms (it varies by a third between runs)
 one search after another (by name, by path, and by age, each with a count of all that match, a second pass), with a
 pause of 1 to 3 seconds, while the 100 people browsed at the baseline's pace (`--searchers 8`). Two run at once
 (`PINAX_WIDE_QUERIES`) and the others wait for a turn, so the cores stay busy (8.5 of 10). On SQLite every budget was
-met: the others' pages took a median 98 ms and 410 ms at the 95th percentile (folder pages at most 414 ms, a lab's
-searches 199 ms), and the 299 searches finished in a median 2.7 s, the longest 7.6 s, waiting included. With a time
+met: the others' pages took a median 98 ms and 410 ms at the 95th percentile (folder pages at most 751 ms, *What
+changed*; a lab's searches 199 ms), and the 299 searches finished in a median 2.7 s, the longest 7.6 s, waiting included. With a time
 limit of 5 seconds instead of 180 (`--set PINAX_QUERY_TIMEOUT=5`), 33 searches of 280 did not finish, and each stopped
 at the limit, within a quarter of a second, with Pinax's explanation: 16 still waiting for a turn (503, "already
 running as many searches of whole filesystems as it allows"), 17 running (504, "stopped this after 5 seconds"). On
@@ -786,16 +785,41 @@ minute for one of the 40 threads. With cores to spare, what they were most likel
 which runs one thread's Python at a time, and which they share with the event loop that receives the requests. People arriving
 over a minute, as in the baseline, do not wait.
 
-**PostgreSQL is slower by its round trips,** on pages that ask the catalog many small questions: an administrator's
-*All data* makes 1,023 catalog queries (306 ms on PostgreSQL, 111 ms on SQLite), *People and access* 620 (one for each
-person's site roles; 187 and 66 ms), a lab's suggested folders 175 (91 and 46 ms), and a lab's charges 51 (56 and 10
-ms). They grow with labs and people. Giving a request's connection back after the sign-in check (above) adds a few
-more, as the request takes one again for its page: about 4 ms a request here, where each round trip to the database,
-in its virtual machine, takes about 1.5 ms. At 100 people PostgreSQL's median page took 62 ms, against 55 ms before.
+**PostgreSQL is slower by its round trips,** on pages that ask the catalog many small questions. In 0.13.0 an
+administrator's *All data* made 1,023 catalog queries (306 ms on PostgreSQL, 111 ms on SQLite), *People and access*
+620 (187 and 66 ms), a lab's suggested folders 175 (91 and 46 ms), and a lab's charges 51 (56 and 10 ms); the age map,
+change map, and cold folders of a filesystem's root 131, 133, and 283. Most were each lab's PI, found by loading the
+lab's members and then each member, lab by lab, and each person's site roles, person by person. Since wave 14 every
+lab's PIs come in one query (`models.pi_names`), people come with their roles, and a lab's suggested folders look up
+each filesystem's price and free tier once: *All data* makes 24 queries, *People and access* 13, the root's pages 12
+to 14, and the suggested folders 58. One request at a time, *All data*'s catalog request took 69 to 129 ms on
+PostgreSQL instead of 400 to 576 ms, and *People and access* 59 to 103 instead of 252 to 447 (on SQLite, 30 to 49
+instead of 125 to 161, and 31 to 45 instead of 75 to 170; measured while the laptop was in use, hence the ranges). A
+lab's charges still read prices once for each month of their history, 51 queries. Giving a request's connection back
+after the sign-in check (above) adds a few round trips, as the request takes one again for its page: about 4 ms a
+request here, where each round trip to the database, in its virtual machine, takes about 1.5 ms. At 100 people
+PostgreSQL's median page took 62 ms, against 55 ms in 0.13.0.
 
-**Memory** grows as DuckDB caches the indexes' blocks: 2.5 GB after five minutes of 100 people, and over 20 minutes
-it rose and fell between 1.4 and 3.0 GB. Each open index may cache up to `PINAX_QUERY_MEMORY_LIMIT` (4 GB) and up to
-eight indexes stay open, so at a billion files the bound is past the 16 GB of [Sizing](DEPLOYMENT.md#sizing).
+**Memory** grows as DuckDB caches the indexes' blocks: 2.5 GB after five minutes of 100 people, and over 20 minutes it
+rose and fell between 1.4 and 3.0 GB. Each open index is a DuckDB database with a memory limit of its own (what its
+queries use at once, and the blocks it keeps), and up to eight stay open: 0.13.0 gave each `PINAX_QUERY_MEMORY_LIMIT`
+(4 GB), so up to 32 GB in all, past the 16 GB of [Sizing](DEPLOYMENT.md#sizing) at a billion files. Since wave 14 the
+setting is for all of them together (8 GB), each with an equal share, set again as indexes open and close
+(`snapshots.IndexCache`), and DuckDB lets go of cached blocks when a share falls. At rest an index keeps little: 43
+MB, after all of a 10-million-file index was read once; at a billion files its folders alone are gigabytes.
+
+**Threads.** Measured while the laptop was in use, so each run is compared only with its neighbours. Fewer of the web
+app's threads (`PINAX_WEB_THREADS`) served more pages a second when the process was saturated: at four times the
+baseline's pace, 8 threads served 24.7 pages a second against 18.5 with 40 in the run before, and 18.3 against 13.4
+with 16, with a 95th percentile of 2.5 s against 8.7 s; and 200 people signing in at once had their first pages within
+31 s, against 40 s with 16 and 57 s with 40. Python runs one thread's code at a time, and fewer threads share it, and
+the event loop, among fewer. But each request waiting for a whole-filesystem turn holds a thread: with eight
+administrators searching, 8 threads left the others' pages a 95th percentile of 1.2 s and a lab's searches 1.7 s,
+against 0.5 and 0.3 s with 40. At a billion files the root's reports and the searches take seconds and hold threads
+longer, so the default stays 40. Fewer DuckDB threads did not help the pages beside the searches: with
+`PINAX_QUERY_THREADS=5` of 10, on PostgreSQL with eight searching, the others' pages took 642 ms at the 95th
+percentile against 733 ms and 2.0 s in the runs either side with all ten, and the searches a median 5.7 s against 4.2
+and 5.0 s. A search and the pages of the same index share its threads.
 
 ### Charges
 

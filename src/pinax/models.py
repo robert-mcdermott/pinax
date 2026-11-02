@@ -24,8 +24,9 @@ from sqlalchemy import (
     UniqueConstraint,
     event,
     false,
+    select,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, Session, mapped_column, object_session, relationship
 
 from .db import Base, utcnow
 
@@ -58,9 +59,35 @@ class Lab(Base):
 
     @property
     def pi_name(self) -> str:
-        """The PI (for a lab) or owner (for a department), from the membership table."""
-        names = [m.user.display_name for m in self.memberships if m.role == "pi" and m.user.active]
-        return ", ".join(sorted(names))
+        """The PI (for a lab) or owner (for a department), from the membership table: every lab's at once, the first
+        time a session asks, since a page may name hundreds of labs (`pi_names`)."""
+        session = object_session(self)
+        if session is None or self.id is None:
+            names = [m.user.display_name for m in self.memberships if m.role == "pi" and m.user.active]
+            return ", ".join(sorted(names))
+        return pi_names(session).get(self.id, "")
+
+
+PI_NAMES = "pinax.pi_names"
+
+
+def pi_names(session: Session) -> dict[int, str]:
+    """Each lab's PIs (active people only), in one query, kept in the session until it next writes or rolls back."""
+    names = session.info.get(PI_NAMES)
+    if names is None:
+        by_lab: dict[int, list[str]] = {}
+        for lab_id, name in session.execute(select(LabMembership.lab_id, User.display_name)
+                                            .join(User, User.id == LabMembership.user_id)
+                                            .where(LabMembership.role == "pi", User.active.is_(True))):
+            by_lab.setdefault(lab_id, []).append(name)
+        names = session.info[PI_NAMES] = {k: ", ".join(sorted(v)) for k, v in by_lab.items()}
+    return names
+
+
+@event.listens_for(Session, "after_flush")
+@event.listens_for(Session, "after_soft_rollback")
+def _forget_pi_names(session: Session, *_) -> None:
+    session.info.pop(PI_NAMES, None)
 
 
 class Filesystem(Base):

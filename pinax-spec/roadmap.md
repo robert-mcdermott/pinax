@@ -1718,8 +1718,8 @@ pilot, which still waits for it, at the maintainer's request; the pilot runs the
 | 1 | The load test (Q6) | `bench/load.py` drives a running Pinax over HTTP as browsers do: simulated people of each role, each signing in with a password, then working through the pages of a session with pauses between clicks; for every page, the median, 95th and 99th percentile times, errors, and requests a second, and the server's memory through the run, written as a report. `bench/load_setup.py` makes the installation it runs against, on SQLite or PostgreSQL: three synthetic scans of 10 million files a month apart (for history and the change map), 200 labs with their people, and the site roles. A short run is in the test suite, so the load test keeps working. Two runs of the same load agree within 10% | Done |
 | 2 | The baseline (Q6) | Runs with 10, 25, 50, and 100 people at once, on SQLite and on PostgreSQL: when times begin to climb, which pages are slowest and why, and memory against the deployment guide's sizing; recorded in the architecture guide's measured performance | Done |
 | 3 | Turns and the catalog (Q6) | Whole-filesystem searches by several administrators at once while others browse: the waiting ones finish within the time limit or stop with Pinax's explanation, and other people's pages stay within the budgets; many people signing in at once (each password is checked with scrypt, slow by design); SQLite's locking and PostgreSQL's connection pool under the same load. What fails is found and fixed | Done |
-| 4 | Tuning and sizing (Q6) | What slices 2 and 3 found fixed, or its defaults changed (such as the web server's 40 threads, `PINAX_QUERY_THREADS`, `PINAX_WIDE_QUERIES`, `PINAX_DATABASE_POOL_SIZE`, or more than one web process), each change measured again; the deployment guide's sizing says how many people a server of a given size serves, and what to change for more | Next |
-| 5 | File categories in the catalog (R14) | The categories, with their extensions and name patterns, kept in the catalog (a migration fills it with today's twelve) rather than in `categories.py`; an index built with the catalog's categories, recorded in it, and every query reading each index's own; name patterns as regular expressions, checked before extensions; the indexes built with other categories than the catalog's are outdated, so `pinax rebuild --outdated` builds them again; the reports, *Find files*, the age map's *one category*, and the change between scans work the same with the default categories, and with added ones. Measured at 10 million files and extrapolated to a billion, as decided below: build time and index size with the default categories unchanged (within 3%), with 25 patterns at most 10% more build time, and with 24 categories the index within Q5's 60 bytes a file; no report slower | To come |
+| 4 | Tuning and sizing (Q6) | What slices 2 and 3 found fixed, or its defaults changed (such as the web server's 40 threads, `PINAX_QUERY_THREADS`, `PINAX_WIDE_QUERIES`, `PINAX_DATABASE_POOL_SIZE`, or more than one web process), each change measured again; the deployment guide's sizing says how many people a server of a given size serves, and what to change for more | Done |
+| 5 | File categories in the catalog (R14) | The categories, with their extensions and name patterns, kept in the catalog (a migration fills it with today's twelve) rather than in `categories.py`; an index built with the catalog's categories, recorded in it, and every query reading each index's own; name patterns as regular expressions, checked before extensions; the indexes built with other categories than the catalog's are outdated, so `pinax rebuild --outdated` builds them again; the reports, *Find files*, the age map's *one category*, and the change between scans work the same with the default categories, and with added ones. Measured at 10 million files and extrapolated to a billion, as decided below: build time and index size with the default categories unchanged (within 3%), with 25 patterns at most 10% more build time, and with 24 categories the index within Q5's 60 bytes a file; no report slower | Next |
 | 6 | Categories for administrators (R14) | *File categories*, under Administration: each category's name, description, extensions, and patterns, changed, added, and removed by storage administrators, and read by auditors; each pattern checked before it is saved, and tried against file names; how the latest scan's types would move between categories, before saving, from its table of types (no file read), and for patterns an estimate from a sample of its files, never a whole-filesystem read from the page; which snapshots will be rebuilt, how, and about how long it takes; every change audited; the guides | To come |
 | 7 | Release 0.14.0 | Version 0.14.0, changelog with notes on upgrading from 0.13.0; pull request, tag, release | To come |
 
@@ -1848,6 +1848,36 @@ pilot, which still waits for it, at the maintainer's request; the pilot runs the
      median page of 38 ms in both and a 95th percentile of 104 and 108 ms. Two other runs of this slice's code had
      95th percentiles of 143 and 149 ms, one of them while the test suite ran: the 95th percentile varies by a third
      between runs, the median by a few percent.
+4. **Tuning and sizing (Q6).**
+   - Catalog questions asked lab by lab and person by person, now asked at once: every lab's PIs in one query, the
+     first time a session asks and until it writes or rolls back (`models.pi_names`, for `Lab.pi_name`), people with
+     their roles on *People and access*, and a lab's price and free tier once for each filesystem in its suggested
+     folders (`plans.rate`). *All data* 1,023 queries to 24, *People and access* 620 to 13, the age map, change map,
+     and cold folders of a filesystem's root 131 to 283 to 12 to 14, a lab's suggested folders 175 to 58. One request
+     at a time, *All data*'s catalog request 69 to 129 ms on PostgreSQL instead of 400 to 576, 30 to 49 on SQLite
+     instead of 125 to 161; a PI's 31 requests took 484 to 492 ms in all, against 494 to 500 before.
+   - `PINAX_QUERY_MEMORY_LIMIT` is for every open index together (8 GB; it was 4 GB for each of up to eight):
+     `IndexCache` sets each open index's share with DuckDB's `SET memory_limit` as indexes open and close. Every
+     index is still opened with the same settings, since DuckDB refuses a second connection to a file open in the
+     same process with others. Lowering a share lets cached blocks go (43 MB to 8 MB in a test); at rest an index
+     of 10 million files keeps 43 MB. At three times the pace, 12 GB (4 GB each of the three open) and 8 GB did as
+     well, 22.0 and 17.9 against 18.7 and 22.2 pages a second, alternating.
+   - `PINAX_WEB_THREADS` (40), the web app's threads, and with SQLite its catalog connections. With 8, at four times
+     the pace, 24.7 pages a second against 18.5 with 40, and the first pages of 200 sign-ins at once within 31 s
+     against 57; but with eight administrators searching, those waiting for a turn held the threads, and the
+     others' pages had a 95th percentile of 1.2 s against 0.5. The default stays 40, since at a billion files the
+     root's reports and the searches take seconds; the deployment guide says when fewer pay.
+   - `PINAX_QUERY_THREADS=5` of 10, with the searchers on PostgreSQL: the others' pages 642 ms at the 95th
+     percentile against 733 ms and 2.0 s either side, the searches a quarter slower. The threads are each index's,
+     shared by the searches and the pages of it; the guides no longer say fewer keeps a search from slowing pages.
+   - More than one web process is left for later: the whole-filesystem turns, the metrics, and the searches in the
+     background are each one process's. The deployment guide's sizing (*Many people at once*): one process serves
+     about 250 to 300 people at once, bound by Python's work for each page rather than by cores, and what to change
+     for more.
+   - Measured while the laptop was in use, so runs are compared with their neighbours only. This slice's code
+     against slice 3's at three times the pace, in three pairs: 9.9 against 15.6 pages a second, 11.8 against 12.2,
+     and 13.2 against 15.7, while the same code varied between 17.9 and 22.2 in neighbouring runs; one request at a
+     time, as above, the new code costs no more.
 
 ## Later waves (outlined)
 

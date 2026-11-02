@@ -37,8 +37,9 @@ pilot installation (wave 15 in `pinax-spec/roadmap.md`) will confirm it on a rea
 
 ## What you need
 
-- A Linux server with systemd. 10 or more cores; 16 GB of memory for the index build (8 GB) and a few open
-  indexes (4 GB each at most); fast local SSD for `/var/lib/pinax` (see [Sizing](#sizing)).
+- A Linux server with systemd. 10 or more cores; 16 GB of memory: 8 GB for the index build while it runs, and up
+  to 8 GB for queries (`PINAX_QUERY_MEMORY_LIMIT`, every open index together); fast local SSD for `/var/lib/pinax`
+  (see [Sizing](#sizing)).
 - [uv](https://docs.astral.sh/uv/), which installs the Python Pinax needs (3.13).
 - Read access to the filesystems' metadata from the host that scans them.
 - A way for people to sign in, one of:
@@ -347,14 +348,40 @@ refused by an older one: to go back to an older release, restore a backup made b
 | Snapshot index | about 56 bytes per file (56 GB per billion), times `PINAX_KEEP_SNAPSHOTS` (6), plus about 60 bytes per file new or removed since the scan before |
 | Building an index | free space for the new index beside the kept ones (it replaces the oldest only after the ingest), and while it builds, for a staged copy of the files and DuckDB's spill files: about 2–3 times an index in all |
 | Index build | about 1.2 seconds per million files on 10 cores (100 million in two minutes, a billion in about 20 minutes, measured on synthetic data); 8 GB of memory is enough, spilling beside the index beyond it, and more is no faster |
-| Query memory | `PINAX_QUERY_MEMORY_LIMIT` per open index (4 GB at most), up to 8 open, in the one web process; more memory left over for the operating system's page cache keeps indexes fast |
-| Long requests | Pinax stops a request after `PINAX_QUERY_TIMEOUT` (180 seconds), or when the browser leaves; the proxy in front must wait longer (oauth2-proxy's `upstream_timeout` is 5 minutes in `deploy/oauth2-proxy/pinax.cfg`, against its own default of 30 seconds; nginx's `proxy_read_timeout` is 60 seconds by default). `PINAX_WIDE_QUERIES` (2) searches of a whole filesystem run at once, and `PINAX_QUERY_THREADS` below the core count keeps one from slowing every page |
+| Query memory | `PINAX_QUERY_MEMORY_LIMIT` (8 GB) for every open index together, shared equally among up to 8, in the one web process: what their queries use at once and the blocks they keep. More memory left over for the operating system's page cache keeps indexes fast |
+| Long requests | Pinax stops a request after `PINAX_QUERY_TIMEOUT` (180 seconds), or when the browser leaves; the proxy in front must wait longer (oauth2-proxy's `upstream_timeout` is 5 minutes in `deploy/oauth2-proxy/pinax.cfg`, against its own default of 30 seconds; nginx's `proxy_read_timeout` is 60 seconds by default). `PINAX_WIDE_QUERIES` (2) searches of a whole filesystem run at once, each on every core ([Many people at once](#many-people-at-once)) |
 | Catalog | small: about one row per top-level folder per scan for history (2,000 folders scanned weekly add about 100,000 rows a year) |
 
 Put `/var/lib/pinax/snapshots` on fast local SSD or NVMe: indexes are read with many small range requests. Scans
 are read in one pass, at ingest and rebuild, so they can live on slower, cheaper disk: point `PINAX_SCAN_ROOT` there,
 and add it to the units' `ReadWritePaths`. For a billion-file filesystem with the defaults, six indexes take about
 340 GB and six scans about 240 GB, plus any older scans not yet deleted.
+
+### Many people at once
+
+One web process answers every request. Measured with the load test ([Many people at
+once](ARCHITECTURE.md#many-people-at-once)) on a laptop (Apple M4: 4 performance and 6 efficiency cores, 32 GB),
+against three scans of 10 million files, with each person opening a page every 5 to 15 seconds:
+
+| | One web process, on the laptop |
+| --- | --- |
+| People at once, every page within its budget | 100 on SQLite or PostgreSQL, at a median of 40 to 60 ms and a 95th percentile of 110 to 180 ms; about one core busy |
+| Before pages slow down | about 25 to 28 pages a second: some 250 to 300 people at that pace. Past it nothing fails, but pages wait their turn: at four times the pace, a median page of about a second |
+| What bounds it | Python's work for each page (the catalog, the answer), which runs one thread at a time: two or three cores were busy at the most. Faster cores serve more pages; more cores do not, though they speed whole-filesystem searches and index builds |
+| Searches of whole filesystems | each uses every core while it runs, two at a time (`PINAX_WIDE_QUERIES`). With eight administrators searching one search after another among 100 people, others' pages stayed within their budgets on SQLite, 95% of them within half a second |
+| Sign-ins | 200 people signing in at the same moment are all signed in within 6 to 9 seconds, but their first pages then take up to a minute, while the process works through them; people arriving over a few minutes do not wait |
+| Memory | 1.2 to 3 GB for the web app; queries may use up to `PINAX_QUERY_MEMORY_LIMIT` (8 GB) in all |
+| Catalog | SQLite serves this as well as PostgreSQL; PostgreSQL adds a round trip to each catalog question (1.5 ms here, through a virtual machine; less on a server's network) |
+
+A site's people are rarely all clicking at once: a few hundred at a time is a large organization's busy hour.
+For more:
+
+| When | Change |
+| --- | --- |
+| Pages slow at busy times, with only two or three cores busy | A server with faster cores. `PINAX_WEB_THREADS=8` served a third more pages a second when every page was quick, but then a few whole-filesystem searches waiting for their turn hold most of the threads: keep 40 where those are common |
+| Pages slow while whole-filesystem searches run | Fewer at once (`PINAX_WIDE_QUERIES`, 2) leave other pages more of the cores, and the searches wait longer for a turn. `PINAX_QUERY_THREADS` below the cores slowed the searches and gave other pages little back in the load test, since a search and the pages of the same index share its threads |
+| People see "Pinax is busy" | PostgreSQL: raise `PINAX_DATABASE_POOL_SIZE` within the database's `max_connections` |
+| More people than one process serves | Not yet: more than one web process needs the turns, metrics, and searches in the background shared between them |
 
 ### A filesystem of two billion files
 
@@ -366,7 +393,7 @@ with the defaults:
 | Each scan | about 80 GB; the six of the kept snapshots about 480 GB, on cheaper disk |
 | Each index | about 112 GB, so about 670 GB for six, plus `file_changes` (about 2.4 GB for a week in which 2% of the files are new or removed) |
 | Building an index | about 45 minutes on 10 cores, with 8 GB of memory, and 250–350 GB of free space while it runs: about 1–1.2 TB of NVMe for the indexes in all |
-| Web server memory | up to 32 GB for 8 open indexes at 4 GB each, plus page cache: 64 GB or more |
+| Web server memory | `PINAX_QUERY_MEMORY_LIMIT` for queries in every open index together (8 GB by default; raise it with the server's memory), plus page cache for the indexes: 64 GB or more |
 | Age map, types, owners, cold folders, history, charges | tens of milliseconds, as at 100 million: they read folder totals, not files |
 | A lab's search | grows with the lab's files: a lab of 300 million files searches like a filesystem of that size, in several seconds |
 | A search of the whole filesystem | about a minute, then about as long again for the count of matches; two at a time |
@@ -604,7 +631,7 @@ any use of the emergency sign-in.
 | Too little disk for indexes | Lower `PINAX_KEEP_SNAPSHOTS`; pruning runs after every ingest. A build needs room for one more index while it runs ([Sizing](#sizing)) |
 | People see "Pinax stopped this after 180 seconds" | A search or comparison of a whole filesystem read for longer than `PINAX_QUERY_TIMEOUT`: search within a folder, or narrow it by name, type, size, or age. To allow longer, raise `PINAX_QUERY_TIMEOUT` and the proxy's timeout with it. The log names each one (`Stopped /api/files: timeout after 180 s`) |
 | People see "Pinax is already running as many searches of whole filesystems as it allows" | Others ran meanwhile: raise `PINAX_WIDE_QUERIES` if the server has the cores and memory |
-| Pages are slow while a large search runs | Set `PINAX_QUERY_THREADS` below the number of cores |
+| Pages are slow while a large search runs | Fewer whole-filesystem searches at once (`PINAX_WIDE_QUERIES`) leave the rest more of the cores ([Many people at once](#many-people-at-once)) |
 | People see "Pinax is busy: more people are using it at once than it can serve" | No catalog connection was free within 10 seconds (`pinax_catalog_busy_total`, and `Turned away` in the log). With PostgreSQL, raise `PINAX_DATABASE_POOL_SIZE` within the database's `max_connections`; see [Sizing](#sizing) |
 | Scan folders filling the disk | Pinax never deletes them: delete the folders of pruned snapshots (`pinax snapshots` lists each one's status and folder) |
 | An index was lost or damaged | `pinax rebuild SNAPSHOT_ID`, from its scan; `/api/health` is `degraded` and counts `indexes_missing` while one is missing |

@@ -13,6 +13,15 @@ Wave 14 ("load"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
   The pilot becomes wave 15, and runs the same test again on its server; hardening becomes wave 16 (1.0.0). Wave 14
   also lets storage administrators define file categories, by extensions and by patterns on file names, applied when
   an index is built (R14).
+- **`PINAX_QUERY_MEMORY_LIMIT` is for all the open indexes together**, 8 GB by default. It was 4 GB for each, and up
+  to eight stay open, so up to 32 GB in all; now each open index has an equal share, set again as indexes open and
+  close, and one alone has all of it. A site that set it should set the total it allows.
+
+### Added
+
+- **`PINAX_WEB_THREADS`** (40): the threads that answer the web app's requests, and with SQLite its catalog
+  connections. Fewer serve more quick pages a second when the server is saturated, and leave less for requests that
+  wait or run long ([Sizing](docs/DEPLOYMENT.md#sizing)).
 
 ### Fixed
 
@@ -23,6 +32,11 @@ Wave 14 ("load"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
   connection back in between, and before checking a password, and with SQLite the web app keeps a connection for
   each thread. A request that finds no connection free within 10 seconds (30 before) is told Pinax is busy (503)
   instead of failing, and counted in the new metric `pinax_catalog_busy_total`, with the alert rule `PinaxBusy`.
+- **Pages that name many labs or people ask the catalog a few questions instead of hundreds.** An administrator's
+  *All data* asked 1,023, most of them to find each lab's PI; now 24. *People and access* asked 620 (each person's
+  roles), now 13; the age map, change map, and cold folders of a filesystem's root 131 to 283, now 12 to 14; a lab's
+  suggested folders 175, now 58. On PostgreSQL on the laptop, *All data*'s catalog request took 69 to 129 ms instead
+  of 400 to 576.
 
 ## 0.13.0 (2026-11-01)
 

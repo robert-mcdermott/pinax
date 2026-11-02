@@ -139,3 +139,37 @@ def test_partition_is_every_folder_above_the_threshold_as_a_tree(idx, metric):
             seen.add(r["dir_id"])
     assert idx.measure(ROOT, metric) == sum(f["size"] if metric == "bytes" else 1 for f in FILES)
     assert idx.measure(ROOT + "/nowhere", metric) == 0
+
+
+def test_open_indexes_share_the_query_memory(tmp_path, scan, monkeypatch):
+    """PINAX_QUERY_MEMORY_LIMIT is for every open index together: each has an equal share, set again as they open
+    and close, and one alone has all of it."""
+    import shutil
+    from types import SimpleNamespace
+
+    from pinax import config
+    from pinax.snapshots import IndexCache
+
+    monkeypatch.setenv("PINAX_QUERY_MEMORY_LIMIT", "1GB")
+    config.get_settings.cache_clear()
+    build_index(scan, tmp_path / "i1", progress=lambda m: None)
+    for n in (2, 3):
+        shutil.copytree(tmp_path / "i1", tmp_path / f"i{n}")
+    snaps = [SimpleNamespace(id=n, index_dir=str(tmp_path / f"i{n}")) for n in (1, 2, 3)]
+
+    def limit(i):
+        return i._con.execute("SELECT current_setting('memory_limit')").fetchone()[0]
+
+    cache = IndexCache(size=2)
+    try:
+        first = cache.get(snaps[0])
+        assert limit(first) == "953.6 MiB"  # 1GB, as DuckDB shows it
+        second = cache.get(snaps[1])
+        assert limit(first) == limit(second) == "476.8 MiB"
+        third = cache.get(snaps[2])  # the first is closed: still two open
+        assert limit(second) == limit(third) == "476.8 MiB"
+        cache.drop(2)
+        assert limit(third) == "953.6 MiB"
+    finally:
+        cache.clear()
+        config.get_settings.cache_clear()

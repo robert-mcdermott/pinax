@@ -34,7 +34,7 @@ def test_a_small_pool_serves_many_requests_at_once(catalog, monkeypatch):
 
     token = _signed_in(monkeypatch, "ada")
     monkeypatch.setenv("PINAX_DATABASE_POOL_SIZE", "1")  # PostgreSQL: 1, and 1 more at busy times
-    monkeypatch.setattr(db, "THREADS", 2)  # SQLite
+    monkeypatch.setenv("PINAX_WEB_THREADS", "2")  # SQLite: one for each of the web app's threads
     monkeypatch.setattr(db, "POOL_TIMEOUT", 5)
     config.get_settings.cache_clear()
     db.reset_engine()

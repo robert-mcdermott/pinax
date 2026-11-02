@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 from . import marks
 from .capacity import record_storage, scan_storage
 from .categories import AGE_BUCKETS, CATEGORY_KEYS, bucket_edges
-from .config import Settings, get_settings
+from .config import Settings, get_settings, size_bytes
 from .db import utcnow
 from .index import SnapshotIndex, Stats
 from .ingest.build import INDEX_VERSION, BuildError, build_index, check_manifest, read_manifest
@@ -55,7 +55,11 @@ def _stamp(index_dir: str) -> tuple[int, int] | None:
 
 class IndexCache:
     """Keeps recently used snapshot indexes open (each is a read-only DuckDB connection). An index rebuilt since
-    it was opened (`pinax rebuild`, in another process) is a new file, and is opened again."""
+    it was opened (`pinax rebuild`, in another process) is a new file, and is opened again.
+
+    PINAX_QUERY_MEMORY_LIMIT is for all of them together: each open index is a DuckDB database with a memory limit
+    of its own (what its queries use at once, and the blocks it keeps cached), so each gets an equal share, set
+    again as indexes open and close. One index alone has all of it."""
 
     def __init__(self, size: int = 8):
         self.size = size
@@ -72,25 +76,39 @@ class IndexCache:
             if item is not None:
                 self._items.pop(snap.id)
                 item[0].close()
+            # Opened as everywhere else (DuckDB refuses a second connection to a file open in this process with other
+            # settings), then given its share.
             s = get_settings()
             idx = SnapshotIndex(Path(snap.index_dir), memory_limit=s.query_memory_limit, threads=s.query_threads)
             self._items[snap.id] = (idx, stamp)
             while len(self._items) > self.size:
                 _, (old, _) = self._items.popitem(last=False)
                 old.close()
+            self._share()
             return idx
+
+    def _share(self) -> None:
+        share = _memory_share(len(self._items))
+        for idx, _ in self._items.values():
+            idx.set_memory_limit(share)
 
     def drop(self, snapshot_id: int) -> None:
         with self._lock:
             item = self._items.pop(snapshot_id, None)
             if item:
                 item[0].close()
+                self._share()
 
     def clear(self) -> None:
         with self._lock:
             for idx, _ in self._items.values():
                 idx.close()
             self._items.clear()
+
+
+def _memory_share(open_indexes: int) -> str:
+    """Each of `open_indexes` indexes' part of PINAX_QUERY_MEMORY_LIMIT, in bytes, as DuckDB reads a size."""
+    return f"{size_bytes(get_settings().query_memory_limit) // max(1, open_indexes)}B"
 
 
 indexes = IndexCache()

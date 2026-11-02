@@ -112,7 +112,8 @@ def reactivate_lab(slug: str, identity: Identity = Depends(require_admin), sessi
 @router.get("/people")
 def people(_: Identity = Depends(require_sees_all), session: Session = Depends(get_session)):
     users = session.scalars(
-        select(User).options(selectinload(User.memberships).selectinload(LabMembership.lab).selectinload(Lab.folders))
+        select(User).options(selectinload(User.memberships).selectinload(LabMembership.lab).selectinload(Lab.folders),
+                             selectinload(User.roles))
         .order_by(User.is_admin.desc(), User.display_name)
     ).all()
     return [user_json(u) for u in users]

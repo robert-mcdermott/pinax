@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlsplit
 
+import anyio.to_thread
 import sqlalchemy.exc
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
@@ -32,6 +33,7 @@ async def lifespan(_app: FastAPI):
     settings = get_settings()
     if problem := unsafe(settings):
         raise RuntimeError(f"Refusing to start: {problem}")
+    anyio.to_thread.current_default_thread_limiter().total_tokens = settings.web_threads
     init_db()
     jobs.recover()
     log.info("Pinax %s started: environment %s, sign-in %s, catalog %s, data in %s", __version__, settings.environment,

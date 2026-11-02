@@ -221,6 +221,11 @@ class SnapshotIndex:
     def close(self) -> None:
         self._con.close()
 
+    def set_memory_limit(self, limit: str) -> None:
+        """What this index's queries use at once and the blocks it keeps cached; lowering it lets cached blocks go."""
+        with self._lock:
+            self._con.execute(f"SET memory_limit = '{limit}'")
+
     def _cursor(self) -> duckdb.DuckDBPyConnection:
         with self._lock:
             return self._con.cursor()

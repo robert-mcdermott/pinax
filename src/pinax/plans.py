@@ -257,10 +257,16 @@ def lab_size(session: Session, lab: Lab, fs: Filesystem) -> int:
 
 def monthly(session: Session, fs: Filesystem, lab: Lab, size: int, day: date) -> Fraction | None:
     """What `lab` pays a month for `size` on `fs` at the price and free tier of `day`; None with no price."""
+    return rate(session, fs, lab, day)(size)
+
+
+def rate(session: Session, fs: Filesystem, lab: Lab, day: date):
+    """`monthly` for any size, with the price and free tier looked up once."""
     price = costs.price_on(session, fs, day)
     if price is None:
-        return None
-    return max(0, size - costs.free_on(session, fs, lab, day)) * Fraction(price.micros, 10**6 * costs.UNITS[price.unit])
+        return lambda size: None
+    free, per_byte = costs.free_on(session, fs, lab, day), Fraction(price.micros, 10**6 * costs.UNITS[price.unit])
+    return lambda size: max(0, size - free) * per_byte
 
 
 def compressible(types: list[dict]) -> int:
@@ -410,13 +416,15 @@ def suggestions(session: Session, lab: Lab, *, limit: int = 10) -> list[dict]:
         idx = indexes.get(snap)
         top = f"{fs.root.rstrip('/')}/{lf.path}"
         size = lab_size(session, lab, fs)
+        cost = rate(session, fs, lab, day)
 
-        def offer(kind: str, row_path: str, what: str, size_: int, frees: int, action: str, *, fs=fs, size=size) -> None:
+        def offer(kind: str, row_path: str, what: str, size_: int, frees: int, action: str, *, fs=fs, size=size,
+                  cost=cost) -> None:
             key = (fs.id, row_path)
             if key in planned or _outermost(items, fs.id, row_path) or frees <= 0 or protection(session, fs, row_path):
                 return
-            now = monthly(session, fs, lab, size, day)
-            saves = None if now is None else now - monthly(session, fs, lab, max(0, size - frees), day)
+            now = cost(size)
+            saves = None if now is None else now - cost(max(0, size - frees))
             if key not in found or found[key]["freed"] < frees:
                 found[key] = {"kind": kind, "what": what, "fs": fs.slug, "fs_name": fs.name, "path": row_path,
                               "name": row_path.rsplit("/", 1)[-1], "bytes": size_, "freed": frees, "action": action,
