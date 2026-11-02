@@ -77,6 +77,7 @@ src/pinax/
   people.py        people: adding, editing, site roles, deactivation (shared by the app and the CLI)
   labs.py          labs and departments: adding, editing, deactivation; slug rules shared with the import
   signin.py        local sign-in: password hashes, sessions, lockout
+  oidc.py          sign-in with Entra ID, or another OpenID Connect provider (Authlib), at /auth/; sessions as local
   tokens.py        API tokens: making (hashed, shown once), finding, what each may do, revoking
   audit.py         the audit log: filters, pages of events, and its CSV
   review.py        the access review: who has access to what, since when, what is worth a look; its sign-off
@@ -90,7 +91,7 @@ src/pinax/
   tags.py          folder tags: the standard list, labs' own tags, and tagging folders
   views.py         saved views: pages people keep and share with their labs
   jobs.py          searches in the background: worker threads, results kept as Parquet
-  auth.py          identity (demo cookie, SSO header, local session, or API token), what each person sees and may
+  auth.py          identity (demo cookie, SSO header, Pinax's session, or API token), what each person sees and may
                    change, and `/script/api/` for scripts
   explore.py       explore and report services: resolving places, merging results across places
   serialize.py     JSON views of catalog objects
@@ -173,6 +174,7 @@ them, the person's home), and `lab` to limit home to one lab:
 | `GET`, `POST /api/tokens`, `DELETE /api/tokens/{id}`; `GET`, `POST /api/admin/tokens` | A person's API tokens, making one (its secret is in this answer only), revoking one; everyone's, and making a service token |
 | `GET /api/admin/audit?person=&action=&lab=&fs=&path=&since=&until=&offset=&limit=&fmt=csv` | A page of audit events, newest first, with the total and what to filter by; every one that matches as CSV |
 | `GET /api/admin/access-review?fmt=csv`, `POST /api/admin/access-review/sign-off` | Who has access to what, with when each was given and what is worth a look, or its CSV; recording a review |
+| `GET /auth/login?next=`, `/auth/callback`, `/auth/logout`, `/auth/signed-out` | With `PINAX_AUTH_MODE=oidc` only (404 otherwise): to the provider, back with its code, signing out of Pinax and the provider, and the page after |
 | `GET /api/health`; `GET /metrics` | Health for load balancers (no sign-in); Prometheus metrics, only with `PINAX_METRICS_TOKEN` as a bearer token |
 
 ## Frontend conventions

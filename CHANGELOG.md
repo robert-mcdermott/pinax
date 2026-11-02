@@ -4,6 +4,16 @@
 
 Wave 13 ("reach"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
 
+### Added
+
+- **Sign-in with Entra ID in Pinax itself**, optional: `PINAX_AUTH_MODE=oidc` signs people in with Microsoft Entra
+  ID, or another OpenID Connect provider, behind the same HTTPS proxy as local sign-in, with no sign-on proxy. The
+  ID token is checked against the provider's keys, with PKCE; people are matched to Pinax's people by their user
+  principal name, within the site's domains, never made; refusals are explained and audited; signing out ends both
+  sessions. Pinax refuses to start until its settings are complete. `scripts/dex/dex.sh` runs Dex as a stand-in
+  to try it on a laptop ([Signing in with Entra ID](docs/ENTRA-ID.md)). New dependencies: Authlib (with joserfc
+  and `cryptography`), httpx2, and itsdangerous.
+
 ### Changed
 
 - **Local sign-in is the default outside the demo.** With no `PINAX_AUTH_MODE`, a `dev` or `prod` install signs

@@ -18,6 +18,8 @@ from .config import get_settings, unsafe
 from .db import get_engine, init_db
 from .limits import BUSY, GONE, QueryBudget, Stopped
 from .logs import RequestLog
+from .oidc import SignInState
+from .oidc import router as oidc_router
 from .snapshots import indexes
 
 STATIC = Path(__file__).parent / "static"
@@ -41,14 +43,16 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title="Pinax", version=__version__, lifespan=lifespan, docs_url="/api/docs",
               openapi_url="/api/openapi.json")
 app.include_router(api_router)
+app.include_router(oidc_router)  # /auth/..., sign-in with an identity provider (oidc mode only)
 
 
 @app.middleware("http")
 async def same_origin(request: Request, call_next):
-    """With local sign-in, Pinax's own session cookie is what authorizes a request, so a change must come from a
-    page of Pinax: a browser names the page's origin on every request that changes something."""
+    """With local sign-in or an identity provider, Pinax's own session cookie is what authorizes a request, so a
+    change must come from a page of Pinax: a browser names the page's origin on every request that changes
+    something."""
     if (request.method not in ("GET", "HEAD", "OPTIONS") and request.url.path.startswith("/api/")
-            and get_settings().auth_mode == "local"):
+            and get_settings().auth_mode in ("local", "oidc")):
         origin = request.headers.get("origin")
         if origin and urlsplit(origin).netloc != request.headers.get("host"):
             return JSONResponse({"detail": "Refused: the request did not come from a page of Pinax"}, status_code=403)
@@ -93,9 +97,10 @@ async def unhandled(_request: Request, exc: Exception):
     return JSONResponse({"detail": "Internal error"}, status_code=500)
 
 
-# Each GET's time limit covers everything below it (limits.py); scripts' /script/api/... is /api/... (auth.py);
-# outermost of all, each request's ID and log line.
+# Each GET's time limit covers everything below it (limits.py); a sign-in's state on /auth/ (oidc.py); scripts'
+# /script/api/... is /api/... (auth.py); outermost of all, each request's ID and log line.
 app.add_middleware(QueryBudget)
+app.add_middleware(SignInState)
 app.add_middleware(ScriptPrefix)
 app.add_middleware(RequestLog)
 

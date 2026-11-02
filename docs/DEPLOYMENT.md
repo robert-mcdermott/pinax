@@ -23,11 +23,10 @@ pilot installation (wave 14 in `pinax-spec/roadmap.md`) will confirm it on a rea
 ```
 
 - **Signing in** is with **passwords** Pinax keeps, out of the box, behind an HTTPS proxy such as nginx or Caddy
-  ([Signing in](#6-signing-in)). Optionally, with **single sign-on**, oauth2-proxy signs people in with an OpenID
-  Connect provider such as Microsoft Entra ID and passes each person's username to Pinax in a header
-  ([Single sign-on with oauth2-proxy](#single-sign-on-with-oauth2-proxy)). Sign-in with Entra ID in Pinax itself,
-  as Tundra does it, with nginx or a load balancer only for HTTPS and no oauth2-proxy, is planned for wave 13 in
-  `pinax-spec/roadmap.md`; both of today's ways will stay.
+  ([Signing in](#6-signing-in)). Optionally, with **single sign-on**, Pinax signs people in with Microsoft Entra ID,
+  or another OpenID Connect provider, itself, behind the same HTTPS proxy
+  ([Sign-in with Entra ID](#sign-in-with-entra-id)); or oauth2-proxy signs them in and passes each person's
+  username to Pinax in a header ([Single sign-on with oauth2-proxy](#single-sign-on-with-oauth2-proxy)).
 - **Scans** run where the filesystem is mounted with good metadata performance: the Pinax server itself (the
   `pinax-scan@` timer), or a storage node or NFS client that writes into the scan folder. fs-inventory reads
   only metadata, never file contents.
@@ -45,10 +44,10 @@ pilot installation (wave 14 in `pinax-spec/roadmap.md`) will confirm it on a rea
 - A way for people to sign in, one of:
   - **passwords Pinax keeps**, the default: an HTTPS reverse proxy such as nginx or Caddy in front of Pinax
     ([Signing in](#6-signing-in));
-  - **single sign-on**, optionally: an OpenID Connect identity provider (for example Microsoft Entra ID) and
-    [oauth2-proxy](https://oauth2-proxy.github.io/oauth2-proxy/) 7
-    ([Single sign-on with oauth2-proxy](#single-sign-on-with-oauth2-proxy)), until Pinax signs in with Entra ID
-    itself (planned for wave 13).
+  - **single sign-on**, optionally: an OpenID Connect identity provider (for example Microsoft Entra ID), with
+    the same HTTPS proxy ([Sign-in with Entra ID](#sign-in-with-entra-id)), or with
+    [oauth2-proxy](https://oauth2-proxy.github.io/oauth2-proxy/) 7 in front of Pinax
+    ([Single sign-on with oauth2-proxy](#single-sign-on-with-oauth2-proxy)).
 
   The demo's persona switcher (`PINAX_AUTH_MODE=demo`) lets anyone be anyone; Pinax refuses to start with it when
   `PINAX_ENVIRONMENT=prod`.
@@ -179,12 +178,19 @@ address. Scripts send API tokens instead of passwords, to `/api/...` or `/script
 
 ![The sign-in page with local sign-in](images/sign-in-light.webp "Local sign-in: a username and a password Pinax keeps.")
 
+### Sign-in with Entra ID
+
+Optionally, a site with Microsoft Entra ID, or another OpenID Connect provider, has Pinax sign people in with it
+itself, behind the same HTTPS proxy as above, with no other proxy: IT registers Pinax as an application, and
+`/etc/pinax/pinax.env` takes `PINAX_AUTH_MODE=oidc` and the provider's settings (commented there). Pinax refuses to
+start until they are complete. [Signing in with Entra ID](ENTRA-ID.md) has the request for IT, the settings, how
+to try it on a laptop with a stand-in provider, and what its errors mean.
+
 ### Single sign-on with oauth2-proxy
 
-Optionally, a site with an OpenID Connect identity provider, such as Microsoft Entra ID, signs people in with it
-instead. Pinax does not yet do that itself (that is planned for wave 13), so it goes through oauth2-proxy, in place
-of the HTTPS proxy above. In `/etc/pinax/pinax.env`, set `PINAX_AUTH_MODE=header` and
-`PINAX_AUTH_HEADER=X-Forwarded-Preferred-Username` (both are there, commented), then:
+Optionally, too, oauth2-proxy signs people in with an OpenID Connect provider, in place of the HTTPS proxy above,
+and passes each person's username to Pinax in a header. In `/etc/pinax/pinax.env`, set `PINAX_AUTH_MODE=header`
+and `PINAX_AUTH_HEADER=X-Forwarded-Preferred-Username` (both are there, commented), then:
 
 1. Register an application with the identity provider, with the redirect URI
    `https://pinax.example.org/oauth2/callback`, and create a client secret.

@@ -62,6 +62,7 @@ const DOCS = [
     { slug: 'sizing', title: 'Sizing', file: 'DEPLOYMENT.md', sections: ['Sizing'], lede: 'The server, disk, and memory a filesystem of a billion files needs.' },
     { slug: 'statements', title: 'Charges and statements', file: 'DEPLOYMENT.md', sections: ['Charges and statements'], lede: 'How charges are worked out, and when a past month can change.' },
     { slug: 'operations', title: 'Logs, metrics, and operations', file: 'DEPLOYMENT.md', sections: ['Monitoring and operations'], lede: 'Health, logs and the audit trail, Prometheus metrics and alerts, and day-to-day tasks.' },
+    { slug: 'entra-id', title: 'Signing in with Entra ID', file: 'ENTRA-ID.md', lede: 'Optional single sign-on with Microsoft Entra ID in Pinax itself: what to ask IT for, the settings, a trial with a stand-in, and its errors.' },
     { slug: 'configuration', title: 'Configuration', file: 'CONFIGURATION.md', lede: 'Every setting, with its default.' },
   ] },
   { group: 'Reference', pages: [

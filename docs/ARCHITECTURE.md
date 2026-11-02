@@ -42,8 +42,8 @@ snapshot index that makes it fast, how it is built and queried, security, and me
   │ FastAPI /api ── read-only DuckDB cursors         │
   │ static UI (HTML, CSS, JS modules; no build)      │
   └──────────────────────────────────────────────────┘
-                          ▲ HTTPS, through oauth2-proxy (single
-                          │ sign-on) or nginx/Caddy (passwords)
+                          ▲ HTTPS, through nginx/Caddy (passwords
+                          │ or Entra ID) or oauth2-proxy
   PIs, lab members, finance, auditors, IT, and scripts
 ```
 
@@ -578,7 +578,7 @@ the month shows at once; adding up the ranges overstates the range); storage no 
 
 ## Security
 
-- **Identity**, three ways (`PINAX_AUTH_MODE`):
+- **Identity**, four ways (`PINAX_AUTH_MODE`):
   - `demo`: a persona cookie, anyone can be anyone, for showing Pinax; the default in the demo environment, and
     refused at start-up with `PINAX_ENVIRONMENT=prod`.
   - `local` (`signin.py`), the default everywhere else: passwords hashed with scrypt; sessions kept on the server
@@ -590,8 +590,14 @@ the month shows at once; adding up the ranges overstates the range); storage no 
   - `header`: trusts a username header set by a single sign-on proxy, as Tundra does, and only on requests that
     come straight from the proxy's address (`PINAX_TRUSTED_PROXIES`); the same header from anywhere else is
     refused. `scripts/sso-check.py` checks this behind a real oauth2-proxy.
-  - Planned for wave 13: sign-in with Microsoft Entra ID (or another OpenID Connect provider) in Pinax
-    itself, as Tundra does it (`TUNDRA_AUTH_MODE=oidc`), with no sign-on proxy; `local` and `header` stay.
+  - `oidc` (`oidc.py`): sign-in with Microsoft Entra ID, or another OpenID Connect provider, in Pinax itself, as
+    Tundra does it, with no sign-on proxy. Authlib finds the provider by its discovery document; the authorization
+    code flow with PKCE; the ID token checked against the provider's published keys, with its issuer, audience,
+    expiry, and nonce. The sign-in's own state is a cookie signed with `PINAX_SESSION_SECRET`, on `/auth/` only,
+    for ten minutes. The person is matched by one claim (`PINAX_OIDC_USERNAME_CLAIM`), within
+    `PINAX_OIDC_USERNAME_DOMAINS`, never made, and then gets a server-side session as with `local`; refusals are
+    audited with why. Pinax refuses to start until its settings are complete. `scripts/dex/dex.sh` runs Dex as a
+    stand-in for Entra ID.
 - **API tokens** (`tokens.py`), with every way of signing in: `Authorization: Bearer pinax_…`, 256 random bits, of
   which the catalog keeps only the SHA-256 and the first characters. A personal token takes its person's access as
   it is at each request, or reads only (GET, and starting a search); a service token belongs to no one and reads as
@@ -716,7 +722,7 @@ uv run python bench/bench_charges.py --folders 2000 --weeks 52
 | `pinax seed` writes demo trees of sparse files and scans them with fs-inventory | Scheduled fs-inventory scans on storage nodes or scan hosts | Pinax ingests any complete Parquet scan |
 | Demo owners rewritten to fictional accounts, and demo scans dated a month apart | Real owners and times from the scan | Only `seed.py` rewrites scans, only its own demo scans |
 | SQLite catalog | SQLite on one server, or PostgreSQL | Migrations upgrade either in place ([The catalog database](#the-catalog-database)) |
-| Demo identity switcher | Single sign-on through a proxy (`PINAX_AUTH_MODE=header`), or passwords Pinax keeps (`local`) | Checked behind oauth2-proxy 7.15 with a stand-in identity provider; sign-in with Entra ID in Pinax itself, with no proxy, is planned for wave 13 |
+| Demo identity switcher | Passwords Pinax keeps (`local`); sign-in with Entra ID in Pinax itself (`oidc`); or single sign-on through a proxy (`header`) | `oidc` checked against Dex and a stand-in provider; `header` behind oauth2-proxy 7.15 with a stand-in identity provider |
 | People, labs, and folder mappings managed in the app | The same, fed from the authoritative source; until then imported from CSV (`pinax import`) | Same model as Tundra |
 | One server | Web and ingest can run on separate hosts sharing `var/snapshots` | Indexes are replaced, never changed in place; keep every ingest on one host, since the ingest lock is a file lock in `PINAX_VAR_ROOT` |
 

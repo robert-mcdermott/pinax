@@ -83,8 +83,9 @@ class Settings(BaseSettings):
     # to set up. "demo" uses a persona cookie: anyone picks anyone, for showing Pinax with the seeded people, the
     # default in the demo environment (refused when ENVIRONMENT=prod). "header" trusts a username header
     # (X-Remote-User by default) set by a single sign-on proxy, and only on requests from TRUSTED_PROXIES (addresses
-    # or networks; a JSON list).
-    auth_mode: Literal["demo", "local", "header"] | None = None
+    # or networks; a JSON list). "oidc": Pinax signs people in with Microsoft Entra ID, or another OpenID Connect
+    # provider, itself (oidc.py).
+    auth_mode: Literal["demo", "local", "header", "oidc"] | None = None
     auth_header: str = "X-Remote-User"
     trusted_proxies: list[str] = ["127.0.0.1", "::1"]
     # Local sign-in. A session lasts this long from signing in. This many failed sign-ins in a row lock the account
@@ -97,12 +98,27 @@ class Settings(BaseSettings):
     cookie_secure: bool | None = None
     # API tokens (tokens.py) expire after at most this many days.
     token_max_days: int = 365
+    # Sign-in with an identity provider (oidc). OIDC_ISSUER for Entra ID: https://login.microsoftonline.com/<tenant
+    # ID>/v2.0. The username is OIDC_USERNAME_CLAIM (Entra ID's user principal name by default); with
+    # OIDC_USERNAME_DOMAINS (comma-separated), only those domains, and `jdoe@example.org` may be `jdoe` in Pinax.
+    # PUBLIC_URL is how people reach Pinax; SESSION_SECRET signs the sign-in's state (at least 32 characters).
+    oidc_issuer: str = ""
+    oidc_client_id: str = ""
+    oidc_client_secret: SecretStr | None = None
+    oidc_username_claim: str = "preferred_username"
+    oidc_username_domains: str = ""
+    public_url: str = ""
+    session_secret: SecretStr | None = None
 
     @model_validator(mode="after")
     def _default_sign_in(self) -> "Settings":
         if self.auth_mode is None:
             self.auth_mode = "demo" if self.environment == "demo" else "local"
         return self
+
+    @property
+    def oidc_domains(self) -> list[str]:
+        return [d.strip().lower().lstrip("@") for d in self.oidc_username_domains.split(",") if d.strip()]
 
     @property
     def secure_cookies(self) -> bool:
@@ -141,6 +157,10 @@ def unsafe(settings: Settings) -> str | None:
     if settings.environment == "prod" and settings.auth_mode == "demo":
         return ("PINAX_AUTH_MODE=demo lets anyone sign in as anyone, so it is refused when PINAX_ENVIRONMENT=prod. "
                 "Use local (passwords Pinax keeps) or header (single sign-on), or a demo or dev environment.")
+    from .oidc import problems
+
+    if found := problems(settings):
+        return "Sign-in with an identity provider (PINAX_AUTH_MODE=oidc) needs its settings: " + "; ".join(found) + "."
     token = settings.metrics_token.get_secret_value() if settings.metrics_token else ""
     if token and len(token) < METRICS_TOKEN_LENGTH:
         return (f"PINAX_METRICS_TOKEN must be at least {METRICS_TOKEN_LENGTH} characters, since it is all that guards "

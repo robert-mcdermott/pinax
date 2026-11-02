@@ -1490,8 +1490,8 @@ It needs no production storage, and comes before the pilot, which still waits fo
 | Slice | Scope and requirements | Acceptance before the next slice | Status |
 | --- | --- | --- | --- |
 | 1 | Local sign-in the default outside the demo (A9) | With `PINAX_ENVIRONMENT` set to `dev` or `prod` and no `PINAX_AUTH_MODE`, Pinax signs people in with passwords it keeps; the demo environment keeps its persona switcher as it is; the server kit (`deploy/pinax.env`) and the deployment guide set up local sign-in first, with single sign-on as an option; the configuration and setup guides and the tests follow | Done |
-| 2 | Sign-in with Entra ID in Pinax itself (A6, in part) | A mode configured by settings and checked at start-up: any OpenID Connect provider by its discovery document, the authorization code flow with PKCE, the ID token checked against the provider's keys (issuer, audience, expiry, nonce); people matched by one claim, within the site's domains, and never made; a server-side session, as local sign-in makes; refused sign-ins audited with why; signing out ends the provider's session too; the whole flow tested against a stand-in provider (forged, expired, and replayed sign-ins, guests, unknown and deactivated people), and checked against Dex in Podman; the guide's request for IT, and a table of Entra ID's errors | Next |
-| 3 | The emergency administrator sign-in (A12) | As decided below, each part tested: off unless an emergency account exists; marked only from the command line; an address of its own; the password rules and lockout, a longer minimum password, and short sessions; every use audited, logged as a warning, and counted in the metrics; the accounts listed in the access review; the guide | To come |
+| 2 | Sign-in with Entra ID in Pinax itself (A6, in part) | A mode configured by settings and checked at start-up: any OpenID Connect provider by its discovery document, the authorization code flow with PKCE, the ID token checked against the provider's keys (issuer, audience, expiry, nonce); people matched by one claim, within the site's domains, and never made; a server-side session, as local sign-in makes; refused sign-ins audited with why; signing out ends the provider's session too; the whole flow tested against a stand-in provider (forged, expired, and replayed sign-ins, guests, unknown and deactivated people), and checked against Dex in Podman; the guide's request for IT, and a table of Entra ID's errors | Done |
+| 3 | The emergency administrator sign-in (A12) | As decided below, each part tested: off unless an emergency account exists; marked only from the command line; an address of its own; the password rules and lockout, a longer minimum password, and short sessions; every use audited, logged as a warning, and counted in the metrics; the accounts listed in the access review; the guide | Next |
 | 4 | Roles from Entra ID (A6, in part) | Optionally, Entra ID app roles (the token's `roles` claim) or groups mapped by settings onto the administrator role and the site roles, applied at each sign-in and audited; roles given in the app stay possible; a group overage said, not guessed; tested against the stand-in provider; app roles and groups checked in a real tenant when a test registration is available | To come |
 | 5 | CI and a container image (P6) | GitHub Actions run the linter and the suite on SQLite and PostgreSQL for every push and pull request; a container image (a `Containerfile`) runs the web app and automatic ingest with `/var/lib/pinax` as a volume, built and run with Podman, the demo included; the deployment guide's container section | To come |
 | 6 | Release 0.13.0 | The walk-through and the guides for each way of signing in; version 0.13.0, changelog with notes on upgrading from 0.12.0; pull request, tag, release | To come |
@@ -1582,6 +1582,35 @@ sign-in, and access policies, so it is kept small:
      password.
    - Found on the way: the audit log's test took today from the local clock, while the log's days are UTC, so it
      failed in the evening in the Americas; it uses the UTC date now.
+2. **Sign-in with Entra ID in Pinax itself (A6, in part).**
+   - `oidc.py`, following Tundra's: `PINAX_AUTH_MODE=oidc` with `PINAX_OIDC_ISSUER`, `_CLIENT_ID`, `_CLIENT_SECRET`,
+     `_USERNAME_CLAIM` (`preferred_username`), `_USERNAME_DOMAINS`, `PINAX_PUBLIC_URL`, and `PINAX_SESSION_SECRET`,
+     checked by `config.unsafe`, so Pinax refuses to start until they are complete. Authlib's Starlette client (with
+     joserfc, and httpx2 to reach the provider; itsdangerous signs the state) finds the provider by its discovery
+     document, sends the browser there with PKCE (S256), and checks the ID token's signature, issuer, audience,
+     expiry, and nonce at `/auth/callback`. The sign-in's own state is a signed cookie on `/auth/` for ten minutes.
+   - People are matched, never made: the claim, lower-cased, is a person's username exactly, or, with allowed
+     domains, a person named with or without the domain (the whole name first); another domain is refused. A
+     match gets a server-side session (`signin.start_session`), so `auth.current_identity` treats `oidc` as `local`
+     (without a password to change), deactivation and signing out work the same, and changes must come from a page
+     of Pinax. Sign-ins, refusals (with why), and sign-outs are audited with `method: oidc`; the access review knows
+     when each person last signed in. `/auth/logout` ends Pinax's session and goes to the provider's
+     `end_session_endpoint`. Refusals and failures are pages in Pinax's look, with what to do.
+   - The interface: without a session, *Sign in* goes to `/auth/login` with the page to return to; an answer of
+     401 does the same; *Sign out* in the menu goes to `/auth/logout`.
+   - `scripts/dex/dex.sh` and `dex.yaml`: Dex v2.46.1 in Podman with four of the demo's people (an administrator, a
+     PI, someone unknown, and a guest named like an administrator), and the settings to run the demo against it.
+   - Tests (`tests/test_oidc.py`, 17), against a stand-in provider reached through httpx2's ASGI transport: signing
+     in and out, with the cookie's flags and the audit; refusals (unknown, a guest's domain, no domain);
+     deactivation; forged, wrongly addressed, and expired tokens; replays, and a sign-in finished in another
+     browser; the provider's errors; returning only to pages of Pinax; both forms of username; other ways in closed;
+     API tokens and a temporary password left from local sign-in; the same-origin check; the settings checked at
+     start-up.
+   - *Done*: the demo against Dex in the browser: the administrator signed in and returned to the page asked for,
+     signed out, and the guest and the unknown person were refused with a message, each in the audit log. The
+     guide *Signing in with Entra ID* (`docs/ENTRA-ID.md`): how it works, the request for IT, the settings, a trial
+     with Dex, and Entra ID's errors; the deployment, configuration, architecture, development, CLI, and
+     troubleshooting guides, the README, the examples of settings, and the website follow.
 
 ## Later waves (outlined)
 

@@ -69,7 +69,7 @@ export async function api(path, { method = "GET", body, query, quiet = false } =
       detail = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
     } catch { /* not JSON */ }
     if (res.status === 401 && !quiet) {
-      if (state.config && state.config.auth_mode === "local") showSignIn(); else showPersonaPicker(true);
+      if (isLocal()) showSignIn(); else if (isOidc()) location.assign(signInHref()); else showPersonaPicker(true);
     }
     if (res.status === 403 && detail === "Change your password before going on" && !quiet) showPasswordChange({ forced: true });
     throw new ApiError(res.status, detail);
@@ -291,6 +291,9 @@ function personaRow(u) {
 
 // ---------- Local sign-in (PINAX_AUTH_MODE=local) ----------
 const isLocal = () => state.config && state.config.auth_mode === "local";
+// Sign-in with an identity provider (oidc): /auth/login sends the browser there, and back to this page.
+export const isOidc = () => state.config && state.config.auth_mode === "oidc";
+export const signInHref = () => `/auth/login?${new URLSearchParams({ next: location.pathname + location.search + location.hash })}`;
 
 /** The sign-in form, over whatever page is showing. After signing in: the password change, if one is required,
  * else Pinax itself. */
@@ -430,6 +433,7 @@ export function renderTopbar({ mode, nav = [] } = {}) {
             <span class="avatar ${isAdmin ? "admin" : ""}">${me.initials}</span>
             <span class="user-text"><span>${me.display_name}</span><small>${sub}</small></span></button>`
         : isLocal() ? html`<button class="btn btn-sm btn-light" id="sign-in">${icon("lock")}Sign in</button>`
+        : isOidc() ? html`<a class="btn btn-sm btn-light" href="${signInHref()}">${icon("lock")}Sign in</a>`
         : state.config && state.config.auth_mode !== "demo" ? ""
         : html`<button class="btn btn-sm btn-light" id="user-button">Choose identity</button>`}
     </div>`);
@@ -455,9 +459,10 @@ export function renderTopbar({ mode, nav = [] } = {}) {
       <a class="menu-item" href="/app/#/tokens">${icon("key")}API tokens</a>
       ${isLocal() ? html`<button class="menu-item" data-act="password">${icon("lock")}Change password</button>
         <button class="menu-item" data-act="sign-out">${icon("arrowRight")}Sign out</button>` : ""}
+      ${isOidc() ? html`<a class="menu-item" href="/auth/logout">${icon("arrowRight")}Sign out</a>` : ""}
       ${demo ? html`<h4>SWITCH DEMO IDENTITY</h4>
       ${personaGroups(users).flat().map(personaRow)}
-      <div class="demo-note">Demo mode: anyone can be anyone. For real use, set PINAX_AUTH_MODE=local (passwords) or header (single sign-on).</div>` : ""}`);
+      <div class="demo-note">Demo mode: anyone can be anyone. Outside the demo, people sign in with passwords Pinax keeps, or with single sign-on.</div>` : ""}`);
     dd.addEventListener("click", (ev) => {
       ev.stopPropagation();
       const p = ev.target.closest(".persona");

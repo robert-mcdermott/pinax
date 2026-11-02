@@ -94,11 +94,12 @@ def current_identity(request: Request, session: Session = Depends(get_session)) 
                         request.client.host if request.client else "?")
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Sign in through the single sign-on proxy")
         username = request.headers.get(settings.auth_header, "")
-    elif settings.auth_mode == "local":
+    elif settings.auth_mode in ("local", "oidc"):  # a session Pinax keeps, after a password or the provider
         signed_in = find_session(session, request.cookies.get(SESSION_COOKIE))
         if signed_in is None:
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not signed in")
-        if signed_in.user.must_change_password and request.url.path not in WHILE_CHANGING_PASSWORD:
+        if (settings.auth_mode == "local" and signed_in.user.must_change_password
+                and request.url.path not in WHILE_CHANGING_PASSWORD):
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Change your password before going on")
         username = signed_in.user.username
     else:

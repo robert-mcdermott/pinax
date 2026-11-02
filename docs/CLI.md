@@ -155,7 +155,8 @@ pinax check 11
 ### pinax user add
 
 Adds a person. With local sign-in it prints a temporary password, which they change when they first sign in; with
-single sign-on, the username is the one the proxy sends.
+single sign-on, the username is the one the identity provider or the proxy sends ([Signing in with Entra
+ID](ENTRA-ID.md)).
 
 | Argument or option | |
 | --- | --- |

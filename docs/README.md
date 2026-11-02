@@ -21,6 +21,7 @@ Read in this order when setting Pinax up for the first time:
 | [Trying Pinax on your own data](SETUP.md) | One machine, one filesystem, a first scan, and your first people, in a few minutes |
 | [Deployment](DEPLOYMENT.md) | Installing on a server (services, single sign-on or passwords), scans on a schedule and automatic ingest, checking the numbers, the catalog on SQLite or PostgreSQL, backups, upgrades, sizing, charges, logs, metrics, and day-to-day tasks |
 | [Configuration](CONFIGURATION.md) | Every setting, with its default |
+| [Signing in with Entra ID](ENTRA-ID.md) | Optional single sign-on with Microsoft Entra ID, or another OpenID Connect provider, in Pinax itself: the request for IT, the settings, trying it with Dex, and its errors |
 | [Administration guide](ADMINISTRATION.md) | The administrator's pages, and what auditors and finance read: All data, folders and labs, people and access with site roles, API tokens, the access review, scans, storage health, capacity, costs, chargeback, tags, every lab's plans, and the audit log |
 | [Importing labs and people](IMPORT.md) | The CSV files for labs, people, memberships, and folder ownership |
 | [Command line](CLI.md) | Every `pinax` command and option |

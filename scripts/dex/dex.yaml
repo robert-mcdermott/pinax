@@ -1,0 +1,33 @@
+# Dex, an OpenID Connect provider, standing in for Entra ID so sign-in with an identity provider can be tried on a
+# laptop (docs/ENTRA-ID.md). Started by dex.sh. Every account's password is "password".
+issuer: http://localhost:5556/dex
+storage:
+  type: memory
+web:
+  http: 0.0.0.0:5556
+oauth2:
+  skipApprovalScreen: true
+staticClients:
+  - id: pinax-local
+    name: Pinax
+    secret: pinax-local-secret
+    redirectURIs:
+      - http://localhost:8001/auth/callback
+enablePasswordDB: true
+staticPasswords:
+  - email: pnatarajan@example.org   # a storage administrator in the demo
+    username: pnatarajan
+    userID: 0b7f3c2a-0001-4c1e-8f2a-000000000001
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+  - email: afujimoto@example.org    # a PI
+    username: afujimoto
+    userID: 0b7f3c2a-0001-4c1e-8f2a-000000000002
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+  - email: newperson@example.org    # signs in, but has no Pinax account
+    username: newperson
+    userID: 0b7f3c2a-0001-4c1e-8f2a-000000000003
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+  - email: pnatarajan@example.com   # a guest whose name matches a staff member's
+    username: pnatarajan-guest
+    userID: 0b7f3c2a-0001-4c1e-8f2a-000000000004
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
