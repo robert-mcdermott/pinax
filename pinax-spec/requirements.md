@@ -80,6 +80,7 @@ validation that shows it. Requirement IDs are stable and never reused.
 | R11 | Each filesystem's capacity, and when it fills at its trend | done (wave 6, slice 3: recorded by `pinax scan` or set by administrators from a day on; the day it fills, with its range, tested against the trend worked out by hand) |
 | R12 | Each lab's and department's charges for the next 12 months at its trend, with the prices and free tiers as scheduled | done (wave 6, slice 4: on *Storage charges* and *Chargeback*, equal to the cent to an hour-by-hour charge on the forecast sizes) |
 | R13 | Searches of a whole filesystem as background jobs, with their results kept for a while | done (wave 9, slice 3) |
+| R14 | File categories a site defines: storage administrators change each category's extensions and name patterns (regular expressions), and add or remove categories; applied when an index is built, and older indexes rebuilt to match | planned (wave 14) |
 
 ## Cleanup plans
 

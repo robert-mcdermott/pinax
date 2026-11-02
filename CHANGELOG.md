@@ -10,7 +10,9 @@ Wave 14 ("load"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
   laptop against synthetic scans of 10 million files, on SQLite and PostgreSQL; the baseline at 10 to 100 people;
   whole-filesystem searches taking turns, many sign-ins at once, and the catalog under load; what it finds fixed or
   tuned, and the deployment guide's sizing says how many people a server serves (Q6). It was planned for hardening.
-  The pilot becomes wave 15, and runs the same test again on its server; hardening becomes wave 16 (1.0.0).
+  The pilot becomes wave 15, and runs the same test again on its server; hardening becomes wave 16 (1.0.0). Wave 14
+  also lets storage administrators define file categories, by extensions and by patterns on file names, applied when
+  an index is built (R14).
 
 ## 0.13.0 (2026-11-01)
 

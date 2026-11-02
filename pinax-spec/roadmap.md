@@ -51,10 +51,10 @@ part of reach that works with every way of signing in; it came next, at the main
 reach came next as wave 13, also at the maintainer's request, while the pilot waits for production storage: local
 sign-in as the default, optional sign-in with Entra ID, an emergency administrator sign-in, roles from Entra ID, and
 CI. Local sign-in's two-factor codes and per-address limits, and a container image, went to the parking lot. Wave 14
-(load: many people at once, measured with a load test on a laptop) comes next the same way, taken from hardening,
-while the pilot also waits for an Entra ID test registration. The pilot is renumbered wave 15, and takes lab
-membership from the directory (A6), with the decision on where membership and ownership come from; hardening is
-wave 16 (1.0.0).
+(load: many people at once, measured with a load test on a laptop, taken from hardening; and file categories a site
+defines) comes next the same way, while the pilot also waits for an Entra ID test registration. The pilot is
+renumbered wave 15, and takes lab membership from the directory (A6), with the decision on where membership and
+ownership come from; hardening is wave 16 (1.0.0).
 
 Work that needs a system Pinax has no access to, such as a mail service, a chat workspace, or a storage system's
 own interface, is kept in the [parking lot](#parking-lot) rather than planned.
@@ -1707,9 +1707,9 @@ sign-in, and access policies, so it is kept small:
 Many people at once. What each page costs alone is measured (Q3 to Q5), but not what happens when many people use
 Pinax together: one process answers every request, each snapshot index is one DuckDB database that every request
 shares, and the catalog takes small writes from everyone signed in (sessions, the audit log). This wave measures it
-with a load test, fixes what it finds, and says how many people a server serves. It needs no production storage, and
-comes before the pilot, which still waits for it, at the maintainer's request; the pilot runs the same test again on
-its server.
+with a load test, fixes what it finds, and says how many people a server serves. It also lets a site define its own
+file categories, which today are a fixed list in the code. It needs no production storage, and comes before the
+pilot, which still waits for it, at the maintainer's request; the pilot runs the same test again on its server.
 
 ### Wave 14 sequence
 
@@ -1719,7 +1719,9 @@ its server.
 | 2 | The baseline (Q6) | Runs with 10, 25, 50, and 100 people at once, on SQLite and on PostgreSQL: when times begin to climb, which pages are slowest and why, and memory against the deployment guide's sizing; recorded in the architecture guide's measured performance | Next |
 | 3 | Turns and the catalog (Q6) | Whole-filesystem searches by several administrators at once while others browse: the waiting ones finish within the time limit or stop with Pinax's explanation, and other people's pages stay within the budgets; many people signing in at once (each password is checked with scrypt, slow by design); SQLite's locking and PostgreSQL's connection pool under the same load. What fails is found and fixed | To come |
 | 4 | Tuning and sizing (Q6) | What slices 2 and 3 found fixed, or its defaults changed (such as `PINAX_QUERY_THREADS`, `PINAX_WIDE_QUERIES`, `PINAX_DATABASE_POOL_SIZE`, or more than one web process), each change measured again; the deployment guide's sizing says how many people a server of a given size serves, and what to change for more | To come |
-| 5 | Release 0.14.0 | Version 0.14.0, changelog with notes on upgrading from 0.13.0; pull request, tag, release | To come |
+| 5 | File categories in the catalog (R14) | The categories, with their extensions and name patterns, kept in the catalog (a migration fills it with today's twelve) rather than in `categories.py`; an index built with the catalog's categories, recorded in it, and every query reading each index's own; name patterns as regular expressions, checked before extensions; the indexes built with other categories than the catalog's are outdated, so `pinax rebuild --outdated` builds them again; the reports, *Find files*, the age map's *one category*, and the change between scans work the same with the default categories, and with added ones. Measured at 10 million files and extrapolated to a billion, as decided below: build time and index size with the default categories unchanged (within 3%), with 25 patterns at most 10% more build time, and with 24 categories the index within Q5's 60 bytes a file; no report slower | To come |
+| 6 | Categories for administrators (R14) | *File categories*, under Administration: each category's name, description, extensions, and patterns, changed, added, and removed by storage administrators, and read by auditors; each pattern checked before it is saved, and tried against file names; how the latest scan's types would move between categories, before saving, from its table of types (no file read), and for patterns an estimate from a sample of its files, never a whole-filesystem read from the page; which snapshots will be rebuilt, how, and about how long it takes; every change audited; the guides | To come |
+| 7 | Release 0.14.0 | Version 0.14.0, changelog with notes on upgrading from 0.13.0; pull request, tag, release | To come |
 
 ### Decisions for wave 14
 
@@ -1736,6 +1738,34 @@ its server.
 - **The load test is a script of Pinax's own** (`bench/load.py`, with httpx, already a development dependency), not
   a load-testing tool, so nothing new is installed. Its sessions follow the walk-through's pages for each role.
 - **Not in this wave:** the accessibility audit, which stays with hardening (wave 16).
+- **File categories a site defines**, added at the maintainer's request. Today a file's category comes from its
+  extension, in a fixed list of twelve in `categories.py`, and each index is built with it (per folder, the files and
+  bytes of each category, which is what keeps *File types* fast at a billion files). Decided:
+  - **Still decided when an index is built**, not when it is read: deciding at query time would mean reading every
+    file for a report that now reads only folders. A change applies to the next scan; older snapshots keep their
+    categories until rebuilt (`pinax rebuild --outdated`, which takes about 25 s per snapshot at 10 million files
+    and, extrapolated, 20 minutes at a billion), so history and comparisons do not mix two definitions.
+  - **Extensions and name patterns.** A file's type stays its normalized extension (`fastq.gz` is `fastq` inside
+    gzip). A category lists extensions, and may also have patterns: regular expressions on the file's name (RE2, as
+    DuckDB has them: no backtracking, so no pattern can take exponential time), checked first, in order, so
+    `^Undetermined_.*\.fastq` can be its own category. The first match wins; a file nothing matches is *Other*.
+    Patterns are limited in number (25) so a build at a billion files stays within its budget (Q5).
+  - **What administrators may change:** every category's name, description, extensions, and patterns; new
+    categories; removing those added. The built-in categories' keys stay, and *Other* stays last with no rules.
+  - **One list for the site**, not per filesystem or lab.
+  - **Efficient at a billion files**, since categories are applied to every file of every scan:
+    - Extensions stay a join with a small table, as now: a site that changes only extensions pays nothing more.
+    - Patterns are checked only when a category has some, only against the file's name (not its path), and in one
+      pass: one expression of all the patterns together finds the few files that match any, and only those are
+      checked pattern by pattern for the first that matches. At most 25 patterns; build time with them is measured,
+      and its share of Q5's two hours per billion files stated.
+    - At most 24 categories: each adds a file count and a size to every folder of the index, so the index's size is
+      measured with 24 and kept within Q5's 60 bytes a file.
+    - Reports pay nothing: they read each folder's stored totals as now, and an index's own list of categories is
+      read once when it is opened.
+    - Rebuilding is the cost of a change: one snapshot at a time, in place, from the command line or automatic ingest,
+      never from the web app; the page says how many snapshots and about how long, and a site may rebuild only the
+      latest and let older ones keep their categories (each says which it was built with).
 
 ### Slices as built
 
