@@ -125,7 +125,8 @@ one replaces it, and keeps it if the build fails.
 | Argument or option | |
 | --- | --- |
 | `SNAPSHOT_ID ...` | The snapshots to rebuild |
-| `--outdated` | Every ready snapshot whose index is missing or in an older format, oldest first (after an upgrade that changes the index format) |
+| `--outdated` | Every ready snapshot whose index is missing, in an older format (after an upgrade that changes the index format), or built with other file categories than the catalog's, oldest first |
+| `--latest` | With `--outdated`, only each filesystem's latest snapshot: older ones keep the categories they were built with |
 
 ```bash
 pinax rebuild --outdated

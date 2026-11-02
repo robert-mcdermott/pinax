@@ -1719,8 +1719,8 @@ pilot, which still waits for it, at the maintainer's request; the pilot runs the
 | 2 | The baseline (Q6) | Runs with 10, 25, 50, and 100 people at once, on SQLite and on PostgreSQL: when times begin to climb, which pages are slowest and why, and memory against the deployment guide's sizing; recorded in the architecture guide's measured performance | Done |
 | 3 | Turns and the catalog (Q6) | Whole-filesystem searches by several administrators at once while others browse: the waiting ones finish within the time limit or stop with Pinax's explanation, and other people's pages stay within the budgets; many people signing in at once (each password is checked with scrypt, slow by design); SQLite's locking and PostgreSQL's connection pool under the same load. What fails is found and fixed | Done |
 | 4 | Tuning and sizing (Q6) | What slices 2 and 3 found fixed, or its defaults changed (such as the web server's 40 threads, `PINAX_QUERY_THREADS`, `PINAX_WIDE_QUERIES`, `PINAX_DATABASE_POOL_SIZE`, or more than one web process), each change measured again; the deployment guide's sizing says how many people a server of a given size serves, and what to change for more | Done |
-| 5 | File categories in the catalog (R14) | The categories, with their extensions and name patterns, kept in the catalog (a migration fills it with today's twelve) rather than in `categories.py`; an index built with the catalog's categories, recorded in it, and every query reading each index's own; name patterns as regular expressions, checked before extensions; the indexes built with other categories than the catalog's are outdated, so `pinax rebuild --outdated` builds them again; the reports, *Find files*, the age map's *one category*, and the change between scans work the same with the default categories, and with added ones. Measured at 10 million files and extrapolated to a billion, as decided below: build time and index size with the default categories unchanged (within 3%), with 25 patterns at most 10% more build time, and with 24 categories the index within Q5's 60 bytes a file; no report slower | Next |
-| 6 | Categories for administrators (R14) | *File categories*, under Administration: each category's name, description, extensions, and patterns, changed, added, and removed by storage administrators, and read by auditors; each pattern checked before it is saved, and tried against file names; how the latest scan's types would move between categories, before saving, from its table of types (no file read), and for patterns an estimate from a sample of its files, never a whole-filesystem read from the page; which snapshots will be rebuilt, how, and about how long it takes; every change audited; the guides | To come |
+| 5 | File categories in the catalog (R14) | The categories, with their extensions and name patterns, kept in the catalog (a migration fills it with today's twelve) rather than in `categories.py`; an index built with the catalog's categories, recorded in it, and every query reading each index's own; name patterns as regular expressions, checked before extensions; the indexes built with other categories than the catalog's are outdated, so `pinax rebuild --outdated` builds them again; the reports, *Find files*, the age map's *one category*, and the change between scans work the same with the default categories, and with added ones. Measured at 10 million files and extrapolated to a billion, as decided below: build time and index size with the default categories unchanged (within 3%), with 25 patterns at most 10% more build time, and with 24 categories the index within Q5's 60 bytes a file; no report slower | Done |
+| 6 | Categories for administrators (R14) | *File categories*, under Administration: each category's name, description, extensions, and patterns, changed, added, and removed by storage administrators, and read by auditors; each pattern checked before it is saved, and tried against file names; how the latest scan's types would move between categories, before saving, from its table of types (no file read), and for patterns an estimate from a sample of its files, never a whole-filesystem read from the page; which snapshots will be rebuilt, how, and about how long it takes; every change audited; the guides | Next |
 | 7 | Release 0.14.0 | Version 0.14.0, changelog with notes on upgrading from 0.13.0; pull request, tag, release | To come |
 
 ### Decisions for wave 14
@@ -1878,6 +1878,44 @@ pilot, which still waits for it, at the maintainer's request; the pilot runs the
      against slice 3's at three times the pace, in three pairs: 9.9 against 15.6 pages a second, 11.8 against 12.2,
      and 13.2 against 15.7, while the same code varied between 17.9 and 22.2 in neighbouring runs; one request at a
      time, as above, the new code costs no more.
+5. **File categories in the catalog (R14).**
+   - `file_category` (migration `0007`): each category's key, label, description, place, extensions, and patterns;
+     filled with `categories.DEFAULTS`, the twelve built in, the first time Pinax starts (as the default tags are),
+     never again. `categories.check`: *other* last and empty, keys of their own, at most 24 categories and 25
+     patterns, each pattern one DuckDB takes (RE2: `(a)\1` is refused).
+   - The build takes the categories (`build_index(..., categories=)`; ingest and rebuild pass the catalog's): the
+     extension join as before; patterns in one expression of them all, and for the names it matches a `CASE` of
+     each in order, before the extension. The index records them, and a fingerprint of keys, extensions, patterns,
+     and order (`categories.fingerprint`), in its metadata; an index from before, with keys and labels only, reads
+     as the defaults. Removed files copied into `file_changes` from an index built with other categories are
+     renumbered by key.
+   - Each index reads its own: its per-category columns come back named by category (`cb0 AS "cb:genomics"`), so
+     `Stats` adds and subtracts by category, and the API's `cat_bytes` and `cat_files` are objects keyed by
+     category; file rows carry the category's key; a search by a category an index lacks finds nothing in it, and
+     a treemap sized by it measures nothing (`CAST(0 AS BIGINT)`, not `0`, which `ORDER BY` reads as a column's
+     place). `/api/config` and the types report take the catalog's list, then any key a scan has that the catalog
+     no longer does. The interface reads totals by key.
+   - Outdated: `pinax rebuild --outdated` also rebuilds indexes whose fingerprint is not the catalog's, and
+     `--latest` only each filesystem's latest. Searches in the background store the category's key; older ones,
+     with a number, read it as the defaults'.
+   - Measured at 10 million files (`bench_index.py --patterns 25`, `--categories 24`), three builds each, on the
+     laptop in use: 0.13.0's code 22.1, 19.2, and 19.9 s; this slice's, default categories, 16.7, 15.8, and 16.6 s;
+     25 patterns 18.2, 16.7, and 17.1 s (4% more); 24 categories 18.0, 17.4, and 17.2 s (6% more). Index 56.1 bytes
+     a file with the defaults, 56.5 with the patterns' category, 56.9 with 24: within Q5's 60. The first runs had
+     24 categories at 39.5 s, its per-folder totals step 17.4 s instead of 5.5, with two filtered sums for each
+     category over every file; each folder's totals by category now come from its totals by type (`direct_cat`, a
+     few rows a folder), which also takes the defaults' build from about 20 s to 16. Extrapolated to a billion files
+     at 1.2 s a million: about 20 minutes, a minute more with 25 patterns or 24 categories, well within Q5's two
+     hours, and 57 GB an index with 24.
+   - Queries: 21 kinds, an index read by 0.13.0's code and this slice's in turn, totals 883, 945, and 917 ms
+     against 939, 908, and 980; the smallest, 300 times each in one process, 3.8 ms and 3.8 to 4.0 for an icicle,
+     22 to 23 and 22 to 25 ms for a two-level treemap: no report slower.
+   - `tests/test_categories.py`: the catalog's defaults; patterns before extensions, first match winning; a
+     category a site adds, before and after `pinax rebuild --outdated`; removed files keeping their categories; an
+     index from before; the checks. `test_build.py` checks every folder's totals by category against its files.
+     In a demo (seeded to a scratch folder): the age map sized and colored by a category, and a category added by
+     pattern (`\.bam$`, *Alignments*), the latest snapshots rebuilt with `--latest`: *File types* lists it, and an
+     older scan, not rebuilt, keeps `.bam` as sequencing data.
 
 ## Later waves (outlined)
 

@@ -12,7 +12,7 @@ import { scopeHeader } from "/js/shell.js";
 import { renderIcicle, renderSunburst } from "/js/depth.js";
 import { renderTreemap } from "/js/treemap.js";
 import {
-  ageBar, ageHistogram, bars, categories, coldBytes, colorFor, colorOptions, daysSince, legend, metricLabel,
+  ageBar, ageHistogram, bars, catBytes, coldBytes, colorFor, colorOptions, daysSince, legend, metricLabel,
   metricOptions, metricText, metricValue, thresholdText,
 } from "/js/viz.js";
 
@@ -178,7 +178,7 @@ function detailPanel(node, data, q, cb) {
   const place = node.fs ? { fs: node.fs, path: node.path } : null;
   const extra = node.lab && !place ? { lab: node.lab.slug } : {};
   const cold = coldBytes(s, cb);
-  const cats = categories().map((c, i) => ({ key: c.key, label: c.label, bytes: s.cat_bytes[i] })).filter((c) => c.bytes > 0)
+  const cats = catBytes(s).filter((c) => c.bytes > 0)
     .sort((a, b) => b.bytes - a.bytes).slice(0, 6);
   const sparse = s.alloc > 0 && s.alloc < s.bytes * 0.5; // compressed, deduplicated, sparse, or tiered
   return html`<aside class="card detail" aria-label="About this folder">

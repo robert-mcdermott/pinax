@@ -98,6 +98,7 @@ Settings are `PINAX_*` environment variables, or a `.env` file in the folder you
 
 ## Dimensions
 
-The age buckets and file categories are defined in `src/pinax/categories.py`, not in settings, because the
-interface's color ramp has exactly seven validated steps (one per age bucket). Each snapshot records the
+The age buckets are defined in `src/pinax/categories.py`, not in settings, because the interface's color ramp has
+exactly seven validated steps (one per age bucket). The file categories are the catalog's, with the twelve built-in
+ones to start ([File types and categories](ARCHITECTURE.md#file-types-and-categories)). Each snapshot records the
 buckets and categories it was built with.

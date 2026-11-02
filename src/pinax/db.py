@@ -140,16 +140,17 @@ def get_session() -> Iterator[Session]:
 
 def init_db() -> None:
     """Bring the catalog up to date (or, with PINAX_DB_AUTO_UPGRADE=false, check that it is), then add the default
-    tags if they were never added."""
+    tags and file categories if they were never added."""
     from . import migrate
 
     if get_settings().db_auto_upgrade:
         migrate.upgrade(get_engine())
     else:
         migrate.ensure_current(get_engine())
-    from .tags import ensure_defaults
+    from . import categories, tags
 
-    ensure_defaults()
+    tags.ensure_defaults()
+    categories.ensure_defaults()
 
 
 def reset_catalog() -> None:

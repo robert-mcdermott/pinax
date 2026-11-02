@@ -277,7 +277,9 @@ builds a temporary index from the same scan and compares every directory with fs
 `synth_scan.py --wide N --deep D` adds what real filesystems have and the model lacks: a folder of N files, a
 folder of N/10 subfolders, and a chain D folders deep. `bench_index.py` prints the scan's shape (counts only:
 depth, widest folders, longest path, flagged names, links, mount points) and the query timings, never a path or
-a name, so a run on a real filesystem can be recorded as it is (`--json FILE` saves it).
+a name, so a run on a real filesystem can be recorded as it is (`--json FILE` saves it). `--patterns N` builds with
+N patterns on file names, of the kinds a site writes, and `--categories N` with N file categories (one for each of the
+synthetic scan's types, ahead of the defaults), to measure what a site's own categories cost a build.
 
 `synth_scan.py --evolve SCAN -o OUT --days 30` writes SCAN as it might look 30 days later, for checking and timing
 comparisons between scans: `--remove` (2%) of its projects deleted, `--grow` (5%) of its folders with files gaining

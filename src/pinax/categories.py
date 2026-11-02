@@ -1,15 +1,22 @@
 # SPDX-License-Identifier: Apache-2.0
-"""File categories and age buckets: the fixed dimensions every snapshot index is built with.
+"""File categories and age buckets: the dimensions every snapshot index is built with.
 
 A file's *type* is its normalized extension: the lowercased text after the last dot, joined with
 the extension before it when the last one is a compression suffix, so `S1_R1.fastq.gz` is
 `fastq.gz` and `brain.nii.gz` is `nii.gz`. Its *category* comes from the inner extension
 (`fastq`, `nii`), so compressed sequencing data still counts as sequencing data.
 
-Both lists are stored in each snapshot's metadata, so changing them only affects new snapshots.
+The categories are the catalog's (`file_category`, filled with DEFAULTS the first time), and a site may change
+them: each lists extensions, and may also list patterns, regular expressions on the file's name (RE2, as DuckDB
+has them, so none can take exponential time), checked before every extension, category by category and in order;
+the first that matches wins, and a file nothing takes is *other*, always last. They are decided when an index is
+built and recorded in it, with a fingerprint (`fingerprint`), so changing them only affects indexes built after;
+an index built with other categories than the catalog's is outdated (`pinax rebuild --outdated`).
 """
 
-from dataclasses import dataclass
+import hashlib
+import json
+from dataclasses import dataclass, field
 
 # Compression suffixes that wrap another format.
 COMPRESSION_SUFFIXES = ("gz", "bgz", "bz2", "xz", "zst", "zstd", "lz4", "z", "lzma", "br")
@@ -21,9 +28,13 @@ class Category:
     label: str
     description: str
     extensions: tuple[str, ...]
+    patterns: tuple[str, ...] = field(default=())
 
 
-CATEGORIES: tuple[Category, ...] = (
+MAX_CATEGORIES = 24  # each adds a file count and a size to every folder of an index
+MAX_PATTERNS = 25  # in all, so a build at a billion files stays within its time
+
+DEFAULTS: tuple[Category, ...] = (
     Category("genomics", "Sequencing and genomics", "Reads, alignments, variants, assemblies, and annotations", (
         "fastq", "fq", "fasta", "fa", "fna", "ffn", "faa", "frn", "fas", "2bit", "sam", "bam", "cram", "bai", "crai",
         "csi", "vcf", "bcf", "gvcf", "g.vcf", "tbi", "bed", "bedgraph", "bigwig", "bw", "bigbed", "bb", "gtf", "gff",
@@ -81,17 +92,100 @@ CATEGORIES: tuple[Category, ...] = (
     Category("other", "Other or no extension", "Files with no extension or one Pinax doesn't recognize", ()),
 )
 
-CATEGORY_KEYS = tuple(c.key for c in CATEGORIES)
-OTHER = len(CATEGORIES) - 1
+OTHER_KEY = "other"
 
 
-def extension_map() -> dict[str, int]:
+def extension_map(categories: tuple[Category, ...] | list[Category]) -> dict[str, int]:
     """Extension -> category index. First category wins for an extension listed twice."""
     out: dict[str, int] = {}
-    for i, c in enumerate(CATEGORIES):
+    for i, c in enumerate(categories):
         for ext in c.extensions:
             out.setdefault(ext, i)
     return out
+
+
+def patterns(categories: tuple[Category, ...] | list[Category]) -> list[tuple[str, int]]:
+    """Every pattern, with its category's index, in the order they are checked."""
+    return [(p, i) for i, c in enumerate(categories) for p in c.patterns]
+
+
+def fingerprint(categories: tuple[Category, ...] | list[Category]) -> str:
+    """What decides a file's category, and nothing else (not names or descriptions): an index built with the same
+    fingerprint as the catalog's categories is current."""
+    rules = [[c.key, sorted(c.extensions), list(c.patterns)] for c in categories]
+    return hashlib.sha256(json.dumps(rules, separators=(",", ":")).encode()).hexdigest()[:16]
+
+
+def from_dimensions(dims: dict | None) -> tuple[Category, ...]:
+    """An index's own categories, from its metadata. Indexes built before categories were the catalog's recorded
+    only their keys, labels, and descriptions, and were built with the defaults."""
+    cats = (dims or {}).get("categories")
+    if not cats or "extensions" not in cats[0]:
+        return DEFAULTS
+    return tuple(Category(c["key"], c["label"], c.get("description", ""), tuple(c["extensions"]),
+                          tuple(c.get("patterns", ()))) for c in cats)
+
+
+class CategoryError(ValueError):
+    pass
+
+
+def check(categories: tuple[Category, ...] | list[Category]) -> None:
+    """What a build needs of a list of categories; raises CategoryError saying what is wrong."""
+    if not categories or categories[-1].key != OTHER_KEY or categories[-1].extensions or categories[-1].patterns:
+        raise CategoryError("The last category must be *other*, with no extensions or patterns")
+    if len(categories) > MAX_CATEGORIES:
+        raise CategoryError(f"At most {MAX_CATEGORIES} categories")
+    keys = [c.key for c in categories]
+    if len(set(keys)) != len(keys):
+        raise CategoryError("Each category needs a key of its own")
+    found = patterns(categories)
+    if len(found) > MAX_PATTERNS:
+        raise CategoryError(f"At most {MAX_PATTERNS} patterns in all")
+    for pattern, _ in found:
+        if problem := pattern_problem(pattern):
+            raise CategoryError(f"The pattern {pattern!r} {problem}")
+
+
+def pattern_problem(pattern: str) -> str | None:
+    """Why DuckDB (RE2) would not take `pattern` as a regular expression, or None."""
+    import duckdb
+
+    if not pattern or len(pattern) > 500:
+        return "must have 1 to 500 characters"
+    try:
+        with duckdb.connect() as con:
+            con.execute("SELECT regexp_matches('', ?)", [pattern]).fetchone()
+    except duckdb.Error as e:
+        return f"is not a regular expression DuckDB reads: {str(e).split(':', 1)[-1].strip()}"
+    return None
+
+
+def current(session) -> tuple[Category, ...]:
+    """The catalog's categories, in order (the defaults if the catalog has none yet)."""
+    from sqlalchemy import select
+
+    from .models import FileCategory
+
+    rows = session.scalars(select(FileCategory).order_by(FileCategory.position)).all()
+    if not rows:
+        return DEFAULTS
+    return tuple(Category(r.key, r.label, r.description, tuple(r.extensions), tuple(r.patterns)) for r in rows)
+
+
+def ensure_defaults() -> None:
+    """The built-in categories, the first time the catalog is set up (never again, so a site's changes stay)."""
+    from sqlalchemy import select
+
+    from .db import session_scope
+    from .models import FileCategory
+
+    with session_scope() as s:
+        if s.scalar(select(FileCategory.id).limit(1)) is not None:
+            return
+        for i, c in enumerate(DEFAULTS):
+            s.add(FileCategory(key=c.key, label=c.label, description=c.description, position=i,
+                               extensions=list(c.extensions), patterns=list(c.patterns), builtin=True))
 
 
 @dataclass(frozen=True)
@@ -127,10 +221,17 @@ def bucket_for_days(days: float | None) -> int | None:
     return len(AGE_BUCKETS) - 1
 
 
-def describe() -> dict:
-    """The dimensions, as stored in snapshot metadata and served to the interface."""
+def describe(categories: tuple[Category, ...] | list[Category]) -> dict:
+    """The dimensions an index is built with, as stored in its metadata."""
     return {
-        "categories": [{"key": c.key, "label": c.label, "description": c.description} for c in CATEGORIES],
+        "categories": [{"key": c.key, "label": c.label, "description": c.description, "extensions": list(c.extensions),
+                        "patterns": list(c.patterns)} for c in categories],
+        "categories_id": fingerprint(categories),
         "age_buckets": [{"label": b.label, "short": b.short, "max_days": b.max_days} for b in AGE_BUCKETS],
         "compression_suffixes": list(COMPRESSION_SUFFIXES),
     }
+
+
+def brief(categories: tuple[Category, ...] | list[Category]) -> list[dict]:
+    """Categories as the interface shows them."""
+    return [{"key": c.key, "label": c.label, "description": c.description} for c in categories]

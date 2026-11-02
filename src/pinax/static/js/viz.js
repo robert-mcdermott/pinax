@@ -6,8 +6,15 @@ import { ageText, bytes, html, num, pct, state } from "/js/core.js";
 
 export const buckets = () => state.config.age_buckets; // [{label, short, max_days}]
 export const categories = () => state.config.categories; // [{key, label, description}]
-export const catIndex = (key) => categories().findIndex((c) => c.key === key);
 export const catLabel = (key) => (categories().find((c) => c.key === key) || {}).label || key;
+// A place's bytes by category (stats.cat_bytes is keyed by category), the catalog's categories first, then any its
+// scan was built with that the catalog no longer has.
+export const catBytes = (stats) => {
+  const known = categories().map((c) => ({ key: c.key, label: c.label, bytes: stats.cat_bytes[c.key] || 0 }));
+  const extra = Object.keys(stats.cat_bytes).filter((k) => !categories().some((c) => c.key === k))
+    .map((k) => ({ key: k, label: k, bytes: stats.cat_bytes[k] }));
+  return [...known, ...extra];
+};
 
 export const ageColor = (i) => `--age-${Math.max(0, Math.min(6, i))}`;
 export function bucketOf(days) {
@@ -45,7 +52,7 @@ export function metricValue(stats, metric) {
   if (!stats) return 0;
   if (metric === "bytes" || metric === "alloc" || metric === "files") return stats[metric] || 0;
   const [kind, arg] = metric.split(":");
-  if (kind === "cat") return stats.cat_bytes[catIndex(arg)] || 0;
+  if (kind === "cat") return stats.cat_bytes[arg] || 0;
   if (kind === "older") return stats.age_bytes.slice(Number(arg)).reduce((t, v) => t + v, 0);
   return 0;
 }
@@ -79,7 +86,7 @@ export function colorFor(stats, mode, asOf, coldBucket) {
   }
   if (mode.startsWith("share:")) {
     const k = mode.slice(6);
-    const share = stats.bytes ? (stats.cat_bytes[catIndex(k)] || 0) / stats.bytes : 0;
+    const share = stats.bytes ? (stats.cat_bytes[k] || 0) / stats.bytes : 0;
     if (!share) return { token: "--tile-none", text: `No ${catLabel(k).toLowerCase()}` };
     return { token: `--share-${binOf(share, CAT_SHARE_BINS)}`, text: `${pct(share * 100)} ${catLabel(k).toLowerCase()}` };
   }

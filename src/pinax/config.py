@@ -188,16 +188,6 @@ def unsafe(settings: Settings) -> str | None:
     return None
 
 
-def size_bytes(text: str) -> int:
-    """A size as DuckDB reads one: 8GB is 8,000,000,000 bytes, 8GiB 8 x 1024^3."""
-    text = text.strip().upper().replace(" ", "")
-    for unit, factor in (("TIB", 1024**4), ("GIB", 1024**3), ("MIB", 1024**2), ("KIB", 1024), ("TB", 10**12),
-                         ("GB", 10**9), ("MB", 10**6), ("KB", 10**3), ("B", 1)):
-        if text.endswith(unit):
-            return int(float(text[: -len(unit)]) * factor)
-    raise ValueError(f"not a size: {text!r}")
-
-
 @lru_cache
 def get_settings() -> Settings:
     return Settings()

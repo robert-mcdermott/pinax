@@ -13,6 +13,18 @@ Wave 14 ("load"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
   The pilot becomes wave 15, and runs the same test again on its server; hardening becomes wave 16 (1.0.0). Wave 14
   also lets storage administrators define file categories, by extensions and by patterns on file names, applied when
   an index is built (R14).
+- **File categories are the catalog's** (R14), with the twelve built-in ones filled in when Pinax first starts after
+  the upgrade (migration `0007`), so a site can change them, and add its own: up to 24, each by extensions and by
+  patterns on file names (regular expressions, up to 25 in all), checked before any extension. They are decided when
+  an index is built and recorded in it, and every report reads each index's own; an index built with other
+  categories than the catalog's is outdated. Indexes built before the upgrade were built with the twelve, so they
+  are current and need no rebuild.
+- **`pinax rebuild --outdated` also builds again the indexes built with other file categories** than the catalog's,
+  and `--latest` limits it to each filesystem's latest snapshot, so older ones keep theirs.
+- **The API's totals by category are keyed by category**: `cat_bytes` and `cat_files` are objects
+  (`{"genomics": 1234, ...}`, naming only categories with files), not lists in the order of `/api/config`'s
+  categories. A script that reads them by position must read them by key. Files found by a search or in *What
+  changed* have their category's key, as before.
 - **`PINAX_QUERY_MEMORY_LIMIT` is for all the open indexes together**, 8 GB by default. It was 4 GB for each, and up
   to eight stay open, so up to 32 GB in all; now each open index has an equal share, set again as indexes open and
   close, and one alone has all of it. A site that set it should set the total it allows.

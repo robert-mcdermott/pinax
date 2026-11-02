@@ -319,13 +319,14 @@ sudo systemctl restart pinax-web pinax-ingest
 pinax rebuild --outdated
 ```
 
-`CHANGELOG.md` says when a release changes the index format (`INDEX_VERSION`). Older indexes still answer, but
-without what the new format adds, so `pinax rebuild --outdated` builds them again from their scans, oldest first
-(each one is compared with the snapshot before it),
-in place: each snapshot stays available on its old index until the new one replaces it, and keeps it if the build
-fails. The web app opens rebuilt indexes without a restart. `pinax rebuild SNAPSHOT_ID` rebuilds one, for example
-one whose index was lost. Rebuilding needs the snapshot's scan: a snapshot whose scan folder was deleted keeps its
-old index, without what the new format adds, and the rebuild says so.
+`CHANGELOG.md` says when a release changes the index format (`INDEX_VERSION`). Older indexes still answer, but without
+what the new format adds, so `pinax rebuild --outdated` builds them again from their scans, oldest first (each one is
+compared with the snapshot before it), in place: each snapshot stays available on its old index until the new one
+replaces it, and keeps it if the build fails. When the file categories change, it also builds again the indexes built
+with the old ones (with `--latest`, only each filesystem's latest). The web app opens rebuilt indexes without a
+restart. `pinax rebuild SNAPSHOT_ID` rebuilds one, for example one whose index was lost. Rebuilding needs the
+snapshot's scan: a snapshot whose scan folder was deleted keeps its old index, without what the new format adds, and
+the rebuild says so.
 
 The catalog is upgraded by migrations, when the web app or the watcher starts: `CHANGELOG.md` says when a release
 has one, and `journalctl -u pinax-web` shows `Upgraded the catalog to revision ...`. Back the catalog up first

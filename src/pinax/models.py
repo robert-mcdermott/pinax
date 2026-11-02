@@ -456,6 +456,24 @@ class CleanupItem(Base):
     mark: Mapped[MarkedFolder] = relationship()
 
 
+class FileCategory(Base):
+    """A file category (categories.py): the files it takes, by their extensions and by patterns on their names,
+    decided when an index is built. The built-in categories keep their keys, and *other*, last, takes what no other
+    does; `position` is their order, in which patterns are checked."""
+
+    __tablename__ = "file_category"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    key: Mapped[str] = mapped_column(String(32), unique=True)
+    label: Mapped[str] = mapped_column(String(80))
+    description: Mapped[str] = mapped_column(Text, default="")
+    position: Mapped[int] = mapped_column(Integer)
+    extensions: Mapped[list[str]] = mapped_column(JSON, default=list)
+    patterns: Mapped[list[str]] = mapped_column(JSON, default=list)
+    builtin: Mapped[bool] = mapped_column(Boolean, default=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
 class Tag(Base):
     """A tag folders can have (tags.py): a standard one, kept by administrators, or a lab's own (`lab_id`). Its
     type says what a value is (`flag`: none; `text`; `date`; `choice`, one of `choices`); `many` lets a folder have

@@ -170,14 +170,35 @@ match. The sort orders turn every query Pinax makes into a contiguous read:
 
 ### File types and categories
 
-A file's type is its lowercased extension, joined with the one before when the last is a compression
-suffix: `S1_R1.fastq.gz` is `fastq.gz`, `brain.nii.gz` is `nii.gz`. Its category comes from the inner
-type, so compressed sequencing data is still sequencing data. There are twelve categories (sequencing and
-genomics, imaging, tabular and array data, mass spectrometry, archives, models, code, documents, media,
-containers, logs and temporary, other) defined in `categories.py`. Seven age buckets run from under 90 days
-to ten years or more. Both lists are recorded in each snapshot, so changing them affects only new snapshots.
-Ages are whole microseconds from the scan's start, so a file exactly on an edge is in the older bucket, and
-times after the scan started count as under 90 days.
+A file's type is its lowercased extension, joined with the one before when the last is a compression suffix:
+`S1_R1.fastq.gz` is `fastq.gz`, `brain.nii.gz` is `nii.gz`. Its category comes from the inner type, so compressed
+sequencing data is still sequencing data.
+
+The categories are the catalog's (`file_category`), so a site can change them: the twelve built in (sequencing and
+genomics, imaging, tabular and array data, mass spectrometry, archives, models, code, documents, media, containers,
+logs and temporary, and *other*, last), filled the first time Pinax starts from `categories.DEFAULTS`, and any it
+adds, up to 24. Each lists extensions, and may also list patterns: regular expressions on the file's name, in RE2's
+syntax as DuckDB has it, so none can take exponential time, and at most 25 in all. Patterns are checked before any
+extension, category by category and in order, and the first match wins; then the extension (the first category to list
+it); then *other*. So `^Undetermined_.*\.fastq` can be a category of its own although `fastq` is sequencing data's.
+
+A file's category is decided when its index is built, not when it is read: deciding at query time would read every
+file for reports that now read only folders. The build joins each file's extension with a small table, as before, so a
+site that changes only extensions pays nothing more; with patterns, one expression of all of them together finds the
+few names any matches, and only those are checked pattern by pattern. Each category adds a file count and a size to
+every folder (`cf{i}` and `cb{i}`), summed from the folder's totals by type rather than over its files. At 10 million
+files, 25 patterns added 4% to a build and 24 categories 6%, and with 24 the index was 56.9 bytes a file
+(`bench/bench_index.py --patterns 25`, `--categories 24`). The index records the categories it was built with and a
+fingerprint of what decides a file's category (`categories.fingerprint`: keys, extensions, patterns, and their order;
+not labels), and reports read each index's own list: totals come back keyed by category (`cat_bytes`, `cat_files`), so
+totals from indexes built with different lists add up by category, a category an index was built without measures
+nothing in it, and the removed files of *What changed* keep the categories of the scan they were in. An index built
+with other categories than the catalog's is outdated, and `pinax rebuild --outdated` builds it again, or `--latest`
+only each filesystem's latest, letting older snapshots keep theirs.
+
+Seven age buckets run from under 90 days to ten years or more, fixed in `categories.py` (the interface's color ramp
+has seven validated steps), and recorded in each snapshot. Ages are whole microseconds from the scan's start, so a
+file exactly on an edge is in the older bucket, and times after the scan started count as under 90 days.
 
 ## Building the index
 

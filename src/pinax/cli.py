@@ -50,7 +50,10 @@ def main() -> None:
     rebuild = sub.add_parser("rebuild", help="Build ready snapshots' indexes again from their scans, in place")
     rebuild.add_argument("snapshot_ids", type=int, nargs="*", metavar="SNAPSHOT_ID")
     rebuild.add_argument("--outdated", action="store_true",
-                         help="Every ready snapshot whose index is missing or in an older format (after an upgrade)")
+                         help="Every ready snapshot whose index is missing, in an older format (after an upgrade), or "
+                              "built with other file categories than the catalog's")
+    rebuild.add_argument("--latest", action="store_true",
+                         help="With --outdated, only each filesystem's latest snapshot; older ones keep their categories")
 
     imp = sub.add_parser("import", help="Import labs, people, memberships, and folder ownership from CSV "
                                         "(a dry run unless --apply)")
@@ -393,13 +396,17 @@ def _import(args: argparse.Namespace) -> int:
 def _rebuild(args: argparse.Namespace) -> int:
     from sqlalchemy import select
 
+    from .categories import current, fingerprint
     from .db import init_db, session_scope
     from .ingest.build import INDEX_VERSION
     from .models import Snapshot, SnapshotStatus
-    from .snapshots import IngestError, index_version, rebuild_snapshot
+    from .snapshots import IngestError, index_state, rebuild_snapshot
 
     if not args.snapshot_ids and not args.outdated:
         print("error: name the snapshots to rebuild, or use --outdated", file=sys.stderr)
+        return 2
+    if args.latest and not args.outdated:
+        print("error: --latest goes with --outdated", file=sys.stderr)
         return 2
     init_db()
     failed = 0
@@ -413,9 +420,17 @@ def _rebuild(args: argparse.Namespace) -> int:
                   file=sys.stderr)
             return 2
         if args.outdated:
-            targets += [snap for snap in ready if snap not in targets and (index_version(snap) or 0) < INDEX_VERSION]
+            want = fingerprint(current(s))
+            latest = {snap.filesystem_id: snap for snap in ready}  # ordered by when scanned, so the last of each
+            for snap in ready:
+                if snap in targets or (args.latest and latest[snap.filesystem_id] is not snap):
+                    continue
+                state = index_state(snap)
+                if state is None or state[0] < INDEX_VERSION or state[1] != want:
+                    targets.append(snap)
         if not targets:
-            print(f"Every ready snapshot's index is current (version {INDEX_VERSION}).")
+            print(f"Every {'latest ' if args.latest else ''}ready snapshot's index is current (version {INDEX_VERSION}, "
+                  "with the catalog's file categories).")
             return 0
         for snap in targets:
             try:
