@@ -1493,7 +1493,7 @@ It needs no production storage, and comes before the pilot, which still waits fo
 | 2 | Sign-in with Entra ID in Pinax itself (A6, in part) | A mode configured by settings and checked at start-up: any OpenID Connect provider by its discovery document, the authorization code flow with PKCE, the ID token checked against the provider's keys (issuer, audience, expiry, nonce); people matched by one claim, within the site's domains, and never made; a server-side session, as local sign-in makes; refused sign-ins audited with why; signing out ends the provider's session too; the whole flow tested against a stand-in provider (forged, expired, and replayed sign-ins, guests, unknown and deactivated people), and checked against Dex in Podman; the guide's request for IT, and a table of Entra ID's errors | Done |
 | 3 | The emergency administrator sign-in (A12) | As decided below, each part tested: off unless an emergency account exists; marked only from the command line; an address of its own; the password rules and lockout, a longer minimum password, and short sessions; every use audited, logged as a warning, and counted in the metrics; the accounts listed in the access review; the guide | Done |
 | 4 | Roles from Entra ID (A6, in part) | Optionally, Entra ID app roles (the token's `roles` claim) or groups mapped by settings onto the administrator role and the site roles, applied at each sign-in and audited; roles given in the app stay possible; a group overage said, not guessed; tested against the stand-in provider; app roles and groups checked in a real tenant when a test registration is available | Done, but for the check in a real tenant |
-| 5 | Continuous integration | GitHub Actions run the linter and the whole suite on SQLite and on PostgreSQL for every push, and for pull requests from forks, with the pinned fs-inventory installed so that the tests that run it run too; the development guide says what runs | Done, but for its first run on GitHub |
+| 5 | Continuous integration | GitHub Actions run the linter and the whole suite on SQLite and on PostgreSQL for every push, and for pull requests from forks, with the pinned fs-inventory installed so that the tests that run it run too; the development guide says what runs | Done |
 | 6 | Release 0.13.0 | The walk-through and the guides for each way of signing in; version 0.13.0, changelog with notes on upgrading from 0.12.0; pull request, tag, release | To come |
 
 ### Decisions for wave 13
@@ -1675,8 +1675,9 @@ sign-in, and access policies, so it is kept small:
    - It runs for every push, and for pull requests from forks: a pull request from a branch of this repository
      shows its pushes' runs. A newer push cancels the older run of the same branch.
    - Planned with a container image, which was set aside (the decision above).
-   - *Done*: each job's steps run here as written: the linter clean, 392 passed on SQLite, and 391 passed and one
-     skipped on PostgreSQL. The first run on GitHub comes with the branch's first push.
+   - *Done*: the first run on GitHub, on the branch's first push, passed in about seven minutes: the linter clean,
+     392 passed on SQLite and 391 on PostgreSQL (the one about SQLite catalogs skipped), with fs-inventory 1.0.0
+     installed in each, the same as each job's steps run here.
 
 ## Later waves (outlined)
 
