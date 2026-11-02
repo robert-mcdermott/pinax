@@ -71,6 +71,28 @@ def test_the_demo_is_unchanged(client):
     assert client.get("/api/config").json()["auth_mode"] == "demo"
 
 
+def test_local_sign_in_is_the_default_outside_the_demo(env, monkeypatch):
+    """Out of the box, a real install signs people in with passwords Pinax keeps; the demo keeps its persona
+    switcher, and a site chooses single sign-on."""
+    from fastapi.testclient import TestClient
+
+    from pinax import config
+    from pinax.main import app
+
+    monkeypatch.delenv("PINAX_AUTH_MODE", raising=False)
+    for environment, mode in (("demo", "demo"), ("dev", "local"), ("prod", "local")):
+        monkeypatch.setenv("PINAX_ENVIRONMENT", environment)
+        config.get_settings.cache_clear()
+        assert config.get_settings().auth_mode == mode, environment
+        assert config.unsafe(config.get_settings()) is None, environment
+    with TestClient(app) as c:  # prod, unset
+        assert c.get("/api/config").json()["auth_mode"] == "local"
+        assert c.get("/api/me").status_code == 401 and c.get("/api/demo/users").status_code == 404
+    monkeypatch.setenv("PINAX_AUTH_MODE", "header")
+    config.get_settings.cache_clear()
+    assert config.get_settings().auth_mode == "header"
+
+
 def test_the_demo_is_refused_in_production(env, monkeypatch, capsys):
     from fastapi.testclient import TestClient
 
@@ -78,6 +100,7 @@ def test_the_demo_is_refused_in_production(env, monkeypatch, capsys):
     from pinax.main import app
 
     monkeypatch.setenv("PINAX_ENVIRONMENT", "prod")
+    monkeypatch.setenv("PINAX_AUTH_MODE", "demo")
     config.get_settings.cache_clear()
     with pytest.raises(RuntimeError, match="anyone sign in as anyone"), TestClient(app):
         pass

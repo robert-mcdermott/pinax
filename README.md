@@ -141,11 +141,11 @@ sign-in when `PINAX_ENVIRONMENT=prod`.
 
 ## Use your own data
 
-To try Pinax on a real filesystem from this checkout, keep its data apart from the demo's and sign in with
-passwords Pinax keeps:
+To try Pinax on a real filesystem from this checkout, keep its data apart from the demo's; outside the demo,
+people sign in with passwords Pinax keeps:
 
 ```bash
-printf 'PINAX_ENVIRONMENT=dev\nPINAX_AUTH_MODE=local\nPINAX_VAR_ROOT=data/var\nPINAX_SCAN_ROOT=data/scans\n' > .env
+printf 'PINAX_ENVIRONMENT=dev\nPINAX_VAR_ROOT=data/var\nPINAX_SCAN_ROOT=data/scans\n' > .env
 ```
 
 Add yourself as the first administrator (it prints a temporary password), register the filesystem by its root,
@@ -190,7 +190,7 @@ scheduled scans, and single sign-on, follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT
 | `uv run pinax ingest --watch [FOLDER] [--interval N] [--once] [--no-verify]` | Ingest each new verified scan under a folder (default `PINAX_SCAN_ROOT`) once |
 | `uv run pinax snapshots` | List snapshots |
 | `uv run pinax rebuild SNAPSHOT_ID... \| --outdated` | Build ready snapshots' indexes again from their scans, after an upgrade or a lost index |
-| `uv run pinax user add USERNAME --name NAME --email EMAIL [--admin]` | Add a person, for example the first administrator; with `PINAX_AUTH_MODE=local`, prints a temporary password (`pinax user password USERNAME` makes a new one, `pinax user list` lists people) |
+| `uv run pinax user add USERNAME --name NAME --email EMAIL [--admin]` | Add a person, for example the first administrator; with local sign-in (the default outside the demo), prints a temporary password (`pinax user password USERNAME` makes a new one, `pinax user list` lists people) |
 | `uv run pinax import FOLDER [--apply]` | Import labs, people, memberships, and folder ownership from CSV; a dry run unless `--apply` ([docs/IMPORT.md](docs/IMPORT.md)) |
 | `uv run pinax check SNAPSHOT_ID \| SCAN_DIR [--index DIR] [--age-depth N] [--json]` | Check an index, and its changes since the previous scan, against `fs-inventory rollup`, directory by directory |
 | `uv run pinax tags import FILE [--apply]` | Tag folders from CSV; a dry run unless `--apply` |

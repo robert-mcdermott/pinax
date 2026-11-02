@@ -6,7 +6,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -79,11 +79,12 @@ class Settings(BaseSettings):
     # (`Authorization: Bearer ...`); unset, /metrics is off.
     metrics_token: SecretStr | None = None
 
-    # Identity. "demo" uses a persona cookie: anyone picks anyone, for showing Pinax with the seeded people (refused
-    # when ENVIRONMENT=prod). "local": people sign in with a password Pinax keeps, for sites without single sign-on.
-    # "header" trusts a username header (X-Remote-User by default) set by a single sign-on proxy, and only on
-    # requests from TRUSTED_PROXIES (addresses or networks; a JSON list).
-    auth_mode: Literal["demo", "local", "header"] = "demo"
+    # Identity. "local": people sign in with a password Pinax keeps, the default outside the demo, with nothing else
+    # to set up. "demo" uses a persona cookie: anyone picks anyone, for showing Pinax with the seeded people, the
+    # default in the demo environment (refused when ENVIRONMENT=prod). "header" trusts a username header
+    # (X-Remote-User by default) set by a single sign-on proxy, and only on requests from TRUSTED_PROXIES (addresses
+    # or networks; a JSON list).
+    auth_mode: Literal["demo", "local", "header"] | None = None
     auth_header: str = "X-Remote-User"
     trusted_proxies: list[str] = ["127.0.0.1", "::1"]
     # Local sign-in. A session lasts this long from signing in. This many failed sign-ins in a row lock the account
@@ -96,6 +97,12 @@ class Settings(BaseSettings):
     cookie_secure: bool | None = None
     # API tokens (tokens.py) expire after at most this many days.
     token_max_days: int = 365
+
+    @model_validator(mode="after")
+    def _default_sign_in(self) -> "Settings":
+        if self.auth_mode is None:
+            self.auth_mode = "demo" if self.environment == "demo" else "local"
+        return self
 
     @property
     def secure_cookies(self) -> bool:

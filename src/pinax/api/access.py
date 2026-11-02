@@ -181,7 +181,7 @@ def set_password(username: str, identity: Identity = Depends(require_admin), ses
     """Local sign-in: give a person a new temporary password, returned this once, which they must change when they
     sign in. Unlocks their account and ends their sessions."""
     if get_settings().auth_mode != "local":
-        raise HTTPException(409, "Pinax keeps no passwords unless PINAX_AUTH_MODE is local")
+        raise HTTPException(409, "Pinax keeps no passwords here: PINAX_AUTH_MODE is not local")
     user = _person(session, username)
     try:
         password = signin.set_temporary_password(session, user, identity.user)

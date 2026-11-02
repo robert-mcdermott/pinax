@@ -6,6 +6,13 @@ Wave 13 ("reach"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
 
 ### Changed
 
+- **Local sign-in is the default outside the demo.** With no `PINAX_AUTH_MODE`, a `dev` or `prod` install signs
+  people in with passwords Pinax keeps, with nothing else to set up; the demo environment keeps its persona
+  switcher. The server kit's `deploy/pinax.env` now sets `PINAX_AUTH_MODE=local`, with oauth2-proxy's settings
+  there to uncomment, and the deployment guide sets up passwords first and single sign-on as an option
+  ([Signing in](docs/DEPLOYMENT.md#6-signing-in)). A site that set `PINAX_AUTH_MODE` keeps it; a `dev` install
+  that left it out, and so had the persona switcher, now asks for passwords: `pinax user add --admin` makes the
+  first administrator.
 - **The roadmap.** Reach comes next, as wave 13 (0.13.0): local sign-in the default out of the box outside the
   demo, in the code and in the server kit; sign-in with Entra ID in Pinax itself, optional and configured by
   settings, with roles from its app roles or groups; an emergency administrator sign-in for when Entra ID or its
@@ -28,7 +35,7 @@ restart Pinax ([Upgrading](docs/DEPLOYMENT.md#upgrading)).
   `PINAX_DB_AUTO_UPGRADE=false` it refuses to start until `pinax db upgrade` has applied them. The snapshot indexes
   are unchanged, so nothing needs rebuilding.
 - **Behind oauth2-proxy**, add `"^/script/api/"` to `skip_auth_routes` in its configuration and restart it, so
-  scripts with API tokens get through ([Sign-on with oauth2-proxy](docs/DEPLOYMENT.md#6-sign-on-with-oauth2-proxy)).
+  scripts with API tokens get through ([Single sign-on with oauth2-proxy](docs/DEPLOYMENT.md#single-sign-on-with-oauth2-proxy)).
   Without it, the proxy stops scripts, and nothing else changes.
 - **One new setting**, `PINAX_TOKEN_MAX_DAYS` (365 by default), the longest an API token may last. No new
   dependency.

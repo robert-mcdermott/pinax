@@ -59,7 +59,7 @@ Settings are `PINAX_*` environment variables, or a `.env` file in the folder you
 
 | Setting | Default | What it does |
 |---|---|---|
-| `PINAX_AUTH_MODE` | `demo` | How people sign in. `demo`: a persona switcher, anyone can be anyone, for showing Pinax with the seeded people (refused when `PINAX_ENVIRONMENT=prod`). `local`: usernames and passwords Pinax keeps, for sites without single sign-on. `header`: trust the username in `AUTH_HEADER`, set by a single sign-on proxy such as oauth2-proxy in front of Entra ID |
+| `PINAX_AUTH_MODE` | `local`; `demo` in the demo environment | How people sign in. `local`: usernames and passwords Pinax keeps, with nothing else to set up. `demo`: a persona switcher, anyone can be anyone, for showing Pinax with the seeded people (refused when `PINAX_ENVIRONMENT=prod`). `header`: trust the username in `AUTH_HEADER`, set by a single sign-on proxy such as oauth2-proxy in front of Entra ID ([Single sign-on with oauth2-proxy](DEPLOYMENT.md#single-sign-on-with-oauth2-proxy)) |
 | `PINAX_AUTH_HEADER` | `X-Remote-User` | The header the proxy sets the username in; behind oauth2-proxy, `X-Forwarded-Preferred-Username`, `X-Forwarded-Email`, or `X-Forwarded-User` |
 | `PINAX_TRUSTED_PROXIES` | `["127.0.0.1", "::1"]` | The proxies in front of Pinax, as addresses or networks (a JSON list, such as `'["10.1.2.3", "10.8.0.0/16"]'`). In header mode, the header is believed only from them; from anywhere else a request gets 401. In every mode, a request from one of them is logged and audited with the person's own address from `X-Forwarded-For`, and keeps the proxy's `X-Request-ID` |
 | `PINAX_SESSION_HOURS` | `12` | Local sign-in: how long a session lasts from signing in |

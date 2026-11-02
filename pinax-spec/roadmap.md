@@ -1489,8 +1489,8 @@ It needs no production storage, and comes before the pilot, which still waits fo
 
 | Slice | Scope and requirements | Acceptance before the next slice | Status |
 | --- | --- | --- | --- |
-| 1 | Local sign-in the default outside the demo (A9) | With `PINAX_ENVIRONMENT` set to `dev` or `prod` and no `PINAX_AUTH_MODE`, Pinax signs people in with passwords it keeps; the demo environment keeps its persona switcher as it is; the server kit (`deploy/pinax.env`) and the deployment guide set up local sign-in first, with single sign-on as an option; the configuration and setup guides and the tests follow | Next |
-| 2 | Sign-in with Entra ID in Pinax itself (A6, in part) | A mode configured by settings and checked at start-up: any OpenID Connect provider by its discovery document, the authorization code flow with PKCE, the ID token checked against the provider's keys (issuer, audience, expiry, nonce); people matched by one claim, within the site's domains, and never made; a server-side session, as local sign-in makes; refused sign-ins audited with why; signing out ends the provider's session too; the whole flow tested against a stand-in provider (forged, expired, and replayed sign-ins, guests, unknown and deactivated people), and checked against Dex in Podman; the guide's request for IT, and a table of Entra ID's errors | To come |
+| 1 | Local sign-in the default outside the demo (A9) | With `PINAX_ENVIRONMENT` set to `dev` or `prod` and no `PINAX_AUTH_MODE`, Pinax signs people in with passwords it keeps; the demo environment keeps its persona switcher as it is; the server kit (`deploy/pinax.env`) and the deployment guide set up local sign-in first, with single sign-on as an option; the configuration and setup guides and the tests follow | Done |
+| 2 | Sign-in with Entra ID in Pinax itself (A6, in part) | A mode configured by settings and checked at start-up: any OpenID Connect provider by its discovery document, the authorization code flow with PKCE, the ID token checked against the provider's keys (issuer, audience, expiry, nonce); people matched by one claim, within the site's domains, and never made; a server-side session, as local sign-in makes; refused sign-ins audited with why; signing out ends the provider's session too; the whole flow tested against a stand-in provider (forged, expired, and replayed sign-ins, guests, unknown and deactivated people), and checked against Dex in Podman; the guide's request for IT, and a table of Entra ID's errors | Next |
 | 3 | The emergency administrator sign-in (A12) | As decided below, each part tested: off unless an emergency account exists; marked only from the command line; an address of its own; the password rules and lockout, a longer minimum password, and short sessions; every use audited, logged as a warning, and counted in the metrics; the accounts listed in the access review; the guide | To come |
 | 4 | Roles from Entra ID (A6, in part) | Optionally, Entra ID app roles (the token's `roles` claim) or groups mapped by settings onto the administrator role and the site roles, applied at each sign-in and audited; roles given in the app stay possible; a group overage said, not guessed; tested against the stand-in provider; app roles and groups checked in a real tenant when a test registration is available | To come |
 | 5 | CI and a container image (P6) | GitHub Actions run the linter and the suite on SQLite and PostgreSQL for every push and pull request; a container image (a `Containerfile`) runs the web app and automatic ingest with `/var/lib/pinax` as a volume, built and run with Podman, the demo included; the deployment guide's container section | To come |
@@ -1565,6 +1565,23 @@ sign-in, and access policies, so it is kept small:
   `PINAX_AUTH_MODE=local` and a restart, and `pinax user password`, which work in every mode.
 
 ### Slices as built
+
+1. **Local sign-in the default outside the demo (A9).**
+   - `config.Settings.auth_mode` is unset by default and filled after the settings are read: `demo` in the demo
+     environment, as before, and `local` in `dev` and `prod`. A site that sets `PINAX_AUTH_MODE` keeps what it
+     set; `demo` is still refused in production.
+   - The server kit sets `PINAX_AUTH_MODE=local` in `deploy/pinax.env`, with oauth2-proxy's two settings there,
+     commented. The deployment guide's step 6 is *Signing in* with passwords, and *Single sign-on with oauth2-proxy*
+     follows it as an option; *Shape of a deployment*, *What you need*, step 4's usernames, and the check follow.
+     The setup guide and the README no longer set `PINAX_AUTH_MODE`; the configuration, architecture, demo, and
+     troubleshooting guides, `.env.example`, and the web app's unit say what the default is.
+   - Tests (`tests/test_signin.py`): the default in each environment, with no persona list outside the demo; a
+     site's own choice kept; the demo refused in production when set.
+   - *Done*: a fresh install with only `PINAX_ENVIRONMENT=dev`: `pinax user add --admin` printed a temporary
+     password, the browser showed the sign-in page, and the administrator signed in and was asked for a new
+     password.
+   - Found on the way: the audit log's test took today from the local clock, while the log's days are UTC, so it
+     failed in the evening in the Americas; it uses the UTC date now.
 
 ## Later waves (outlined)
 

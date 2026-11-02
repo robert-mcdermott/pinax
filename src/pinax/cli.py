@@ -545,8 +545,9 @@ def _user(args) -> None:
                 sys.exit(1)
         if not local:
             mode = get_settings().auth_mode
-            print("Pinax keeps no passwords unless PINAX_AUTH_MODE=local: "
-                  + ("they sign in through single sign-on." if mode == "header" else "this is the demo, with no sign-in."))
+            print("Pinax keeps no passwords here: "
+                  + ("people sign in through single sign-on (PINAX_AUTH_MODE=header)." if mode == "header"
+                     else "this is the demo, with no sign-in (PINAX_AUTH_MODE=demo)."))
             if args.user_command == "password":
                 sys.exit(1)
             return

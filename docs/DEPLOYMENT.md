@@ -22,10 +22,10 @@ pilot installation (wave 14 in `pinax-spec/roadmap.md`) will confirm it on a rea
     pinax-ingest, watching scans/ ──► an index in snapshots/
 ```
 
-- **Signing in** is one of two ways today. With **single sign-on**, oauth2-proxy signs people in with an OpenID
-  Connect provider such as Microsoft Entra ID and passes each person's username to Pinax in a header (step 6).
-  Without it, Pinax keeps **passwords** itself, behind an HTTPS proxy such as nginx or Caddy
-  ([Signing in without single sign-on](#signing-in-without-single-sign-on)). Sign-in with Entra ID in Pinax itself,
+- **Signing in** is with **passwords** Pinax keeps, out of the box, behind an HTTPS proxy such as nginx or Caddy
+  ([Signing in](#6-signing-in)). Optionally, with **single sign-on**, oauth2-proxy signs people in with an OpenID
+  Connect provider such as Microsoft Entra ID and passes each person's username to Pinax in a header
+  ([Single sign-on with oauth2-proxy](#single-sign-on-with-oauth2-proxy)). Sign-in with Entra ID in Pinax itself,
   as Tundra does it, with nginx or a load balancer only for HTTPS and no oauth2-proxy, is planned for wave 13 in
   `pinax-spec/roadmap.md`; both of today's ways will stay.
 - **Scans** run where the filesystem is mounted with good metadata performance: the Pinax server itself (the
@@ -43,11 +43,12 @@ pilot installation (wave 14 in `pinax-spec/roadmap.md`) will confirm it on a rea
 - [uv](https://docs.astral.sh/uv/), which installs the Python Pinax needs (3.13).
 - Read access to the filesystems' metadata from the host that scans them.
 - A way for people to sign in, one of:
-  - **single sign-on**: an OpenID Connect identity provider (for example Microsoft Entra ID) and
-    [oauth2-proxy](https://oauth2-proxy.github.io/oauth2-proxy/) 7 (step 6), until Pinax signs in with Entra ID
-    itself (planned for wave 13);
-  - **passwords Pinax keeps**, for a site without single sign-on: an HTTPS reverse proxy such as nginx or Caddy
-    in front of Pinax ([Signing in without single sign-on](#signing-in-without-single-sign-on)).
+  - **passwords Pinax keeps**, the default: an HTTPS reverse proxy such as nginx or Caddy in front of Pinax
+    ([Signing in](#6-signing-in));
+  - **single sign-on**, optionally: an OpenID Connect identity provider (for example Microsoft Entra ID) and
+    [oauth2-proxy](https://oauth2-proxy.github.io/oauth2-proxy/) 7
+    ([Single sign-on with oauth2-proxy](#single-sign-on-with-oauth2-proxy)), until Pinax signs in with Entra ID
+    itself (planned for wave 13).
 
   The demo's persona switcher (`PINAX_AUTH_MODE=demo`) lets anyone be anyone; Pinax refuses to start with it when
   `PINAX_ENVIRONMENT=prod`.
@@ -88,7 +89,7 @@ puts the pinned fs-inventory release in `/opt/pinax/bin/`, after checking its SH
 sudo install -d -m 0755 /etc/pinax && sudo install -m 0640 -g pinax /opt/pinax/deploy/pinax.env /etc/pinax/pinax.env
 ```
 
-`/etc/pinax/pinax.env` sets production mode, the data folders, and sign-on through the proxy; every setting is in
+`/etc/pinax/pinax.env` sets production mode, the data folders, and sign-in with passwords; every setting is in
 [CONFIGURATION.md](CONFIGURATION.md). To run `pinax` commands as the service does, define this in your shell:
 
 ```bash
@@ -117,8 +118,9 @@ pinax import /srv/pinax/onboarding
 pinax import /srv/pinax/onboarding --apply
 ```
 
-Usernames must be what the sign-on proxy sends (step 6): with Entra ID and the default header, the user
-principal name, such as `jdoe@example.org`. People, labs, and departments can also be added and changed one at a
+With single sign-on, usernames must be what the proxy sends
+([Single sign-on with oauth2-proxy](#single-sign-on-with-oauth2-proxy)): with Entra ID and the default header, the
+user principal name, such as `jdoe@example.org`. People, labs, and departments can also be added and changed one at a
 time under *People and access*, and folders mapped under *Folders and labs*. Someone must be added, and active,
 before they can sign in.
 
@@ -148,10 +150,41 @@ capability, `CAP_DAC_READ_SEARCH`, so that it can list every directory and read 
 running as root. If scans run on another host instead, skip the timer and have that host write into
 `/var/lib/pinax/scans` (or another folder `pinax-ingest` watches).
 
-### 6. Sign-on with oauth2-proxy
+### 6. Signing in
 
-Pinax does not yet sign people in with an identity provider itself (that is planned for wave 13), so single sign-on
-goes through oauth2-proxy, in front of Pinax:
+Out of the box, people sign in with a username and a password that Pinax keeps, hashed with scrypt
+(`PINAX_AUTH_MODE=local`, as `deploy/pinax.env` sets it; it is also the default outside the demo). Put an HTTPS
+reverse proxy in front of Pinax (nginx, Caddy, or a load balancer, forwarding to `127.0.0.1:8001`): in production
+the session cookie is sent only over HTTPS. Let it wait longer for an answer than `PINAX_QUERY_TIMEOUT` (180
+seconds), so a long search ends with Pinax's explanation rather than a gateway error: for nginx,
+`proxy_read_timeout 300s;` (its default is 60 seconds).
+
+Nobody can sign in until someone has a password, so make the first administrator on the server. It prints a
+temporary password, which they must change when they first sign in:
+
+```bash
+pinax user add jdoe@example.org --name "Jane Doe" --email jdoe@example.org --admin
+```
+
+(`pinax` here is the shell function from step 3, which runs it as the service does.)
+
+From then on, administrators add people and give them temporary passwords under *People and access*; Pinax
+makes each password up and shows it once. A forgotten password, or an account locked after five failed sign-ins
+(for 15 minutes), needs a new temporary password from an administrator, or `pinax user password USERNAME` on the
+server. Sessions last 12 hours and end on signing out, on deactivation, and when a password is set or changed.
+Every sign-in, failure, lock, and password change is in the audit log, never the passwords. Add the reverse
+proxy's address to `PINAX_TRUSTED_PROXIES`, so the log, the audit, and each session record the person's own address
+from `X-Forwarded-For` rather than the proxy's. One limit: failures lock an account rather than slowing down an
+address. Scripts send API tokens instead of passwords, to `/api/...` or `/script/api/...` alike.
+
+![The sign-in page with local sign-in](images/sign-in-light.webp "Local sign-in: a username and a password Pinax keeps.")
+
+### Single sign-on with oauth2-proxy
+
+Optionally, a site with an OpenID Connect identity provider, such as Microsoft Entra ID, signs people in with it
+instead. Pinax does not yet do that itself (that is planned for wave 13), so it goes through oauth2-proxy, in place
+of the HTTPS proxy above. In `/etc/pinax/pinax.env`, set `PINAX_AUTH_MODE=header` and
+`PINAX_AUTH_HEADER=X-Forwarded-Preferred-Username` (both are there, commented), then:
 
 1. Register an application with the identity provider, with the redirect URI
    `https://pinax.example.org/oauth2/callback`, and create a client secret.
@@ -175,37 +208,9 @@ token in the `Authorization` header, never the sign-on header, and the proxy pas
 `pass_authorization_header` and `set_authorization_header` off). Scripts behind the proxy use
 `https://pinax.example.org/script/api/...` ([API tokens for scripts](USER-GUIDE.md#api-tokens-for-scripts)).
 
-### Signing in without single sign-on
-
-With `PINAX_AUTH_MODE=local`, people sign in with a username and a password that Pinax keeps (hashed with
-scrypt), instead of steps 6's proxy. Put an HTTPS reverse proxy in front of Pinax (nginx, Caddy, or a load
-balancer, forwarding to `127.0.0.1:8001`): in production the session cookie is sent only over HTTPS. Let it wait
-longer for an answer than `PINAX_QUERY_TIMEOUT` (180 seconds), so a long search ends with Pinax's explanation
-rather than a gateway error: for nginx, `proxy_read_timeout 300s;` (its default is 60 seconds).
-
-Nobody can sign in until someone has a password, so make the first administrator on the server. It prints a
-temporary password, which they must change when they first sign in:
-
-```bash
-pinax user add jdoe@example.org --name "Jane Doe" --email jdoe@example.org --admin
-```
-
-(`pinax` here is the shell function from step 3, which runs it as the service does.)
-
-From then on, administrators add people and give them temporary passwords under *People and access*; Pinax
-makes each password up and shows it once. A forgotten password, or an account locked after five failed sign-ins
-(for 15 minutes), needs a new temporary password from an administrator, or `pinax user password USERNAME` on the
-server. Sessions last 12 hours and end on signing out, on deactivation, and when a password is set or changed.
-Every sign-in, failure, lock, and password change is in the audit log, never the passwords. Add the reverse
-proxy's address to `PINAX_TRUSTED_PROXIES`, so the log, the audit, and each session record the person's own address
-from `X-Forwarded-For` rather than the proxy's. One limit: failures lock an account rather than slowing down an
-address. Scripts send API tokens instead of passwords, to `/api/...` or `/script/api/...` alike.
-
-![The sign-in page with local sign-in](images/sign-in-light.webp "Local sign-in: a username and a password Pinax keeps.")
-
-To move to single sign-on later, set `PINAX_AUTH_MODE=header` and follow step 6. People, labs, and memberships
-stay; passwords are no longer used. Usernames must then be what the proxy sends (with Entra ID, usually the user
-principal name, such as `jdoe@example.org`), so a site that may move should use those usernames from the start.
+A site moving from passwords keeps its people, labs, and memberships; passwords are no longer used. Usernames must
+then be what the proxy sends (with Entra ID, usually the user principal name, such as `jdoe@example.org`), so a site
+that may move should use those usernames from the start.
 
 ### 7. Check the installation
 
@@ -213,7 +218,7 @@ principal name, such as `jdoe@example.org`), so a site that may move should use 
 curl -s http://127.0.0.1:8001/api/health
 ```
 
-It answers `{"status": "ok", ...}`. Sign in as an administrator (through oauth2-proxy, or with your password) and
+It answers `{"status": "ok", ...}`. Sign in as an administrator (with your password, or through oauth2-proxy) and
 open *Scans*: *Automatic ingest* should say *Watching*. Run the first scan rather than waiting for Sunday:
 
 ```bash
