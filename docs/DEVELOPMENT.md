@@ -291,6 +291,38 @@ fs-inventory rollup of both:
 uv run python bench/synth_scan.py --evolve /scratch/synth-10m -o /scratch/synth-10m-next --days 30
 ```
 
+`--started` dates a scan in the past, so a scan and the ones evolved from it can end today.
+
+### The load test
+
+The benchmarks above time one request at a time; the load test measures many people at once. `bench/load_setup.py`
+makes an installation in a folder of its own: three synthetic scans a month apart, the last one today, ingested in
+order; a lab for each top-level folder, with a PI and members, over five divisions; storage administrators, an
+auditor, finance, and a head of each division; a price and a free tier; and one made-up password for everyone. It
+takes about two minutes at ten million files, and 2.8 GB. `--database-url` puts the catalog on an empty PostgreSQL
+database instead of SQLite.
+
+```bash
+uv run python bench/load_setup.py /scratch/load-10m --files 10000000
+```
+
+`bench/load.py` starts `pinax serve` from it (or uses `--url`), and simulated people each sign in with the password,
+as a browser does on a first visit, then open one page after another, `--think` seconds apart (5 to 15). A page is
+the API requests the interface makes for it, sent together; each role has its sidebar's pages, people of labs in
+their lab's folders and its projects, administrators everywhere. `--people` arrive over `--ramp` seconds (60), and
+`--minutes` (5) are measured after that, in the proportions of `--mix`. Who does what follows `--seed`, so two runs
+make the same requests.
+
+```bash
+uv run python bench/load.py /scratch/load-10m --people 50 --minutes 5
+```
+
+The report, in the installation's `reports/` as Markdown and JSON, has each page's and each API route's median,
+95th and 99th percentile times, errors, and requests a second; the server's memory, sampled every second; and
+whether the budgets of wave 14 are met. `--compare A.json B.json` says whether two runs agree: each page's median,
+and the pages a second, within 10%. The load test and Pinax share the computer, so a laptop shows where Pinax slows
+and why more than what a server does. `tests/test_load.py` runs a small one, so it keeps working.
+
 ## Deployment files
 
 `deploy/` holds what `docs/DEPLOYMENT.md` installs: the systemd units, `pinax.env`, and an oauth2-proxy

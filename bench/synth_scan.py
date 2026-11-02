@@ -14,6 +14,8 @@ some folders grown, some files rewritten, and a new top-level folder, for checki
 
     uv run python bench/synth_scan.py --files 10000000 -o /scratch/synth-10m
     uv run python bench/synth_scan.py --evolve /scratch/synth-10m -o /scratch/synth-10m-next --days 30
+
+`--started` dates the scan in the past (files' ages count from it), so evolved scans can end today.
 """
 
 import argparse
@@ -47,6 +49,7 @@ def main() -> None:
     ap.add_argument("--part-rows", type=int, default=5_000_000)
     ap.add_argument("--wide", type=int, default=0, help="Files in one folder (and a tenth as many subfolders in another)")
     ap.add_argument("--deep", type=int, default=0, help="Depth of a chain of nested folders")
+    ap.add_argument("--started", type=datetime.fromisoformat, help="When the scan started (ISO 8601; default now)")
     ev = ap.add_argument_group("evolving a scan")
     ev.add_argument("--evolve", type=Path, metavar="SCAN", help="Write SCAN as it might look later, instead")
     ev.add_argument("--days", type=float, default=30, help="Days later")
@@ -67,7 +70,9 @@ def main() -> None:
     leaves = T * P * S * L
     per_leaf = max(1, args.files // leaves)
     nfiles = leaves * per_leaf
-    started = datetime.now(UTC)
+    started = args.started or datetime.now(UTC)
+    if started.tzinfo is None:
+        started = started.replace(tzinfo=UTC)
     ref = started.timestamp()
     con = duckdb.connect()
     con.execute("SET preserve_insertion_order = false")
@@ -155,7 +160,8 @@ def main() -> None:
         "tool": "fs-inventory", "tool_version": "1.0.0", "schema_version": 3, "scan_id": str(uuid.uuid4()),
         "status": "complete", "host": "synthetic", "roots": [{"path": root, "path_b64": None}], "format": "parquet",
         "compression": "zstd", "columns": COLUMNS, "started_at": started.isoformat().replace("+00:00", "Z"),
-        "finished_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"), "duration_seconds": time.monotonic() - t0,
+        "finished_at": (started + timedelta(seconds=time.monotonic() - t0)).isoformat().replace("+00:00", "Z"),
+        "duration_seconds": time.monotonic() - t0,
         "parts": {"entries": parts},
         "totals": {"entries": total_rows, "by_kind": {"dir": ndirs, "file": nfiles}, "bytes": int(total_bytes),
                    "dirs_read": ndirs, "errors": 0, "vanished": 0, "revisits": 0, "spilled": 0},

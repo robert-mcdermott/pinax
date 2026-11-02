@@ -1715,8 +1715,8 @@ its server.
 
 | Slice | Scope and requirements | Acceptance before the next slice | Status |
 | --- | --- | --- | --- |
-| 1 | The load test (Q6) | `bench/load.py` drives a running Pinax over HTTP as browsers do: simulated people of each role, each signing in with a password, then working through the pages of a session with pauses between clicks; for every page, the median, 95th and 99th percentile times, errors, and requests a second, and the server's memory through the run, written as a report. `bench/load_setup.py` makes the installation it runs against, on SQLite or PostgreSQL: three synthetic scans of 10 million files a month apart (for history and the change map), 200 labs with their people, and the site roles. A short run is in the test suite, so the load test keeps working. Two runs of the same load agree within 10% | Next |
-| 2 | The baseline (Q6) | Runs with 10, 25, 50, and 100 people at once, on SQLite and on PostgreSQL: when times begin to climb, which pages are slowest and why, and memory against the deployment guide's sizing; recorded in the architecture guide's measured performance | To come |
+| 1 | The load test (Q6) | `bench/load.py` drives a running Pinax over HTTP as browsers do: simulated people of each role, each signing in with a password, then working through the pages of a session with pauses between clicks; for every page, the median, 95th and 99th percentile times, errors, and requests a second, and the server's memory through the run, written as a report. `bench/load_setup.py` makes the installation it runs against, on SQLite or PostgreSQL: three synthetic scans of 10 million files a month apart (for history and the change map), 200 labs with their people, and the site roles. A short run is in the test suite, so the load test keeps working. Two runs of the same load agree within 10% | Done |
+| 2 | The baseline (Q6) | Runs with 10, 25, 50, and 100 people at once, on SQLite and on PostgreSQL: when times begin to climb, which pages are slowest and why, and memory against the deployment guide's sizing; recorded in the architecture guide's measured performance | Next |
 | 3 | Turns and the catalog (Q6) | Whole-filesystem searches by several administrators at once while others browse: the waiting ones finish within the time limit or stop with Pinax's explanation, and other people's pages stay within the budgets; many people signing in at once (each password is checked with scrypt, slow by design); SQLite's locking and PostgreSQL's connection pool under the same load. What fails is found and fixed | To come |
 | 4 | Tuning and sizing (Q6) | What slices 2 and 3 found fixed, or its defaults changed (such as `PINAX_QUERY_THREADS`, `PINAX_WIDE_QUERIES`, `PINAX_DATABASE_POOL_SIZE`, or more than one web process), each change measured again; the deployment guide's sizing says how many people a server of a given size serves, and what to change for more | To come |
 | 5 | Release 0.14.0 | Version 0.14.0, changelog with notes on upgrading from 0.13.0; pull request, tag, release | To come |
@@ -1736,6 +1736,33 @@ its server.
 - **The load test is a script of Pinax's own** (`bench/load.py`, with httpx, already a development dependency), not
   a load-testing tool, so nothing new is installed. Its sessions follow the walk-through's pages for each role.
 - **Not in this wave:** the accessibility audit, which stays with hardening (wave 16).
+
+### Slices as built
+
+1. **The load test (Q6).**
+   - The pages are the interface's own: each role's sidebar was opened page by page in the demo, as a PI, a storage
+     administrator, and finance, and the API requests each page made were recorded. `bench/load.py` sends a page's
+     requests together, as a browser does (at most six at a time to the site).
+   - A simulated person's first visit loads the page, its styles and scripts, `/api/config`, and `/api/me` (refused,
+     as expected), then signs in with the password and loads the page their role lands on. Then, every `--think`
+     seconds (5 to 15), a page chosen by weights for the role: people of labs mostly the age map, history, and the
+     other reports of their own lab's folder or one of its projects (only projects in the latest scan, since the
+     later scans delete some), and their charges and plans; division heads the same for their division's labs;
+     administrators and auditors *All data*, the explore pages of the filesystem's root or a lab, the administration
+     pages, and now and then a search of every filesystem; finance *Chargeback*, a lab's charges, prices, and
+     capacity. Each person has a random number generator of their own from `--seed`, so a run repeats.
+   - People arrive over the ramp-up; pages and requests are counted from its end. The server's memory is sampled
+     every second with `ps`. The report has each page's and API route's median, 95th and 99th percentiles, and
+     maximum; errors with the first 50 answers; the budgets; and `--compare`.
+   - `bench/load_setup.py`: three scans from `bench/synth_scan.py` (which gained `--started`, to date a scan in the
+     past), ingested with `pinax ingest`; labs, people, memberships, and folders with `pinax import`; then what the
+     import does not set, in the catalog: site roles, a price and a free tier, no ownership history (so each lab has
+     had its folder all along), and one scrypt hash of a made-up password for everyone.
+   - `tests/test_load.py`: an installation of 5,000 files and five labs, and four seconds of seven people, one of
+     each role and two PIs, with no error (SQLite only).
+   - *Done*: at 10 million files the installation took 107 s and 2.8 GB. Two runs of 25 people for five minutes
+     made the same 741 pages, with no error; every page with 30 or more in each run had its median within 10% (all
+     pages: 42 and 44 ms; the 95th percentile, 93 and 94 ms), and the server's memory peaked at 1.3 and 1.4 GB.
 
 ## Later waves (outlined)
 
