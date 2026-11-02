@@ -318,7 +318,8 @@ uv run python bench/load.py /scratch/load-10m --people 50 --minutes 5
 ```
 
 The report, in the installation's `reports/` as Markdown and JSON, has each page's and each API route's median,
-95th and 99th percentile times, errors, and requests a second; the server's memory, sampled every second; and
+95th and 99th percentile times, errors, and requests a second; the server's memory and the cores it keeps busy,
+sampled every second; and
 whether the budgets of wave 14 are met. `--compare A.json B.json` says whether two runs agree: each page's median,
 and the pages a second, within 10%. The load test and Pinax share the computer, so a laptop shows where Pinax slows
 and why more than what a server does. `tests/test_load.py` runs a small one, so it keeps working.

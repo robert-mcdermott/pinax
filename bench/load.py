@@ -264,16 +264,30 @@ def _start_server(folder: Path, port: int, log: Path) -> subprocess.Popen:
     sys.exit(f"error: pinax serve did not answer within 90 s; see {log}")
 
 
-def _rss_mb(pid: int) -> float | None:
-    out = subprocess.run(["ps", "-o", "rss=", "-p", str(pid)], capture_output=True, text=True, check=False).stdout.strip()
-    return int(out) / 1024 if out else None
+def _usage(pid: int) -> tuple[float, float] | None:
+    """The process's memory (MB) and the CPU time it has used (seconds), from `ps`."""
+    out = subprocess.run(["ps", "-o", "rss=,time=", "-p", str(pid)], capture_output=True, text=True,
+                         check=False).stdout.split()
+    if len(out) != 2:
+        return None
+    days, _, clock = out[1].rpartition("-")  # [DD-][HH:]MM:SS[.ss]
+    seconds = 0.0
+    for part in clock.split(":"):
+        seconds = seconds * 60 + float(part)
+    return int(out[0]) / 1024, seconds + 86400 * int(days or 0)
 
 
-async def _sample_memory(pid: int, samples: list, stop: asyncio.Event, t0: float) -> None:
+async def _sample_server(pid: int, memory: list, cpu: list, stop: asyncio.Event, t0: float) -> None:
+    """Every second: the server's memory, and how many cores it kept busy since the last sample."""
+    last = None
     while not stop.is_set():
-        mb = await asyncio.to_thread(_rss_mb, pid)
-        if mb is not None:
-            samples.append((round(time.monotonic() - t0, 1), round(mb, 1)))
+        got = await asyncio.to_thread(_usage, pid)
+        now = round(time.monotonic() - t0, 1)
+        if got is not None:
+            memory.append((now, round(got[0], 1)))
+            if last is not None and now > last[0]:
+                cpu.append((now, round((got[1] - last[1]) / (now - last[0]), 2)))
+            last = (now, got[1])
         try:
             await asyncio.wait_for(stop.wait(), 1.0)
         except TimeoutError:
@@ -295,8 +309,8 @@ async def _run(base: str, folder: Path, people: list[Person], password: str, fs:
     t0 = time.monotonic()
     rec = Recorder(measure_from=t0 + ramp)
     assets = ["/app/", "/css/pinax.css", "/img/favicon.svg"] + [f"/js/{p.name}" for p in sorted((STATIC / "js").glob("*.js"))]
-    memory, stop = [], asyncio.Event()
-    sampler = asyncio.create_task(_sample_memory(pid, memory, stop, t0)) if pid else None
+    memory, cpu, stop = [], [], asyncio.Event()
+    sampler = asyncio.create_task(_sample_server(pid, memory, cpu, stop, t0)) if pid else None
     end_at = t0 + ramp + seconds
     await asyncio.gather(*(_session(base, p, password, fs, rec, t0 + ramp * i / max(1, len(people)), end_at, think,
                                     assets) for i, p in enumerate(people)))
@@ -305,6 +319,7 @@ async def _run(base: str, folder: Path, people: list[Person], password: str, fs:
         await sampler
     elapsed = time.monotonic() - rec.measure_from
     steady = [mb for t, mb in memory if t >= ramp]
+    cores = [c for t, c in cpu if t >= ramp]
     pages = {name: _stats(v) for name, v in sorted(rec.pages.items())}
     folder_p95 = max((pages[n]["p95"] for n in FOLDER_PAGE_NAMES if pages.get(n, {}).get("n")), default=None)
     search_p95 = pages.get("Find files", {}).get("p95")
@@ -319,6 +334,8 @@ async def _run(base: str, folder: Path, people: list[Person], password: str, fs:
         "routes": {route: _stats(v) for route, v in sorted(rec.routes.items())},
         "memory_mb": {"peak": peak, "steady_median": round(statistics.median(steady), 1) if steady else None,
                       "samples": memory} if pid else None,
+        "cpu_cores": {"steady_median": round(statistics.median(cores), 2), "peak": max(cores),
+                      "samples": cpu} if cores else None,
         "budgets": {
             "folder pages, p95 within 1 s": None if folder_p95 is None else folder_p95 <= FOLDER_PAGE_P95,
             "a lab's searches, p95 within 2 s": None if search_p95 is None else search_p95 <= LAB_SEARCH_P95,
@@ -385,6 +402,9 @@ def markdown(r: dict) -> str:
     if r.get("memory_mb"):
         m = r["memory_mb"]
         lines += [f"Server memory: {m['steady_median']:,.0f} MB (median after the ramp-up), {m['peak']:,.0f} MB at most.", ""]
+    if r.get("cpu_cores"):
+        c = r["cpu_cores"]
+        lines += [f"Server CPU: {c['steady_median']:g} cores busy (median after the ramp-up), {c['peak']:g} at most.", ""]
     lines += ["| Budget | Met |", "|---|---|"]
     lines += [f"| {k} | {'yes' if v else 'no' if v is False else 'not measured'} |" for k, v in r["budgets"].items()]
     for title, rows in (("Pages", r["pages"]), ("API routes", r["routes"])):

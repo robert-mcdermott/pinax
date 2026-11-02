@@ -1716,8 +1716,8 @@ pilot, which still waits for it, at the maintainer's request; the pilot runs the
 | Slice | Scope and requirements | Acceptance before the next slice | Status |
 | --- | --- | --- | --- |
 | 1 | The load test (Q6) | `bench/load.py` drives a running Pinax over HTTP as browsers do: simulated people of each role, each signing in with a password, then working through the pages of a session with pauses between clicks; for every page, the median, 95th and 99th percentile times, errors, and requests a second, and the server's memory through the run, written as a report. `bench/load_setup.py` makes the installation it runs against, on SQLite or PostgreSQL: three synthetic scans of 10 million files a month apart (for history and the change map), 200 labs with their people, and the site roles. A short run is in the test suite, so the load test keeps working. Two runs of the same load agree within 10% | Done |
-| 2 | The baseline (Q6) | Runs with 10, 25, 50, and 100 people at once, on SQLite and on PostgreSQL: when times begin to climb, which pages are slowest and why, and memory against the deployment guide's sizing; recorded in the architecture guide's measured performance | Next |
-| 3 | Turns and the catalog (Q6) | Whole-filesystem searches by several administrators at once while others browse: the waiting ones finish within the time limit or stop with Pinax's explanation, and other people's pages stay within the budgets; many people signing in at once (each password is checked with scrypt, slow by design); SQLite's locking and PostgreSQL's connection pool under the same load. What fails is found and fixed | To come |
+| 2 | The baseline (Q6) | Runs with 10, 25, 50, and 100 people at once, on SQLite and on PostgreSQL: when times begin to climb, which pages are slowest and why, and memory against the deployment guide's sizing; recorded in the architecture guide's measured performance | Done |
+| 3 | Turns and the catalog (Q6) | Whole-filesystem searches by several administrators at once while others browse: the waiting ones finish within the time limit or stop with Pinax's explanation, and other people's pages stay within the budgets; many people signing in at once (each password is checked with scrypt, slow by design); SQLite's locking and PostgreSQL's connection pool under the same load. What fails is found and fixed | Next |
 | 4 | Tuning and sizing (Q6) | What slices 2 and 3 found fixed, or its defaults changed (such as `PINAX_QUERY_THREADS`, `PINAX_WIDE_QUERIES`, `PINAX_DATABASE_POOL_SIZE`, or more than one web process), each change measured again; the deployment guide's sizing says how many people a server of a given size serves, and what to change for more | To come |
 | 5 | File categories in the catalog (R14) | The categories, with their extensions and name patterns, kept in the catalog (a migration fills it with today's twelve) rather than in `categories.py`; an index built with the catalog's categories, recorded in it, and every query reading each index's own; name patterns as regular expressions, checked before extensions; the indexes built with other categories than the catalog's are outdated, so `pinax rebuild --outdated` builds them again; the reports, *Find files*, the age map's *one category*, and the change between scans work the same with the default categories, and with added ones. Measured at 10 million files and extrapolated to a billion, as decided below: build time and index size with the default categories unchanged (within 3%), with 25 patterns at most 10% more build time, and with 24 categories the index within Q5's 60 bytes a file; no report slower | To come |
 | 6 | Categories for administrators (R14) | *File categories*, under Administration: each category's name, description, extensions, and patterns, changed, added, and removed by storage administrators, and read by auditors; each pattern checked before it is saved, and tried against file names; how the latest scan's types would move between categories, before saving, from its table of types (no file read), and for patterns an estimate from a sample of its files, never a whole-filesystem read from the page; which snapshots will be rebuilt, how, and about how long it takes; every change audited; the guides | To come |
@@ -1793,6 +1793,26 @@ pilot, which still waits for it, at the maintainer's request; the pilot runs the
    - *Done*: at 10 million files the installation took 107 s and 2.8 GB. Two runs of 25 people for five minutes
      made the same 741 pages, with no error; every page with 30 or more in each run had its median within 10% (all
      pages: 42 and 44 ms; the 95th percentile, 93 and 94 ms), and the server's memory peaked at 1.3 and 1.4 GB.
+2. **The baseline (Q6).**
+   - 10, 25, 50, and 100 people for five minutes each on SQLite, and on PostgreSQL 16 (in Podman on the same laptop,
+     an installation of its own from `load_setup.py --database-url`); every page within the budgets with no error,
+     times not growing with people, about one core busy. The table is in the architecture guide (*Many people at
+     once*).
+   - Past 100 people (the same 100 clicking two to five times as often), the load test now also samples the cores
+     the server keeps busy. At 19 pages a second, as fast; at 28, a 99th percentile of 0.9 s and 3 errors; at 4 and 5
+     times, Pinax stopped for 30 s at a time and answered *Internal error*, its processors idle. Every thread's stack,
+     dumped at the stall (`faulthandler` on a signal): all 40 of the web server's threads waiting for a catalog
+     connection, 32 of them in the sign-in check (`signin.find_session`). A request keeps the connection it took to
+     check who is signed in while it waits for a thread to run the page, and the catalog's pool (15 connections on
+     SQLite, 20 on PostgreSQL) is smaller than the 40 threads: a deadlock until the pool's 30-second timeout. For
+     slice 3.
+   - Why the slowest pages are slow, from the server's own request log (time in index queries and outside) and a
+     count of catalog queries per request: PostgreSQL's 99th percentile of 380 ms is catalog round trips, on pages
+     that load labs and people one by one (an administrator's *All data* 1,023 queries, *People and access* 620, a
+     lab's suggested folders 175, a lab's charges 51), which grow with a site's labs and people. For slice 4.
+   - Memory: DuckDB caches the indexes' blocks, 2.5 GB after five minutes of 100 people, between 1.4 and 3.0 GB over
+     20 minutes. Up to eight indexes stay open with 4 GB each, past the sizing guide's 16 GB at a billion files. For
+     slice 4.
 
 ## Later waves (outlined)
 

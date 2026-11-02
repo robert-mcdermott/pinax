@@ -698,6 +698,46 @@ Reproduce with:
 uv run python bench/synth_scan.py --files 10000000 -o /scratch/synth-10m
 ```
 
+### Many people at once
+
+Measured with the load test ([The load test](DEVELOPMENT.md#the-load-test)) on the same laptop, with Pinax and the
+load test sharing it, against three scans of 10 million files a month apart, 200 labs, and 615 people. Each person
+pauses 5 to 15 seconds between pages, so 100 people open about 9.5 pages a second; five minutes measured after a
+minute's ramp-up:
+
+| People at once | Catalog | Pages a second | Median page | 95th percentile | 99th percentile | Errors | Memory at most |
+|---|---|---|---|---|---|---|---|
+| 10 | SQLite | 0.97 | 41 ms | 98 ms | 154 ms | 0 | 1.2 GB |
+| 25 | SQLite | 2.39 | 42 ms | 93 ms | 160 ms | 0 | 1.3 GB |
+| 50 | SQLite | 4.73 | 40 ms | 96 ms | 158 ms | 0 | 1.4 GB |
+| 100 | SQLite | 9.48 | 38 ms | 106 ms | 168 ms | 0 | 2.5 GB |
+| 10 | PostgreSQL | 0.96 | 66 ms | 140 ms | 382 ms | 0 | 1.1 GB |
+| 25 | PostgreSQL | 2.38 | 64 ms | 174 ms | 385 ms | 0 | 1.4 GB |
+| 50 | PostgreSQL | 4.72 | 60 ms | 162 ms | 387 ms | 0 | 1.5 GB |
+| 100 | PostgreSQL | 9.47 | 55 ms | 146 ms | 377 ms | 0 | 2.3 GB |
+
+Times do not grow from 10 to 100 people, and the server keeps about one core busy. Folder pages stay within
+143 ms at the 95th percentile (172 ms on PostgreSQL) and a lab's searches within 65 ms (85 ms), far inside wave 14's
+budgets of 1 and 2 seconds. A search of every filesystem takes about 0.4 s, and *All data* 157 ms (385 ms on
+PostgreSQL).
+
+**More than that, as measured with 0.13.0.** The same 100 people clicking twice as often (19 pages a second) were as
+fast; three times as often (28 pages a second), the 99th percentile reached 0.9 s, with 3 errors; four and five
+times, Pinax stopped answering for 30 seconds at a time and failed requests with *Internal error*, its processors
+idle. A request takes a catalog connection to check who is signed in and keeps it while it waits for one of the web
+server's 40 threads to run the page itself; the catalog has 15 connections on SQLite (20 on PostgreSQL), so once 40
+requests are waiting for a connection, the ones holding the connections wait for a thread, until the pool gives up
+after 30 seconds. So 0.13.0 serves about 20 pages a second, some 200 people at once at this pace; wave 14 fixes this.
+
+**PostgreSQL is slower by its round trips,** on pages that ask the catalog many small questions: an administrator's
+*All data* makes 1,023 catalog queries (306 ms on PostgreSQL, 111 ms on SQLite), *People and access* 620 (one for
+each person's site roles; 187 and 66 ms), a lab's suggested folders 175 (91 and 46 ms), and a lab's charges 51 (56
+and 10 ms). They grow with labs and people.
+
+**Memory** grows as DuckDB caches the indexes' blocks: 2.5 GB after five minutes of 100 people, and over 20 minutes
+it rose and fell between 1.4 and 3.0 GB. Each open index may cache up to `PINAX_QUERY_MEMORY_LIMIT` (4 GB) and up to
+eight indexes stay open, so at a billion files the bound is past the 16 GB of [Sizing](DEPLOYMENT.md#sizing).
+
 ```bash
 uv run python bench/bench_index.py /scratch/synth-10m --index /scratch/synth-10m-index
 ```
