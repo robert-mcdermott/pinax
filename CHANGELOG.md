@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+Wave 14 ("load"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
+
+### Changed
+
+- **The roadmap.** Load comes next, as wave 14 (0.14.0): a load test of many people using Pinax at once, run on a
+  laptop against synthetic scans of 10 million files, on SQLite and PostgreSQL; the baseline at 10 to 100 people;
+  whole-filesystem searches taking turns, many sign-ins at once, and the catalog under load; what it finds fixed or
+  tuned, and the deployment guide's sizing says how many people a server serves (Q6). It was planned for hardening.
+  The pilot becomes wave 15, and runs the same test again on its server; hardening becomes wave 16 (1.0.0).
+
 ## 0.13.0 (2026-11-01)
 
 Thirteenth release (wave 13, "reach"): sign-in for any site. Out of the box, outside the demo, people sign in with
