@@ -583,14 +583,16 @@ From the web app itself, since it started (with `rate()` for rates):
 | `pinax_http_requests_total{method,route,status}`, `pinax_http_request_duration_seconds{method,route}` | Requests by route (its template, such as `/api/views/{view_id}`) and status, and how long they took |
 | `pinax_index_queries_total`, `pinax_index_query_seconds_total` | Index queries for requests, and their time |
 | `pinax_queries_stopped_total{reason}` | Requests stopped: `timeout`, `busy` (no whole-filesystem turn in time), or `gone` (the browser left) |
+| `pinax_catalog_busy_total` | Requests turned away as busy: no catalog connection was free within 10 seconds |
 | `pinax_wide_queries{state}` | Whole-filesystem file queries running, and waiting for a turn |
 | `pinax_search_jobs_finished_total{status}` | Searches in the background finished: done, failed, or stopped |
 | `pinax_audit_events_total{action}` | Audit events, by action: `auth.signed_in`, `auth.sign_in_failed`, and `auth.locked` are sign-ins; `auth.emergency_signed_in` and `auth.emergency_sign_in_failed` the emergency sign-in |
 
-and, on Linux, the process's own memory, CPU, and open files (`process_*`). `deploy/prometheus/pinax-alerts.yml` has alert rules
-to start from: Pinax or its catalog down, a scan not ingested, a filesystem with no new scan for eight days,
-automatic ingest stopped, a filesystem filling within 90 days or 90% full, Pinax's own disk 90% full, slow pages,
-server errors, searches turned away for want of a turn, many failed sign-ins, and any use of the emergency sign-in.
+and, on Linux, the process's own memory, CPU, and open files (`process_*`). `deploy/prometheus/pinax-alerts.yml` has
+alert rules to start from: Pinax or its catalog down, a scan not ingested, a filesystem with no new scan for eight
+days, automatic ingest stopped, a filesystem filling within 90 days or 90% full, Pinax's own disk 90% full, slow
+pages, server errors, requests turned away as busy, searches turned away for want of a turn, many failed sign-ins, and
+any use of the emergency sign-in.
 
 ### Tasks
 
@@ -603,6 +605,7 @@ server errors, searches turned away for want of a turn, many failed sign-ins, an
 | People see "Pinax stopped this after 180 seconds" | A search or comparison of a whole filesystem read for longer than `PINAX_QUERY_TIMEOUT`: search within a folder, or narrow it by name, type, size, or age. To allow longer, raise `PINAX_QUERY_TIMEOUT` and the proxy's timeout with it. The log names each one (`Stopped /api/files: timeout after 180 s`) |
 | People see "Pinax is already running as many searches of whole filesystems as it allows" | Others ran meanwhile: raise `PINAX_WIDE_QUERIES` if the server has the cores and memory |
 | Pages are slow while a large search runs | Set `PINAX_QUERY_THREADS` below the number of cores |
+| People see "Pinax is busy: more people are using it at once than it can serve" | No catalog connection was free within 10 seconds (`pinax_catalog_busy_total`, and `Turned away` in the log). With PostgreSQL, raise `PINAX_DATABASE_POOL_SIZE` within the database's `max_connections`; see [Sizing](#sizing) |
 | Scan folders filling the disk | Pinax never deletes them: delete the folders of pruned snapshots (`pinax snapshots` lists each one's status and folder) |
 | An index was lost or damaged | `pinax rebuild SNAPSHOT_ID`, from its scan; `/api/health` is `degraded` and counts `indexes_missing` while one is missing |
 | Someone forgot their password, or is locked out (local sign-in) | Their page under *People and access*, *Set a new temporary password*; or `pinax user password USERNAME` |

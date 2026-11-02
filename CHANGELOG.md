@@ -14,6 +14,16 @@ Wave 14 ("load"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
   also lets storage administrators define file categories, by extensions and by patterns on file names, applied when
   an index is built (R14).
 
+### Fixed
+
+- **Many people at once no longer stall Pinax.** Past about 20 pages a second, some 200 people at a normal pace,
+  0.13.0 stopped answering for 30 seconds at a time and then failed requests with *Internal error*, its processors
+  idle: each request kept the catalog connection it took to check who was signed in while it waited for a thread to
+  run the page, and the catalog had fewer connections than the web server has threads. A request now gives its
+  connection back in between, and before checking a password, and with SQLite the web app keeps a connection for
+  each thread. A request that finds no connection free within 10 seconds (30 before) is told Pinax is busy (503)
+  instead of failing, and counted in the new metric `pinax_catalog_busy_total`, with the alert rule `PinaxBusy`.
+
 ## 0.13.0 (2026-11-01)
 
 Thirteenth release (wave 13, "reach"): sign-in for any site. Out of the box, outside the demo, people sign in with

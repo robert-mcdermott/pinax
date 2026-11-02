@@ -12,7 +12,12 @@ Runs against an installation from `bench/load_setup.py`, starting `pinax serve` 
 writes a report: for every page and every API route, the median, 95th and 99th percentile times, errors, and
 requests a second, measured after the ramp-up; the server's memory through the run; and the budgets met or not.
 
+Two harder cases: `--searchers N` adds N storage administrators searching whole filesystems one search after another
+(each reads every file, and PINAX_WIDE_QUERIES run at once), and `--ramp 0` has everyone sign in at the same moment.
+`--set` gives the server it starts a setting of its own, to measure a change without editing the installation.
+
     uv run python bench/load.py /scratch/load-10m --people 50 --minutes 5
+    uv run python bench/load.py /scratch/load-10m --people 100 --searchers 6 --set PINAX_QUERY_TIMEOUT=30
     uv run python bench/load.py --compare first.json second.json
 """
 
@@ -92,6 +97,14 @@ START = {  # the requests after signing in, for the page each role lands on
     "finance": ["/api/admin/costs/charges", "/api/admin/costs/ahead"],
 }
 FOLDER_PAGE_NAMES = set(FOLDER_PAGES) - {"Find files"}
+# What `--searchers` run, at the root of the filesystem: by name, by path, and by age, each with a count of all that
+# match (a second pass). `{n}` is a few random digits, so the searches differ.
+WIDE_SEARCHES = [
+    "/api/files?fs={fs}&q={n}&sort=size&limit=500&total=true",
+    "/api/files?fs={fs}&q=project_0{n2}/&in_path=true&sort=size&limit=500&total=true",
+    "/api/files?fs={fs}&older=1825&min_size={n}&sort=accessed&limit=500&total=true",
+]
+SEARCH_THINK = (1, 3)  # seconds a searcher pauses between searches
 
 
 # ---------- Simulated people ----------
@@ -128,6 +141,11 @@ class Recorder:
     routes: dict = field(default_factory=lambda: defaultdict(list))
     errors: list = field(default_factory=list)
     counts: dict = field(default_factory=lambda: defaultdict(int))
+    searches: list = field(default_factory=list)  # (seconds, status, detail) of each whole-filesystem search
+
+    def search(self, started: float, seconds: float, status: int, detail: str) -> None:
+        if started >= self.measure_from:
+            self.searches.append((seconds, status, detail[:200]))
 
     def page(self, name: str, started: float, seconds: float, ok: bool) -> None:
         if started >= self.measure_from:
@@ -146,13 +164,23 @@ class Recorder:
                 self.errors.append({"route": route, "status": status, "detail": detail[:200]})
 
 
+async def _fetch(client: httpx.AsyncClient, rec: Recorder, url: str) -> httpx.Response:
+    """GET, as a browser does: sent again once if the server closed the kept-alive connection just as it went out
+    (the server closes one after 5 s unused, and the next click can cross it)."""
+    try:
+        return await client.get(url)
+    except (httpx.ReadError, httpx.RemoteProtocolError):
+        rec.counts["sent_again"] += time.monotonic() >= rec.measure_from
+        return await client.get(url)
+
+
 async def _get(client: httpx.AsyncClient, rec: Recorder, url: str) -> int:
     """A request; `!401` after the address means that answer is expected (`/api/me` before signing in)."""
     url, _, expect = url.partition("!")
     route = url.split("?")[0]
     t = time.monotonic()
     try:
-        r = await client.get(url)
+        r = await _fetch(client, rec, url)
         status, detail = r.status_code, (r.text if r.status_code >= 400 else "")
     except httpx.HTTPError as e:
         status, detail = 0, f"{type(e).__name__}: {e}"
@@ -205,6 +233,28 @@ async def _session(base: str, person: Person, password: str, fs: str, rec: Recor
             await _page(client, rec, name, urls)
 
 
+async def _searcher(base: str, person: Person, password: str, fs: str, rec: Recorder, start_at: float,
+                    end_at: float) -> None:
+    """A storage administrator searching the whole filesystem, one search after another, waiting for each."""
+    await asyncio.sleep(max(0.0, start_at - time.monotonic()))
+    async with httpx.AsyncClient(base_url=base, timeout=600, headers={"Origin": base}) as client:
+        r = await client.post("/api/auth/login", json={"username": person.username, "password": password})
+        if r.status_code != 200:
+            rec.search(time.monotonic(), 0, r.status_code, r.text)
+            return
+        while time.monotonic() < end_at:
+            n = person.rng.randrange(1000)
+            url = person.rng.choice(WIDE_SEARCHES).format(fs=fs, n=f"{n:03d}", n2=f"{n % 100:02d}")
+            t = time.monotonic()
+            try:
+                r = await _fetch(client, rec, url)
+                status, detail = r.status_code, (r.json().get("detail", "") if r.status_code >= 400 else "")
+            except (httpx.HTTPError, ValueError) as e:
+                status, detail = 0, f"{type(e).__name__}: {e}"
+            rec.search(t, time.monotonic() - t, status, detail)
+            await asyncio.sleep(person.rng.uniform(*SEARCH_THINK))
+
+
 def _people(spec: dict, count: int, mix: dict, seed: int) -> list[Person]:
     """`count` people in the proportions of `mix`, taken in order from the installation's, so a run is repeatable."""
     by_role = defaultdict(list)
@@ -237,18 +287,18 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
-def _env(folder: Path) -> dict:
+def _env(folder: Path, extra: dict | None = None) -> dict:
     env = dict(os.environ)
     for line in (folder / "pinax.env").read_text().splitlines():
         if "=" in line and not line.lstrip().startswith("#"):
             k, v = line.split("=", 1)
             env[k.strip()] = v.strip()
-    return env
+    return env | (extra or {})
 
 
-def _start_server(folder: Path, port: int, log: Path) -> subprocess.Popen:
+def _start_server(folder: Path, port: int, log: Path, settings: dict) -> subprocess.Popen:
     pinax = str(Path(sys.executable).with_name("pinax"))
-    proc = subprocess.Popen([pinax, "serve", "--port", str(port)], env=_env(folder), stdout=log.open("w"),
+    proc = subprocess.Popen([pinax, "serve", "--port", str(port)], env=_env(folder, settings), stdout=log.open("w"),
                             stderr=subprocess.STDOUT)
     deadline = time.monotonic() + 90
     while time.monotonic() < deadline:
@@ -304,8 +354,21 @@ def _stats(values: list[float]) -> dict:
     return {"n": len(v), "p50": round(q[49], 4), "p95": round(q[94], 4), "p99": round(q[98], 4), "max": round(v[-1], 4)}
 
 
+def _search_stats(searches: list) -> dict | None:
+    """Whole-filesystem searches: those that finished, and those Pinax stopped, by what it said."""
+    if not searches:
+        return None
+    stopped = defaultdict(list)
+    for seconds, status, detail in searches:
+        if status != 200:
+            stopped[f"{status} {detail}"].append(seconds)
+    return {"finished": _stats([s for s, status, _ in searches if status == 200]),
+            "stopped": {k: _stats(v) for k, v in sorted(stopped.items())},
+            "explained": all(status in (200, 503, 504) for _, status, _ in searches)}
+
+
 async def _run(base: str, folder: Path, people: list[Person], password: str, fs: str, *, seconds: float, ramp: float,
-               think: tuple[float, float], pid: int | None) -> dict:
+               think: tuple[float, float], pid: int | None, searchers: list[Person] = ()) -> dict:
     t0 = time.monotonic()
     rec = Recorder(measure_from=t0 + ramp)
     assets = ["/app/", "/css/pinax.css", "/img/favicon.svg"] + [f"/js/{p.name}" for p in sorted((STATIC / "js").glob("*.js"))]
@@ -313,7 +376,8 @@ async def _run(base: str, folder: Path, people: list[Person], password: str, fs:
     sampler = asyncio.create_task(_sample_server(pid, memory, cpu, stop, t0)) if pid else None
     end_at = t0 + ramp + seconds
     await asyncio.gather(*(_session(base, p, password, fs, rec, t0 + ramp * i / max(1, len(people)), end_at, think,
-                                    assets) for i, p in enumerate(people)))
+                                    assets) for i, p in enumerate(people)),
+                         *(_searcher(base, p, password, fs, rec, t0 + ramp, end_at) for p in searchers))
     stop.set()
     if sampler:
         await sampler
@@ -324,9 +388,19 @@ async def _run(base: str, folder: Path, people: list[Person], password: str, fs:
     folder_p95 = max((pages[n]["p95"] for n in FOLDER_PAGE_NAMES if pages.get(n, {}).get("n")), default=None)
     search_p95 = pages.get("Find files", {}).get("p95")
     peak = max((mb for _, mb in memory), default=None)
+    searched = _search_stats(rec.searches)
+    budgets = {
+        "folder pages, p95 within 1 s": None if folder_p95 is None else folder_p95 <= FOLDER_PAGE_P95,
+        "a lab's searches, p95 within 2 s": None if search_p95 is None else search_p95 <= LAB_SEARCH_P95,
+        "no errors": rec.counts["errors"] == 0,
+        "memory within 16 GB": None if peak is None else peak <= MEMORY_GB * 1024,
+    }
+    if searched:
+        budgets["whole-filesystem searches finish, or stop with Pinax's explanation"] = searched["explained"]
     return {
         "measured_seconds": round(elapsed, 1),
         "totals": {"pages": rec.counts["pages"], "requests": rec.counts["requests"], "errors": rec.counts["errors"],
+                   "sent_again": rec.counts["sent_again"],
                    "pages_per_s": round(rec.counts["pages"] / elapsed, 2) if elapsed > 0 else 0,
                    "requests_per_s": round(rec.counts["requests"] / elapsed, 2) if elapsed > 0 else 0},
         "all_pages": _stats([s for name, v in rec.pages.items() if name not in ("Sign-in page", "Signing in") for s in v]),
@@ -336,35 +410,35 @@ async def _run(base: str, folder: Path, people: list[Person], password: str, fs:
                       "samples": memory} if pid else None,
         "cpu_cores": {"steady_median": round(statistics.median(cores), 2), "peak": max(cores),
                       "samples": cpu} if cores else None,
-        "budgets": {
-            "folder pages, p95 within 1 s": None if folder_p95 is None else folder_p95 <= FOLDER_PAGE_P95,
-            "a lab's searches, p95 within 2 s": None if search_p95 is None else search_p95 <= LAB_SEARCH_P95,
-            "no errors": rec.counts["errors"] == 0,
-            "memory within 16 GB": None if peak is None else peak <= MEMORY_GB * 1024,
-        },
+        "searches": searched,
+        "budgets": budgets,
         "errors": rec.errors,
     }
 
 
 def run(folder: Path, *, people: int, seconds: float, ramp: float = 60, think: tuple[float, float] = (5, 15),
         seed: int = 1, mix: dict | None = None, url: str | None = None, pid: int | None = None,
-        name: str | None = None) -> tuple[dict, Path]:
-    """Run the load test against the installation in `folder`; returns the report and where it was written."""
+        name: str | None = None, searchers: int = 0, settings: dict | None = None) -> tuple[dict, Path]:
+    """Run the load test against the installation in `folder`; returns the report and where it was written.
+    `settings` are the started server's own (PINAX_...=value), on top of the installation's."""
     folder = folder.resolve()
     spec = json.loads((folder / "people.json").read_text())
     password = (folder / "password").read_text().strip()
     crowd = _people(spec, people, mix or MIX, seed)
+    admins = [p for p in spec["people"] if p["role"] == "admin"]
+    searching = [Person(admins[i % len(admins)]["username"], "admin", spec["labs"], random.Random(seed * 7919 + i))
+                 for i in range(searchers)]
     reports = folder / "reports"
     reports.mkdir(exist_ok=True)
     name = name or f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{people}p"
     proc = None
     if url is None:
         port = _free_port()
-        proc = _start_server(folder, port, reports / f"{name}.server.log")
+        proc = _start_server(folder, port, reports / f"{name}.server.log", settings or {})
         url, pid = f"http://127.0.0.1:{port}", proc.pid
     try:
         result = asyncio.run(_run(url.rstrip("/"), folder, crowd, password, spec["filesystem"], seconds=seconds,
-                                  ramp=ramp, think=think, pid=pid))
+                                  ramp=ramp, think=think, pid=pid, searchers=searching))
     finally:
         if proc:
             proc.terminate()
@@ -376,6 +450,7 @@ def run(folder: Path, *, people: int, seconds: float, ramp: float = 60, think: t
     report = {"name": name, "when": datetime.now(UTC).isoformat(timespec="seconds"),
               "settings": {"people": people, "seconds": seconds, "ramp": ramp, "think": list(think), "seed": seed,
                            "mix": mix or MIX, "roles": {r: sum(p.role == r for p in crowd) for r in MIX},
+                           "searchers": searchers, "server_settings": settings or {},
                            "catalog": "postgresql" if env.get("PINAX_DATABASE_URL") else "sqlite",
                            "server": "started here" if proc else url},
               **result}
@@ -398,13 +473,24 @@ def markdown(r: dict) -> str:
               f"{r['measured_seconds']:g} s after a ramp-up of {s['ramp']:g} s (seed {s['seed']})."), "",
              (f"{t['pages']:,} pages and {t['requests']:,} requests ({t['pages_per_s']} pages and "
               f"{t['requests_per_s']} requests a second), {t['errors']} errors. All pages: median "
-              f"{_ms(r['all_pages'].get('p50'))} ms, 95th percentile {_ms(r['all_pages'].get('p95'))} ms."), ""]
+              f"{_ms(r['all_pages'].get('p50'))} ms, 95th percentile {_ms(r['all_pages'].get('p95'))} ms."
+              + (f" {t['sent_again']} sent again, as a browser does, after the server closed a kept-alive connection."
+                 if t.get("sent_again") else "")), ""]
     if r.get("memory_mb"):
         m = r["memory_mb"]
         lines += [f"Server memory: {m['steady_median']:,.0f} MB (median after the ramp-up), {m['peak']:,.0f} MB at most.", ""]
     if r.get("cpu_cores"):
         c = r["cpu_cores"]
         lines += [f"Server CPU: {c['steady_median']:g} cores busy (median after the ramp-up), {c['peak']:g} at most.", ""]
+    if s.get("server_settings"):
+        lines += ["Server settings: " + ", ".join(f"{k}={v}" for k, v in s["server_settings"].items()) + ".", ""]
+    if r.get("searches"):
+        f = r["searches"]["finished"]
+        lines += [(f"{s['searchers']} administrators searching whole filesystems: {f['n']} searches finished"
+                   + (f" (median {_ms(f['p50'])} ms, 95th percentile {_ms(f['p95'])} ms, longest {_ms(f['max'])} ms)"
+                      if f["n"] else "") + "."), ""]
+        lines += [f"- Stopped, {v['n']} after a median {_ms(v['p50'])} ms: {k}" for k, v in r["searches"]["stopped"].items()]
+        lines += [""] if r["searches"]["stopped"] else []
     lines += ["| Budget | Met |", "|---|---|"]
     lines += [f"| {k} | {'yes' if v else 'no' if v is False else 'not measured'} |" for k, v in r["budgets"].items()]
     for title, rows in (("Pages", r["pages"]), ("API routes", r["routes"])):
@@ -452,6 +538,10 @@ def main() -> None:
     ap.add_argument("--url", help="A Pinax already running from the installation, instead of starting one")
     ap.add_argument("--pid", type=int, help="With --url: its process, to sample its memory")
     ap.add_argument("--name", help="The report's name (default: the time and the number of people)")
+    ap.add_argument("--searchers", type=int, default=0,
+                    help="Storage administrators searching whole filesystems, one search after another (default 0)")
+    ap.add_argument("--set", action="append", default=[], metavar="PINAX_SETTING=VALUE",
+                    help="A setting for the server this starts, on top of the installation's (repeatable)")
     ap.add_argument("--compare", nargs=2, type=Path, metavar=("A", "B"), help="Compare two reports' JSON")
     args = ap.parse_args()
     if args.compare:
@@ -462,8 +552,10 @@ def main() -> None:
         ap.error("name an installation folder, or --compare two reports")
     mix = {k: float(v) for k, v in (kv.split("=") for kv in args.mix.split(","))} if args.mix else None
     think = tuple(float(x) for x in args.think.split(","))
+    settings = dict(kv.split("=", 1) for kv in args.set)
     report, path = run(args.folder, people=args.people, seconds=args.minutes * 60, ramp=args.ramp, think=think,
-                       seed=args.seed, mix=mix, url=args.url, pid=args.pid, name=args.name)
+                       seed=args.seed, mix=mix, url=args.url, pid=args.pid, name=args.name, searchers=args.searchers,
+                       settings=settings)
     print(markdown(report).split("\n## API routes")[0])
     print(f"Report: {path} (and .json)")
 

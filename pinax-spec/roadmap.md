@@ -1717,8 +1717,8 @@ pilot, which still waits for it, at the maintainer's request; the pilot runs the
 | --- | --- | --- | --- |
 | 1 | The load test (Q6) | `bench/load.py` drives a running Pinax over HTTP as browsers do: simulated people of each role, each signing in with a password, then working through the pages of a session with pauses between clicks; for every page, the median, 95th and 99th percentile times, errors, and requests a second, and the server's memory through the run, written as a report. `bench/load_setup.py` makes the installation it runs against, on SQLite or PostgreSQL: three synthetic scans of 10 million files a month apart (for history and the change map), 200 labs with their people, and the site roles. A short run is in the test suite, so the load test keeps working. Two runs of the same load agree within 10% | Done |
 | 2 | The baseline (Q6) | Runs with 10, 25, 50, and 100 people at once, on SQLite and on PostgreSQL: when times begin to climb, which pages are slowest and why, and memory against the deployment guide's sizing; recorded in the architecture guide's measured performance | Done |
-| 3 | Turns and the catalog (Q6) | Whole-filesystem searches by several administrators at once while others browse: the waiting ones finish within the time limit or stop with Pinax's explanation, and other people's pages stay within the budgets; many people signing in at once (each password is checked with scrypt, slow by design); SQLite's locking and PostgreSQL's connection pool under the same load. What fails is found and fixed | Next |
-| 4 | Tuning and sizing (Q6) | What slices 2 and 3 found fixed, or its defaults changed (such as `PINAX_QUERY_THREADS`, `PINAX_WIDE_QUERIES`, `PINAX_DATABASE_POOL_SIZE`, or more than one web process), each change measured again; the deployment guide's sizing says how many people a server of a given size serves, and what to change for more | To come |
+| 3 | Turns and the catalog (Q6) | Whole-filesystem searches by several administrators at once while others browse: the waiting ones finish within the time limit or stop with Pinax's explanation, and other people's pages stay within the budgets; many people signing in at once (each password is checked with scrypt, slow by design); SQLite's locking and PostgreSQL's connection pool under the same load. What fails is found and fixed | Done |
+| 4 | Tuning and sizing (Q6) | What slices 2 and 3 found fixed, or its defaults changed (such as the web server's 40 threads, `PINAX_QUERY_THREADS`, `PINAX_WIDE_QUERIES`, `PINAX_DATABASE_POOL_SIZE`, or more than one web process), each change measured again; the deployment guide's sizing says how many people a server of a given size serves, and what to change for more | Next |
 | 5 | File categories in the catalog (R14) | The categories, with their extensions and name patterns, kept in the catalog (a migration fills it with today's twelve) rather than in `categories.py`; an index built with the catalog's categories, recorded in it, and every query reading each index's own; name patterns as regular expressions, checked before extensions; the indexes built with other categories than the catalog's are outdated, so `pinax rebuild --outdated` builds them again; the reports, *Find files*, the age map's *one category*, and the change between scans work the same with the default categories, and with added ones. Measured at 10 million files and extrapolated to a billion, as decided below: build time and index size with the default categories unchanged (within 3%), with 25 patterns at most 10% more build time, and with 24 categories the index within Q5's 60 bytes a file; no report slower | To come |
 | 6 | Categories for administrators (R14) | *File categories*, under Administration: each category's name, description, extensions, and patterns, changed, added, and removed by storage administrators, and read by auditors; each pattern checked before it is saved, and tried against file names; how the latest scan's types would move between categories, before saving, from its table of types (no file read), and for patterns an estimate from a sample of its files, never a whole-filesystem read from the page; which snapshots will be rebuilt, how, and about how long it takes; every change audited; the guides | To come |
 | 7 | Release 0.14.0 | Version 0.14.0, changelog with notes on upgrading from 0.13.0; pull request, tag, release | To come |
@@ -1813,6 +1813,41 @@ pilot, which still waits for it, at the maintainer's request; the pilot runs the
    - Memory: DuckDB caches the indexes' blocks, 2.5 GB after five minutes of 100 people, between 1.4 and 3.0 GB over
      20 minutes. Up to eight indexes stay open with 4 GB each, past the sizing guide's 16 GB at a billion files. For
      slice 4.
+3. **Turns and the catalog (Q6).**
+   - The stall fixed: a request gives its catalog connection back once it knows who is signed in (`db.release`, a
+     commit, which keeps what it loaded), so it holds one only while it runs in a thread, and never while waiting for
+     one. Also given back before a password is checked (slow by design) and before the audit log's CSV is read with
+     a session of its own. With SQLite the web app keeps up to 40 connections, one for each thread (15 before);
+     PostgreSQL's pool is unchanged. A request that finds no connection within 10 seconds (30 before) answers 503,
+     *Pinax is busy*, counted in `pinax_catalog_busy_total`, with the alert rule `PinaxBusy`. `tests/test_busy.py`
+     makes the stall small (two connections, six threads, 40 requests at once: stuck for 25 s and failing without
+     the fix, done in two seconds with it), and checks the busy answer.
+   - The load test gained `--searchers N` (storage administrators searching whole filesystems by name, path, and
+     age, one search after another, reported apart: finished, and stopped with what Pinax said), `--set` (a setting
+     for the server it starts), and sends a request again when the server closed the kept-alive connection just as
+     it went out, as browsers do: slice 2's 3 errors at three times were these.
+   - The same 100 people clicking 3, 4, and 5 times as often: no errors (3, 89, and 156 before); one process
+     serves about 28 pages a second on SQLite, 30 at four times on PostgreSQL, and past that pages slow down (a
+     median of 0.9 s at four times and 1.5 s at five on SQLite) with three or four cores busy.
+   - Eight administrators searching whole filesystems among the 100 people: on SQLite every budget met, the 299
+     searches finished, the longest after 7.6 s; with a time limit of 5 s, the 33 that could not finish stopped at
+     it with Pinax's explanation (16 waiting for a turn, 17 running). On PostgreSQL nothing failed, but *What
+     changed* reached 1.2 s at the 95th percentile, past its budget, with the searches' DuckDB threads on every core
+     and the database in a virtual machine on the same ones. For slice 4 (`PINAX_QUERY_THREADS`).
+   - 200 people signing in at the same moment: every sign-in within 5.7 s on SQLite and 5.9 s on PostgreSQL (8.4 s
+     before the password check gave its connection back), 1.3 GB more memory while 40 passwords are checked. Their
+     first pages waited up to 59 s on SQLite and 19 s on PostgreSQL: about 25 requests a second with 3 of 10 cores
+     busy, and requests of a few milliseconds waiting half a minute for a thread: the 40 threads most likely short
+     of Python's interpreter, not of cores. For slice 4, with the catalog questions asked one by one.
+   - SQLite's locking: no errors with every sign-in writing its session and audit event, 200 at once included, and
+     sign-ins no slower than on PostgreSQL, whose writers do not share a lock. PostgreSQL's pool: no request turned
+     away as busy in any run, its 20 connections enough for the 40 threads once requests give theirs back. That costs
+     PostgreSQL a few round trips a request (about 4 ms here, through the virtual machine): at 100 people the median
+     page took 62 ms, against 55 ms in slice 2.
+   - At 100 people on SQLite, run back to back with 0.13.0's code (a worktree of slice 2's commit): the same, a
+     median page of 38 ms in both and a 95th percentile of 104 and 108 ms. Two other runs of this slice's code had
+     95th percentiles of 143 and 149 ms, one of them while the test suite ran: the 95th percentile varies by a third
+     between runs, the median by a few percent.
 
 ## Later waves (outlined)
 

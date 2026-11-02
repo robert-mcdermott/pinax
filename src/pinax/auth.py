@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session, object_session, selectinload
 
 from . import logs, tokens
 from .config import get_settings
-from .db import get_session
+from .db import get_session, release
 from .models import ApiToken, Lab, LabFolder, LabMembership, User
 from .signin import COOKIE as SESSION_COOKIE
 from .signin import find_session
@@ -83,6 +83,12 @@ def _load_user(session: Session, username: str) -> User | None:
 
 
 def current_identity(request: Request, session: Session = Depends(get_session)) -> Identity:
+    identity = _identify(request, session)
+    release(session)  # the endpoint runs in another thread, and takes a connection there
+    return identity
+
+
+def _identify(request: Request, session: Session) -> Identity:
     settings = get_settings()
     scheme, _, secret = request.headers.get("authorization", "").partition(" ")
     if scheme.lower() == "bearer" or request.scope.get(TOKEN_ONLY):

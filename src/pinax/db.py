@@ -39,9 +39,17 @@ _engine: Engine | None = None
 _SessionLocal: sessionmaker[Session] | None = None
 
 
+# FastAPI runs each of a request's dependencies, and then its endpoint, in a thread of their own, from anyio's 40 for
+# the whole process. A request holds a catalog connection only within one of them (`release`), so a pool as large
+# as that never keeps a thread waiting; PostgreSQL's is smaller, a cost on the database server (PINAX_DATABASE_POOL_SIZE).
+THREADS = 40
+POOL_TIMEOUT = 10  # seconds a request waits for a catalog connection before it is turned away as busy
+
+
 def make_engine(url: str) -> Engine:
     if url.startswith("sqlite"):
-        engine = create_engine(url, connect_args={"check_same_thread": False, "timeout": 30})
+        engine = create_engine(url, connect_args={"check_same_thread": False, "timeout": 30}, pool_size=THREADS,
+                               max_overflow=0, pool_timeout=POOL_TIMEOUT)
 
         @event.listens_for(engine, "connect")
         def _sqlite_pragmas(dbapi_conn, _record):
@@ -67,7 +75,8 @@ def make_engine(url: str) -> Engine:
         connect_args["application_name"] = "pinax"  # so the database's own views say who is connected
     pool = get_settings().database_pool_size
     try:
-        return create_engine(url, pool_pre_ping=True, pool_size=pool, max_overflow=pool, connect_args=connect_args)
+        return create_engine(url, pool_pre_ping=True, pool_size=pool, max_overflow=pool, pool_timeout=POOL_TIMEOUT,
+                             connect_args=connect_args)
     except ModuleNotFoundError as e:
         raise RuntimeError(f"The catalog's database needs a driver that is not installed ({e.name}); for PostgreSQL, "
                            "install Pinax with its postgres extra: uv sync --extra postgres") from e
@@ -110,6 +119,14 @@ def session_scope() -> Iterator[Session]:
         raise
     finally:
         session.close()
+
+
+def release(session: Session) -> None:
+    """End the session's transaction, so its connection goes back to the pool until the session's next query. A web
+    request's work runs in several threads one after another, each taken from a pool of its own: one holding a
+    connection while it waits for its next thread could leave every thread waiting for a connection, and nothing
+    moving (found in wave 14's load test). The objects it loaded stay usable (expire_on_commit=False)."""
+    session.commit()
 
 
 def get_session() -> Iterator[Session]:

@@ -29,7 +29,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from .config import Settings, get_settings
-from .db import utcnow
+from .db import release, utcnow
 from .models import AuditEvent, LoginSession, User
 
 COOKIE = "pinax_session"
@@ -167,6 +167,7 @@ def sign_in(session: Session, username: str, password: str, address: str = "", *
     now = utcnow()
     failed, kind = ("auth.emergency_sign_in_failed", "emergency sign-in") if emergency else ("auth.sign_in_failed", "sign-in")
     user = session.scalar(select(User).where(User.username == username.strip()))
+    release(session)  # checking a password is slow by design, and needs no catalog connection meanwhile
     if user is None or not user.active or not user.password_hash or (emergency and not (user.emergency and user.is_admin)):
         verify_password(password, _DUMMY)
         audit(session, failed, f"Failed {kind} as {username.strip()[:64]!r}", user,

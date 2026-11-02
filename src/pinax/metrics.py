@@ -52,6 +52,8 @@ QUERIES = Counter("pinax_index_queries", "Index queries run for requests", regis
 QUERY_SECONDS = Counter("pinax_index_query_seconds", "Time index queries took, for requests", registry=REGISTRY)
 STOPPED = Counter("pinax_queries_stopped", "Requests whose queries were stopped: timeout (PINAX_QUERY_TIMEOUT), busy "
                   "(no whole-filesystem turn in time), or gone (the browser left)", ["reason"], registry=REGISTRY)
+CATALOG_BUSY = Counter("pinax_catalog_busy", "Requests turned away as busy: no catalog connection was free in time "
+                       "(PINAX_DATABASE_POOL_SIZE)", registry=REGISTRY)
 SEARCHES = Counter("pinax_search_jobs_finished", "Searches in the background that finished, by how: done, failed, "
                    "or stopped", ["status"], registry=REGISTRY)
 AUDIT = Counter("pinax_audit_events", "Audit events this process recorded, by action (auth.signed_in, "

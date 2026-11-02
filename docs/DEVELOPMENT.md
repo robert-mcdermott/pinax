@@ -317,10 +317,21 @@ make the same requests.
 uv run python bench/load.py /scratch/load-10m --people 50 --minutes 5
 ```
 
+Two harder cases. `--searchers N` adds N storage administrators searching whole filesystems, by name, path, and age,
+one search after another: each reads every file, `PINAX_WIDE_QUERIES` run at once, and the others wait for a turn.
+`--ramp 0` has everyone sign in at the same moment, each password checked with scrypt, slow by design. `--set
+PINAX_SETTING=VALUE` (repeatable) gives the server it starts a setting of its own, to measure a change without editing
+the installation.
+
+```bash
+uv run python bench/load.py /scratch/load-10m --people 100 --searchers 6 --set PINAX_QUERY_TIMEOUT=30
+```
+
 The report, in the installation's `reports/` as Markdown and JSON, has each page's and each API route's median,
 95th and 99th percentile times, errors, and requests a second; the server's memory and the cores it keeps busy,
-sampled every second; and
-whether the budgets of wave 14 are met. `--compare A.json B.json` says whether two runs agree: each page's median,
+sampled every second; the searchers' searches, finished and stopped, with what Pinax said; and whether the budgets
+of wave 14 are met. A request on a kept-alive connection the server closed just then is sent again, as browsers do,
+and counted. `--compare A.json B.json` says whether two runs agree: each page's median,
 and the pages a second, within 10%. The load test and Pinax share the computer, so a laptop shows where Pinax slows
 and why more than what a server does. `tests/test_load.py` runs a small one, so it keeps working.
 

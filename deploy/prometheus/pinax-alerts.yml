@@ -90,6 +90,13 @@ groups:
           summary: "{{ $value | humanizePercentage }} of Pinax's answers are server errors"
           description: "`journalctl -u pinax-web -p warning` shows them, each with its request ID."
 
+      - alert: PinaxBusy
+        expr: increase(pinax_catalog_busy_total[15m]) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "Pinax turned {{ $value }} requests away as busy in 15 minutes"
+          description: "No catalog connection was free within 10 seconds: more at once than the process serves. With PostgreSQL, raise PINAX_DATABASE_POOL_SIZE; see Sizing in docs/DEPLOYMENT.md."
+
       - alert: PinaxWholeFilesystemQueriesWaiting
         expr: increase(pinax_queries_stopped_total{reason="busy"}[1h]) > 10
         labels: {severity: info}

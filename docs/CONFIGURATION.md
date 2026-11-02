@@ -19,7 +19,7 @@ Settings are `PINAX_*` environment variables, or a `.env` file in the folder you
 | `PINAX_DEMO_ROOT` | `demo/` | Demo filesystems and scans written by `pinax seed` |
 | `PINAX_DATABASE_URL` | SQLite in `VAR_ROOT` | The catalog's database. Empty for SQLite in `VAR_ROOT`, or a PostgreSQL URL such as `postgresql://pinax@db.example.org/pinax?sslmode=verify-full`, with Pinax installed with its `postgres` extra ([PostgreSQL](DEPLOYMENT.md#postgresql)). Leave the password out: PostgreSQL's driver reads it from `~/.pgpass` or `PGPASSWORD` |
 | `PINAX_DB_AUTO_UPGRADE` | `true` | Upgrade the catalog when Pinax starts, if a release needs it. `false` leaves that to `pinax db upgrade` (which can print its SQL), and Pinax refuses to start with a catalog that is behind ([The catalog database](ARCHITECTURE.md#the-catalog-database)) |
-| `PINAX_DATABASE_POOL_SIZE` | `10` | PostgreSQL connections each Pinax process keeps open, with as many more at busy times |
+| `PINAX_DATABASE_POOL_SIZE` | `10` | PostgreSQL connections each Pinax process keeps open, with as many more at busy times. A request waits up to 10 seconds for one, then is turned away as busy. With SQLite, the web app keeps up to 40, one for each of its threads |
 
 ## Scanning
 

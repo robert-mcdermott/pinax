@@ -33,12 +33,16 @@ def test_a_short_load_test(tmp_path):
 
     load = _load_module()
     mix = {"pi": 2, "member": 1, "division": 1, "admin": 1, "auditor": 1, "finance": 1}
-    report, path = load.run(folder, people=7, seconds=4, ramp=1, think=(0.05, 0.2), mix=mix, name="short")
+    report, path = load.run(folder, people=7, seconds=4, ramp=1, think=(0.05, 0.2), mix=mix, name="short",
+                            searchers=2, settings={"PINAX_WIDE_QUERIES": "1"})
     assert path.exists() and (folder / "reports" / "short.json").exists()
-    assert report["settings"]["roles"] == mix
+    assert report["settings"]["roles"] == mix and report["settings"]["server_settings"] == {"PINAX_WIDE_QUERIES": "1"}
     assert report["totals"]["pages"] > 20 and report["totals"]["errors"] == 0, report["errors"]
     assert {"Age map", "Chargeback", "All data"} <= set(report["pages"])
     assert report["memory_mb"]["peak"] > 0
     assert report["budgets"]["no errors"] is True
+    assert report["searches"]["finished"]["n"] >= 2, report["searches"]
+    assert report["budgets"]["whole-filesystem searches finish, or stop with Pinax's explanation"] is True
+    assert "administrators searching whole filesystems" in path.read_text()
     ok, text = load.compare(report, report)
     assert ok and "They agree" in text

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from .. import audit
 from ..auth import Identity, require_sees_all
-from ..db import get_session, session_scope, utcnow
+from ..db import get_session, release, session_scope, utcnow
 from ..models import Lab, User
 
 router = APIRouter(prefix="/admin", tags=["audit"])
@@ -30,6 +30,8 @@ def audit_log(person: str | None = None, action: str | None = None, lab: str | N
     try:
         audit.query(session, filters)  # a filter that names nothing answers now, not halfway through a download
         if fmt == "csv":
+            release(session)  # the download reads with a session of its own, while it lasts
+
             def rows():
                 with session_scope() as s:
                     yield from audit.csv_rows(s, filters)
