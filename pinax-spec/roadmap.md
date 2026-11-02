@@ -48,8 +48,8 @@ views: the age map as an icicle and a sunburst, and what 0.10.0 left) came next 
 and hardening were renumbered again. Wave 12 (access: roles, API tokens, the audit log, and access reviews) is the
 part of reach that works with every way of signing in; it came next, at the maintainer's request. The rest of
 reach comes next as wave 13, also at the maintainer's request, while the pilot waits for production storage: local
-sign-in as the default, optional sign-in with Entra ID, an emergency administrator sign-in, roles from Entra ID, CI,
-and a container image. Local sign-in's two-factor codes and per-address limits went to the parking lot. The pilot
+sign-in as the default, optional sign-in with Entra ID, an emergency administrator sign-in, roles from Entra ID, and
+CI. Local sign-in's two-factor codes and per-address limits, and a container image, went to the parking lot. The pilot
 is renumbered wave 14, and takes lab membership from the directory (A6), with the decision on where membership and
 ownership come from.
 
@@ -1482,7 +1482,7 @@ reach, at the maintainer's request.
 
 Sign-in for any site. Local sign-in is the default, with nothing else to set up; sign-in with Microsoft Entra ID in
 Pinax itself is optional, configured by settings, with the roles of wave 12 from Entra ID; an emergency
-administrator sign-in covers Entra ID failing; and CI and a container image make Pinax easier to check and to run.
+administrator sign-in covers Entra ID failing; and CI checks every change on SQLite and on PostgreSQL.
 It needs no production storage, and comes before the pilot, which still waits for it, at the maintainer's request.
 
 ### Wave 13 sequence
@@ -1493,14 +1493,21 @@ It needs no production storage, and comes before the pilot, which still waits fo
 | 2 | Sign-in with Entra ID in Pinax itself (A6, in part) | A mode configured by settings and checked at start-up: any OpenID Connect provider by its discovery document, the authorization code flow with PKCE, the ID token checked against the provider's keys (issuer, audience, expiry, nonce); people matched by one claim, within the site's domains, and never made; a server-side session, as local sign-in makes; refused sign-ins audited with why; signing out ends the provider's session too; the whole flow tested against a stand-in provider (forged, expired, and replayed sign-ins, guests, unknown and deactivated people), and checked against Dex in Podman; the guide's request for IT, and a table of Entra ID's errors | Done |
 | 3 | The emergency administrator sign-in (A12) | As decided below, each part tested: off unless an emergency account exists; marked only from the command line; an address of its own; the password rules and lockout, a longer minimum password, and short sessions; every use audited, logged as a warning, and counted in the metrics; the accounts listed in the access review; the guide | Done |
 | 4 | Roles from Entra ID (A6, in part) | Optionally, Entra ID app roles (the token's `roles` claim) or groups mapped by settings onto the administrator role and the site roles, applied at each sign-in and audited; roles given in the app stay possible; a group overage said, not guessed; tested against the stand-in provider; app roles and groups checked in a real tenant when a test registration is available | Done, but for the check in a real tenant |
-| 5 | CI and a container image (P6) | GitHub Actions run the linter and the suite on SQLite and PostgreSQL for every push and pull request; a container image (a `Containerfile`) runs the web app and automatic ingest with `/var/lib/pinax` as a volume, built and run with Podman, the demo included; the deployment guide's container section | Next |
+| 5 | Continuous integration | GitHub Actions run the linter and the whole suite on SQLite and on PostgreSQL for every push, and for pull requests from forks, with the pinned fs-inventory installed so that the tests that run it run too; the development guide says what runs | Done, but for its first run on GitHub |
 | 6 | Release 0.13.0 | The walk-through and the guides for each way of signing in; version 0.13.0, changelog with notes on upgrading from 0.12.0; pull request, tag, release | To come |
 
 ### Decisions for wave 13
 
 - **Not in this wave:** local sign-in's two-factor codes and per-address limits (in the parking lot), and a
   security review (an organization's own, outside the roadmap).
-- **CI runs on GitHub Actions.** For a private repository, it uses the account's included minutes.
+- **CI runs on GitHub Actions.** For a private repository, it uses the account's included minutes. Each push is
+  checked once: a pull request from a branch of this repository shows its pushes' runs rather than running again.
+- **No container image, for now** (in the parking lot). The web app and automatic ingest would run in one, but
+  scans would not: fs-inventory names files' owners from the accounts of the host that scans (LDAP or sssd), which
+  a container does not have, and reads every folder with a capability a container grants only when run as root. So
+  scans would run outside it, with fs-inventory alone, and without the filesystem's capacity that `pinax scan`
+  records. That is a second way to install, and a weaker one, beside the installation with uv and systemd units,
+  which is short.
 - **A role the map names belongs to Entra ID.** Pinax gives or takes it away at each sign-in and the People page
   only shows it; roles the map does not name stay Pinax's. Adding roles from Entra ID to those given in Pinax was
   set aside: Pinax could not tell which to take away when someone leaves a group in Entra ID.
@@ -1658,6 +1665,18 @@ sign-in, and access policies, so it is kept small:
      in a real tenant when a test registration is available. The guides: *Roles from Entra ID* in *Signing in with
      Entra ID*, the configuration, administration, and architecture guides, the README, and the examples of
      settings.
+5. **Continuous integration.**
+   - `.github/workflows/ci.yml`, on GitHub's Ubuntu 24.04 runners, in three jobs: the linter (ruff, pinned);
+     the whole suite on SQLite; and the whole suite on PostgreSQL 16, started as in the development guide (in memory,
+     `fsync` off) and waited for until it answers over TCP, since it answers on its socket while it initializes.
+     Both suites install the pinned fs-inventory first (`scripts/install-fs-inventory.sh`), so the tests that run
+     the real binary run rather than being skipped. uv and the actions are pinned (the actions by commit); each job
+     reads the repository only, and leaves no credentials in the checkout.
+   - It runs for every push, and for pull requests from forks: a pull request from a branch of this repository
+     shows its pushes' runs. A newer push cancels the older run of the same branch.
+   - Planned with a container image, which was set aside (the decision above).
+   - *Done*: each job's steps run here as written: the linter clean, 392 passed on SQLite, and 391 passed and one
+     skipped on PostgreSQL. The first run on GitHub comes with the branch's first push.
 
 ## Later waves (outlined)
 
@@ -1682,13 +1701,13 @@ Ideas kept for later, and not on a path to be built. An idea leaves the parking 
 | Cloud buckets and archives beside filesystems, priced by storage class | The cloud accounts' inventory reports (S3 Inventory, Azure Blob inventory) or the archive's catalog |
 | The data of people who have left, by lab, for their PI to decide on | Who has left, from HR or the directory; the owners report already flags accounts that no longer exist |
 
-**Not needed for now** (local sign-in locks an account after five failures in a row, and sites that need more use
-single sign-on):
+**Not needed for now:**
 
 | Idea | Notes |
 | --- | --- |
-| Two-factor codes for local sign-in (was in reach) | One-time codes from an authenticator app, with recovery codes |
+| Two-factor codes for local sign-in (was in reach) | One-time codes from an authenticator app, with recovery codes. Local sign-in locks an account after five failures in a row, and sites that need more use single sign-on |
 | Limits on sign-in attempts per network address (was in reach) | Slowing down an address that tries many accounts, beside the per-account lockout |
+| A container image (was in reach) | The web app and automatic ingest in a container, with `/var/lib/pinax` as a volume. Scans would run outside it, since fs-inventory names owners from the scanning host's accounts and reads every folder with a capability a container grants only as root; so would `pinax scan`'s record of the filesystem's capacity. Worth it for a site that runs everything in Kubernetes or OpenShift |
 
 **Not yet chosen:**
 

@@ -25,6 +25,8 @@ Wave 13 ("reach"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
   account exists, and never set in the app; every use is audited, logged as a warning, and caught by a new alert
   rule (`PinaxEmergencySignIn`); *Access review* lists the accounts. Migration `0006` adds the mark
   ([When Entra ID fails](docs/ENTRA-ID.md#when-entra-id-fails-the-emergency-sign-in)).
+- **Continuous integration.** GitHub Actions run the linter and the whole suite, on SQLite and on PostgreSQL, with
+  fs-inventory installed, for every push ([Continuous integration](docs/DEVELOPMENT.md#continuous-integration)).
 
 ### Changed
 
@@ -38,9 +40,10 @@ Wave 13 ("reach"). See [pinax-spec/roadmap.md](pinax-spec/roadmap.md).
 - **The roadmap.** Reach comes next, as wave 13 (0.13.0): local sign-in the default out of the box outside the
   demo, in the code and in the server kit; sign-in with Entra ID in Pinax itself, optional and configured by
   settings, with roles from its app roles or groups; an emergency administrator sign-in for when Entra ID or its
-  setup fails (A12); and CI and a container image. The pilot becomes wave 14, and takes lab membership from the
-  directory (A6). Two-factor codes and per-address limits for local sign-in move to the parking lot, and the
-  security review is taken off the roadmap.
+  setup fails (A12); and CI. The pilot becomes wave 14, and takes lab membership from the directory (A6).
+  Two-factor codes and per-address limits for local sign-in, and a container image, move to the parking lot (a
+  container could not scan: fs-inventory names owners from the scanning host's accounts), and the security review
+  is taken off the roadmap.
 
 ## 0.12.0 (2026-11-01)
 

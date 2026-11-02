@@ -102,7 +102,7 @@ The guides are in [docs/](docs/README.md), and make a website with screenshots o
 | [docs/CLI.md](docs/CLI.md) | Every `pinax` command and option |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | What a problem looks like, why, and what to do |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Design; what Pinax keeps (catalog, indexes, scans) and what to back up; the snapshot index, how it is built and queried, security, measured performance and sizing |
-| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Code layout, conventions, the HTTP API, the interface, themes and chart colors, tests, benchmarks |
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Code layout, conventions, the HTTP API, the interface, themes and chart colors, tests and CI, benchmarks |
 | [pinax-spec/roadmap.md](pinax-spec/roadmap.md) | The plan: waves (one release each) and their slices, what is done, what is next, decisions |
 | [pinax-spec/requirements.md](pinax-spec/requirements.md) | What Pinax must do, with stable IDs and each requirement's status |
 | [CHANGELOG.md](CHANGELOG.md) | What each release contains |
@@ -222,6 +222,7 @@ src/pinax/
 bench/                             synthetic scans of any size, index and charges benchmarks
 scripts/install-fs-inventory.sh    installs the pinned fs-inventory release into bin/
 tests/                             pytest suite
+.github/workflows/ci.yml           CI: the linter and the suite on SQLite and PostgreSQL, for every push
 docs/                              demo, setup, architecture, configuration, deployment, import, development
 pinax-spec/                        requirements and roadmap
 bin/  var/  scans/  demo/  data/  fs-inventory binary and runtime data (gitignored)

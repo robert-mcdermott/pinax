@@ -32,4 +32,4 @@ Read in this order when setting Pinax up for the first time:
 | Guide | What it covers |
 | --- | --- |
 | [Architecture](ARCHITECTURE.md) | The design: the snapshot index and how it is built, checked, and queried, the catalog, security, and measured performance |
-| [Development](DEVELOPMENT.md) | Working on Pinax: setup, code layout, conventions, tests (on PostgreSQL too), migrations, the HTTP API, benchmarks |
+| [Development](DEVELOPMENT.md) | Working on Pinax: setup, code layout, conventions, tests (on PostgreSQL too) and CI, migrations, the HTTP API, benchmarks |

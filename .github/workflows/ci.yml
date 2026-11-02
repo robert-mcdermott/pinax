@@ -1,0 +1,75 @@
+# SPDX-License-Identifier: Apache-2.0
+# The linter, and the whole suite on SQLite and on PostgreSQL, for every push (docs/DEVELOPMENT.md, "Continuous
+# integration"). A pull request from a branch of this repository is checked by that branch's pushes; one from a fork is
+# checked by its own run.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3
+        with:
+          version: "0.13.1"
+      - run: uvx ruff@0.17.0 check src tests bench
+
+  sqlite:
+    name: Tests on SQLite
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3
+        with:
+          version: "0.13.1"
+      # The pinned fs-inventory, so that the tests that run the real binary run rather than being skipped.
+      - run: scripts/install-fs-inventory.sh
+      - run: uv sync --frozen
+      - run: uv run pytest
+
+  postgresql:
+    name: Tests on PostgreSQL
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-24.04
+    env:
+      PINAX_TEST_DATABASE_URL: postgresql://pinax:pinax-test@127.0.0.1:55432/pinax
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3
+        with:
+          version: "0.13.1"
+      # The throwaway PostgreSQL of docs/DEVELOPMENT.md, ready once it answers over TCP (not while it initializes).
+      - name: Start PostgreSQL 16
+        run: |
+          docker run -d --name pinax-pg-test -e POSTGRES_USER=pinax -e POSTGRES_PASSWORD=pinax-test -e POSTGRES_DB=pinax \
+            -p 127.0.0.1:55432:5432 --tmpfs /var/lib/postgresql/data docker.io/library/postgres:16 \
+            -c fsync=off -c max_connections=200
+          for _ in $(seq 1 60); do
+            docker exec pinax-pg-test pg_isready -h 127.0.0.1 -U pinax -d pinax && exit 0
+            sleep 1
+          done
+          docker logs pinax-pg-test
+          exit 1
+      - run: scripts/install-fs-inventory.sh
+      - run: uv sync --frozen --extra postgres
+      - run: uv run pytest

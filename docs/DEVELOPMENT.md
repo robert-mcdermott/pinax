@@ -53,6 +53,21 @@ PINAX_TEST_DATABASE_URL=postgresql://pinax:pinax-test@127.0.0.1:55432/pinax uv r
 
 `docker` takes the same arguments. Tests about SQLite catalogs only (`conftest.sqlite_only`) are skipped there.
 
+### Continuous integration
+
+GitHub Actions run the same checks for every push (`.github/workflows/ci.yml`), each job on a fresh Ubuntu runner:
+
+| Job | What it runs |
+|---|---|
+| Lint | `uvx ruff check src tests bench`, with ruff pinned |
+| Tests on SQLite | `scripts/install-fs-inventory.sh`, `uv sync --frozen`, `uv run pytest` |
+| Tests on PostgreSQL | the throwaway PostgreSQL above, then the same with `--extra postgres` and `PINAX_TEST_DATABASE_URL` |
+
+Both suites install the pinned fs-inventory, so the tests that run the real binary run there rather than being
+skipped. A pull request from a branch of this repository shows the runs of its pushes; one from a fork gets its own.
+The workflow pins uv (`0.13.1`), ruff, and the actions (by commit, with the version beside each), so a run means the
+same thing from one month to the next; update them together, deliberately.
+
 ## Code layout
 
 ```text

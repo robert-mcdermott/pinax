@@ -69,7 +69,7 @@ const DOCS = [
     { slug: 'cli', title: 'Command line', file: 'CLI.md', lede: 'Every pinax command and option.' },
     { slug: 'troubleshooting', title: 'Troubleshooting', file: 'TROUBLESHOOTING.md', lede: 'What a problem looks like, why it happens, and what to do.' },
     { slug: 'architecture', title: 'Architecture', file: 'ARCHITECTURE.md', lede: 'How Pinax is built: the snapshot index, checking it, querying it, the catalog, security, and measured performance.' },
-    { slug: 'development', title: 'Development', file: 'DEVELOPMENT.md', lede: 'Working on Pinax: setup, conventions, tests, migrations, the HTTP API, and benchmarks.' },
+    { slug: 'development', title: 'Development', file: 'DEVELOPMENT.md', lede: 'Working on Pinax: setup, conventions, tests and CI, migrations, the HTTP API, and benchmarks.' },
   ] },
 ];
 const PAGES = DOCS.flatMap((g) => g.pages);
