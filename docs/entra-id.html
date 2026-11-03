@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Signing in with Entra ID · Pinax</title>
+  <meta name="description" content="Optional single sign-on with Microsoft Entra ID in Pinax itself: what to ask IT for, the settings, roles from Entra ID, the emergency sign-in, a trial with a stand-in, and its errors." />
+  <meta property="og:title" content="Signing in with Entra ID" />
+  <meta property="og:description" content="Optional single sign-on with Microsoft Entra ID in Pinax itself: what to ask IT for, the settings, roles from Entra ID, the emergency sign-in, a trial with a stand-in, and its errors." />
+  <meta name="theme-color" content="#18365D" />
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="../assets/css/site.css" />
+  <script>try { const t = localStorage.getItem('pinax-site-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+  <script src="../assets/js/site.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container">
+      <a class="brand" href="../"><img src="../assets/img/pinax-mark.svg" alt="" width="34" height="34" /><span class="brand-name">Pinax<small>Explore your data</small></span></a>
+      <nav class="site-nav" id="site-nav" aria-label="Main">
+        <a href="../#features">Features</a>
+        <a href="../docs/my-data.html">User guide</a>
+        <a href="../docs/administration.html">Administration</a>
+        <a href="../docs/install.html">Install</a>
+        <a href="../docs/" aria-current="page">Documentation</a>
+      </nav>
+      <div class="header-actions">
+        <a class="icon-button" href="https://github.com/robert-mcdermott/pinax" aria-label="Pinax on GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg></a>
+        <button class="icon-button theme-toggle" type="button" aria-label="Switch between light and dark"><svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg><svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+        <button class="icon-button nav-toggle" type="button" aria-label="Menu" aria-controls="site-nav" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      </div>
+    </div>
+  </header>
+
+  <div class="docs-layout">
+    <aside class="docs-sidebar" aria-label="Documentation">
+      <button class="btn docs-menu-toggle" type="button" aria-expanded="false">Documentation menu <span aria-hidden="true">▾</span></button>
+      <nav>
+        <h4>Start</h4>
+        <ul>
+          <li><a href="./">Documentation</a></li>
+          <li><a href="concepts.html">How Pinax sees storage</a></li>
+          <li><a href="demo.html">The demo</a></li>
+        </ul>
+        <h4>User guide</h4>
+        <ul>
+          <li><a href="my-data.html">Signing in and My data</a></li>
+          <li><a href="age-map.html">The age map</a></li>
+          <li><a href="history.html">History and forecasts</a></li>
+          <li><a href="changes.html">Change map and what changed</a></li>
+          <li><a href="reports.html">Reports</a></li>
+          <li><a href="find-files.html">Finding files</a></li>
+          <li><a href="charges.html">Storage charges</a></li>
+          <li><a href="cleanup-plans.html">Cleanup plans</a></li>
+          <li><a href="tags.html">Tags and collections</a></li>
+          <li><a href="saved-views.html">Saved views and earlier scans</a></li>
+          <li><a href="api-tokens.html">API tokens for scripts</a></li>
+        </ul>
+        <h4>Administration</h4>
+        <ul>
+          <li><a href="administration.html">Administering Pinax</a></li>
+          <li><a href="folders-and-labs.html">Folders and labs</a></li>
+          <li><a href="people.html">People and access</a></li>
+          <li><a href="scans.html">Scans and storage health</a></li>
+          <li><a href="capacity.html">Capacity</a></li>
+          <li><a href="costs.html">Costs and chargeback</a></li>
+          <li><a href="tags-admin.html">Tags, categories, plans, and the audit log</a></li>
+          <li><a href="import.html">Importing labs and people</a></li>
+        </ul>
+        <h4>Installation and operations</h4>
+        <ul>
+          <li><a href="setup.html">Trying Pinax on your own data</a></li>
+          <li><a href="install.html">Installing on a server</a></li>
+          <li><a href="scanning.html">Scans and ingest</a></li>
+          <li><a href="database.html">The catalog and backups</a></li>
+          <li><a href="upgrading.html">Upgrading</a></li>
+          <li><a href="sizing.html">Sizing</a></li>
+          <li><a href="statements.html">Charges and statements</a></li>
+          <li><a href="operations.html">Logs, metrics, and operations</a></li>
+          <li><a href="entra-id.html" aria-current="page">Signing in with Entra ID</a></li>
+          <li><a href="configuration.html">Configuration</a></li>
+        </ul>
+        <h4>Reference</h4>
+        <ul>
+          <li><a href="cli.html">Command line</a></li>
+          <li><a href="troubleshooting.html">Troubleshooting</a></li>
+          <li><a href="architecture.html">Architecture</a></li>
+          <li><a href="development.html">Development</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <main id="main" class="doc">
+      <h1>Signing in with Entra ID</h1>
+      <p class="doc-lede">Optional single sign-on with Microsoft Entra ID in Pinax itself: what to ask IT for, the settings, roles from Entra ID, the emergency sign-in, a trial with a stand-in, and its errors.</p>
+<p>Pinax can sign people in with Microsoft Entra ID itself (<code>PINAX_AUTH_MODE=oidc</code>), or with any other identity provider that speaks OpenID Connect, the standard sign-in protocol Entra ID uses. It is optional: out of the box, Pinax signs people in with passwords it keeps, and a site without Entra ID never needs this page. With it, no sign-on proxy is needed; nginx, Caddy, or a load balancer only provides HTTPS. This page explains how it works, what to ask IT for, how to set Pinax up, and how to try it on a laptop before Entra ID is ready.</p>
+<h2 id="how-it-works">How it works</h2>
+<ol><li>Someone opens Pinax without a session, and <em>Sign in</em> sends their browser to Entra ID's sign-in page.</li><li>They sign in there, with their password and any multi-factor step Entra ID asks for; Pinax never sees either.</li><li>Entra ID sends the browser back to Pinax (<code>/auth/callback</code>) with a one-time code.</li><li>Pinax exchanges the code, with its client secret, for a signed ID token, checks the token, and matches the person.</li><li>Pinax gives them a session, as local sign-in does, and returns them to the page they were opening.</li></ol>
+<p>What Pinax checks before anyone is signed in:</p>
+<ul><li><strong>The token is genuine:</strong> signed with one of the provider's published keys, issued by the site's tenant, meant for Pinax (its audience), and not expired. It answers this sign-in only: a nonce, and a state value kept for the minutes a sign-in takes, and the code exchange is protected with PKCE, so a stolen code is no use elsewhere.</li><li><strong>The person is one of Pinax's people:</strong> the sign-in name (<code>preferred_username</code>, Entra ID's user principal name, such as <code>jdoe@example.org</code>) is matched to an active person under <em>People and access</em>, never made into a new one. With <code>PINAX_OIDC_USERNAME_DOMAINS</code>, the name must be in one of those domains, and matches a person named either <code>jdoe@example.org</code> or <code>jdoe</code>; a guest account such as <code>jdoe@example.com</code> is refused even when a staff member is called <code>jdoe</code>. Without it, the name must be a person's username exactly.</li></ul>
+<p>Anyone refused sees why, with a way to sign in as someone else, and the attempt is in the audit log (<code>auth.sign_in_refused</code>, with the reason), as is every sign-in (<code>auth.signed_in</code>) and sign-out. A session lasts <code>PINAX_SESSION_HOURS</code> (12) from sign-in, and is kept by Pinax, so deactivating someone takes effect on their next click. Signing out ends Pinax's session and Entra ID's. Roles and lab memberships are given in Pinax, under <em>People and access</em>, as with every way of signing in, unless the site maps roles from Entra ID (<a href="#roles-from-entra-id">Roles from Entra ID</a>); API tokens work as before.</p>
+<h2 id="the-request-for-it">The request for IT</h2>
+<p>Ask the Entra ID team to register Pinax as an application:</p>
+<div class="table-wrap"><table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody><tr><td>Name</td><td>Pinax</td></tr><tr><td>Supported account types</td><td>Accounts in this organizational directory only (single tenant)</td></tr><tr><td>Platform</td><td>Web</td></tr><tr><td>Redirect URIs</td><td><code>https://&lt;pinax host&gt;/auth/callback</code>, and <code>https://&lt;pinax host&gt;/auth/signed-out</code> (where Entra ID returns people after signing out)</td></tr><tr><td>Implicit grant and hybrid flows</td><td>Off: Pinax uses the authorization code flow</td></tr><tr><td>Client secret</td><td>One secret; tell the Pinax administrators its expiry date, and send its value securely (not by email)</td></tr><tr><td>API permissions</td><td>Microsoft Graph, delegated: <code>openid</code>, <code>profile</code>, <code>email</code>, with admin consent so people are not asked</td></tr><tr><td>Optional claims</td><td>None needed: <code>preferred_username</code> (the user principal name) is in the ID token by default</td></tr><tr><td>App roles (optional)</td><td>Only for <a href="#roles-from-entra-id">roles from Entra ID</a>: an app role for each Pinax role to map, with groups assigned to them</td></tr><tr><td>Who can sign in</td><td>On the enterprise application, set <strong>Assignment required</strong> to Yes and assign the groups of people who use Pinax. Entra ID then refuses everyone else before they reach Pinax.</td></tr></tbody></table></div>
+<p>Ask them to send back:</p>
+<ul><li>the <strong>Directory (tenant) ID</strong>, which makes the issuer <code>https://login.microsoftonline.com/&lt;tenant ID&gt;/v2.0</code>;</li><li>the <strong>Application (client) ID</strong>;</li><li>the <strong>client secret</strong> and its expiry date;</li><li>the domain of staff user principal names (<code>&lt;username&gt;@example.org</code>).</li></ul>
+<p>The server Pinax runs on needs outbound HTTPS to <code>login.microsoftonline.com</code>. Multi-factor sign-in and other Conditional Access policies apply as usual; Pinax needs nothing for them.</p>
+<h2 id="setting-up-pinax">Setting up Pinax</h2>
+<p>In <code>/etc/pinax/pinax.env</code> (each setting is in <a href="configuration.html#identity">CONFIGURATION.md</a>):</p>
+<div class="code"><pre><code class="language-ini">PINAX_AUTH_MODE=oidc
+PINAX_OIDC_ISSUER=https://login.microsoftonline.com/&lt;tenant ID&gt;/v2.0
+PINAX_OIDC_CLIENT_ID=&lt;application ID&gt;
+PINAX_OIDC_CLIENT_SECRET=&lt;client secret&gt;
+PINAX_OIDC_USERNAME_DOMAINS=example.org
+PINAX_PUBLIC_URL=https://&lt;pinax host&gt;
+PINAX_SESSION_SECRET=&lt;output of: openssl rand -hex 32&gt;</code></pre></div>
+<p>Then restart <code>pinax-web</code>. Behind nginx or another HTTPS proxy, as for local sign-in (<a href="install.html#6-signing-in">Signing in</a>), with its address in <code>PINAX_TRUSTED_PROXIES</code>.</p>
+<ul><li><code>PINAX_PUBLIC_URL</code> must be exactly the address in people's browsers: Entra ID returns them to it, and the sign-in's cookie belongs to it.</li><li>Pinax refuses to start, and says what is missing, until the settings are complete.</li><li>People must be in Pinax before they sign in. Usernames are best as user principal names (<code>jdoe@example.org</code>) from the start, which is what the guides suggest for local sign-in too; with <code>PINAX_OIDC_USERNAME_DOMAINS</code>, people named <code>jdoe</code> match as well. On a new installation, add the first administrator on the server with <code>pinax user add USERNAME --admin</code>; they add everyone else.</li><li>A site moving from local sign-in keeps its people, labs, roles, and tokens; passwords are no longer used.</li></ul>
+<p><strong>Secrets:</strong></p>
+<ul><li>The client secret expires (Entra ID allows up to two years). Put its expiry in the operations calendar. To replace it, have IT add a new secret, set <code>PINAX_OIDC_CLIENT_SECRET</code>, restart <code>pinax-web</code>, and then have IT remove the old one.</li><li><code>PINAX_SESSION_SECRET</code> signs only the sign-in's own state. Change it if it may have leaked: sign-ins under way must start again, and nobody is signed out.</li></ul>
+<h2 id="roles-from-entra-id">Roles from Entra ID</h2>
+<p>Optionally, Pinax's roles (storage administrator, auditor, finance, and division head) come from Entra ID instead of <em>People and access</em>. There are two ways to run:</p>
+<ul><li><strong>Entra ID for signing in only</strong> (the default): people sign in with Entra ID, and their roles are given in Pinax, as with local sign-in.</li><li><strong>Roles from Entra ID:</strong> a role map names which Entra ID app roles (or groups) give which of Pinax's roles. Each role the map names then belongs to Entra ID: Pinax gives or takes it away each time the person signs in, audited as the identity provider's change, and the person's page shows it as <em>From Entra ID</em>, without a checkbox. Roles the map does not name are still given in Pinax. A site can map some roles and not others, such as administrators and auditors from Entra ID, and finance and division heads in Pinax.</li></ul>
+<p>Lab memberships stay in Pinax either way. A change in Entra ID takes effect at the person's next sign-in (a session lasts up to <code>PINAX_SESSION_HOURS</code>), and turning the map on changes nobody's roles until they sign in. Emergency accounts never sign in through Entra ID, so the map never changes theirs: a map that leaves no storage administrator is one of the failures they are for. <code>pinax user add --admin</code> on the server still makes an administrator.</p>
+<p><strong>App roles</strong> (preferred). Ask IT to add app roles to Pinax's app registration, one for each role to map, such as <code>Pinax.Admin</code>, <code>Pinax.Auditor</code>, <code>Pinax.Finance</code>, and <code>Pinax.Head.BasicSciences</code>, and to assign groups to them on the enterprise application. Entra ID then names a person's app roles in the ID token's <code>roles</code> claim. In <code>/etc/pinax/pinax.env</code>:</p>
+<div class="code"><pre><code class="language-ini">PINAX_OIDC_ROLE_MAP={&quot;admin&quot;: [&quot;Pinax.Admin&quot;], &quot;auditor&quot;: [&quot;Pinax.Auditor&quot;], &quot;division:Basic Sciences&quot;: [&quot;Pinax.Head.BasicSciences&quot;]}</code></pre></div>
+<p>A key is <code>admin</code>, <code>auditor</code>, <code>finance</code>, or <code>division:</code> and a division's name as labs have it; its values are the app roles that give it (any one is enough).</p>
+<p><strong>Groups</strong> instead: with <code>PINAX_OIDC_ROLES_CLAIM=groups</code>, the values are group object IDs, which Entra ID sends in the <code>groups</code> claim once IT turns on group claims for the application. Past about 200 groups, Entra ID sends a link in place of the list; Pinax does not guess, and takes every mapped role away from that person until it can read them (audited as <code>auth.roles_unknown</code>, and logged as a warning). App roles avoid this.</p>
+<h2 id="when-entra-id-fails-the-emergency-sign-in">When Entra ID fails: the emergency sign-in</h2>
+<p>If Entra ID, or Pinax's setup for it, stops working (an expired client secret, a wrong setting, an outage, someone removed from the group that is assigned), nobody can sign in. Someone with a shell on the server can always fix the settings, or switch to local sign-in for a while (<code>PINAX_AUTH_MODE=local</code> and a restart, then <code>pinax user password</code>). The <strong>emergency sign-in</strong> is for an administrator who needs Pinax itself meanwhile: a password form at <code>https://&lt;pinax host&gt;/auth/emergency</code>, for <strong>emergency accounts</strong> only, as Microsoft advises emergency access accounts for Entra ID itself.</p>
+<p>It is a way into Pinax with a password alone, past the organization's sign-in and its multi-factor step, so it is kept small:</p>
+<ul><li><strong>Off unless an emergency account exists.</strong> Without one, <code>/auth/emergency</code> answers <em>Not Found</em>, and no one signs in with a password at all. A site whose policy forbids it simply makes none.</li><li><p><strong>Only storage administrators marked as emergency accounts</strong>, marked only on the server, never in the app, so an administrator's Entra ID account, if taken over, cannot make one:</p>
+<div class="code"><pre><code class="language-bash">pinax user emergency emergency-1</code></pre></div>
+<p>It prints a new password of 32 characters, once. The account must be an active storage administrator; making it one again replaces its password, and <code>pinax user emergency emergency-1 --off</code> ends it, with its password.</p></li><li><strong>Short and locked like local sign-in:</strong> an hour's session, and the same lockout after five failures in a row.</li><li><strong>Loud:</strong> every emergency sign-in and failure is in the audit log (<code>auth.emergency_signed_in</code>, <code>auth.emergency_sign_in_failed</code>), logged as a warning, and counted in <code>/metrics</code>; the alert rule <code>PinaxEmergencySignIn</code> (<code>deploy/prometheus/pinax-alerts.yml</code>) fires on any. <em>Access review</em> lists each emergency account under <em>Worth a look</em>, with when it was last used, and a person's page says they are one.</li><li>Behind oauth2-proxy (header mode) there is no emergency sign-in: every request passes the proxy, and the way back is on the server.</li></ul>
+<p>Advice: make <strong>two</strong> accounts for the purpose (such as <code>emergency-1</code> and <code>emergency-2</code>), not anyone's own, as storage administrators with no lab, so their use is plainly an emergency. Keep their passwords in the organization's password vault, with who may open them. Sign in with each now and then to check it still works, which the audit log records, and say so in the access review's note.</p>
+<h2 id="trying-it-before-entra-id-is-ready">Trying it before Entra ID is ready</h2>
+<p><a href="https://github.com/robert-mcdermott/pinax/blob/main/scripts/dex/dex.sh"><code>scripts/dex/dex.sh</code></a> starts Dex, an OpenID Connect provider, in Podman, standing in for Entra ID, with four test accounts (each with the password <code>password</code>): a storage administrator, a PI, someone with no Pinax account, and a guest whose name matches a staff member's.</p>
+<div class="code"><pre><code class="language-bash">scripts/dex/dex.sh up</code></pre></div>
+<p>It prints the settings for running the demo against it on <a href="http://localhost:8001">http://localhost:8001</a>; seed the demo first (<code>uv run pinax seed</code>). <code>pnatarajan@example.org</code> signs in as Priya Natarajan, a storage administrator, and <code>afujimoto@example.org</code> as Aiko Fujimoto, a PI who sees her lab's folders; the other two are refused, each with a message saying why. To try the emergency sign-in too, make an account for it, with the same settings in the shell: <code>uv run pinax user add emergency-1 --name &quot;Emergency 1&quot; --email it@example.org --admin</code>, then <code>uv run pinax user emergency emergency-1</code>, and sign in at <a href="http://localhost:8001/auth/emergency">http://localhost:8001/auth/emergency</a>. <code>dex.sh down</code> removes Dex. The test suite also runs the whole sign-in against a stand-in provider, including forged and expired tokens, replayed sign-ins, and guest accounts (<code>tests/test_oidc.py</code>).</p>
+<p>Two differences from Entra ID: Dex has no single sign-out, so signing out of Pinax goes straight to its <em>signed out</em> page; and the trial matches people by the <code>email</code> claim (<code>PINAX_OIDC_USERNAME_CLAIM=email</code>), because Dex's test accounts have no user principal name.</p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<div class="table-wrap"><table><thead><tr><th>What you see</th><th>Usually means</th><th>What to do</th></tr></thead><tbody><tr><td><em>The sign-in service said: AADSTS50011 … redirect URI</em></td><td>The address Pinax sent does not match a registered redirect URI</td><td>Make <code>PINAX_PUBLIC_URL</code> match the address IT registered, exactly</td></tr><tr><td><em>AADSTS50105 … not assigned</em></td><td>Assignment is required, and the person is not in an assigned group</td><td>Ask IT to add them to one</td></tr><tr><td><em>AADSTS7000215 … invalid client secret</em></td><td>The secret is wrong or has expired</td><td>Replace the client secret (above)</td></tr><tr><td><em>You can't use Pinax yet … no account for you yet</em></td><td>Signed in, but not under <em>People and access</em></td><td>Add the person; then they try again</td></tr><tr><td><em>Your account is not one Pinax accepts here</em></td><td>A guest, or another domain than <code>PINAX_OIDC_USERNAME_DOMAINS</code></td><td>They sign in with their organization's account</td></tr><tr><td><em>Pinax could not confirm the sign-in (CSRF Warning! State not equal in request and response.)</em></td><td>The browser's address differs from <code>PINAX_PUBLIC_URL</code>, so the sign-in's cookie was not kept, or the sign-in took more than ten minutes</td><td>Correct <code>PINAX_PUBLIC_URL</code> and restart; or try again</td></tr><tr><td><em>Pinax could not reach the sign-in service</em></td><td>No outbound HTTPS to <code>login.microsoftonline.com</code></td><td>Open the network path from Pinax's server</td></tr><tr><td>Pinax does not start: <em>… needs its settings: PINAX_… is not set</em></td><td>A setting is missing or too short</td><td>Set it, as above</td></tr><tr><td>Nobody can sign in, because Entra ID is failing</td><td>The provider, or Pinax's settings for it</td><td>An emergency account signs in at <code>/auth/emergency</code>; or, on the server, fix the settings, or switch to local sign-in for a while (<a href="#when-entra-id-fails-the-emergency-sign-in">When Entra ID fails</a>)</td></tr><tr><td>A role comes back, or goes, each time someone signs in</td><td>The role map names it, so Entra ID decides it</td><td>Change the person's app roles or groups in Entra ID, or take the role out of <code>PINAX_OIDC_ROLE_MAP</code></td></tr><tr><td>Someone lost every mapped role, and the audit log says <code>auth.roles_unknown</code></td><td>Mapped by groups, and they are in more groups than Entra ID lists</td><td>Map by app roles instead</td></tr><tr><td><code>/auth/emergency</code> answers <em>Not Found</em></td><td>No active storage administrator is an emergency account, or Pinax is not in <code>oidc</code> mode</td><td><code>pinax user emergency USERNAME</code> on the server</td></tr></tbody></table></div>
+
+      <nav class="doc-pager" aria-label="Pages">
+        <a class="prev" href="operations.html"><span>Previous</span>Logs, metrics, and operations</a>
+        <a class="next" href="configuration.html"><span>Next</span>Configuration</a>
+      </nav>
+    </main>
+
+    <aside class="toc" aria-label="On this page">
+      <h4>On this page</h4>
+      <ul></ul>
+    </aside>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-about">
+          <a class="brand" href="../"><img src="../assets/img/pinax-mark.svg" alt="" width="30" height="30" /><span class="brand-name">Pinax</span></a>
+          <p>File system reporting for research storage, built on fs-inventory scans. Free and open source under the Apache License 2.0.</p>
+        </div>
+        <div>
+          <h4>Use</h4>
+          <ul>
+            <li><a href="../docs/my-data.html">User guide</a></li>
+            <li><a href="../docs/age-map.html">The age map</a></li>
+            <li><a href="../docs/charges.html">Storage charges</a></li>
+            <li><a href="../docs/demo.html">The demo</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Run</h4>
+          <ul>
+            <li><a href="../docs/install.html">Installing</a></li>
+            <li><a href="../docs/administration.html">Administration</a></li>
+            <li><a href="../docs/configuration.html">Configuration</a></li>
+            <li><a href="../docs/troubleshooting.html">Troubleshooting</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Project</h4>
+          <ul>
+            <li><a href="https://github.com/robert-mcdermott/pinax">GitHub</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/releases">Releases</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/blob/main/CHANGELOG.md">Changelog</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/issues">Issues</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">Pinax 0.14.0 · Apache License 2.0 · The screenshots are of the demo, whose labs, people, and data are fictional.</div>
+    </div>
+  </footer>
+</body>
+</html>

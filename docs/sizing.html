@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sizing · Pinax</title>
+  <meta name="description" content="The server, disk, and memory a filesystem of a billion files needs, and how many people one process serves." />
+  <meta property="og:title" content="Sizing" />
+  <meta property="og:description" content="The server, disk, and memory a filesystem of a billion files needs, and how many people one process serves." />
+  <meta name="theme-color" content="#18365D" />
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="../assets/css/site.css" />
+  <script>try { const t = localStorage.getItem('pinax-site-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+  <script src="../assets/js/site.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container">
+      <a class="brand" href="../"><img src="../assets/img/pinax-mark.svg" alt="" width="34" height="34" /><span class="brand-name">Pinax<small>Explore your data</small></span></a>
+      <nav class="site-nav" id="site-nav" aria-label="Main">
+        <a href="../#features">Features</a>
+        <a href="../docs/my-data.html">User guide</a>
+        <a href="../docs/administration.html">Administration</a>
+        <a href="../docs/install.html">Install</a>
+        <a href="../docs/" aria-current="page">Documentation</a>
+      </nav>
+      <div class="header-actions">
+        <a class="icon-button" href="https://github.com/robert-mcdermott/pinax" aria-label="Pinax on GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg></a>
+        <button class="icon-button theme-toggle" type="button" aria-label="Switch between light and dark"><svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg><svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+        <button class="icon-button nav-toggle" type="button" aria-label="Menu" aria-controls="site-nav" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      </div>
+    </div>
+  </header>
+
+  <div class="docs-layout">
+    <aside class="docs-sidebar" aria-label="Documentation">
+      <button class="btn docs-menu-toggle" type="button" aria-expanded="false">Documentation menu <span aria-hidden="true">▾</span></button>
+      <nav>
+        <h4>Start</h4>
+        <ul>
+          <li><a href="./">Documentation</a></li>
+          <li><a href="concepts.html">How Pinax sees storage</a></li>
+          <li><a href="demo.html">The demo</a></li>
+        </ul>
+        <h4>User guide</h4>
+        <ul>
+          <li><a href="my-data.html">Signing in and My data</a></li>
+          <li><a href="age-map.html">The age map</a></li>
+          <li><a href="history.html">History and forecasts</a></li>
+          <li><a href="changes.html">Change map and what changed</a></li>
+          <li><a href="reports.html">Reports</a></li>
+          <li><a href="find-files.html">Finding files</a></li>
+          <li><a href="charges.html">Storage charges</a></li>
+          <li><a href="cleanup-plans.html">Cleanup plans</a></li>
+          <li><a href="tags.html">Tags and collections</a></li>
+          <li><a href="saved-views.html">Saved views and earlier scans</a></li>
+          <li><a href="api-tokens.html">API tokens for scripts</a></li>
+        </ul>
+        <h4>Administration</h4>
+        <ul>
+          <li><a href="administration.html">Administering Pinax</a></li>
+          <li><a href="folders-and-labs.html">Folders and labs</a></li>
+          <li><a href="people.html">People and access</a></li>
+          <li><a href="scans.html">Scans and storage health</a></li>
+          <li><a href="capacity.html">Capacity</a></li>
+          <li><a href="costs.html">Costs and chargeback</a></li>
+          <li><a href="tags-admin.html">Tags, categories, plans, and the audit log</a></li>
+          <li><a href="import.html">Importing labs and people</a></li>
+        </ul>
+        <h4>Installation and operations</h4>
+        <ul>
+          <li><a href="setup.html">Trying Pinax on your own data</a></li>
+          <li><a href="install.html">Installing on a server</a></li>
+          <li><a href="scanning.html">Scans and ingest</a></li>
+          <li><a href="database.html">The catalog and backups</a></li>
+          <li><a href="upgrading.html">Upgrading</a></li>
+          <li><a href="sizing.html" aria-current="page">Sizing</a></li>
+          <li><a href="statements.html">Charges and statements</a></li>
+          <li><a href="operations.html">Logs, metrics, and operations</a></li>
+          <li><a href="entra-id.html">Signing in with Entra ID</a></li>
+          <li><a href="configuration.html">Configuration</a></li>
+        </ul>
+        <h4>Reference</h4>
+        <ul>
+          <li><a href="cli.html">Command line</a></li>
+          <li><a href="troubleshooting.html">Troubleshooting</a></li>
+          <li><a href="architecture.html">Architecture</a></li>
+          <li><a href="development.html">Development</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <main id="main" class="doc" data-anchor="sizing">
+      <span id="sizing" class="anchor-target"></span><h1>Sizing</h1>
+      <p class="doc-lede">The server, disk, and memory a filesystem of a billion files needs, and how many people one process serves.</p>
+<div class="table-wrap"><table><thead><tr><th>Item</th><th>Rule of thumb</th></tr></thead><tbody><tr><td>fs-inventory scan output</td><td>about 40 bytes per entry (40 GB per billion), for each scan kept; Pinax never deletes them (<a href="scanning.html#scans">Scans</a>)</td></tr><tr><td>Snapshot index</td><td>about 56 bytes per file (56 GB per billion), times <code>PINAX_KEEP_SNAPSHOTS</code> (6), plus about 60 bytes per file new or removed since the scan before</td></tr><tr><td>Building an index</td><td>free space for the new index beside the kept ones (it replaces the oldest only after the ingest), and while it builds, for a staged copy of the files and DuckDB's spill files: about 2–3 times an index in all</td></tr><tr><td>Index build</td><td>about 1.2 seconds per million files on 10 cores (100 million in two minutes, a billion in about 20 minutes, measured on synthetic data); 8 GB of memory is enough, spilling beside the index beyond it, and more is no faster</td></tr><tr><td>Query memory</td><td><code>PINAX_QUERY_MEMORY_LIMIT</code> (8 GB) for every open index together, shared equally among up to 8, in the one web process: what their queries use at once and the blocks they keep. More memory left over for the operating system's page cache keeps indexes fast</td></tr><tr><td>Long requests</td><td>Pinax stops a request after <code>PINAX_QUERY_TIMEOUT</code> (180 seconds), or when the browser leaves; the proxy in front must wait longer (oauth2-proxy's <code>upstream_timeout</code> is 5 minutes in <code>deploy/oauth2-proxy/pinax.cfg</code>, against its own default of 30 seconds; nginx's <code>proxy_read_timeout</code> is 60 seconds by default). <code>PINAX_WIDE_QUERIES</code> (2) searches of a whole filesystem run at once, each on every core (<a href="#many-people-at-once">Many people at once</a>)</td></tr><tr><td>Catalog</td><td>small: about one row per top-level folder per scan for history (2,000 folders scanned weekly add about 100,000 rows a year)</td></tr></tbody></table></div>
+<p>Put <code>/var/lib/pinax/snapshots</code> on fast local SSD or NVMe: indexes are read with many small range requests. Scans are read in one pass, at ingest and rebuild, so they can live on slower, cheaper disk: point <code>PINAX_SCAN_ROOT</code> there, and add it to the units' <code>ReadWritePaths</code>. For a billion-file filesystem with the defaults, six indexes take about 340 GB and six scans about 240 GB, plus any older scans not yet deleted.</p>
+<h2 id="many-people-at-once">Many people at once</h2>
+<p>One web process answers every request. Measured with the load test (<a href="architecture.html#many-people-at-once">Many people at once</a>) on a laptop (Apple M4: 4 performance and 6 efficiency cores, 32 GB), against three scans of 10 million files, with each person opening a page every 5 to 15 seconds:</p>
+<div class="table-wrap"><table><thead><tr><th></th><th>One web process, on the laptop</th></tr></thead><tbody><tr><td>People at once, every page within its budget</td><td>100 on SQLite or PostgreSQL, at a median of 40 to 60 ms and a 95th percentile of 110 to 180 ms; about one core busy</td></tr><tr><td>Before pages slow down</td><td>about 25 to 28 pages a second: some 250 to 300 people at that pace. Past it nothing fails, but pages wait their turn: at four times the pace, a median page of about a second</td></tr><tr><td>What bounds it</td><td>Python's work for each page (the catalog, the answer), which runs one thread at a time: two or three cores were busy at the most. Faster cores serve more pages; more cores do not, though they speed whole-filesystem searches and index builds</td></tr><tr><td>Searches of whole filesystems</td><td>each uses every core while it runs, two at a time (<code>PINAX_WIDE_QUERIES</code>). With eight administrators searching one search after another among 100 people, others' pages stayed within their budgets on SQLite, 95% of them within half a second</td></tr><tr><td>Sign-ins</td><td>200 people signing in at the same moment are all signed in within 6 to 9 seconds, but their first pages then take up to a minute, while the process works through them; people arriving over a few minutes do not wait</td></tr><tr><td>Memory</td><td>1.2 to 3 GB for the web app; queries may use up to <code>PINAX_QUERY_MEMORY_LIMIT</code> (8 GB) in all</td></tr><tr><td>Catalog</td><td>SQLite serves this as well as PostgreSQL; PostgreSQL adds a round trip to each catalog question (1.5 ms here, through a virtual machine; less on a server's network)</td></tr></tbody></table></div>
+<p>A site's people are rarely all clicking at once: a few hundred at a time is a large organization's busy hour. For more:</p>
+<div class="table-wrap"><table><thead><tr><th>When</th><th>Change</th></tr></thead><tbody><tr><td>Pages slow at busy times, with only two or three cores busy</td><td>A server with faster cores. <code>PINAX_WEB_THREADS=8</code> served a third more pages a second when every page was quick, but then a few whole-filesystem searches waiting for their turn hold most of the threads: keep 40 where those are common</td></tr><tr><td>Pages slow while whole-filesystem searches run</td><td>Fewer at once (<code>PINAX_WIDE_QUERIES</code>, 2) leave other pages more of the cores, and the searches wait longer for a turn. <code>PINAX_QUERY_THREADS</code> below the cores slowed the searches and gave other pages little back in the load test, since a search and the pages of the same index share its threads</td></tr><tr><td>People see &quot;Pinax is busy&quot;</td><td>PostgreSQL: raise <code>PINAX_DATABASE_POOL_SIZE</code> within the database's <code>max_connections</code></td></tr><tr><td>More people than one process serves</td><td>Not yet: more than one web process needs the turns, metrics, and searches in the background shared between them</td></tr></tbody></table></div>
+<h2 id="a-filesystem-of-two-billion-files">A filesystem of two billion files</h2>
+<p>Projected from the 100-million-file measurements (<a href="architecture.html#measured-performance">Measured performance</a>), with the defaults:</p>
+<div class="table-wrap"><table><thead><tr><th></th><th>Two billion files</th></tr></thead><tbody><tr><td>Each scan</td><td>about 80 GB; the six of the kept snapshots about 480 GB, on cheaper disk</td></tr><tr><td>Each index</td><td>about 112 GB, so about 670 GB for six, plus <code>file_changes</code> (about 2.4 GB for a week in which 2% of the files are new or removed)</td></tr><tr><td>Building an index</td><td>about 45 minutes on 10 cores, with 8 GB of memory, and 250–350 GB of free space while it runs: about 1–1.2 TB of NVMe for the indexes in all</td></tr><tr><td>Web server memory</td><td><code>PINAX_QUERY_MEMORY_LIMIT</code> for queries in every open index together (8 GB by default; raise it with the server's memory), plus page cache for the indexes: 64 GB or more</td></tr><tr><td>Age map, types, owners, cold folders, history, charges</td><td>tens of milliseconds, as at 100 million: they read folder totals, not files</td></tr><tr><td>A lab's search</td><td>grows with the lab's files: a lab of 300 million files searches like a filesystem of that size, in several seconds</td></tr><tr><td>A search of the whole filesystem</td><td>about a minute, then about as long again for the count of matches; two at a time</td></tr><tr><td><em>What changed</em> since the previous scan</td><td>the new and removed files read <code>file_changes</code>, fast; the folder lists read every folder, about 0.1 s per 250,000 folders, so tens of seconds at 50 million folders or more</td></tr><tr><td><em>What changed</em> of the whole filesystem since an older scan</td><td>compares both scans' files, minutes: longer than the time limit, so ask it of a folder</td></tr><tr><td>Rebuilding six indexes after an upgrade that changes the index format</td><td>about 5 hours, one after another; the old indexes answer meanwhile</td></tr></tbody></table></div>
+<p>These are projections from synthetic scans with about 41 files per folder. Production filesystems often have fewer files per folder, and everything that reads every folder (the build's subtree totals, cold folders, and comparison, and whole-filesystem folder reports) grows with folders, so measure the first production scan: <em>Scans</em> gives its build time and index size, its manifest the count of folders, and the web app's journal names each request Pinax stopped (<code>Stopped /api/files: timeout after 180 s</code>).</p>
+
+      <nav class="doc-pager" aria-label="Pages">
+        <a class="prev" href="upgrading.html"><span>Previous</span>Upgrading</a>
+        <a class="next" href="statements.html"><span>Next</span>Charges and statements</a>
+      </nav>
+    </main>
+
+    <aside class="toc" aria-label="On this page">
+      <h4>On this page</h4>
+      <ul></ul>
+    </aside>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-about">
+          <a class="brand" href="../"><img src="../assets/img/pinax-mark.svg" alt="" width="30" height="30" /><span class="brand-name">Pinax</span></a>
+          <p>File system reporting for research storage, built on fs-inventory scans. Free and open source under the Apache License 2.0.</p>
+        </div>
+        <div>
+          <h4>Use</h4>
+          <ul>
+            <li><a href="../docs/my-data.html">User guide</a></li>
+            <li><a href="../docs/age-map.html">The age map</a></li>
+            <li><a href="../docs/charges.html">Storage charges</a></li>
+            <li><a href="../docs/demo.html">The demo</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Run</h4>
+          <ul>
+            <li><a href="../docs/install.html">Installing</a></li>
+            <li><a href="../docs/administration.html">Administration</a></li>
+            <li><a href="../docs/configuration.html">Configuration</a></li>
+            <li><a href="../docs/troubleshooting.html">Troubleshooting</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Project</h4>
+          <ul>
+            <li><a href="https://github.com/robert-mcdermott/pinax">GitHub</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/releases">Releases</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/blob/main/CHANGELOG.md">Changelog</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/issues">Issues</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">Pinax 0.14.0 · Apache License 2.0 · The screenshots are of the demo, whose labs, people, and data are fictional.</div>
+    </div>
+  </footer>
+</body>
+</html>

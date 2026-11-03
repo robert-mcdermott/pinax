@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Configuration · Pinax</title>
+  <meta name="description" content="Every setting, with its default." />
+  <meta property="og:title" content="Configuration" />
+  <meta property="og:description" content="Every setting, with its default." />
+  <meta name="theme-color" content="#18365D" />
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="../assets/css/site.css" />
+  <script>try { const t = localStorage.getItem('pinax-site-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+  <script src="../assets/js/site.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container">
+      <a class="brand" href="../"><img src="../assets/img/pinax-mark.svg" alt="" width="34" height="34" /><span class="brand-name">Pinax<small>Explore your data</small></span></a>
+      <nav class="site-nav" id="site-nav" aria-label="Main">
+        <a href="../#features">Features</a>
+        <a href="../docs/my-data.html">User guide</a>
+        <a href="../docs/administration.html">Administration</a>
+        <a href="../docs/install.html">Install</a>
+        <a href="../docs/" aria-current="page">Documentation</a>
+      </nav>
+      <div class="header-actions">
+        <a class="icon-button" href="https://github.com/robert-mcdermott/pinax" aria-label="Pinax on GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg></a>
+        <button class="icon-button theme-toggle" type="button" aria-label="Switch between light and dark"><svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg><svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+        <button class="icon-button nav-toggle" type="button" aria-label="Menu" aria-controls="site-nav" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      </div>
+    </div>
+  </header>
+
+  <div class="docs-layout">
+    <aside class="docs-sidebar" aria-label="Documentation">
+      <button class="btn docs-menu-toggle" type="button" aria-expanded="false">Documentation menu <span aria-hidden="true">▾</span></button>
+      <nav>
+        <h4>Start</h4>
+        <ul>
+          <li><a href="./">Documentation</a></li>
+          <li><a href="concepts.html">How Pinax sees storage</a></li>
+          <li><a href="demo.html">The demo</a></li>
+        </ul>
+        <h4>User guide</h4>
+        <ul>
+          <li><a href="my-data.html">Signing in and My data</a></li>
+          <li><a href="age-map.html">The age map</a></li>
+          <li><a href="history.html">History and forecasts</a></li>
+          <li><a href="changes.html">Change map and what changed</a></li>
+          <li><a href="reports.html">Reports</a></li>
+          <li><a href="find-files.html">Finding files</a></li>
+          <li><a href="charges.html">Storage charges</a></li>
+          <li><a href="cleanup-plans.html">Cleanup plans</a></li>
+          <li><a href="tags.html">Tags and collections</a></li>
+          <li><a href="saved-views.html">Saved views and earlier scans</a></li>
+          <li><a href="api-tokens.html">API tokens for scripts</a></li>
+        </ul>
+        <h4>Administration</h4>
+        <ul>
+          <li><a href="administration.html">Administering Pinax</a></li>
+          <li><a href="folders-and-labs.html">Folders and labs</a></li>
+          <li><a href="people.html">People and access</a></li>
+          <li><a href="scans.html">Scans and storage health</a></li>
+          <li><a href="capacity.html">Capacity</a></li>
+          <li><a href="costs.html">Costs and chargeback</a></li>
+          <li><a href="tags-admin.html">Tags, categories, plans, and the audit log</a></li>
+          <li><a href="import.html">Importing labs and people</a></li>
+        </ul>
+        <h4>Installation and operations</h4>
+        <ul>
+          <li><a href="setup.html">Trying Pinax on your own data</a></li>
+          <li><a href="install.html">Installing on a server</a></li>
+          <li><a href="scanning.html">Scans and ingest</a></li>
+          <li><a href="database.html">The catalog and backups</a></li>
+          <li><a href="upgrading.html">Upgrading</a></li>
+          <li><a href="sizing.html">Sizing</a></li>
+          <li><a href="statements.html">Charges and statements</a></li>
+          <li><a href="operations.html">Logs, metrics, and operations</a></li>
+          <li><a href="entra-id.html">Signing in with Entra ID</a></li>
+          <li><a href="configuration.html" aria-current="page">Configuration</a></li>
+        </ul>
+        <h4>Reference</h4>
+        <ul>
+          <li><a href="cli.html">Command line</a></li>
+          <li><a href="troubleshooting.html">Troubleshooting</a></li>
+          <li><a href="architecture.html">Architecture</a></li>
+          <li><a href="development.html">Development</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <main id="main" class="doc">
+      <h1>Configuration</h1>
+      <p class="doc-lede">Every setting, with its default.</p>
+<p>Settings are <code>PINAX_*</code> environment variables, or a <code>.env</code> file in the folder you start Pinax from. <a href="https://github.com/robert-mcdermott/pinax/blob/main/.env.example">.env.example</a> lists them all with their defaults. Defaults suit the local demo.</p>
+<h2 id="runtime">Runtime</h2>
+<div class="table-wrap"><table><thead><tr><th>Setting</th><th>Default</th><th>What it does</th></tr></thead><tbody><tr><td><code>PINAX_APP_NAME</code></td><td><code>Pinax</code></td><td>Name shown by the API</td></tr><tr><td><code>PINAX_ENVIRONMENT</code></td><td><code>demo</code></td><td><code>demo</code>, <code>dev</code>, or <code>prod</code>. <code>pinax seed</code> deletes the catalog and indexes, so it runs only in <code>demo</code>; use <code>dev</code> for real data on a workstation (<a href="setup.html">SETUP.md</a>) and <code>prod</code> on a server</td></tr><tr><td><code>PINAX_WEB_THREADS</code></td><td><code>40</code></td><td>Threads that answer the web app's requests (each request's sign-in check, then its page). Python runs one thread's code at a time, so when the server is saturated with quick pages, fewer (8) answer more of them a second; but each request waiting for a turn at a whole-filesystem search, or running a long report, holds one, so fewer leave less for everyone else (<a href="sizing.html#sizing">Sizing</a>)</td></tr></tbody></table></div>
+<h2 id="locations">Locations</h2>
+<div class="table-wrap"><table><thead><tr><th>Setting</th><th>Default</th><th>What it does</th></tr></thead><tbody><tr><td><code>PINAX_VAR_ROOT</code></td><td><code>var/</code></td><td>The catalog database (<code>pinax.db</code>) and snapshot indexes (<code>snapshots/</code>)</td></tr><tr><td><code>PINAX_SCAN_ROOT</code></td><td><code>scans/</code></td><td>Where <code>pinax scan</code> writes fs-inventory output, as <code>&lt;filesystem&gt;/&lt;UTC time&gt;/</code>, and where the watcher looks. Scans made elsewhere can live anywhere. Pinax never deletes scans (<a href="architecture.html#what-pinax-keeps">what to keep</a>)</td></tr><tr><td><code>PINAX_DEMO_ROOT</code></td><td><code>demo/</code></td><td>Demo filesystems and scans written by <code>pinax seed</code></td></tr><tr><td><code>PINAX_DATABASE_URL</code></td><td>SQLite in <code>VAR_ROOT</code></td><td>The catalog's database. Empty for SQLite in <code>VAR_ROOT</code>, or a PostgreSQL URL such as <code>postgresql://pinax@db.example.org/pinax?sslmode=verify-full</code>, with Pinax installed with its <code>postgres</code> extra (<a href="database.html#postgresql">PostgreSQL</a>). Leave the password out: PostgreSQL's driver reads it from <code>~/.pgpass</code> or <code>PGPASSWORD</code></td></tr><tr><td><code>PINAX_DB_AUTO_UPGRADE</code></td><td><code>true</code></td><td>Upgrade the catalog when Pinax starts, if a release needs it. <code>false</code> leaves that to <code>pinax db upgrade</code> (which can print its SQL), and Pinax refuses to start with a catalog that is behind (<a href="architecture.html#the-catalog-database">The catalog database</a>)</td></tr><tr><td><code>PINAX_DATABASE_POOL_SIZE</code></td><td><code>10</code></td><td>PostgreSQL connections each Pinax process keeps open, with as many more at busy times. A request waits up to 10 seconds for one, then is turned away as busy. With SQLite, the web app keeps one for each of its threads (<code>PINAX_WEB_THREADS</code>)</td></tr></tbody></table></div>
+<h2 id="scanning">Scanning</h2>
+<div class="table-wrap"><table><thead><tr><th>Setting</th><th>Default</th><th>What it does</th></tr></thead><tbody><tr><td><code>PINAX_FS_INVENTORY</code></td><td><code>bin/fs-inventory</code>, then the <code>PATH</code></td><td>The fs-inventory binary</td></tr><tr><td><code>PINAX_SCAN_THREADS</code></td><td><code>32</code></td><td><code>--threads</code> for <code>pinax scan</code>. Use <code>fs-inventory probe</code> to choose one for your storage</td></tr><tr><td><code>PINAX_SCAN_EXTRA_ARGS</code></td><td><code>[]</code></td><td>More fs-inventory options for every <code>pinax scan</code>, as a JSON list, for example <code>[&quot;--stall-timeout&quot;,&quot;10m&quot;,&quot;--max-memory&quot;,&quot;4G&quot;]</code></td></tr></tbody></table></div>
+<p><code>pinax scan</code> always passes <code>--resolve-ids</code> (owner names) and verifies the scan before ingesting it.</p>
+<h2 id="building-indexes">Building indexes</h2>
+<div class="table-wrap"><table><thead><tr><th>Setting</th><th>Default</th><th>What it does</th></tr></thead><tbody><tr><td><code>PINAX_BUILD_MEMORY_LIMIT</code></td><td><code>8GB</code></td><td>DuckDB memory limit while building an index; it spills to a temporary folder beside the index beyond this. 8 GB builds 100 million files in two minutes; 17 GB was no faster</td></tr><tr><td><code>PINAX_BUILD_THREADS</code></td><td><code>0</code></td><td>DuckDB threads while building; 0 means one per CPU. Steps that read the scan use fewer when memory requires: each thread decodes whole row groups of about a million entries, so the build uses as many as fit in three quarters of <code>PINAX_BUILD_MEMORY_LIMIT</code> (and halves them if a step still runs out)</td></tr><tr><td><code>PINAX_KEEP_SNAPSHOTS</code></td><td><code>6</code></td><td>Snapshots per filesystem that keep their full index. After each ingest, older ones are pruned: their indexes are deleted and their folder history kept (pruned snapshots cannot be rebuilt). Their scans are not deleted</td></tr></tbody></table></div>
+<h2 id="queries">Queries</h2>
+<div class="table-wrap"><table><thead><tr><th>Setting</th><th>Default</th><th>What it does</th></tr></thead><tbody><tr><td><code>PINAX_QUERY_MEMORY_LIMIT</code></td><td><code>8GB</code></td><td>DuckDB's memory for the open snapshot indexes together: what their queries use at once, and the blocks they keep cached. Each open index has an equal share, set again as indexes open and close (one alone has all of it, eight an eighth). A size such as <code>8GB</code> or <code>16GiB</code></td></tr><tr><td><code>PINAX_QUERY_THREADS</code></td><td><code>0</code></td><td>DuckDB threads per open index; 0 means one per CPU. A search and the pages that read the same index share them: in the load test, 5 of 10 slowed whole-filesystem searches by about a quarter and gave other pages little back (<a href="sizing.html#many-people-at-once">Sizing</a>)</td></tr><tr><td><code>PINAX_QUERY_TIMEOUT</code></td><td><code>180</code></td><td>Seconds a request may run before Pinax stops its queries and says why; 0 for no limit. A request is also stopped when the browser leaves the page. Keep it below the proxy's timeout (oauth2-proxy's <code>upstream_timeout</code>, 5 minutes in <code>deploy/oauth2-proxy/pinax.cfg</code>)</td></tr><tr><td><code>PINAX_WIDE_QUERIES</code></td><td><code>2</code></td><td>How many file-level queries of a whole filesystem (a search at its root, the new and removed files of <em>What changed</em> against an older scan, problem file names) run at once; others wait their turn within their time limit. 0 for no limit</td></tr><tr><td><code>PINAX_SEARCH_MAX_ROWS</code></td><td><code>500</code></td><td>Most files a search shows on screen</td></tr><tr><td><code>PINAX_EXPORT_MAX_ROWS</code></td><td><code>100000</code></td><td>Most files a CSV download contains</td></tr><tr><td><code>PINAX_COLD_DAYS</code></td><td><code>730</code></td><td>When data counts as cold, in days since its last change. Rounded to the age bucket that starts nearest (two years by default)</td></tr><tr><td><code>PINAX_CURRENCY</code></td><td><code>USD</code></td><td>The currency prices are in (an ISO 4217 code such as <code>EUR</code>), shown in each viewer's own number format. Prices and free tiers themselves are set on <em>Costs</em>, not here</td></tr><tr><td><code>PINAX_JOB_TIMEOUT</code></td><td><code>3600</code></td><td>How long, in seconds, a search in the background may run (see <em>Searches</em>); at least 60</td></tr><tr><td><code>PINAX_JOB_DAYS</code></td><td><code>7</code></td><td>How many days the results of a search in the background are kept</td></tr><tr><td><code>PINAX_FILL_WARNING_MONTHS</code></td><td><code>12</code></td><td>A filesystem that fills within this many months at its trend is flagged on the overview and on <em>Capacity</em>. Capacities themselves are set on <em>Capacity</em>, or come from what <code>pinax scan</code> records</td></tr></tbody></table></div>
+<h2 id="identity">Identity</h2>
+<div class="table-wrap"><table><thead><tr><th>Setting</th><th>Default</th><th>What it does</th></tr></thead><tbody><tr><td><code>PINAX_AUTH_MODE</code></td><td><code>local</code>; <code>demo</code> in the demo environment</td><td>How people sign in. <code>local</code>: usernames and passwords Pinax keeps, with nothing else to set up. <code>demo</code>: a persona switcher, anyone can be anyone, for showing Pinax with the seeded people (refused when <code>PINAX_ENVIRONMENT=prod</code>). <code>header</code>: trust the username in <code>AUTH_HEADER</code>, set by a single sign-on proxy such as oauth2-proxy in front of Entra ID (<a href="install.html#single-sign-on-with-oauth2-proxy">Single sign-on with oauth2-proxy</a>). <code>oidc</code>: Pinax signs people in with Microsoft Entra ID, or another OpenID Connect provider, itself (<a href="entra-id.html">Signing in with Entra ID</a>)</td></tr><tr><td><code>PINAX_AUTH_HEADER</code></td><td><code>X-Remote-User</code></td><td>The header the proxy sets the username in; behind oauth2-proxy, <code>X-Forwarded-Preferred-Username</code>, <code>X-Forwarded-Email</code>, or <code>X-Forwarded-User</code></td></tr><tr><td><code>PINAX_TRUSTED_PROXIES</code></td><td><code>[&quot;127.0.0.1&quot;, &quot;::1&quot;]</code></td><td>The proxies in front of Pinax, as addresses or networks (a JSON list, such as <code>'[&quot;10.1.2.3&quot;, &quot;10.8.0.0/16&quot;]'</code>). In header mode, the header is believed only from them; from anywhere else a request gets 401. In every mode, a request from one of them is logged and audited with the person's own address from <code>X-Forwarded-For</code>, and keeps the proxy's <code>X-Request-ID</code></td></tr><tr><td><code>PINAX_OIDC_ISSUER</code></td><td>unset</td><td><code>oidc</code>: the identity provider's issuer; for Entra ID, <code>https://login.microsoftonline.com/&lt;tenant ID&gt;/v2.0</code></td></tr><tr><td><code>PINAX_OIDC_CLIENT_ID</code></td><td>unset</td><td><code>oidc</code>: Pinax's application (client) ID with the provider</td></tr><tr><td><code>PINAX_OIDC_CLIENT_SECRET</code></td><td>unset</td><td><code>oidc</code>: its client secret; it expires, so note when (<a href="entra-id.html#setting-up-pinax">Secrets</a>)</td></tr><tr><td><code>PINAX_OIDC_USERNAME_CLAIM</code></td><td><code>preferred_username</code></td><td><code>oidc</code>: the ID token's claim that names the person (Entra ID's user principal name); <code>email</code> for test providers</td></tr><tr><td><code>PINAX_OIDC_USERNAME_DOMAINS</code></td><td>unset</td><td><code>oidc</code>: allowed domains, comma-separated. With <code>example.org</code>, <code>jdoe@example.org</code> signs in as a person named <code>jdoe@example.org</code> or <code>jdoe</code>, and other domains are refused. Unset, the claim must be a username exactly</td></tr><tr><td><code>PINAX_PUBLIC_URL</code></td><td>unset</td><td><code>oidc</code>: how people reach Pinax, such as <code>https://pinax.example.org</code> (<code>https://</code>, or <code>http://</code> for localhost only); the provider returns people to it</td></tr><tr><td><code>PINAX_OIDC_ROLE_MAP</code></td><td>unset</td><td><code>oidc</code>, optional: Pinax's roles from Entra ID, as JSON, such as <code>{&quot;admin&quot;: [&quot;Pinax.Admin&quot;], &quot;division:Basic Sciences&quot;: [&quot;Pinax.Head.Basic&quot;]}</code>. Each role it names (<code>admin</code>, <code>auditor</code>, <code>finance</code>, <code>division:&lt;Division&gt;</code>) is set at every sign-in and not in the app (<a href="entra-id.html#roles-from-entra-id">Roles from Entra ID</a>)</td></tr><tr><td><code>PINAX_OIDC_ROLES_CLAIM</code></td><td><code>roles</code></td><td><code>oidc</code>: the ID token's claim the role map reads: <code>roles</code> (Entra ID's app roles) or <code>groups</code> (group object IDs)</td></tr><tr><td><code>PINAX_SESSION_SECRET</code></td><td>unset</td><td><code>oidc</code>: signs the sign-in's own state, for the minutes a sign-in takes; at least 32 characters (<code>openssl rand -hex 32</code>)</td></tr><tr><td><code>PINAX_SESSION_HOURS</code></td><td><code>12</code></td><td>Local sign-in and <code>oidc</code>: how long a session lasts from signing in</td></tr><tr><td><code>PINAX_LOGIN_MAX_FAILURES</code></td><td><code>5</code></td><td>Local sign-in: failed sign-ins in a row that lock an account</td></tr><tr><td><code>PINAX_LOGIN_LOCKOUT_MINUTES</code></td><td><code>15</code></td><td>Local sign-in: how long a locked account stays locked (a new temporary password unlocks it at once)</td></tr><tr><td><code>PINAX_PASSWORD_MIN_LENGTH</code></td><td><code>12</code></td><td>Local sign-in: the shortest password allowed (it also may not contain the username)</td></tr><tr><td><code>PINAX_COOKIE_SECURE</code></td><td>unset</td><td>Local sign-in and <code>oidc</code>: mark the session cookie Secure, so it is sent only over HTTPS. Unset means yes when <code>PINAX_ENVIRONMENT=prod</code>, no otherwise</td></tr><tr><td><code>PINAX_TOKEN_MAX_DAYS</code></td><td><code>365</code></td><td>The longest an API token may last, in days; people choose from a week up to this (<a href="people.html#api-tokens">API tokens</a>)</td></tr></tbody></table></div>
+<h2 id="logs">Logs</h2>
+<div class="table-wrap"><table><thead><tr><th>Setting</th><th>Default</th><th>What it does</th></tr></thead><tbody><tr><td><code>PINAX_LOG_LEVEL</code></td><td><code>INFO</code></td><td><code>DEBUG</code>, <code>INFO</code>, <code>WARNING</code>, or <code>ERROR</code></td></tr><tr><td><code>PINAX_LOG_FORMAT</code></td><td><code>text</code></td><td><code>text</code>, for the journal, or <code>json</code>: one JSON object per line, for a log collector, with the request's ID, person, and address, and each request's and audit event's details as fields of their own (<a href="operations.html#logs">Logs</a>)</td></tr><tr><td><code>PINAX_LOG_FILE</code></td><td>unset</td><td>A file to write the log to instead of standard error (the journal, under systemd). Pinax opens it again when <code>logrotate</code> moves it (<code>deploy/logrotate/pinax</code>)</td></tr><tr><td><code>PINAX_LOG_REQUESTS</code></td><td><code>true</code></td><td>One line for each request to the API (method, path without its query string, status, time taken, time in index queries, person, address, request ID). <code>false</code> keeps only slow and failed requests</td></tr><tr><td><code>PINAX_SLOW_REQUEST_SECONDS</code></td><td><code>5</code></td><td>A request that takes this long or longer is logged as a warning, marked <em>slow</em>; 0 never</td></tr><tr><td><code>PINAX_AUDIT_LOG</code></td><td>unset</td><td>A file to write every audit event to as well, as JSON lines, once its change is committed: for a site's security monitoring. Audit events are always in the catalog and in the log too</td></tr></tbody></table></div>
+<h2 id="metrics">Metrics</h2>
+<div class="table-wrap"><table><thead><tr><th>Setting</th><th>Default</th><th>What it does</th></tr></thead><tbody><tr><td><code>PINAX_METRICS_TOKEN</code></td><td>unset</td><td>Turns on <code>/metrics</code>, Prometheus's format, for requests that send it as <code>Authorization: Bearer &lt;token&gt;</code>; without it, <code>/metrics</code> answers 404. At least 16 characters (<code>openssl rand -hex 32</code> makes one); a shorter one stops Pinax from starting (<a href="operations.html#metrics">Metrics</a>)</td></tr></tbody></table></div>
+<h2 id="dimensions">Dimensions</h2>
+<p>The age buckets are defined in <code>src/pinax/categories.py</code>, not in settings, because the interface's color ramp has exactly seven validated steps (one per age bucket). The file categories are the catalog's, with the twelve built-in ones to start (<a href="architecture.html#file-types-and-categories">File types and categories</a>). Each snapshot records the buckets and categories it was built with.</p>
+
+      <nav class="doc-pager" aria-label="Pages">
+        <a class="prev" href="entra-id.html"><span>Previous</span>Signing in with Entra ID</a>
+        <a class="next" href="cli.html"><span>Next</span>Command line</a>
+      </nav>
+    </main>
+
+    <aside class="toc" aria-label="On this page">
+      <h4>On this page</h4>
+      <ul></ul>
+    </aside>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-about">
+          <a class="brand" href="../"><img src="../assets/img/pinax-mark.svg" alt="" width="30" height="30" /><span class="brand-name">Pinax</span></a>
+          <p>File system reporting for research storage, built on fs-inventory scans. Free and open source under the Apache License 2.0.</p>
+        </div>
+        <div>
+          <h4>Use</h4>
+          <ul>
+            <li><a href="../docs/my-data.html">User guide</a></li>
+            <li><a href="../docs/age-map.html">The age map</a></li>
+            <li><a href="../docs/charges.html">Storage charges</a></li>
+            <li><a href="../docs/demo.html">The demo</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Run</h4>
+          <ul>
+            <li><a href="../docs/install.html">Installing</a></li>
+            <li><a href="../docs/administration.html">Administration</a></li>
+            <li><a href="../docs/configuration.html">Configuration</a></li>
+            <li><a href="../docs/troubleshooting.html">Troubleshooting</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Project</h4>
+          <ul>
+            <li><a href="https://github.com/robert-mcdermott/pinax">GitHub</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/releases">Releases</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/blob/main/CHANGELOG.md">Changelog</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/issues">Issues</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">Pinax 0.14.0 · Apache License 2.0 · The screenshots are of the demo, whose labs, people, and data are fictional.</div>
+    </div>
+  </footer>
+</body>
+</html>

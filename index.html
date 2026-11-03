@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pinax: explore your data</title>
+  <meta name="description" content="See what is stored on research filesystems, who owns it, how old it is, how it is changing, and what it costs." />
+  <meta property="og:title" content="Pinax" />
+  <meta property="og:description" content="See what is stored on research filesystems, who owns it, how old it is, how it is changing, and what it costs." />
+  <meta name="theme-color" content="#18365D" />
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="assets/css/site.css" />
+  <script>try { const t = localStorage.getItem('pinax-site-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+  <script src="assets/js/site.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container">
+      <a class="brand" href="./"><img src="assets/img/pinax-mark.svg" alt="" width="34" height="34" /><span class="brand-name">Pinax<small>Explore your data</small></span></a>
+      <nav class="site-nav" id="site-nav" aria-label="Main">
+        <a href="./#features">Features</a>
+        <a href="docs/my-data.html">User guide</a>
+        <a href="docs/administration.html">Administration</a>
+        <a href="docs/install.html">Install</a>
+        <a href="docs/">Documentation</a>
+      </nav>
+      <div class="header-actions">
+        <a class="icon-button" href="https://github.com/robert-mcdermott/pinax" aria-label="Pinax on GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg></a>
+        <button class="icon-button theme-toggle" type="button" aria-label="Switch between light and dark"><svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg><svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+        <button class="icon-button nav-toggle" type="button" aria-label="Menu" aria-controls="site-nav" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero">
+      <div class="container hero-grid">
+        <a class="eyebrow" href="https://github.com/robert-mcdermott/pinax/releases"><span class="pill">v0.14.0</span> File categories of your own, and many people at once</a>
+        <h1>See what your research storage holds, <span class="accent">and what it costs</span></h1>
+        <p class="lede">Pinax turns scans of filesystems with billions of files into an age map, history, forecasts, and
+          monthly charges that every lab can explore for its own folders, and that IT can check, directory by directory.
+          It only reads scans: it never opens, moves, or deletes a file.</p>
+        <div class="btn-row">
+          <a class="btn btn-primary" href="docs/demo.html">Try the demo</a>
+          <a class="btn" href="docs/my-data.html">Read the user guide</a>
+          <a class="btn" href="docs/install.html">Install on a server</a>
+        </div>
+        <p class="hero-meta">Free and open source (Apache 2.0) · Built on fs-inventory scans · SQLite or PostgreSQL · Passwords or Entra ID</p>
+        <figure class="hero-shot"><div class="shot shot-window"><img class="shot-light" src="assets/img/age-map-light.webp" width="2000" height="1250" fetchpriority="high" alt="The age map of a lab's projects folder, sized by size and colored by average age" /><img class="shot-dark" src="assets/img/age-map-dark.webp" width="2000" height="1250" fetchpriority="high" alt="The age map of a lab's projects folder, sized by size and colored by average age" /></div></figure>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="why-title">
+      <div class="container">
+        <h2 id="why-title" class="visually-hidden">Why Pinax</h2>
+        <div class="pillars">
+          <div class="pillar">
+            <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>Numbers you can check</h3>
+            <p><code>pinax check</code> compares every directory's totals with <code>fs-inventory rollup</code>, an independent computation, and lists any difference.</p>
+          </div>
+          <div class="pillar">
+            <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg>Built for billions of files</h3>
+            <p>Totals for every directory are computed once per scan, so a treemap of a petabyte draws in tens of milliseconds: 50 ms or less at 100 million files.</p>
+          </div>
+          <div class="pillar">
+            <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Read-only</h3>
+            <p>Pinax reads scans of the storage's metadata. Cleanup plans and tags are records people act on themselves.</p>
+          </div>
+          <div class="pillar">
+            <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Each lab sees its own</h3>
+            <p>Labs own top-level folders; their members see those and nothing else, and every other role only what it allows, checked on the server for every request. Every change is audited.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-alt" id="features" aria-labelledby="features-title">
+      <div class="container">
+        <div class="section-head">
+          <span class="kicker">What it does</span>
+          <h2 id="features-title">From a scan of everything to what each lab should do next</h2>
+          <p>Every report works for a folder, a lab, or a whole filesystem, on the latest scan or any earlier one kept.</p>
+        </div>
+
+        <article class="feature">
+          <div class="feature-text">
+            <span class="kicker">Age map</span>
+            <h3>Find the old data in seconds</h3>
+            <p>A treemap of any folder: each tile's area is how much it holds, its color how long since anything in it changed. A large dark blue tile is a lot of data nobody has touched in years.</p>
+            <ul class="checklist">
+              <li>Size by size, space on disk, files, or one kind of data</li>
+              <li>Color by average age, last change, oldest file, last access, or cold share</li>
+              <li>Or a folder six levels deep at once, as an icicle or a sunburst</li>
+              <li>A panel with the folder's ages, kinds of data, owner, tags, and plan</li>
+            </ul>
+            <a class="more-link" href="docs/age-map.html">The age map</a>
+          </div>
+          <figure><div class="shot"><img class="shot-light" src="assets/img/age-map-tooltip-light.webp" width="2000" height="1250" loading="lazy" alt="The age map of a lab, with a tile's details on hover" /><img class="shot-dark" src="assets/img/age-map-tooltip-dark.webp" width="2000" height="1250" loading="lazy" alt="The age map of a lab, with a tile's details on hover" /></div></figure>
+        </article>
+
+        <article class="feature reverse">
+          <div class="feature-text">
+            <span class="kicker">History and forecasts</span>
+            <h3>How it grew, and where it is heading</h3>
+            <p>Every folder over every scan, its size stacked by age, so you see both growth and whether new data keeps the average age down. A forecast carries the trend a year ahead, with a range and a check of how well it did before.</p>
+            <a class="more-link" href="docs/history.html">History and forecasts</a>
+          </div>
+          <figure><div class="shot"><img class="shot-light" src="assets/img/history-light.webp" width="2000" height="1250" loading="lazy" alt="History of a lab's folder over six scans, with its forecast" /><img class="shot-dark" src="assets/img/history-dark.webp" width="2000" height="1250" loading="lazy" alt="History of a lab's folder over six scans, with its forecast" /></div></figure>
+        </article>
+
+        <article class="feature">
+          <div class="feature-text">
+            <span class="kicker">Change</span>
+            <h3>What changed, and where</h3>
+            <p>The change map colors folders by how much they grew or shrank since any earlier scan, with new and removed folders drawn. <em>What changed</em> lists the folders and the largest files behind it, each as CSV.</p>
+            <a class="more-link" href="docs/changes.html">Change map and what changed</a>
+          </div>
+          <figure><div class="shot"><img class="shot-light" src="assets/img/change-map-light.webp" width="2000" height="1250" loading="lazy" alt="The change map of a filesystem since its first scan" /><img class="shot-dark" src="assets/img/change-map-dark.webp" width="2000" height="1250" loading="lazy" alt="The change map of a filesystem since its first scan" /></div></figure>
+        </article>
+
+        <article class="feature reverse">
+          <div class="feature-text">
+            <span class="kicker">Storage charges</span>
+            <h3>Charges every lab can follow</h3>
+            <p>Prices and free tiers from a day on; each lab's month worked out from its folders' sizes scan by scan, shown line by line; the next twelve months at its trend; splits by grant; and a CSV statement of every lab for finance.</p>
+            <a class="more-link" href="docs/charges.html">Storage charges</a>
+          </div>
+          <figure><div class="shot"><img class="shot-light" src="assets/img/charges-light.webp" width="2000" height="1250" loading="lazy" alt="A lab's monthly storage charge, worked out in three parts" /><img class="shot-dark" src="assets/img/charges-dark.webp" width="2000" height="1250" loading="lazy" alt="A lab's monthly storage charge, worked out in three parts" /></div></figure>
+        </article>
+
+        <article class="feature">
+          <div class="feature-text">
+            <span class="kicker">Cleanup plans</span>
+            <h3>Plans that show what they save</h3>
+            <p>A lab marks folders to delete, move to cheaper storage, or compress, and sees what each would free and how much its charge would fall. Later scans show what was done, and follow a folder that was renamed rather than removed.</p>
+            <a class="more-link" href="docs/cleanup-plans.html">Cleanup plans</a>
+          </div>
+          <figure><div class="shot"><img class="shot-light" src="assets/img/cleanup-plan-light.webp" width="2000" height="1250" loading="lazy" alt="A lab's cleanup plan with one folder done and one renamed" /><img class="shot-dark" src="assets/img/cleanup-plan-dark.webp" width="2000" height="1250" loading="lazy" alt="A lab's cleanup plan with one folder done and one renamed" /></div></figure>
+        </article>
+
+        <article class="feature reverse">
+          <div class="feature-text">
+            <span class="kicker">Tags and collections</span>
+            <h3>Folders described in terms a lab and IT share</h3>
+            <p>Project, grant, data stage, source, classification, IRB protocol, keep until, legal hold: from a list IT keeps, plus each lab's own. Find data by tag across filesystems, split charges by grant, and keep protected folders out of cleanup plans.</p>
+            <a class="more-link" href="docs/tags.html">Tags and collections</a>
+          </div>
+          <figure><div class="shot"><img class="shot-light" src="assets/img/collections-light.webp" width="2000" height="1250" loading="lazy" alt="A collection of data found by its tags" /><img class="shot-dark" src="assets/img/collections-dark.webp" width="2000" height="1250" loading="lazy" alt="A collection of data found by its tags" /></div></figure>
+        </article>
+
+        <article class="feature">
+          <div class="feature-text">
+            <span class="kicker">For IT</span>
+            <h3>Every filesystem, and what needs attention</h3>
+            <p>Totals, the largest folders and biggest changes, folders nobody owns, capacity and when each filesystem fills, storage health (scan errors, huge directories, small-file hotspots, problem names, deleted owners), file categories of the site's own (by extension and by patterns on names), and people and access managed in the app.</p>
+            <a class="more-link" href="docs/administration.html">Administering Pinax</a>
+          </div>
+          <figure><div class="shot"><img class="shot-light" src="assets/img/all-data-light.webp" width="2000" height="1250" loading="lazy" alt="An administrator's overview of every filesystem" /><img class="shot-dark" src="assets/img/all-data-dark.webp" width="2000" height="1250" loading="lazy" alt="An administrator's overview of every filesystem" /></div></figure>
+        </article>
+
+        <article class="feature reverse">
+          <div class="feature-text">
+            <span class="kicker">Access and audit</span>
+            <h3>Who sees what, and a record of who did what</h3>
+            <p>People sign in with passwords Pinax keeps, with nothing else to set up, or with Microsoft Entra ID, whose app roles can give Pinax's roles. Auditors who see everything and change nothing, finance who see every lab's charges, and division heads who read their division's labs. API tokens let scripts read Pinax or act with a person's access. Every change is in the audit log, with where it came from, and the access review shows who has access to what, since when, with a recorded sign-off.</p>
+            <a class="more-link" href="docs/people.html">People and access</a>
+          </div>
+          <figure><div class="shot"><img class="shot-light" src="assets/img/access-review-light.webp" width="2000" height="1250" loading="lazy" alt="The access review: what is worth a look, the site roles, and the latest review" /><img class="shot-dark" src="assets/img/access-review-dark.webp" width="2000" height="1250" loading="lazy" alt="The access review: what is worth a look, the site roles, and the latest review" /></div></figure>
+        </article>
+
+        <article class="feature">
+          <div class="feature-text">
+            <span class="kicker">Operations</span>
+            <h3>Ready for production</h3>
+            <p>Scans on a schedule and automatic ingest; SQLite with nothing to install, or PostgreSQL with migrations; a log line for every request and audit event, as text or JSON; Prometheus metrics with alert rules to start from; systemd units; an emergency sign-in for when Entra ID fails; sizing measured with a load test of hundreds of people at once.</p>
+            <a class="more-link" href="docs/operations.html">Logs, metrics, and operations</a>
+          </div>
+          <figure><div class="shot"><img class="shot-light" src="assets/img/capacity-light.webp" width="2000" height="1250" loading="lazy" alt="Capacity: how full each filesystem is and when it fills" /><img class="shot-dark" src="assets/img/capacity-dark.webp" width="2000" height="1250" loading="lazy" alt="Capacity: how full each filesystem is and when it fills" /></div></figure>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="how-title">
+      <div class="container">
+        <div class="section-head">
+          <span class="kicker">How it works</span>
+          <h2 id="how-title">Scan once, explore everywhere</h2>
+          <p>Pinax never crawls the storage itself; it builds on fs-inventory, a scanner made for filesystems of billions of files.</p>
+        </div>
+        <div class="steps">
+          <div class="step"><h3>Scan</h3><p>fs-inventory walks each filesystem's metadata on a schedule, in parallel and resumably, and writes Parquet: about 40 bytes per entry.</p></div>
+          <div class="step"><h3>Ingest</h3><p>Pinax builds a snapshot index in which every directory carries the totals of everything below it, and records what changed since the last scan.</p></div>
+          <div class="step"><h3>Explore</h3><p>Labs see their own folders, division heads their division's, administrators and auditors everything. Every page reads totals, never adds up files, so it answers in milliseconds.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-alt" aria-labelledby="who-title">
+      <div class="container">
+        <div class="section-head">
+          <span class="kicker">Who it is for</span>
+          <h2 id="who-title">For the labs, and for the people who run the storage</h2>
+        </div>
+        <div class="audience">
+          <div class="pillar">
+            <h3>PIs and lab members</h3>
+            <ul>
+              <li>What your labs store, where the old data is, and how it is changing</li>
+              <li>What each month costs, and what a cleanup would save</li>
+              <li>Data found by project, grant, or stage</li>
+              <li>Scripts that read your data, with an API token</li>
+            </ul>
+            <a class="more-link" href="docs/my-data.html">The user guide</a>
+          </div>
+          <div class="pillar">
+            <h3>Storage administrators</h3>
+            <ul>
+              <li>Install, scan, and keep Pinax running</li>
+              <li>Map folders to labs, manage people, set prices and capacities</li>
+              <li>Statements for finance, logs for security, metrics for monitoring</li>
+              <li>Roles for auditors, finance, and division heads; the audit log and access reviews</li>
+            </ul>
+            <a class="more-link" href="docs/install.html">Installing Pinax</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="try-title">
+      <div class="container">
+        <div class="cta">
+          <div>
+            <h2 id="try-title">Try it in a minute</h2>
+            <p>The demo writes two filesystems of sparse files, scans them six times a month apart with fs-inventory, and adds fictional labs, people, prices, plans, and tags. Then choose who to be.</p>
+          </div>
+          <div class="code"><pre><code>scripts/install-fs-inventory.sh
+uv sync
+uv run pinax seed
+uv run pinax serve</code></pre></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-about">
+          <a class="brand" href="./"><img src="assets/img/pinax-mark.svg" alt="" width="30" height="30" /><span class="brand-name">Pinax</span></a>
+          <p>File system reporting for research storage, built on fs-inventory scans. Free and open source under the Apache License 2.0.</p>
+        </div>
+        <div>
+          <h4>Use</h4>
+          <ul>
+            <li><a href="docs/my-data.html">User guide</a></li>
+            <li><a href="docs/age-map.html">The age map</a></li>
+            <li><a href="docs/charges.html">Storage charges</a></li>
+            <li><a href="docs/demo.html">The demo</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Run</h4>
+          <ul>
+            <li><a href="docs/install.html">Installing</a></li>
+            <li><a href="docs/administration.html">Administration</a></li>
+            <li><a href="docs/configuration.html">Configuration</a></li>
+            <li><a href="docs/troubleshooting.html">Troubleshooting</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Project</h4>
+          <ul>
+            <li><a href="https://github.com/robert-mcdermott/pinax">GitHub</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/releases">Releases</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/blob/main/CHANGELOG.md">Changelog</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/issues">Issues</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">Pinax 0.14.0 · Apache License 2.0 · The screenshots are of the demo, whose labs, people, and data are fictional.</div>
+    </div>
+  </footer>
+</body>
+</html>

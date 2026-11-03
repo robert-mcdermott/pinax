@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Importing labs and people · Pinax</title>
+  <meta name="description" content="Labs, people, memberships, and folder ownership from CSV files, with a dry run first." />
+  <meta property="og:title" content="Importing labs and people" />
+  <meta property="og:description" content="Labs, people, memberships, and folder ownership from CSV files, with a dry run first." />
+  <meta name="theme-color" content="#18365D" />
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="../assets/css/site.css" />
+  <script>try { const t = localStorage.getItem('pinax-site-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+  <script src="../assets/js/site.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container">
+      <a class="brand" href="../"><img src="../assets/img/pinax-mark.svg" alt="" width="34" height="34" /><span class="brand-name">Pinax<small>Explore your data</small></span></a>
+      <nav class="site-nav" id="site-nav" aria-label="Main">
+        <a href="../#features">Features</a>
+        <a href="../docs/my-data.html">User guide</a>
+        <a href="../docs/administration.html">Administration</a>
+        <a href="../docs/install.html">Install</a>
+        <a href="../docs/" aria-current="page">Documentation</a>
+      </nav>
+      <div class="header-actions">
+        <a class="icon-button" href="https://github.com/robert-mcdermott/pinax" aria-label="Pinax on GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg></a>
+        <button class="icon-button theme-toggle" type="button" aria-label="Switch between light and dark"><svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg><svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+        <button class="icon-button nav-toggle" type="button" aria-label="Menu" aria-controls="site-nav" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      </div>
+    </div>
+  </header>
+
+  <div class="docs-layout">
+    <aside class="docs-sidebar" aria-label="Documentation">
+      <button class="btn docs-menu-toggle" type="button" aria-expanded="false">Documentation menu <span aria-hidden="true">▾</span></button>
+      <nav>
+        <h4>Start</h4>
+        <ul>
+          <li><a href="./">Documentation</a></li>
+          <li><a href="concepts.html">How Pinax sees storage</a></li>
+          <li><a href="demo.html">The demo</a></li>
+        </ul>
+        <h4>User guide</h4>
+        <ul>
+          <li><a href="my-data.html">Signing in and My data</a></li>
+          <li><a href="age-map.html">The age map</a></li>
+          <li><a href="history.html">History and forecasts</a></li>
+          <li><a href="changes.html">Change map and what changed</a></li>
+          <li><a href="reports.html">Reports</a></li>
+          <li><a href="find-files.html">Finding files</a></li>
+          <li><a href="charges.html">Storage charges</a></li>
+          <li><a href="cleanup-plans.html">Cleanup plans</a></li>
+          <li><a href="tags.html">Tags and collections</a></li>
+          <li><a href="saved-views.html">Saved views and earlier scans</a></li>
+          <li><a href="api-tokens.html">API tokens for scripts</a></li>
+        </ul>
+        <h4>Administration</h4>
+        <ul>
+          <li><a href="administration.html">Administering Pinax</a></li>
+          <li><a href="folders-and-labs.html">Folders and labs</a></li>
+          <li><a href="people.html">People and access</a></li>
+          <li><a href="scans.html">Scans and storage health</a></li>
+          <li><a href="capacity.html">Capacity</a></li>
+          <li><a href="costs.html">Costs and chargeback</a></li>
+          <li><a href="tags-admin.html">Tags, categories, plans, and the audit log</a></li>
+          <li><a href="import.html" aria-current="page">Importing labs and people</a></li>
+        </ul>
+        <h4>Installation and operations</h4>
+        <ul>
+          <li><a href="setup.html">Trying Pinax on your own data</a></li>
+          <li><a href="install.html">Installing on a server</a></li>
+          <li><a href="scanning.html">Scans and ingest</a></li>
+          <li><a href="database.html">The catalog and backups</a></li>
+          <li><a href="upgrading.html">Upgrading</a></li>
+          <li><a href="sizing.html">Sizing</a></li>
+          <li><a href="statements.html">Charges and statements</a></li>
+          <li><a href="operations.html">Logs, metrics, and operations</a></li>
+          <li><a href="entra-id.html">Signing in with Entra ID</a></li>
+          <li><a href="configuration.html">Configuration</a></li>
+        </ul>
+        <h4>Reference</h4>
+        <ul>
+          <li><a href="cli.html">Command line</a></li>
+          <li><a href="troubleshooting.html">Troubleshooting</a></li>
+          <li><a href="architecture.html">Architecture</a></li>
+          <li><a href="development.html">Development</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <main id="main" class="doc">
+      <h1>Importing labs and people</h1>
+      <p class="doc-lede">Labs, people, memberships, and folder ownership from CSV files, with a dry run first.</p>
+<p><code>pinax import</code> sets up or updates, in bulk, who is who in Pinax: labs and departments, people, who belongs to which lab, and which lab owns each top-level folder. It reads up to four CSV files, shows every change it would make, and makes them only when asked:</p>
+<div class="code"><pre><code class="language-bash">uv run pinax import examples/import</code></pre></div>
+<div class="code"><pre><code class="language-bash">uv run pinax import examples/import --apply</code></pre></div>
+<p>For one person or lab at a time, use <em>People and access</em> in the app: it follows the same rules for usernames, emails, and slugs, and audits each change the same way (with <code>&quot;source&quot;: &quot;app&quot;</code> instead of <code>&quot;import&quot;</code>).</p>
+<p>The folder holds any of <code>labs.csv</code>, <code>people.csv</code>, <code>memberships.csv</code>, and <code>folders.csv</code>; or name the files with <code>--labs</code>, <code>--people</code>, <code>--memberships</code>, and <code>--folders</code>. The examples in <code>examples/import/</code> fit the demo: they add two departments and a lab, three people, and owners for the demo's three unmapped folders.</p>
+<p>This is a stop-gap until the authoritative source of folder ownership is chosen (wave 15 in <code>pinax-spec/roadmap.md</code>). That source, or a script reading it, can write these files.</p>
+<h2 id="how-an-import-works">How an import works</h2>
+<ul><li><strong>A dry run first.</strong> Without <code>--apply</code>, Pinax lists every change, file by file, and changes nothing: <code>+</code> creates, <code>~</code> updates (with each field's value before and after), <code>-</code> removes. Rows that would change nothing are counted as unchanged.</li><li><strong>All or nothing.</strong> If any row is refused (below), nothing is applied, and every refused row is listed with its file and line. Fix the files and run again. With <code>--apply</code>, all the changes are made in one transaction.</li><li><strong>Matched by key.</strong> A row updates what already has its key, or creates it. Rows never delete labs or people; set <code>active</code> to <code>false</code> instead. Memberships and folder ownership are removed with <code>none</code> (below).</li><li><strong>Columns set fields.</strong> A column that is present sets its field on every row, an empty text value included. A column that is absent leaves that field as it is, and new rows get its default. So a file with only <code>username</code>, <code>display_name</code>, and <code>email</code> never changes anyone's administrator flag.</li><li><strong>Audited.</strong> Every applied change is an audit event with the same action as the same change made in the interface (<code>folder.mapped</code>, <code>lab.member</code>, and <code>lab.created</code>, <code>lab.updated</code>, <code>person.created</code>, <code>person.updated</code>), marked <code>&quot;source&quot;: &quot;import&quot;</code> with the operating-system user who ran it. A final <code>import.applied</code> event records the number of changes and each file's SHA-256.</li><li><strong>Running it again changes nothing.</strong> An applied import's dry run lists no changes.</li></ul>
+<p>Files are UTF-8 (a byte-order mark from Excel is fine), with a header row; column names are not case-sensitive, and spaces around values are ignored. Empty lines are skipped.</p>
+<h2 id="the-files">The files</h2>
+<h3 id="labscsv-labs-and-departments">labs.csv: labs and departments</h3>
+<div class="table-wrap"><table><thead><tr><th>Column</th><th>Required</th><th>Values</th></tr></thead><tbody><tr><td><code>slug</code></td><td>yes, the key</td><td>Lowercase letters, digits, <code>-</code> and <code>_</code>, starting with a letter or digit; at most 64 characters; not <code>none</code></td></tr><tr><td><code>name</code></td><td>yes</td><td>The name people see</td></tr><tr><td><code>kind</code></td><td>no (default <code>lab</code>)</td><td><code>lab</code> or <code>department</code></td></tr><tr><td><code>division</code></td><td>no</td><td>Free text</td></tr><tr><td><code>research_area</code></td><td>no</td><td>Free text</td></tr><tr><td><code>active</code></td><td>no (default <code>true</code>)</td><td><code>true</code> or <code>false</code> (also <code>yes</code>/<code>no</code>, <code>1</code>/<code>0</code>). An inactive lab gives its members no access</td></tr></tbody></table></div>
+<h3 id="peoplecsv-people">people.csv: people</h3>
+<div class="table-wrap"><table><thead><tr><th>Column</th><th>Required</th><th>Values</th></tr></thead><tbody><tr><td><code>username</code></td><td>yes, the key</td><td>The sign-on name the SSO proxy sends (<code>X-Remote-User</code>); no spaces</td></tr><tr><td><code>display_name</code></td><td>yes</td><td></td></tr><tr><td><code>email</code></td><td>yes</td><td></td></tr><tr><td><code>title</code></td><td>no</td><td>Free text</td></tr><tr><td><code>is_admin</code></td><td>no (default <code>false</code>)</td><td><code>true</code> gives the person the storage administrator role: every filesystem and folder</td></tr><tr><td><code>active</code></td><td>no (default <code>true</code>)</td><td><code>false</code> stops the person signing in</td></tr></tbody></table></div>
+<p>Site roles (auditor, finance, and division head) are not imported: give them on the person's page in <em>People and access</em> (<a href="people.html#site-roles">Site roles</a>).</p>
+<h3 id="membershipscsv-who-belongs-to-which-lab">memberships.csv: who belongs to which lab</h3>
+<div class="table-wrap"><table><thead><tr><th>Column</th><th>Required</th><th>Values</th></tr></thead><tbody><tr><td><code>lab</code></td><td>yes, the key with <code>username</code></td><td>A lab's slug, from the catalog or <code>labs.csv</code></td></tr><tr><td><code>username</code></td><td>yes</td><td>A person's username, from the catalog or <code>people.csv</code></td></tr><tr><td><code>role</code></td><td>yes</td><td><code>pi</code> (the PI of a lab, or a department's owner), <code>delegate</code> (a member who sees the lab's folders), or <code>none</code> to remove the membership</td></tr></tbody></table></div>
+<h3 id="folderscsv-which-lab-owns-each-top-level-folder">folders.csv: which lab owns each top-level folder</h3>
+<div class="table-wrap"><table><thead><tr><th>Column</th><th>Required</th><th>Values</th></tr></thead><tbody><tr><td><code>filesystem</code></td><td>yes, the key with <code>folder</code></td><td>A registered filesystem's slug (<code>pinax filesystem list</code>)</td></tr><tr><td><code>folder</code></td><td>yes</td><td>One folder name directly under the filesystem's root, such as <code>alvarez_m</code></td></tr><tr><td><code>lab</code></td><td>yes</td><td>The owning lab's slug, from the catalog or <code>labs.csv</code>, or <code>none</code> to unmap the folder</td></tr></tbody></table></div>
+<p>A folder can be mapped before it exists on the filesystem (it appears with the next scan). Each folder has one owner, so mapping it to another lab moves it.</p>
+<h2 id="refused-rows">Refused rows</h2>
+<p>Any of these refuses the import:</p>
+<ul><li>a file that cannot be read, or is missing a required column, has an unknown column (a misspelled <code>emial</code> would otherwise be ignored), or repeats one;</li><li>a row with the wrong number of values, or an empty required value;</li><li>a key listed twice in one file, since which row is meant would be ambiguous;</li><li>a username that differs only in case from another (<code>Ada</code> and <code>ada</code>);</li><li>a reference to a lab, person, or filesystem that is neither in the catalog nor in the import;</li><li>a value Pinax does not accept: a slug it cannot use, a kind, role, or true/false value it does not know, an email without <code>@</code>, a username with a space, or a folder name with <code>/</code> or that is <code>.</code> or <code>..</code>.</li></ul>
+
+      <nav class="doc-pager" aria-label="Pages">
+        <a class="prev" href="tags-admin.html"><span>Previous</span>Tags, categories, plans, and the audit log</a>
+        <a class="next" href="setup.html"><span>Next</span>Trying Pinax on your own data</a>
+      </nav>
+    </main>
+
+    <aside class="toc" aria-label="On this page">
+      <h4>On this page</h4>
+      <ul></ul>
+    </aside>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-about">
+          <a class="brand" href="../"><img src="../assets/img/pinax-mark.svg" alt="" width="30" height="30" /><span class="brand-name">Pinax</span></a>
+          <p>File system reporting for research storage, built on fs-inventory scans. Free and open source under the Apache License 2.0.</p>
+        </div>
+        <div>
+          <h4>Use</h4>
+          <ul>
+            <li><a href="../docs/my-data.html">User guide</a></li>
+            <li><a href="../docs/age-map.html">The age map</a></li>
+            <li><a href="../docs/charges.html">Storage charges</a></li>
+            <li><a href="../docs/demo.html">The demo</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Run</h4>
+          <ul>
+            <li><a href="../docs/install.html">Installing</a></li>
+            <li><a href="../docs/administration.html">Administration</a></li>
+            <li><a href="../docs/configuration.html">Configuration</a></li>
+            <li><a href="../docs/troubleshooting.html">Troubleshooting</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Project</h4>
+          <ul>
+            <li><a href="https://github.com/robert-mcdermott/pinax">GitHub</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/releases">Releases</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/blob/main/CHANGELOG.md">Changelog</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/issues">Issues</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">Pinax 0.14.0 · Apache License 2.0 · The screenshots are of the demo, whose labs, people, and data are fictional.</div>
+    </div>
+  </footer>
+</body>
+</html>

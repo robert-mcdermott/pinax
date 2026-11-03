@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Command line · Pinax</title>
+  <meta name="description" content="Every pinax command and option." />
+  <meta property="og:title" content="Command line" />
+  <meta property="og:description" content="Every pinax command and option." />
+  <meta name="theme-color" content="#18365D" />
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="../assets/css/site.css" />
+  <script>try { const t = localStorage.getItem('pinax-site-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+  <script src="../assets/js/site.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container">
+      <a class="brand" href="../"><img src="../assets/img/pinax-mark.svg" alt="" width="34" height="34" /><span class="brand-name">Pinax<small>Explore your data</small></span></a>
+      <nav class="site-nav" id="site-nav" aria-label="Main">
+        <a href="../#features">Features</a>
+        <a href="../docs/my-data.html">User guide</a>
+        <a href="../docs/administration.html">Administration</a>
+        <a href="../docs/install.html">Install</a>
+        <a href="../docs/" aria-current="page">Documentation</a>
+      </nav>
+      <div class="header-actions">
+        <a class="icon-button" href="https://github.com/robert-mcdermott/pinax" aria-label="Pinax on GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg></a>
+        <button class="icon-button theme-toggle" type="button" aria-label="Switch between light and dark"><svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg><svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+        <button class="icon-button nav-toggle" type="button" aria-label="Menu" aria-controls="site-nav" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      </div>
+    </div>
+  </header>
+
+  <div class="docs-layout">
+    <aside class="docs-sidebar" aria-label="Documentation">
+      <button class="btn docs-menu-toggle" type="button" aria-expanded="false">Documentation menu <span aria-hidden="true">▾</span></button>
+      <nav>
+        <h4>Start</h4>
+        <ul>
+          <li><a href="./">Documentation</a></li>
+          <li><a href="concepts.html">How Pinax sees storage</a></li>
+          <li><a href="demo.html">The demo</a></li>
+        </ul>
+        <h4>User guide</h4>
+        <ul>
+          <li><a href="my-data.html">Signing in and My data</a></li>
+          <li><a href="age-map.html">The age map</a></li>
+          <li><a href="history.html">History and forecasts</a></li>
+          <li><a href="changes.html">Change map and what changed</a></li>
+          <li><a href="reports.html">Reports</a></li>
+          <li><a href="find-files.html">Finding files</a></li>
+          <li><a href="charges.html">Storage charges</a></li>
+          <li><a href="cleanup-plans.html">Cleanup plans</a></li>
+          <li><a href="tags.html">Tags and collections</a></li>
+          <li><a href="saved-views.html">Saved views and earlier scans</a></li>
+          <li><a href="api-tokens.html">API tokens for scripts</a></li>
+        </ul>
+        <h4>Administration</h4>
+        <ul>
+          <li><a href="administration.html">Administering Pinax</a></li>
+          <li><a href="folders-and-labs.html">Folders and labs</a></li>
+          <li><a href="people.html">People and access</a></li>
+          <li><a href="scans.html">Scans and storage health</a></li>
+          <li><a href="capacity.html">Capacity</a></li>
+          <li><a href="costs.html">Costs and chargeback</a></li>
+          <li><a href="tags-admin.html">Tags, categories, plans, and the audit log</a></li>
+          <li><a href="import.html">Importing labs and people</a></li>
+        </ul>
+        <h4>Installation and operations</h4>
+        <ul>
+          <li><a href="setup.html">Trying Pinax on your own data</a></li>
+          <li><a href="install.html">Installing on a server</a></li>
+          <li><a href="scanning.html">Scans and ingest</a></li>
+          <li><a href="database.html">The catalog and backups</a></li>
+          <li><a href="upgrading.html">Upgrading</a></li>
+          <li><a href="sizing.html">Sizing</a></li>
+          <li><a href="statements.html">Charges and statements</a></li>
+          <li><a href="operations.html">Logs, metrics, and operations</a></li>
+          <li><a href="entra-id.html">Signing in with Entra ID</a></li>
+          <li><a href="configuration.html">Configuration</a></li>
+        </ul>
+        <h4>Reference</h4>
+        <ul>
+          <li><a href="cli.html" aria-current="page">Command line</a></li>
+          <li><a href="troubleshooting.html">Troubleshooting</a></li>
+          <li><a href="architecture.html">Architecture</a></li>
+          <li><a href="development.html">Development</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <main id="main" class="doc">
+      <h1>Command line</h1>
+      <p class="doc-lede">Every pinax command and option.</p>
+<p>Every <code>pinax</code> command, what it does, and its options. Run them as the user Pinax runs as, with its settings. On a server installed as <a href="install.html">DEPLOYMENT.md</a> describes, its <a href="install.html#3-settings">step 3</a> defines a shell function that does both:</p>
+<div class="code"><pre><code class="language-bash">pinax() { sudo -u pinax bash -c 'set -a; . /etc/pinax/pinax.env; exec /opt/pinax/.venv/bin/pinax &quot;$@&quot;' pinax &quot;$@&quot;; }</code></pre></div>
+<p>From a checkout, <code>uv run pinax ...</code> reads <code>.env</code> in the current folder. <code>pinax COMMAND --help</code> lists a command's options. Every command logs to standard error as the settings say (<a href="operations.html#logs">Logs</a>), and an error is one line beginning <code>error:</code> with a non-zero exit.</p>
+<div class="table-wrap"><table><thead><tr><th>Command</th><th>What it does</th></tr></thead><tbody><tr><td><a href="#pinax-serve"><code>pinax serve</code></a></td><td>Run the web app</td></tr><tr><td><a href="#pinax-filesystem"><code>pinax filesystem</code></a></td><td>Register and list filesystems</td></tr><tr><td><a href="#pinax-scan"><code>pinax scan</code></a></td><td>Scan a filesystem with fs-inventory, then ingest the scan</td></tr><tr><td><a href="#pinax-ingest"><code>pinax ingest</code></a></td><td>Build a snapshot index from a scan, or watch a folder for new scans</td></tr><tr><td><a href="#pinax-snapshots"><code>pinax snapshots</code></a></td><td>List snapshots</td></tr><tr><td><a href="#pinax-rebuild"><code>pinax rebuild</code></a></td><td>Build snapshots' indexes again, after an upgrade or a lost index</td></tr><tr><td><a href="#pinax-check"><code>pinax check</code></a></td><td>Check an index against <code>fs-inventory rollup</code>, directory by directory</td></tr><tr><td><a href="#pinax-user"><code>pinax user</code></a></td><td>Add people, give temporary passwords, mark emergency accounts, list people</td></tr><tr><td><a href="#pinax-import"><code>pinax import</code></a></td><td>Import labs, people, memberships, and folder ownership from CSV</td></tr><tr><td><a href="#pinax-tags"><code>pinax tags</code></a></td><td>Tag folders in bulk from CSV</td></tr><tr><td><a href="#pinax-db"><code>pinax db</code></a></td><td>The catalog's database: status, upgrades, copying it</td></tr><tr><td><a href="#pinax-seed"><code>pinax seed</code></a></td><td>Build the demo</td></tr></tbody></table></div>
+<h2 id="pinax-serve">pinax serve</h2>
+<p>Runs the web app on one host and port. It brings the catalog up to date first (unless <code>PINAX_DB_AUTO_UPGRADE</code> is false), and refuses to start with settings that are unsafe, such as the demo's sign-in in production.</p>
+<div class="table-wrap"><table><thead><tr><th>Option</th><th>Default</th><th></th></tr></thead><tbody><tr><td><code>--host HOST</code></td><td><code>127.0.0.1</code></td><td>The address to listen on. Behind a proxy on the same host, keep <code>127.0.0.1</code></td></tr><tr><td><code>--port PORT</code></td><td><code>8001</code></td><td>The port</td></tr></tbody></table></div>
+<div class="code"><pre><code class="language-bash">pinax serve --host 127.0.0.1 --port 8001</code></pre></div>
+<p>The systemd unit <code>deploy/systemd/pinax-web.service</code> runs it. Pinax works out each person's address itself from <code>PINAX_TRUSTED_PROXIES</code>, so uvicorn's own proxy headers are off.</p>
+<h2 id="pinax-filesystem">pinax filesystem</h2>
+<h3 id="pinax-filesystem-add">pinax filesystem add</h3>
+<p>Registers a filesystem by the root its scans record.</p>
+<div class="table-wrap"><table><thead><tr><th>Argument or option</th><th></th></tr></thead><tbody><tr><td><code>SLUG</code></td><td>A short ID used in addresses and metrics, such as <code>fast</code></td></tr><tr><td><code>ROOT</code></td><td>The absolute path of the scan root, as the scanning host sees it, such as <code>/fh/fast</code></td></tr><tr><td><code>--name NAME</code></td><td>The name people know it by (default: the slug)</td></tr><tr><td><code>--display-root PATH</code></td><td>The root as people know it, if the scanning host mounts it elsewhere (scans of <code>/mnt/fast</code> shown as <code>/fh/fast</code>)</td></tr><tr><td><code>--description TEXT</code></td><td>A line about it, shown to administrators</td></tr></tbody></table></div>
+<div class="code"><pre><code class="language-bash">pinax filesystem add fast /fh/fast --name Fast</code></pre></div>
+<h3 id="pinax-filesystem-list">pinax filesystem list</h3>
+<p>Lists the filesystems and each one's latest snapshot.</p>
+<h2 id="pinax-scan">pinax scan</h2>
+<p>Scans a registered filesystem with fs-inventory into <code>PINAX_SCAN_ROOT/&lt;filesystem&gt;/&lt;UTC time&gt;/</code>, verifies the scan, records what the storage reports about its capacity, and ingests it. Owner names are resolved (<code>--resolve-ids</code>), with <code>PINAX_SCAN_THREADS</code> threads and any <code>PINAX_SCAN_EXTRA_ARGS</code>.</p>
+<div class="table-wrap"><table><thead><tr><th>Argument or option</th><th></th></tr></thead><tbody><tr><td><code>FILESYSTEM</code></td><td>The filesystem's slug</td></tr><tr><td><code>--no-ingest</code></td><td>Only scan; ingest later with <code>pinax ingest</code> (or let automatic ingest find it)</td></tr><tr><td><code>-- OPTIONS</code></td><td>Further fs-inventory scan options for this scan, after <code>--</code></td></tr></tbody></table></div>
+<div class="code"><pre><code class="language-bash">pinax scan fast -- --stall-timeout 10m</code></pre></div>
+<p>The timer <code>deploy/systemd/pinax-scan@.timer</code> runs <code>pinax scan --no-ingest</code> on a schedule, and automatic ingest picks the scan up (<a href="scanning.html#scans">Scans</a>).</p>
+<h2 id="pinax-ingest">pinax ingest</h2>
+<p>Builds a snapshot index from a finished fs-inventory scan, adds the snapshot to the catalog, records each top-level folder's totals and what changed since the previous scan, and deletes indexes beyond <code>PINAX_KEEP_SNAPSHOTS</code>. One ingest runs at a time; others wait for the lock in <code>PINAX_VAR_ROOT</code>.</p>
+<div class="table-wrap"><table><thead><tr><th>Argument or option</th><th></th></tr></thead><tbody><tr><td><code>SCAN_DIR</code></td><td>The scan's folder. With <code>--watch</code>, the folder to watch (default: <code>PINAX_SCAN_ROOT</code>)</td></tr><tr><td><code>--fs SLUG</code></td><td>The filesystem (default: the one whose root matches the scan's)</td></tr><tr><td><code>--allow-incomplete</code></td><td>Accept a scan whose status is incomplete (stalled directories are missing, and its totals are lower bounds)</td></tr><tr><td><code>--watch</code></td><td>Ingest each new scan under the folder once, checking every <code>--interval</code> seconds, with a heartbeat that <em>Scans</em> shows</td></tr><tr><td><code>--interval SECONDS</code></td><td>With <code>--watch</code>: seconds between checks (default 300)</td></tr><tr><td><code>--once</code></td><td>With <code>--watch</code>: check once and exit, 1 if any scan failed (for cron or a timer)</td></tr><tr><td><code>--no-verify</code></td><td>With <code>--watch</code>: skip <code>fs-inventory verify</code> before ingesting</td></tr></tbody></table></div>
+<div class="code"><pre><code class="language-bash">pinax ingest /var/lib/pinax/scans/fast/20261028T020000Z</code></pre></div>
+<div class="code"><pre><code class="language-bash">pinax ingest --watch /var/lib/pinax/scans</code></pre></div>
+<p>A scan already ingested is refused (rebuild it with <code>pinax rebuild</code>); automatic ingest records a scan it cannot load as <em>skipped</em> or <em>failed</em>, with why, and does not try it again.</p>
+<h2 id="pinax-snapshots">pinax snapshots</h2>
+<p>Lists every snapshot: its ID, filesystem, when the scan started, its status (<code>ready</code>, <code>pruned</code>, <code>failed</code>, <code>skipped</code>, <code>building</code>), files, bytes, and scan folder.</p>
+<h2 id="pinax-rebuild">pinax rebuild</h2>
+<p>Builds ready snapshots' indexes again from their scans, in place: each snapshot keeps its old index until the new one replaces it, and keeps it if the build fails.</p>
+<div class="table-wrap"><table><thead><tr><th>Argument or option</th><th></th></tr></thead><tbody><tr><td><code>SNAPSHOT_ID ...</code></td><td>The snapshots to rebuild</td></tr><tr><td><code>--outdated</code></td><td>Every ready snapshot whose index is missing, in an older format (after an upgrade that changes the index format), or built with other file categories than the catalog's, oldest first</td></tr><tr><td><code>--latest</code></td><td>With <code>--outdated</code>, only each filesystem's latest snapshot: older ones keep the categories they were built with</td></tr></tbody></table></div>
+<div class="code"><pre><code class="language-bash">pinax rebuild --outdated</code></pre></div>
+<h2 id="pinax-check">pinax check</h2>
+<p>Compares every directory's totals in an index with <code>fs-inventory rollup</code>, an independent computation, and with a previous scan, what changed. Exits 0 when everything agrees, 1 with a report of each difference.</p>
+<div class="table-wrap"><table><thead><tr><th>Argument or option</th><th></th></tr></thead><tbody><tr><td><code>TARGET</code></td><td>A snapshot ID, or an fs-inventory scan folder</td></tr><tr><td><code>--index PATH</code></td><td>With a scan folder: the index built from it (default: build one, check it, and delete it)</td></tr><tr><td><code>--allow-incomplete</code></td><td>With a scan folder: accept a scan with status incomplete</td></tr><tr><td><code>--examples N</code></td><td>Directories to list for each difference (default 10)</td></tr><tr><td><code>--age-depth N</code></td><td>Compare age histograms down to this depth (default: all; rollup needs about 0.5 KB of memory per directory down to it)</td></tr><tr><td><code>--previous-scan PATH</code></td><td>With a scan folder and <code>--index</code>: the previous scan, to check the index's changes (a snapshot ID finds it in the catalog)</td></tr><tr><td><code>--json</code></td><td>Print the report as JSON</td></tr></tbody></table></div>
+<div class="code"><pre><code class="language-bash">pinax check 11</code></pre></div>
+<h2 id="pinax-user">pinax user</h2>
+<h3 id="pinax-user-add">pinax user add</h3>
+<p>Adds a person. With local sign-in it prints a temporary password, which they change when they first sign in; with single sign-on, the username is the one the identity provider or the proxy sends (<a href="entra-id.html">Signing in with Entra ID</a>).</p>
+<div class="table-wrap"><table><thead><tr><th>Argument or option</th><th></th></tr></thead><tbody><tr><td><code>USERNAME</code></td><td>Their sign-in name</td></tr><tr><td><code>--name NAME</code></td><td>Full name (required)</td></tr><tr><td><code>--email EMAIL</code></td><td>Email (required)</td></tr><tr><td><code>--title TITLE</code></td><td>Job title</td></tr><tr><td><code>--admin</code></td><td>Make them a storage administrator</td></tr></tbody></table></div>
+<div class="code"><pre><code class="language-bash">pinax user add jdoe@example.org --name &quot;Jane Doe&quot; --email jdoe@example.org --admin</code></pre></div>
+<p>This is how the first administrator is made, before anyone can sign in; everything after can be done in <em>People and access</em>.</p>
+<h3 id="pinax-user-password">pinax user password</h3>
+<p>Local sign-in: prints a new temporary password for <code>USERNAME</code>, unlocks their account, and ends their sessions.</p>
+<h3 id="pinax-user-emergency">pinax user emergency</h3>
+<p>With sign-in through an identity provider (<code>PINAX_AUTH_MODE=oidc</code>): makes <code>USERNAME</code>, an active storage administrator, an emergency account, which signs in with a password at <code>/auth/emergency</code> when the provider fails, and prints its new password, 32 characters, once. Run again, it replaces the password. <code>--off</code> ends it, with its password. Only here, never in the app; every change is audited (<a href="entra-id.html#when-entra-id-fails-the-emergency-sign-in">When Entra ID fails</a>).</p>
+<div class="code"><pre><code class="language-bash">pinax user emergency emergency-1</code></pre></div>
+<h3 id="pinax-user-list">pinax user list</h3>
+<p>Lists people, whether they are administrators (and emergency accounts), and whether they are active and can sign in.</p>
+<h2 id="pinax-import">pinax import</h2>
+<p>Imports labs and departments, people, memberships, and folder ownership from CSV files (<a href="import.html">IMPORT.md</a>). A dry run that lists every change unless <code>--apply</code>; with <code>--apply</code>, all of the changes are made, or none if any row is refused.</p>
+<div class="table-wrap"><table><thead><tr><th>Argument or option</th><th></th></tr></thead><tbody><tr><td><code>FOLDER</code></td><td>A folder holding any of <code>labs.csv</code>, <code>people.csv</code>, <code>memberships.csv</code>, and <code>folders.csv</code></td></tr><tr><td><code>--labs FILE</code>, <code>--people FILE</code>, <code>--memberships FILE</code>, <code>--folders FILE</code></td><td>A file instead of the one in the folder</td></tr><tr><td><code>--apply</code></td><td>Make the changes</td></tr></tbody></table></div>
+<div class="code"><pre><code class="language-bash">pinax import examples/import</code></pre></div>
+<h2 id="pinax-tags">pinax tags</h2>
+<h3 id="pinax-tags-import">pinax tags import</h3>
+<p>Tags folders from a CSV of filesystem, path, tag, and value (a lab's own tag as <code>lab:key</code>). A dry run unless <code>--apply</code>; with it, every row or none.</p>
+<div class="code"><pre><code class="language-bash">pinax tags import tags.csv --apply</code></pre></div>
+<h2 id="pinax-db">pinax db</h2>
+<h3 id="pinax-db-status">pinax db status</h3>
+<p>Names the catalog's database (never its password), its migration revision, and the newest this Pinax has. Exits 0 when it is up to date and 1 otherwise: empty, made before migrations, behind, or newer than this Pinax.</p>
+<h3 id="pinax-db-upgrade">pinax db upgrade</h3>
+<p>Brings the catalog up to date: creates a new one, adopts one made before migrations (0.9.0 and earlier), or applies the revisions it lacks. Back it up first. <code>--sql</code> prints the SQL instead, for a database administrator to review and apply.</p>
+<h3 id="pinax-db-copy">pinax db copy</h3>
+<p>Copies every table of the catalog into another, empty database, such as SQLite into PostgreSQL, in one transaction, then sets PostgreSQL's id sequences past the copied rows and compares every table's count. Stop Pinax first.</p>
+<div class="table-wrap"><table><thead><tr><th>Argument or option</th><th></th></tr></thead><tbody><tr><td><code>TARGET</code></td><td>The database to copy into, such as <code>postgresql://pinax@db.example.org/pinax</code> (its password in <code>~/.pgpass</code>)</td></tr><tr><td><code>--from SOURCE</code></td><td>The catalog to copy (default: this one, <code>PINAX_DATABASE_URL</code>)</td></tr></tbody></table></div>
+<div class="code"><pre><code class="language-bash">pinax db copy postgresql://pinax@db.example.org/pinax?sslmode=verify-full</code></pre></div>
+<h3 id="pinax-db-revision">pinax db revision</h3>
+<p>For developers: writes the next migration from what changed in <code>models.py</code>, against an up-to-date catalog (<a href="development.html">DEVELOPMENT.md</a>).</p>
+<h2 id="pinax-seed">pinax seed</h2>
+<p>Deletes the catalog and indexes in <code>PINAX_VAR_ROOT</code> and writes the demo: two filesystems of sparse files, 14 labs and departments, 23 people, six scans a month apart, prices, capacities, a cleanup plan, tags, and saved views (<a href="demo.html">DEMO.md</a>). It runs only when <code>PINAX_ENVIRONMENT=demo</code>.</p>
+<div class="table-wrap"><table><thead><tr><th>Option</th><th></th></tr></thead><tbody><tr><td><code>--scale N</code></td><td>Multiply the number of demo files (1.0 is about 35,000)</td></tr></tbody></table></div>
+
+      <nav class="doc-pager" aria-label="Pages">
+        <a class="prev" href="configuration.html"><span>Previous</span>Configuration</a>
+        <a class="next" href="troubleshooting.html"><span>Next</span>Troubleshooting</a>
+      </nav>
+    </main>
+
+    <aside class="toc" aria-label="On this page">
+      <h4>On this page</h4>
+      <ul></ul>
+    </aside>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-about">
+          <a class="brand" href="../"><img src="../assets/img/pinax-mark.svg" alt="" width="30" height="30" /><span class="brand-name">Pinax</span></a>
+          <p>File system reporting for research storage, built on fs-inventory scans. Free and open source under the Apache License 2.0.</p>
+        </div>
+        <div>
+          <h4>Use</h4>
+          <ul>
+            <li><a href="../docs/my-data.html">User guide</a></li>
+            <li><a href="../docs/age-map.html">The age map</a></li>
+            <li><a href="../docs/charges.html">Storage charges</a></li>
+            <li><a href="../docs/demo.html">The demo</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Run</h4>
+          <ul>
+            <li><a href="../docs/install.html">Installing</a></li>
+            <li><a href="../docs/administration.html">Administration</a></li>
+            <li><a href="../docs/configuration.html">Configuration</a></li>
+            <li><a href="../docs/troubleshooting.html">Troubleshooting</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Project</h4>
+          <ul>
+            <li><a href="https://github.com/robert-mcdermott/pinax">GitHub</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/releases">Releases</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/blob/main/CHANGELOG.md">Changelog</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/issues">Issues</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">Pinax 0.14.0 · Apache License 2.0 · The screenshots are of the demo, whose labs, people, and data are fictional.</div>
+    </div>
+  </footer>
+</body>
+</html>

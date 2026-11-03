@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Scans and ingest · Pinax</title>
+  <meta name="description" content="Scanning on a schedule, automatic ingest, what to keep, and checking the numbers." />
+  <meta property="og:title" content="Scans and ingest" />
+  <meta property="og:description" content="Scanning on a schedule, automatic ingest, what to keep, and checking the numbers." />
+  <meta name="theme-color" content="#18365D" />
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="../assets/css/site.css" />
+  <script>try { const t = localStorage.getItem('pinax-site-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+  <script src="../assets/js/site.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container">
+      <a class="brand" href="../"><img src="../assets/img/pinax-mark.svg" alt="" width="34" height="34" /><span class="brand-name">Pinax<small>Explore your data</small></span></a>
+      <nav class="site-nav" id="site-nav" aria-label="Main">
+        <a href="../#features">Features</a>
+        <a href="../docs/my-data.html">User guide</a>
+        <a href="../docs/administration.html">Administration</a>
+        <a href="../docs/install.html">Install</a>
+        <a href="../docs/" aria-current="page">Documentation</a>
+      </nav>
+      <div class="header-actions">
+        <a class="icon-button" href="https://github.com/robert-mcdermott/pinax" aria-label="Pinax on GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg></a>
+        <button class="icon-button theme-toggle" type="button" aria-label="Switch between light and dark"><svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg><svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+        <button class="icon-button nav-toggle" type="button" aria-label="Menu" aria-controls="site-nav" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      </div>
+    </div>
+  </header>
+
+  <div class="docs-layout">
+    <aside class="docs-sidebar" aria-label="Documentation">
+      <button class="btn docs-menu-toggle" type="button" aria-expanded="false">Documentation menu <span aria-hidden="true">▾</span></button>
+      <nav>
+        <h4>Start</h4>
+        <ul>
+          <li><a href="./">Documentation</a></li>
+          <li><a href="concepts.html">How Pinax sees storage</a></li>
+          <li><a href="demo.html">The demo</a></li>
+        </ul>
+        <h4>User guide</h4>
+        <ul>
+          <li><a href="my-data.html">Signing in and My data</a></li>
+          <li><a href="age-map.html">The age map</a></li>
+          <li><a href="history.html">History and forecasts</a></li>
+          <li><a href="changes.html">Change map and what changed</a></li>
+          <li><a href="reports.html">Reports</a></li>
+          <li><a href="find-files.html">Finding files</a></li>
+          <li><a href="charges.html">Storage charges</a></li>
+          <li><a href="cleanup-plans.html">Cleanup plans</a></li>
+          <li><a href="tags.html">Tags and collections</a></li>
+          <li><a href="saved-views.html">Saved views and earlier scans</a></li>
+          <li><a href="api-tokens.html">API tokens for scripts</a></li>
+        </ul>
+        <h4>Administration</h4>
+        <ul>
+          <li><a href="administration.html">Administering Pinax</a></li>
+          <li><a href="folders-and-labs.html">Folders and labs</a></li>
+          <li><a href="people.html">People and access</a></li>
+          <li><a href="scans.html">Scans and storage health</a></li>
+          <li><a href="capacity.html">Capacity</a></li>
+          <li><a href="costs.html">Costs and chargeback</a></li>
+          <li><a href="tags-admin.html">Tags, categories, plans, and the audit log</a></li>
+          <li><a href="import.html">Importing labs and people</a></li>
+        </ul>
+        <h4>Installation and operations</h4>
+        <ul>
+          <li><a href="setup.html">Trying Pinax on your own data</a></li>
+          <li><a href="install.html">Installing on a server</a></li>
+          <li><a href="scanning.html" aria-current="page">Scans and ingest</a></li>
+          <li><a href="database.html">The catalog and backups</a></li>
+          <li><a href="upgrading.html">Upgrading</a></li>
+          <li><a href="sizing.html">Sizing</a></li>
+          <li><a href="statements.html">Charges and statements</a></li>
+          <li><a href="operations.html">Logs, metrics, and operations</a></li>
+          <li><a href="entra-id.html">Signing in with Entra ID</a></li>
+          <li><a href="configuration.html">Configuration</a></li>
+        </ul>
+        <h4>Reference</h4>
+        <ul>
+          <li><a href="cli.html">Command line</a></li>
+          <li><a href="troubleshooting.html">Troubleshooting</a></li>
+          <li><a href="architecture.html">Architecture</a></li>
+          <li><a href="development.html">Development</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <main id="main" class="doc">
+      <h1>Scans and ingest</h1>
+      <p class="doc-lede">Scanning on a schedule, automatic ingest, what to keep, and checking the numbers.</p>
+<h2 id="scans">Scans</h2>
+<p>Weekly scans suit most research filesystems; nightly ones suit smaller filesystems or ones you watch closely. A scan of a billion files takes hours, so each scan gets its own folder, and only scans that verify are loaded.</p>
+<p><code>pinax-ingest</code> looks for scan folders (with a <code>manifest.json</code>) up to three levels below <code>PINAX_SCAN_ROOT</code>, oldest first, and treats each by the status fs-inventory gave it:</p>
+<div class="table-wrap"><table><thead><tr><th>Status</th><th>What the watcher does</th></tr></thead><tbody><tr><td><code>complete</code></td><td>runs <code>fs-inventory verify</code>, then ingests it (skip the verify with <code>--no-verify</code>)</td></tr><tr><td><code>running</code>, <code>interrupted</code></td><td>leaves it alone and looks again next time, since it may still finish or be resumed</td></tr><tr><td><code>incomplete</code>, <code>failed</code></td><td>records it on <em>Scans</em> as skipped, with why (<code>--allow-incomplete</code> ingests incomplete ones)</td></tr></tbody></table></div>
+<p>A scan is matched to its filesystem by its root, and is handled once: ingested, skipped, or failed with the error, all of which show on <em>Scans</em>. A failed or skipped scan is never retried automatically; fix the cause and run <code>pinax ingest SCAN_DIR</code> by hand. Scans whose root matches no registered filesystem are named in the watcher's log and left for later. Any number of watchers and manual ingests may run at once: they share a lock in <code>PINAX_VAR_ROOT</code>, so one index is built at a time and no scan is ingested twice.</p>
+<p><em>Scans</em> also shows whether the watcher is alive: it reports what it is doing at every pass, and is shown as not responding when it misses three. To run it from a timer instead of as a service, use <code>--once</code> with the timer's interval as <code>--interval</code>; it exits with code 1 when a scan in that pass failed.</p>
+<p>A scan host other than the Pinax server can scan and verify, and write into the watched folder:</p>
+<div class="code"><pre><code class="language-bash">dir=/scans/fast/$(date -u +%Y%m%dT%H%M%SZ)</code></pre></div>
+<div class="code"><pre><code class="language-bash">/opt/fs-inventory/fs-inventory scan /fh/fast -o &quot;$dir&quot; --resolve-ids --threads 64 --stall-timeout 15m &amp;&amp; /opt/fs-inventory/fs-inventory verify &quot;$dir&quot;</code></pre></div>
+<p>Notes:</p>
+<ul><li><code>--resolve-ids</code> records owner names, which the Owners report and storage health use to flag deleted accounts. Run it on a host that resolves the same accounts as the storage (LDAP or sssd).</li><li><code>fs-inventory probe /fh/fast --threads 16,32,64,128</code> finds a good thread count without writing anything; <code>PINAX_SCAN_THREADS</code> sets it for <code>pinax scan</code>.</li><li>An interrupted scan can be continued with <code>fs-inventory resume</code>; the watcher waits for it.</li><li><code>pinax scan</code> also asks the filesystem for its total, used, and available space (<code>statvfs</code>, which reads no file) and writes them to <code>pinax.json</code> beside the manifest, so <em>Capacity</em> knows how much the filesystem holds and how much of it the storage counts as used, its snapshots included. A scan made with fs-inventory directly, as above, has none: set the filesystem's capacity on <em>Capacity</em> instead (a capacity set there also takes the place of what the storage reports, for storage whose mount shows a quota or a shared pool).</li><li>Pinax never deletes scan folders. Keep the scan of every snapshot that still has its index (the newest <code>PINAX_KEEP_SNAPSHOTS</code> of each filesystem), so it can be rebuilt after an upgrade and checked; once a snapshot is pruned, its scan is of no further use to Pinax and can be deleted. <code>pinax snapshots</code> lists each snapshot's status (<code>ready</code> or <code>pruned</code>) and scan folder. See <a href="architecture.html#what-pinax-keeps">What Pinax keeps</a>.</li><li>Pinax reads only the parts a scan's manifest lists, so leftovers of an interrupted run in the folder are ignored.</li><li>fs-inventory does not enter other filesystems mounted below the root unless asked. If labs' folders are their own filesystems (filesets, exports, automounts), scan with <code>--cross-mounts</code> (add it to <code>PINAX_SCAN_EXTRA_ARGS</code>); otherwise each is counted as a folder not read, with nothing in it, and Pinax says its totals are lower bounds.</li><li>Scans in microseconds (the default) and in nanoseconds (<code>--time-unit ns</code>) are both accepted.</li></ul>
+<h2 id="checking-a-filesystems-numbers">Checking a filesystem's numbers</h2>
+<p>After the first scan of a filesystem, and after upgrading Pinax, check the index against fs-inventory's own computation of the same totals with <code>pinax check SNAPSHOT_ID</code>. It runs <code>fs-inventory rollup</code> on a copy of the scan's manifest (the scan folder is not written to) and compares every directory, printing the ones that differ. Rollup keeps an age histogram of about 0.5 KB for every directory down to the depth compared, so on scans with tens of millions of directories bound it, for example <code>--age-depth 4</code>; the other totals are still compared at every depth. Each index also records how every directory changed since the filesystem's previous scan, and the check compares that too, with a rollup of the previous scan, as long as its scan folder is kept.</p>
+
+      <nav class="doc-pager" aria-label="Pages">
+        <a class="prev" href="install.html"><span>Previous</span>Installing on a server</a>
+        <a class="next" href="database.html"><span>Next</span>The catalog and backups</a>
+      </nav>
+    </main>
+
+    <aside class="toc" aria-label="On this page">
+      <h4>On this page</h4>
+      <ul></ul>
+    </aside>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-about">
+          <a class="brand" href="../"><img src="../assets/img/pinax-mark.svg" alt="" width="30" height="30" /><span class="brand-name">Pinax</span></a>
+          <p>File system reporting for research storage, built on fs-inventory scans. Free and open source under the Apache License 2.0.</p>
+        </div>
+        <div>
+          <h4>Use</h4>
+          <ul>
+            <li><a href="../docs/my-data.html">User guide</a></li>
+            <li><a href="../docs/age-map.html">The age map</a></li>
+            <li><a href="../docs/charges.html">Storage charges</a></li>
+            <li><a href="../docs/demo.html">The demo</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Run</h4>
+          <ul>
+            <li><a href="../docs/install.html">Installing</a></li>
+            <li><a href="../docs/administration.html">Administration</a></li>
+            <li><a href="../docs/configuration.html">Configuration</a></li>
+            <li><a href="../docs/troubleshooting.html">Troubleshooting</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Project</h4>
+          <ul>
+            <li><a href="https://github.com/robert-mcdermott/pinax">GitHub</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/releases">Releases</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/blob/main/CHANGELOG.md">Changelog</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/issues">Issues</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">Pinax 0.14.0 · Apache License 2.0 · The screenshots are of the demo, whose labs, people, and data are fictional.</div>
+    </div>
+  </footer>
+</body>
+</html>

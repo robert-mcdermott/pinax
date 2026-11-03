@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Installing on a server · Pinax</title>
+  <meta name="description" content="Services, single sign-on or passwords, and a check that it all works." />
+  <meta property="og:title" content="Installing on a server" />
+  <meta property="og:description" content="Services, single sign-on or passwords, and a check that it all works." />
+  <meta name="theme-color" content="#18365D" />
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="../assets/css/site.css" />
+  <script>try { const t = localStorage.getItem('pinax-site-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+  <script src="../assets/js/site.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container">
+      <a class="brand" href="../"><img src="../assets/img/pinax-mark.svg" alt="" width="34" height="34" /><span class="brand-name">Pinax<small>Explore your data</small></span></a>
+      <nav class="site-nav" id="site-nav" aria-label="Main">
+        <a href="../#features">Features</a>
+        <a href="../docs/my-data.html">User guide</a>
+        <a href="../docs/administration.html">Administration</a>
+        <a href="../docs/install.html" aria-current="page">Install</a>
+        <a href="../docs/">Documentation</a>
+      </nav>
+      <div class="header-actions">
+        <a class="icon-button" href="https://github.com/robert-mcdermott/pinax" aria-label="Pinax on GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg></a>
+        <button class="icon-button theme-toggle" type="button" aria-label="Switch between light and dark"><svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg><svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+        <button class="icon-button nav-toggle" type="button" aria-label="Menu" aria-controls="site-nav" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      </div>
+    </div>
+  </header>
+
+  <div class="docs-layout">
+    <aside class="docs-sidebar" aria-label="Documentation">
+      <button class="btn docs-menu-toggle" type="button" aria-expanded="false">Documentation menu <span aria-hidden="true">▾</span></button>
+      <nav>
+        <h4>Start</h4>
+        <ul>
+          <li><a href="./">Documentation</a></li>
+          <li><a href="concepts.html">How Pinax sees storage</a></li>
+          <li><a href="demo.html">The demo</a></li>
+        </ul>
+        <h4>User guide</h4>
+        <ul>
+          <li><a href="my-data.html">Signing in and My data</a></li>
+          <li><a href="age-map.html">The age map</a></li>
+          <li><a href="history.html">History and forecasts</a></li>
+          <li><a href="changes.html">Change map and what changed</a></li>
+          <li><a href="reports.html">Reports</a></li>
+          <li><a href="find-files.html">Finding files</a></li>
+          <li><a href="charges.html">Storage charges</a></li>
+          <li><a href="cleanup-plans.html">Cleanup plans</a></li>
+          <li><a href="tags.html">Tags and collections</a></li>
+          <li><a href="saved-views.html">Saved views and earlier scans</a></li>
+          <li><a href="api-tokens.html">API tokens for scripts</a></li>
+        </ul>
+        <h4>Administration</h4>
+        <ul>
+          <li><a href="administration.html">Administering Pinax</a></li>
+          <li><a href="folders-and-labs.html">Folders and labs</a></li>
+          <li><a href="people.html">People and access</a></li>
+          <li><a href="scans.html">Scans and storage health</a></li>
+          <li><a href="capacity.html">Capacity</a></li>
+          <li><a href="costs.html">Costs and chargeback</a></li>
+          <li><a href="tags-admin.html">Tags, categories, plans, and the audit log</a></li>
+          <li><a href="import.html">Importing labs and people</a></li>
+        </ul>
+        <h4>Installation and operations</h4>
+        <ul>
+          <li><a href="setup.html">Trying Pinax on your own data</a></li>
+          <li><a href="install.html" aria-current="page">Installing on a server</a></li>
+          <li><a href="scanning.html">Scans and ingest</a></li>
+          <li><a href="database.html">The catalog and backups</a></li>
+          <li><a href="upgrading.html">Upgrading</a></li>
+          <li><a href="sizing.html">Sizing</a></li>
+          <li><a href="statements.html">Charges and statements</a></li>
+          <li><a href="operations.html">Logs, metrics, and operations</a></li>
+          <li><a href="entra-id.html">Signing in with Entra ID</a></li>
+          <li><a href="configuration.html">Configuration</a></li>
+        </ul>
+        <h4>Reference</h4>
+        <ul>
+          <li><a href="cli.html">Command line</a></li>
+          <li><a href="troubleshooting.html">Troubleshooting</a></li>
+          <li><a href="architecture.html">Architecture</a></li>
+          <li><a href="development.html">Development</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <main id="main" class="doc">
+      <h1>Installing on a server</h1>
+      <p class="doc-lede">Services, single sign-on or passwords, and a check that it all works.</p>
+<p>Installing Pinax on a Linux server: the services, single sign-on, scans and keeping them, upgrades, sizing, backups, charges and statements, and operations. The files this guide installs are in <code>deploy/</code>. This guide is checked against the tests and a local run; the pilot installation (wave 15 in <code>pinax-spec/roadmap.md</code>) will confirm it on a real server.</p>
+<h2 id="shape-of-a-deployment">Shape of a deployment</h2>
+<div class="code"><pre><code class="language-text">  Signing in
+    browsers, and scripts with API tokens
+        │ HTTPS
+        ▼
+    oauth2-proxy (single sign-on)  or  nginx/Caddy (HTTPS only)
+        │
+        ▼
+    pinax-web, on 127.0.0.1:8001 ──reads──► catalog and indexes
+
+  Scanning and indexing (paths under /var/lib/pinax)
+    pinax-scan@fast.timer ──► fs-inventory ──► scans/fast/&lt;date&gt;/
+    pinax-ingest, watching scans/ ──► an index in snapshots/</code></pre></div>
+<ul><li><strong>Signing in</strong> is with <strong>passwords</strong> Pinax keeps, out of the box, behind an HTTPS proxy such as nginx or Caddy (<a href="#6-signing-in">Signing in</a>). Optionally, with <strong>single sign-on</strong>, Pinax signs people in with Microsoft Entra ID, or another OpenID Connect provider, itself, behind the same HTTPS proxy (<a href="#sign-in-with-entra-id">Sign-in with Entra ID</a>); or oauth2-proxy signs them in and passes each person's username to Pinax in a header (<a href="#single-sign-on-with-oauth2-proxy">Single sign-on with oauth2-proxy</a>).</li><li><strong>Scans</strong> run where the filesystem is mounted with good metadata performance: the Pinax server itself (the <code>pinax-scan@</code> timer), or a storage node or NFS client that writes into the scan folder. fs-inventory reads only metadata, never file contents.</li><li><strong>Ingest</strong> (<code>pinax-ingest</code>) watches the scan folder and builds an index from each new scan. It needs the scan folder, not the filesystem.</li><li><strong>The web app</strong> (<code>pinax-web</code>) reads only <code>/var/lib/pinax</code>: the catalog and the indexes. It listens on this host only, and with single sign-on believes the username header only from the proxy (<code>PINAX_TRUSTED_PROXIES</code>).</li></ul>
+<h2 id="what-you-need">What you need</h2>
+<ul><li>A Linux server with systemd. 10 or more cores; 16 GB of memory: 8 GB for the index build while it runs, and up to 8 GB for queries (<code>PINAX_QUERY_MEMORY_LIMIT</code>, every open index together); fast local SSD for <code>/var/lib/pinax</code> (see <a href="sizing.html#sizing">Sizing</a>).</li><li><a href="https://docs.astral.sh/uv/">uv</a>, which installs the Python Pinax needs (3.13).</li><li>Read access to the filesystems' metadata from the host that scans them.</li><li><p>A way for people to sign in, one of:</p>
+<ul><li><strong>passwords Pinax keeps</strong>, the default: an HTTPS reverse proxy such as nginx or Caddy in front of Pinax (<a href="#6-signing-in">Signing in</a>);</li><li><strong>single sign-on</strong>, optionally: an OpenID Connect identity provider (for example Microsoft Entra ID), with the same HTTPS proxy (<a href="#sign-in-with-entra-id">Sign-in with Entra ID</a>), or with <a href="https://oauth2-proxy.github.io/oauth2-proxy/">oauth2-proxy</a> 7 in front of Pinax (<a href="#single-sign-on-with-oauth2-proxy">Single sign-on with oauth2-proxy</a>).</li></ul>
+<p>The demo's persona switcher (<code>PINAX_AUTH_MODE=demo</code>) lets anyone be anyone; Pinax refuses to start with it when <code>PINAX_ENVIRONMENT=prod</code>.</p></li></ul>
+<h2 id="install">Install</h2>
+<h3 id="1-a-user-and-folders">1. A user and folders</h3>
+<div class="code"><pre><code class="language-bash">sudo useradd --system --home-dir /var/lib/pinax --shell /usr/sbin/nologin pinax</code></pre></div>
+<div class="code"><pre><code class="language-bash">sudo install -d -o pinax -g pinax -m 0750 /var/lib/pinax /var/lib/pinax/scans</code></pre></div>
+<h3 id="2-pinax-and-fs-inventory">2. Pinax and fs-inventory</h3>
+<div class="code"><pre><code class="language-bash">sudo git clone https://github.com/robert-mcdermott/pinax.git /opt/pinax</code></pre></div>
+<div class="code"><pre><code class="language-bash">cd /opt/pinax &amp;&amp; sudo git checkout v0.14.0 &amp;&amp; sudo env UV_PYTHON_INSTALL_DIR=/opt/pinax/.python uv sync --frozen --no-dev</code></pre></div>
+<div class="code"><pre><code class="language-bash">sudo /opt/pinax/scripts/install-fs-inventory.sh</code></pre></div>
+<p><code>uv sync</code> makes <code>/opt/pinax/.venv</code>, with the locked dependencies only; <code>UV_PYTHON_INSTALL_DIR</code> keeps the Python it installs (if the system has no 3.13) out of root's home, where the <code>pinax</code> user could not run it. The installer puts the pinned fs-inventory release in <code>/opt/pinax/bin/</code>, after checking its SHA-256 and version.</p>
+<h3 id="3-settings">3. Settings</h3>
+<div class="code"><pre><code class="language-bash">sudo install -d -m 0755 /etc/pinax &amp;&amp; sudo install -m 0640 -g pinax /opt/pinax/deploy/pinax.env /etc/pinax/pinax.env</code></pre></div>
+<p><code>/etc/pinax/pinax.env</code> sets production mode, the data folders, and sign-in with passwords; every setting is in <a href="configuration.html">CONFIGURATION.md</a>. To run <code>pinax</code> commands as the service does, define this in your shell:</p>
+<div class="code"><pre><code class="language-bash">pinax() { sudo -u pinax bash -c 'set -a; . /etc/pinax/pinax.env; exec /opt/pinax/.venv/bin/pinax &quot;$@&quot;' pinax &quot;$@&quot;; }</code></pre></div>
+<h3 id="4-filesystems-labs-and-people">4. Filesystems, labs, and people</h3>
+<p>Register each filesystem by the root the scan records, and how people know it if that differs:</p>
+<div class="code"><pre><code class="language-bash">pinax filesystem add fast /fh/fast --name Fast --description &quot;Primary research storage&quot;</code></pre></div>
+<p>If the scanning host mounts it elsewhere (for example <code>/mnt/fast</code>), register that root and add <code>--display-root /fh/fast</code>.</p>
+<p>Then import labs, people, memberships, and folder ownership (<a href="import.html">IMPORT.md</a>); give IT staff <code>is_admin</code> <code>true</code> in <code>people.csv</code>. Look at the dry run, then apply it:</p>
+<div class="code"><pre><code class="language-bash">pinax import /srv/pinax/onboarding</code></pre></div>
+<div class="code"><pre><code class="language-bash">pinax import /srv/pinax/onboarding --apply</code></pre></div>
+<p>With single sign-on, usernames must be what the proxy sends (<a href="#single-sign-on-with-oauth2-proxy">Single sign-on with oauth2-proxy</a>): with Entra ID and the default header, the user principal name, such as <code>jdoe@example.org</code>. People, labs, and departments can also be added and changed one at a time under <em>People and access</em>, and folders mapped under <em>Folders and labs</em>. Someone must be added, and active, before they can sign in.</p>
+<h3 id="5-the-services">5. The services</h3>
+<div class="code"><pre><code class="language-bash">sudo cp /opt/pinax/deploy/systemd/pinax-*.service /opt/pinax/deploy/systemd/pinax-scan@.timer /etc/systemd/system/</code></pre></div>
+<div class="code"><pre><code class="language-bash">sudo systemctl daemon-reload &amp;&amp; sudo systemctl enable --now pinax-web pinax-ingest</code></pre></div>
+<div class="code"><pre><code class="language-bash">sudo systemctl enable --now pinax-scan@fast.timer</code></pre></div>
+<div class="table-wrap"><table><thead><tr><th>Unit</th><th>What it runs</th></tr></thead><tbody><tr><td><code>pinax-web.service</code></td><td><code>pinax serve</code> on 127.0.0.1:8001</td></tr><tr><td><code>pinax-ingest.service</code></td><td><code>pinax ingest --watch</code>: each new scan in <code>PINAX_SCAN_ROOT</code>, once (<a href="scanning.html#scans">Scans</a>)</td></tr><tr><td><code>pinax-scan@.service</code>, <code>.timer</code></td><td><code>pinax scan &lt;filesystem&gt; --no-ingest</code>, weekly (Sunday 01:00); one timer per filesystem</td></tr></tbody></table></div>
+<p>All run as <code>pinax</code>, with the filesystem read-only to them except <code>/var/lib/pinax</code> (change <code>ReadWritePaths</code> if <code>PINAX_VAR_ROOT</code> or <code>PINAX_SCAN_ROOT</code> is elsewhere). The scan service has one capability, <code>CAP_DAC_READ_SEARCH</code>, so that it can list every directory and read every file's metadata without running as root. If scans run on another host instead, skip the timer and have that host write into <code>/var/lib/pinax/scans</code> (or another folder <code>pinax-ingest</code> watches).</p>
+<h3 id="6-signing-in">6. Signing in</h3>
+<p>Out of the box, people sign in with a username and a password that Pinax keeps, hashed with scrypt (<code>PINAX_AUTH_MODE=local</code>, as <code>deploy/pinax.env</code> sets it; it is also the default outside the demo). Put an HTTPS reverse proxy in front of Pinax (nginx, Caddy, or a load balancer, forwarding to <code>127.0.0.1:8001</code>): in production the session cookie is sent only over HTTPS. Let it wait longer for an answer than <code>PINAX_QUERY_TIMEOUT</code> (180 seconds), so a long search ends with Pinax's explanation rather than a gateway error: for nginx, <code>proxy_read_timeout 300s;</code> (its default is 60 seconds).</p>
+<p>Nobody can sign in until someone has a password, so make the first administrator on the server. It prints a temporary password, which they must change when they first sign in:</p>
+<div class="code"><pre><code class="language-bash">pinax user add jdoe@example.org --name &quot;Jane Doe&quot; --email jdoe@example.org --admin</code></pre></div>
+<p>(<code>pinax</code> here is the shell function from step 3, which runs it as the service does.)</p>
+<p>From then on, administrators add people and give them temporary passwords under <em>People and access</em>; Pinax makes each password up and shows it once. A forgotten password, or an account locked after five failed sign-ins (for 15 minutes), needs a new temporary password from an administrator, or <code>pinax user password USERNAME</code> on the server. Sessions last 12 hours and end on signing out, on deactivation, and when a password is set or changed. Every sign-in, failure, lock, and password change is in the audit log, never the passwords. Add the reverse proxy's address to <code>PINAX_TRUSTED_PROXIES</code>, so the log, the audit, and each session record the person's own address from <code>X-Forwarded-For</code> rather than the proxy's. One limit: failures lock an account rather than slowing down an address. Scripts send API tokens instead of passwords, to <code>/api/...</code> or <code>/script/api/...</code> alike.</p>
+<figure><div class="shot"><img class="shot-light" src="../assets/img/sign-in-light.webp" width="2000" height="1250" loading="lazy" alt="The sign-in page with local sign-in" /><img class="shot-dark" src="../assets/img/sign-in-dark.webp" width="2000" height="1250" loading="lazy" alt="The sign-in page with local sign-in" /></div><figcaption>Local sign-in: a username and a password Pinax keeps.</figcaption></figure>
+<h3 id="sign-in-with-entra-id">Sign-in with Entra ID</h3>
+<p>Optionally, a site with Microsoft Entra ID, or another OpenID Connect provider, has Pinax sign people in with it itself, behind the same HTTPS proxy as above, with no other proxy: IT registers Pinax as an application, and <code>/etc/pinax/pinax.env</code> takes <code>PINAX_AUTH_MODE=oidc</code> and the provider's settings (commented there). Pinax refuses to start until they are complete. <a href="entra-id.html">Signing in with Entra ID</a> has the request for IT, the settings, how to try it on a laptop with a stand-in provider, and what its errors mean.</p>
+<h3 id="single-sign-on-with-oauth2-proxy">Single sign-on with oauth2-proxy</h3>
+<p>Optionally, too, oauth2-proxy signs people in with an OpenID Connect provider, in place of the HTTPS proxy above, and passes each person's username to Pinax in a header. In <code>/etc/pinax/pinax.env</code>, set <code>PINAX_AUTH_MODE=header</code> and <code>PINAX_AUTH_HEADER=X-Forwarded-Preferred-Username</code> (both are there, commented), then:</p>
+<ol><li>Register an application with the identity provider, with the redirect URI <code>https://pinax.example.org/oauth2/callback</code>, and create a client secret.</li><li>Install oauth2-proxy 7 (7.3 or later, for <code>upstream_timeout</code>) as <code>/usr/local/bin/oauth2-proxy</code>, and a system user for it.</li><li>Copy and edit its files: <code>deploy/oauth2-proxy/pinax.cfg</code> to <code>/etc/oauth2-proxy/pinax.cfg</code> (tenant, client ID, email domain, address), the client secret to <code>/etc/oauth2-proxy/client-secret</code>, and <code>deploy/oauth2-proxy/pinax.env</code> to <code>/etc/oauth2-proxy/pinax.env</code> with a cookie secret. Make the secrets readable only by the oauth2-proxy user.</li><li>Start it: <code>deploy/oauth2-proxy/oauth2-proxy.service</code>, if your package has no unit of its own.</li></ol>
+<p>oauth2-proxy signs people in, removes any user headers a browser sends, and passes the signed-in user to Pinax as <code>X-Forwarded-User</code>, <code>X-Forwarded-Email</code>, and <code>X-Forwarded-Preferred-Username</code>. <code>PINAX_AUTH_HEADER</code> says which one is the Pinax username. Pinax believes it only from <code>PINAX_TRUSTED_PROXIES</code> (this host, by default); the same header from anywhere else gets <em>401</em>. If oauth2-proxy runs on another host, put its address in <code>PINAX_TRUSTED_PROXIES</code> and make Pinax listen where only that host can reach it. It waits five minutes for an answer from Pinax (<code>upstream_timeout</code>; its default is 30 seconds), longer than Pinax lets a request run (<code>PINAX_QUERY_TIMEOUT</code>, 180 seconds), so a long search ends with Pinax saying why. <code>/api/health</code> is open without sign-in, for monitoring. So is <code>/script/api/</code>, for scripts with API tokens: Pinax answers there only with a live token in the <code>Authorization</code> header, never the sign-on header, and the proxy passes that header on as it is (leave <code>pass_authorization_header</code> and <code>set_authorization_header</code> off). Scripts behind the proxy use <code>https://pinax.example.org/script/api/...</code> (<a href="api-tokens.html#api-tokens-for-scripts">API tokens for scripts</a>).</p>
+<p>A site moving from passwords keeps its people, labs, and memberships; passwords are no longer used. Usernames must then be what the proxy sends (with Entra ID, usually the user principal name, such as <code>jdoe@example.org</code>), so a site that may move should use those usernames from the start.</p>
+<h3 id="7-check-the-installation">7. Check the installation</h3>
+<div class="code"><pre><code class="language-bash">curl -s http://127.0.0.1:8001/api/health</code></pre></div>
+<p>It answers <code>{&quot;status&quot;: &quot;ok&quot;, ...}</code>. Sign in as an administrator (with your password, or through oauth2-proxy) and open <em>Scans</em>: <em>Automatic ingest</em> should say <em>Watching</em>. Run the first scan rather than waiting for Sunday:</p>
+<div class="code"><pre><code class="language-bash">sudo systemctl start pinax-scan@fast</code></pre></div>
+<p>When it has been ingested (<code>journalctl -u pinax-ingest -f</code>, or <em>Scans</em>), check its numbers against fs-inventory's own (the ID is on <em>Scans</em>, or from <code>pinax snapshots</code>):</p>
+<div class="code"><pre><code class="language-bash">pinax check 1</code></pre></div>
+
+      <nav class="doc-pager" aria-label="Pages">
+        <a class="prev" href="setup.html"><span>Previous</span>Trying Pinax on your own data</a>
+        <a class="next" href="scanning.html"><span>Next</span>Scans and ingest</a>
+      </nav>
+    </main>
+
+    <aside class="toc" aria-label="On this page">
+      <h4>On this page</h4>
+      <ul></ul>
+    </aside>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-about">
+          <a class="brand" href="../"><img src="../assets/img/pinax-mark.svg" alt="" width="30" height="30" /><span class="brand-name">Pinax</span></a>
+          <p>File system reporting for research storage, built on fs-inventory scans. Free and open source under the Apache License 2.0.</p>
+        </div>
+        <div>
+          <h4>Use</h4>
+          <ul>
+            <li><a href="../docs/my-data.html">User guide</a></li>
+            <li><a href="../docs/age-map.html">The age map</a></li>
+            <li><a href="../docs/charges.html">Storage charges</a></li>
+            <li><a href="../docs/demo.html">The demo</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Run</h4>
+          <ul>
+            <li><a href="../docs/install.html">Installing</a></li>
+            <li><a href="../docs/administration.html">Administration</a></li>
+            <li><a href="../docs/configuration.html">Configuration</a></li>
+            <li><a href="../docs/troubleshooting.html">Troubleshooting</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Project</h4>
+          <ul>
+            <li><a href="https://github.com/robert-mcdermott/pinax">GitHub</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/releases">Releases</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/blob/main/CHANGELOG.md">Changelog</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/issues">Issues</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">Pinax 0.14.0 · Apache License 2.0 · The screenshots are of the demo, whose labs, people, and data are fictional.</div>
+    </div>
+  </footer>
+</body>
+</html>

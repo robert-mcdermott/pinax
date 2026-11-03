@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>People and access · Pinax</title>
+  <meta name="description" content="Who can sign in, what each person sees, who administers Pinax, the tokens scripts use, and reviewing it all." />
+  <meta property="og:title" content="People and access" />
+  <meta property="og:description" content="Who can sign in, what each person sees, who administers Pinax, the tokens scripts use, and reviewing it all." />
+  <meta name="theme-color" content="#18365D" />
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="../assets/css/site.css" />
+  <script>try { const t = localStorage.getItem('pinax-site-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+  <script src="../assets/js/site.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container">
+      <a class="brand" href="../"><img src="../assets/img/pinax-mark.svg" alt="" width="34" height="34" /><span class="brand-name">Pinax<small>Explore your data</small></span></a>
+      <nav class="site-nav" id="site-nav" aria-label="Main">
+        <a href="../#features">Features</a>
+        <a href="../docs/my-data.html">User guide</a>
+        <a href="../docs/administration.html" aria-current="page">Administration</a>
+        <a href="../docs/install.html">Install</a>
+        <a href="../docs/">Documentation</a>
+      </nav>
+      <div class="header-actions">
+        <a class="icon-button" href="https://github.com/robert-mcdermott/pinax" aria-label="Pinax on GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg></a>
+        <button class="icon-button theme-toggle" type="button" aria-label="Switch between light and dark"><svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg><svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+        <button class="icon-button nav-toggle" type="button" aria-label="Menu" aria-controls="site-nav" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      </div>
+    </div>
+  </header>
+
+  <div class="docs-layout">
+    <aside class="docs-sidebar" aria-label="Documentation">
+      <button class="btn docs-menu-toggle" type="button" aria-expanded="false">Documentation menu <span aria-hidden="true">▾</span></button>
+      <nav>
+        <h4>Start</h4>
+        <ul>
+          <li><a href="./">Documentation</a></li>
+          <li><a href="concepts.html">How Pinax sees storage</a></li>
+          <li><a href="demo.html">The demo</a></li>
+        </ul>
+        <h4>User guide</h4>
+        <ul>
+          <li><a href="my-data.html">Signing in and My data</a></li>
+          <li><a href="age-map.html">The age map</a></li>
+          <li><a href="history.html">History and forecasts</a></li>
+          <li><a href="changes.html">Change map and what changed</a></li>
+          <li><a href="reports.html">Reports</a></li>
+          <li><a href="find-files.html">Finding files</a></li>
+          <li><a href="charges.html">Storage charges</a></li>
+          <li><a href="cleanup-plans.html">Cleanup plans</a></li>
+          <li><a href="tags.html">Tags and collections</a></li>
+          <li><a href="saved-views.html">Saved views and earlier scans</a></li>
+          <li><a href="api-tokens.html">API tokens for scripts</a></li>
+        </ul>
+        <h4>Administration</h4>
+        <ul>
+          <li><a href="administration.html">Administering Pinax</a></li>
+          <li><a href="folders-and-labs.html">Folders and labs</a></li>
+          <li><a href="people.html" aria-current="page">People and access</a></li>
+          <li><a href="scans.html">Scans and storage health</a></li>
+          <li><a href="capacity.html">Capacity</a></li>
+          <li><a href="costs.html">Costs and chargeback</a></li>
+          <li><a href="tags-admin.html">Tags, categories, plans, and the audit log</a></li>
+          <li><a href="import.html">Importing labs and people</a></li>
+        </ul>
+        <h4>Installation and operations</h4>
+        <ul>
+          <li><a href="setup.html">Trying Pinax on your own data</a></li>
+          <li><a href="install.html">Installing on a server</a></li>
+          <li><a href="scanning.html">Scans and ingest</a></li>
+          <li><a href="database.html">The catalog and backups</a></li>
+          <li><a href="upgrading.html">Upgrading</a></li>
+          <li><a href="sizing.html">Sizing</a></li>
+          <li><a href="statements.html">Charges and statements</a></li>
+          <li><a href="operations.html">Logs, metrics, and operations</a></li>
+          <li><a href="entra-id.html">Signing in with Entra ID</a></li>
+          <li><a href="configuration.html">Configuration</a></li>
+        </ul>
+        <h4>Reference</h4>
+        <ul>
+          <li><a href="cli.html">Command line</a></li>
+          <li><a href="troubleshooting.html">Troubleshooting</a></li>
+          <li><a href="architecture.html">Architecture</a></li>
+          <li><a href="development.html">Development</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <main id="main" class="doc">
+      <h1>People and access</h1>
+      <p class="doc-lede">Who can sign in, what each person sees, who administers Pinax, the tokens scripts use, and reviewing it all.</p>
+<h2 id="people-and-access">People and access</h2>
+<p>Who can sign in, what each person sees, and who administers Pinax. <em>People</em> lists everyone, with their username, labs and roles, and status; the tabs narrow it to administrators, people with site roles, people with no access, and inactive people; <em>Search</em> finds by name, username, email, or title.</p>
+<figure><div class="shot"><img class="shot-light" src="../assets/img/people-light.webp" width="2000" height="1250" loading="lazy" alt="People and access" /><img class="shot-dark" src="../assets/img/people-dark.webp" width="2000" height="1250" loading="lazy" alt="People and access" /></div><figcaption>People and access: two storage administrators, PIs, delegates, and a staff scientist in a lab and a department.</figcaption></figure>
+<p><strong>Add person</strong>: a username (with single sign-on, exactly the name the proxy sends; with Entra ID, usually the user principal name), a name, an email, a title, and a lab with a role. The panel shows the folders they will see before you save. A person's page has their profile, their labs and roles, the administrator role, and their recent changes from the audit log:</p>
+<ul><li><strong>Labs</strong>: add them to a lab or department as PI (or owner) or delegate, change the role, or take them out.</li><li><strong>Site roles</strong>: storage administrator, auditor, finance, or head of one or more divisions, beside any labs (<a href="#site-roles">Site roles</a>).</li><li><strong>Deactivate</strong>: they cannot sign in, and their memberships and role are kept, unused, until <em>Reactivate</em>; their sessions end and their API tokens are revoked.</li><li><strong>API tokens</strong>: theirs, with when each was last used, to revoke (<a href="#api-tokens">API tokens</a>).</li><li><strong>Set a new temporary password</strong> (local sign-in): Pinax shows it once; they must change it when they next sign in. It also unlocks a locked account and ends their sessions.</li></ul>
+<figure><div class="shot"><img class="shot-light" src="../assets/img/person-light.webp" width="2000" height="1250" loading="lazy" alt="A person's page" /><img class="shot-dark" src="../assets/img/person-dark.webp" width="2000" height="1250" loading="lazy" alt="A person's page" /></div><figcaption>Jordan Okafor's page: a delegate for two labs.</figcaption></figure>
+<h3 id="site-roles">Site roles</h3>
+<p>Beside lab memberships, a person can have site roles, given and taken away on their page, each change audited. A person can have several (a finance officer who is also a PI), and every role works with every way of signing in.</p>
+<div class="table-wrap"><table><thead><tr><th>Role</th><th>Sees</th><th>Changes</th></tr></thead><tbody><tr><td>Storage administrator</td><td>Everything</td><td>Everything: people, labs, folder ownership, prices, capacity, the tags, and any lab's tags and plan</td></tr><tr><td>Auditor</td><td>Everything a storage administrator sees, people and the audit log included</td><td>Nothing</td></tr><tr><td>Finance</td><td>Every lab's and department's charges (<em>Storage charges</em> of any of them, <em>Chargeback</em> and its statement), and the prices, free tiers, and capacities behind them</td><td>Nothing; sees no folders, files, or people</td></tr><tr><td>Division head</td><td>Each lab in the divisions chosen (a lab's <em>Division</em>) as its members see it: its folders and every report, its charges, its plan, and its collections</td><td>Nothing: tagging and planning stay with each lab's PI and delegates</td></tr><tr><td>PI, owner, or delegate</td><td>Their lab's or department's folders and every report, its charges, plan, and collections</td><td>Its folders' tags and its cleanup plan</td></tr></tbody></table></div>
+<p>With sign-in through Entra ID, a site may map some or all of these roles from Entra ID instead: those show <em>From Entra ID</em> on a person's page, and are set when the person signs in (<a href="entra-id.html#roles-from-entra-id">Roles from Entra ID</a>).</p>
+<p>Pages show each person what they may use: an auditor sees the administration pages without their buttons, and finance a sidebar of charges. Every check is made on the server, for every request (<a href="architecture.html#security">Security</a>). A division head's labs follow the labs' <em>Division</em>: change a lab's division, and its folders move to the new division's heads.</p>
+<figure><div class="shot"><img class="shot-light" src="../assets/img/person-roles-light.webp" width="2000" height="1250" loading="lazy" alt="A division head's page" /><img class="shot-dark" src="../assets/img/person-roles-dark.webp" width="2000" height="1250" loading="lazy" alt="A division head's page" /></div><figcaption>Grace Whitfield, head of Basic Sciences: no lab of her own, and the folders of its three labs to read.</figcaption></figure>
+<p><strong>Labs and departments</strong> lists every lab and department with its members and folders. <em>Add lab or department</em> adds one: a slug (its short ID), a name, whether it is a lab or a department (which decides its free tier), its division, and its research area. A lab's page changes its details or deactivates it: its members stop seeing its folders, which stay its own, and charged to it, until they are moved.</p>
+<figure><div class="shot"><img class="shot-light" src="../assets/img/labs-light.webp" width="2000" height="1250" loading="lazy" alt="Labs and departments" /><img class="shot-dark" src="../assets/img/labs-dark.webp" width="2000" height="1250" loading="lazy" alt="Labs and departments" /></div><figcaption>Labs and departments, with their members and folders.</figcaption></figure>
+<figure><div class="shot"><img class="shot-light" src="../assets/img/lab-light.webp" width="2000" height="1250" loading="lazy" alt="A lab's page" /><img class="shot-dark" src="../assets/img/lab-dark.webp" width="2000" height="1250" loading="lazy" alt="A lab's page" /></div><figcaption>The Fujimoto Lab's page: its folders, members, and recent changes.</figcaption></figure>
+<p>For many people at once, <code>pinax import</code> reads CSV files with a dry run first (<a href="import.html">IMPORT.md</a>).</p>
+<h2 id="api-tokens">API tokens</h2>
+<p>Scripts read Pinax, or act for someone, with API tokens instead of signing in, however people sign in (<a href="api-tokens.html#api-tokens-for-scripts">API tokens for scripts</a>). <em>API tokens</em>, in the sidebar for administrators and auditors and in everyone's menu, has three lists:</p>
+<ul><li><strong>Your tokens</strong>: everyone makes their own, reading only or with their access, for a week to a year (<code>PINAX_TOKEN_MAX_DAYS</code>, 365 by default). Pinax shows each once and keeps only its SHA-256.</li><li><strong>Service tokens</strong>: for a service rather than a person, such as a finance system or a dashboard. An administrator names the service and chooses what it reads: as finance (every lab's charges, the chargeback statement, and the prices behind them) or as an auditor (everything). A service token belongs to no one, so it keeps working when whoever made it leaves, and it only reads.</li><li><strong>Everyone else's tokens</strong>, with when each was made, when it expires, and when and from where it was last used.</li></ul>
+<p>An administrator can <strong>Revoke</strong> any token, here or on its person's page; a person revokes their own. Deactivating a person revokes their tokens, and reactivating them does not bring them back. Making and revoking a token is audited, and so is every change made with one, with the token's name: <em>with the token “…”</em> in a person's or lab's recent changes, and <code>token</code> in the event's detail. No token can make or revoke tokens, or change a password.</p>
+<figure><div class="shot"><img class="shot-light" src="../assets/img/tokens-light.webp" width="2000" height="1250" loading="lazy" alt="API tokens" /><img class="shot-dark" src="../assets/img/tokens-dark.webp" width="2000" height="1250" loading="lazy" alt="API tokens" /></div><figcaption>Priya Natarajan's tokens page: her own token, then the service tokens, each with when and from where it was last used.</figcaption></figure>
+<h2 id="access-review">Access review</h2>
+<p>Who has access to what, as of now, for a periodic review (a recertification) and a record that it was done. <em>Access review</em>, in the sidebar of administrators and auditors, has:</p>
+<ul><li><strong>Worth a look</strong>: active labs and departments with no PI or owner, people who can sign in and see nothing, API tokens that can make changes, emergency accounts (with when each was last used), and, where Pinax signs people in itself, people with access who have not signed in for 90 days. A token that can make changes is kept by a script, not behind a sign-in, so whoever has it acts as its person, with whatever access that person has now (more, if they are given more): each shows when it expires and was last used. Check that it is still used and still needs to change things; if not, revoke it and make one that only reads. An emergency account signs in with a password when sign-in with Entra ID fails (<a href="entra-id.html#when-entra-id-fails-the-emergency-sign-in">When Entra ID fails</a>); check that each is still needed.</li><li><strong>Site roles</strong>: every storage administrator, auditor, finance officer, and division head, with when each was given.</li><li><strong>Labs and departments</strong>: each one's members and their roles, with when each was given, the heads of its division, and its folders, with when it came to own each where that was changed in Pinax.</li><li><strong>People</strong>: each active person's access, the folders they see and why (<em>via</em> a lab, or as head of a division), their live API tokens, and, with local sign-in, when they last signed in.</li></ul>
+<p><em>Find</em> narrows every list to a person, lab, division, role, or folder. <strong>Download CSV</strong> has a row for each piece of access each person has (one saying <em>none</em> for someone who sees nothing), with what it lets them see and since when, for a spreadsheet or the review's record. Only active people and labs are listed: deactivated ones give no access, and are counted.</p>
+<p><strong>Record a review</strong>, once you have gone through it, keeps who reviewed it, when, a note, and how much access there was, in the audit log (<code>access.reviewed</code>); <em>Reviews</em> lists the latest. It changes no one's access, so auditors may record it too.</p>
+<p>Pinax records when access was given from 0.12.0 on: a role or membership given before says <em>Not recorded</em>. Changing a member's role (delegate to PI) gives it again, from then.</p>
+<figure><div class="shot"><img class="shot-light" src="../assets/img/access-review-light.webp" width="2000" height="1250" loading="lazy" alt="The access review" /><img class="shot-dark" src="../assets/img/access-review-dark.webp" width="2000" height="1250" loading="lazy" alt="The access review" /></div><figcaption>Helen Marsh's access review: what is worth a look, the site roles with when each was given, and her review recorded.</figcaption></figure>
+
+      <nav class="doc-pager" aria-label="Pages">
+        <a class="prev" href="folders-and-labs.html"><span>Previous</span>Folders and labs</a>
+        <a class="next" href="scans.html"><span>Next</span>Scans and storage health</a>
+      </nav>
+    </main>
+
+    <aside class="toc" aria-label="On this page">
+      <h4>On this page</h4>
+      <ul></ul>
+    </aside>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-about">
+          <a class="brand" href="../"><img src="../assets/img/pinax-mark.svg" alt="" width="30" height="30" /><span class="brand-name">Pinax</span></a>
+          <p>File system reporting for research storage, built on fs-inventory scans. Free and open source under the Apache License 2.0.</p>
+        </div>
+        <div>
+          <h4>Use</h4>
+          <ul>
+            <li><a href="../docs/my-data.html">User guide</a></li>
+            <li><a href="../docs/age-map.html">The age map</a></li>
+            <li><a href="../docs/charges.html">Storage charges</a></li>
+            <li><a href="../docs/demo.html">The demo</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Run</h4>
+          <ul>
+            <li><a href="../docs/install.html">Installing</a></li>
+            <li><a href="../docs/administration.html">Administration</a></li>
+            <li><a href="../docs/configuration.html">Configuration</a></li>
+            <li><a href="../docs/troubleshooting.html">Troubleshooting</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Project</h4>
+          <ul>
+            <li><a href="https://github.com/robert-mcdermott/pinax">GitHub</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/releases">Releases</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/blob/main/CHANGELOG.md">Changelog</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/issues">Issues</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">Pinax 0.14.0 · Apache License 2.0 · The screenshots are of the demo, whose labs, people, and data are fictional.</div>
+    </div>
+  </footer>
+</body>
+</html>

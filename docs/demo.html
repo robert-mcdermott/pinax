@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The demo · Pinax</title>
+  <meta name="description" content="Pinax with fictional labs and six months of scans, in one command, and a walk-through with a step for each role." />
+  <meta property="og:title" content="The demo" />
+  <meta property="og:description" content="Pinax with fictional labs and six months of scans, in one command, and a walk-through with a step for each role." />
+  <meta name="theme-color" content="#18365D" />
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="../assets/css/site.css" />
+  <script>try { const t = localStorage.getItem('pinax-site-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+  <script src="../assets/js/site.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container">
+      <a class="brand" href="../"><img src="../assets/img/pinax-mark.svg" alt="" width="34" height="34" /><span class="brand-name">Pinax<small>Explore your data</small></span></a>
+      <nav class="site-nav" id="site-nav" aria-label="Main">
+        <a href="../#features">Features</a>
+        <a href="../docs/my-data.html">User guide</a>
+        <a href="../docs/administration.html">Administration</a>
+        <a href="../docs/install.html">Install</a>
+        <a href="../docs/" aria-current="page">Documentation</a>
+      </nav>
+      <div class="header-actions">
+        <a class="icon-button" href="https://github.com/robert-mcdermott/pinax" aria-label="Pinax on GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg></a>
+        <button class="icon-button theme-toggle" type="button" aria-label="Switch between light and dark"><svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg><svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+        <button class="icon-button nav-toggle" type="button" aria-label="Menu" aria-controls="site-nav" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      </div>
+    </div>
+  </header>
+
+  <div class="docs-layout">
+    <aside class="docs-sidebar" aria-label="Documentation">
+      <button class="btn docs-menu-toggle" type="button" aria-expanded="false">Documentation menu <span aria-hidden="true">▾</span></button>
+      <nav>
+        <h4>Start</h4>
+        <ul>
+          <li><a href="./">Documentation</a></li>
+          <li><a href="concepts.html">How Pinax sees storage</a></li>
+          <li><a href="demo.html" aria-current="page">The demo</a></li>
+        </ul>
+        <h4>User guide</h4>
+        <ul>
+          <li><a href="my-data.html">Signing in and My data</a></li>
+          <li><a href="age-map.html">The age map</a></li>
+          <li><a href="history.html">History and forecasts</a></li>
+          <li><a href="changes.html">Change map and what changed</a></li>
+          <li><a href="reports.html">Reports</a></li>
+          <li><a href="find-files.html">Finding files</a></li>
+          <li><a href="charges.html">Storage charges</a></li>
+          <li><a href="cleanup-plans.html">Cleanup plans</a></li>
+          <li><a href="tags.html">Tags and collections</a></li>
+          <li><a href="saved-views.html">Saved views and earlier scans</a></li>
+          <li><a href="api-tokens.html">API tokens for scripts</a></li>
+        </ul>
+        <h4>Administration</h4>
+        <ul>
+          <li><a href="administration.html">Administering Pinax</a></li>
+          <li><a href="folders-and-labs.html">Folders and labs</a></li>
+          <li><a href="people.html">People and access</a></li>
+          <li><a href="scans.html">Scans and storage health</a></li>
+          <li><a href="capacity.html">Capacity</a></li>
+          <li><a href="costs.html">Costs and chargeback</a></li>
+          <li><a href="tags-admin.html">Tags, categories, plans, and the audit log</a></li>
+          <li><a href="import.html">Importing labs and people</a></li>
+        </ul>
+        <h4>Installation and operations</h4>
+        <ul>
+          <li><a href="setup.html">Trying Pinax on your own data</a></li>
+          <li><a href="install.html">Installing on a server</a></li>
+          <li><a href="scanning.html">Scans and ingest</a></li>
+          <li><a href="database.html">The catalog and backups</a></li>
+          <li><a href="upgrading.html">Upgrading</a></li>
+          <li><a href="sizing.html">Sizing</a></li>
+          <li><a href="statements.html">Charges and statements</a></li>
+          <li><a href="operations.html">Logs, metrics, and operations</a></li>
+          <li><a href="entra-id.html">Signing in with Entra ID</a></li>
+          <li><a href="configuration.html">Configuration</a></li>
+        </ul>
+        <h4>Reference</h4>
+        <ul>
+          <li><a href="cli.html">Command line</a></li>
+          <li><a href="troubleshooting.html">Troubleshooting</a></li>
+          <li><a href="architecture.html">Architecture</a></li>
+          <li><a href="development.html">Development</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <main id="main" class="doc">
+      <h1>The demo</h1>
+      <p class="doc-lede">Pinax with fictional labs and six months of scans, in one command, and a walk-through with a step for each role.</p>
+<p>The demo shows Pinax with no setup: two research filesystems, six months of scans, labs and departments, people to sign in as, and storage prices. Everything it shows comes from real fs-inventory scans of files the seed writes. This guide says how to run it, what is in it, and how to walk through it.</p>
+<h2 id="running-it">Running it</h2>
+<p>Requires <a href="https://docs.astral.sh/uv/">uv</a>. Install the pinned fs-inventory release into <code>bin/</code> (the script verifies its SHA-256 checksum), then the Python packages, then the demo:</p>
+<div class="code"><pre><code class="language-bash">scripts/install-fs-inventory.sh</code></pre></div>
+<div class="code"><pre><code class="language-bash">uv sync</code></pre></div>
+<div class="code"><pre><code class="language-bash">uv run pinax seed</code></pre></div>
+<div class="code"><pre><code class="language-bash">uv run pinax serve</code></pre></div>
+<p>Then open <a href="http://127.0.0.1:8001">http://127.0.0.1:8001</a> and choose who to be.</p>
+<p><code>pinax seed</code> writes two demo filesystems of about 35,000 <em>sparse</em> files (123 TB of logical size on under 10 MB of disk), with realistic ages going back fifteen years. It scans each one six times with fs-inventory, with six months of simulated activity in between, dates the scans a month apart (the last one today), and ingests them. It takes about fifteen seconds. Run it again at any time to start over: it resets <code>var/</code> and <code>demo/</code> each time, so it also undoes whatever you changed during a demo. <code>--scale 0.5</code> writes about half as many files (the walk-through's numbers are for the default).</p>
+<p>The demo's catalog is SQLite in <code>var/</code>, with nothing else to run. It runs the same on PostgreSQL: with the driver installed (<code>uv sync --extra postgres</code>) and <code>PINAX_DATABASE_URL</code> pointing at an empty database, <code>pinax seed</code> fills it and <code>pinax serve</code> uses it (<a href="database.html#postgresql">PostgreSQL</a>).</p>
+<p>Sign-in in the demo is a persona switcher (<code>PINAX_AUTH_MODE=demo</code>, the default in the demo): anyone can be anyone, and <em>Switch identity</em> (top right) changes who you are. That is fine on a laptop and wrong anywhere else, so Pinax refuses to start in demo mode when <code>PINAX_ENVIRONMENT=prod</code>. And since seeding deletes the catalog, <code>pinax seed</code> runs only when <code>PINAX_ENVIRONMENT=demo</code> (the default), never on a catalog set up for real data. To try Pinax on real data instead, see <a href="setup.html">SETUP.md</a>.</p>
+<h2 id="who-is-who">Who is who</h2>
+<p>The seed adds 14 labs and departments and 23 people; all names are fictional. The ones the walk-through uses:</p>
+<div class="table-wrap"><table><thead><tr><th>Person</th><th>Who they are</th><th>What they see</th></tr></thead><tbody><tr><td>Hanna Lindqvist</td><td>PI of the Lindqvist Lab (whole-genome sequencing)</td><td>One folder on <em>Fast</em>, mostly years old, and its charges</td></tr><tr><td>Aiko Fujimoto</td><td>PI of the Fujimoto Lab (single-cell genomics)</td><td>A lab that grows every month</td></tr><tr><td>Jordan Okafor</td><td>Lab manager, a delegate for the Fujimoto and Garcia labs</td><td>Both labs' folders side by side</td></tr><tr><td>Valeria Quintero</td><td>PI of the Quintero Lab</td><td>A lab that joins at the fourth scan</td></tr><tr><td>Casey Morgan</td><td>Director of the Genomics Shared Resource, a department</td><td>The department's sequencing folders</td></tr><tr><td>Avery Wong</td><td>Staff scientist, a delegate for a lab and a department</td><td>Folders from both</td></tr><tr><td>Riya Patel</td><td>Postdoctoral fellow</td><td>Nothing yet: no lab access</td></tr><tr><td>Grace Whitfield</td><td>Head of the Basic Sciences division</td><td>The Alvarez, Fujimoto, and Kowalski labs, to read</td></tr><tr><td>Daniel Osei</td><td>Research finance analyst</td><td>Every lab's charges, the prices, and the capacities; no folders</td></tr><tr><td>Helen Marsh</td><td>Research compliance officer, an auditor</td><td>Everything, to read</td></tr><tr><td>Priya Natarajan, Sam Rivera</td><td>Storage administrators</td><td>Everything, and the administration pages</td></tr></tbody></table></div>
+<p>Three top-level folders belong to no one (<code>scratch_legacy</code> and <code>shared_reference</code> on <em>Fast</em>, <code>irb_archive</code> on <em>Secure</em>), so only administrators and the auditor see them, and nobody is charged for them.</p>
+<h2 id="the-six-months">The six months</h2>
+<p>The six scans of each filesystem are dated a month apart, the last one on the day you seed. Every month the Genomics Shared Resource delivers two Illumina runs and a nanopore run, the Fujimoto Lab adds a batch of samples (it grows from 21 to 27 TB), and a few other labs add results. Besides that:</p>
+<div class="table-wrap"><table><thead><tr><th>Scan</th><th>Since the scan before</th></tr></thead><tbody><tr><td>1</td><td>The starting point, five months ago</td></tr><tr><td>2</td><td>The Fujimoto Lab's Cell Ranger results arrive; the Chen and Haddad labs delete temporary files and checkpoints</td></tr><tr><td>3</td><td>A light-sheet project moves from the Bennett Lab to the Haddad Lab (<code>haddad_n/datasets/2024_lightsheet_bennett</code>)</td></tr><tr><td>4</td><td>The Quintero Lab joins, mostly with data from the PI's previous institution: new here, but years old</td></tr><tr><td>5</td><td>The Lindqvist Lab compresses its uncompressed FASTQ files (<code>wgs/2024_germline/fastq_uncompressed</code> becomes <code>fastq</code>)</td></tr><tr><td>6</td><td>The Fujimoto Lab writes its atlas; the Dasgupta Lab deletes its 2016 cohort, as the cleanup plan it made after scan 5 says, and renames the manuscript folder it planned to delete (<code>manuscripts/2021_draft</code> becomes <code>2021_published</code>)</td></tr></tbody></table></div>
+<p>Meanwhile nobody touches the Kowalski Lab's <code>raw/2024_tmt_plex</code>, which ages past two years: the lab's cold share climbs from 64% to 100% at the same size. <em>History</em> shows all of it, the <em>Change map</em> where each change is, and <em>What changed</em> lists them.</p>
+<h2 id="prices">Prices</h2>
+<p>Storage has prices, so the six months make six months of charges. <em>Fast</em> costs $25 per TB a month, and $22 from the 16th of last month; every lab has a terabyte of it free and departments none, and the Lindqvist Lab has its own 5 TB from the 10th of last month (a grant's allocation). <em>Secure</em> costs $40 per TiB, with nothing free.</p>
+<h2 id="capacity">Capacity</h2>
+<p><em>Fast</em> holds 120 TiB, so at its trend it fills within the year, and an expansion to 250 TiB is scheduled for eleven months after the seed, too late. <em>Secure</em> holds a tebibyte. The demo's scans record nothing about the storage (its files are sparse, on a laptop's disk), so the capacities are set, and use is measured by the files' size.</p>
+<h2 id="the-walk-through-about-20-minutes">The walk-through (about 20 minutes)</h2>
+<ol><li><p><strong>Home page.</strong> Choose <em>Continue as Hanna Lindqvist</em> (a PI). <em>My data</em> shows one folder: 19 TiB, most of it unchanged for years.</p></li><li><p><strong>Age map.</strong> Open it. <code>wgs/2019_tumor_normal</code> is a large blue tile: 17 TiB of alignments last changed about seven years ago. Hover for details; switch <em>Color by</em> to <em>Time since last access</em> and <em>Size by</em> to <em>Size of sequencing and genomics</em>.</p></li><li><p><strong>File types.</strong> The callout shows terabytes of uncompressed SAM files; click <code>.sam</code> to list them. (The lab compressed its uncompressed FASTQ files before the fifth scan.)</p></li><li><p><strong>Switch identity</strong> (top right) to <em>Aiko Fujimoto</em>. Drill into <code>projects</code>: <code>2025_immune_aging</code> is red, data written this year, beside two blue projects. Then <code>2022_tumor_atlas</code>, then <code>raw</code>: an active project hides <code>2014_legacy_reruns</code>, the darkest blue tile, nearly twelve years old. Go back to <code>fujimoto_a</code> and switch <em>View</em> to <em>Icicle</em>: the same folder shows at once, four levels down; <em>Sunburst</em> draws it as rings. <strong>Cold data</strong> at two years lists <code>raw</code> as one cold unit; at ten years it lists <code>2014_legacy_reruns</code> alone. <strong>History</strong> for <code>fujimoto_a</code>: the lab grew from 19 to 25 TiB in six scans, and new data on top of the columns brought its cold share down from 77% to 60%. Hover a column for that scan; the three small charts follow. The dashed line is the forecast: at its trend, about 34 TiB in a year (<em>In a year</em>), within the shaded range. The <code>bennett_k</code> lab has none: the project it handed to <code>haddad_n</code> is a step, and the trend starts again after it, so it needs six scans after the step.</p></li><li><p><strong>Switch to Jordan Okafor</strong>, a delegate for two labs. <em>My data</em> shows both labs' folders; the age map puts both side by side. Then <strong>switch to Valeria Quintero</strong>, whose lab joined three scans ago: one folder, two thirds of it unchanged for more than two years, because most of it came from the PI's previous institution. Its <em>History</em> starts at the fourth scan.</p></li><li><p><strong>Storage charges.</strong> Switch back to <em>Hanna Lindqvist</em>. <em>My data</em> shows this month's storage charge, an estimate to the month's end. Open <em>Storage charges</em> and choose last month: the price of <em>Fast</em> fell on the 16th, and the lab's own 5 TB free tier started on the 10th, so the month is worked out in three parts, each its average size less what was free, at its price, for its days. <em>Past months</em> lists the months since the first scan, and <em>The next 12 months</em> what the lab will pay if it keeps growing as it has, with a range.</p></li><li><p><strong>Cleanup plans.</strong> Switch to <em>Rohan Dasgupta</em>. <em>Cleanup plans</em> shows the plan his lab made after the fifth scan. The sixth shows <code>2016_cohort_A</code> done, under <em>Done so far</em> with what it frees and saves a month; <code>2021_draft</code> no longer at its path, but a folder with its inode is at <code>2021_published</code>: it was renamed, so nothing was freed (<em>It moved there</em> makes the plan follow it); and <code>2018_cohort_B</code> still to do, with what it would save. <em>Suggestions</em> lists folders worth adding. Open the age map at a folder of the lab: its panel's <em>Cleanup plan</em> box adds it to the plan.</p></li><li><p><strong>Tags.</strong> Switch to <em>Aiko Fujimoto</em>. On the age map of <code>fujimoto_a/projects</code>, the tiles with a dot are tagged: <code>2022_tumor_atlas</code> has a grant, a project, a source, a stage, and the lab's own <em>Atlas paper</em>, which its panel lists, and its subfolders inherit; <code>2018_pilot</code> is kept until 2030, so its <em>Cleanup plan</em> box says it cannot go in a plan. <em>Storage charges</em> splits the lab's month by grant: the tumor atlas's grant, the immune aging study's, and what is not tagged. <em>Collections</em> with <em>Source</em> is <em>sequencing</em> and <em>Data stage</em> is <em>raw</em> finds the Genomics Shared Resource's runs and the Lindqvist Lab's tumor-normal study (its source inherited from <code>wgs</code>).</p></li><li><p><strong>Saved views.</strong> Still as Aiko Fujimoto, <em>My data</em> lists <em>Tumor atlas, oldest data</em>, a view she saved and shared with her lab: it opens the age map of the tumor atlas colored by its oldest files. <em>Save view</em> on any report keeps another.</p></li><li><p><strong>Switch to Priya Natarajan</strong> (storage administrator). <em>All data</em> shows both filesystems, the largest folders, the biggest changes since the previous scan (a batch of samples and an atlas in <code>fujimoto_a</code>, sequencing runs in <code>gsr_illumina</code>), and three unmapped folders. Open the age map of <em>Fast</em>: <code>scratch_legacy</code> is a large, very old, unmapped tile. Open <em>History</em> for <code>kowalski_d</code>: the same size every scan, while its cold share climbs to 100%. Then <code>lindqvist_h/wgs/2024_germline</code>: a terabyte smaller at the fifth scan, when the lab compressed its FASTQ files. Open the <em>Change map</em> of <em>Fast</em> and compare with the first scan, five months ago: <code>fujimoto_a</code> and <code>haddad_n</code> grew, <code>bennett_k</code> shrank by 81%. In <code>bennett_k</code>, the removed <code>imaging/2024_lightsheet</code> keeps the room it had; in <code>haddad_n</code>, <code>datasets/2024_lightsheet_bennett</code> is new, and its tooltip says it is over a year old: it moved. <em>What changed</em> for <em>Fast</em> since the first scan lists the Fujimoto project and the sequencing runs where it grew, the moved project and the compressed FASTQ among new and removed folders, and the largest new files (Cell Ranger BAMs); each list downloads as CSV.</p></li><li><p><strong>Folders and labs.</strong> Tick <em>Unmapped only</em>, then map <code>shared_reference</code> to the Genomics Shared Resource. Switch to <em>Casey Morgan</em>: the folder now appears in their data. Back as Priya, <em>Tags</em> lists the Fujimoto Lab's own <em>Atlas paper</em> under <em>Labs' own tags</em>: <em>Fold into a standard tag</em> into <em>Project</em> gives its folder a <em>Project</em> tag named <em>Atlas paper</em>, and retires the lab's tag.</p></li><li><p><strong>Costs and Chargeback.</strong> Back as Priya, <em>Costs</em> shows each filesystem's prices and free tiers, with the Lindqvist Lab's exception. <em>Chargeback</em> for last month lists every lab's and department's charge, the most first (the Genomics Shared Resource, a department, has nothing free), the totals by filesystem, and the storage no one owns, most of it <code>scratch_legacy</code>; <em>Download CSV</em> is the statement for finance. This month, <code>shared_reference</code> is charged to the Genomics Shared Resource from the moment it was mapped. <em>The next 12 months</em> adds up what every lab will pay at its trend. <em>Capacity</em>: <em>Fast</em> is 92% used and fills in about eight months at its trend, a few months before the expansion scheduled for eleven months on, so <em>All data</em> flags it under <em>Needs attention</em>. Its <em>History</em> draws the capacity above the columns.</p></li><li><p><strong>Storage health.</strong> An unreadable folder, a very large directory (12,000 PNG tiles), problem file names (a newline, a leading dash, a Windows-reserved character, a name that is not NFC), and files owned by accounts that no longer exist.</p></li><li><p><strong>Find files.</strong> Search <code>*.bam</code>, older than five years, largest first; download the CSV. On all of <em>Fast</em>, <em>Run in the background</em> runs the search past a page's time limit: <em>Searches</em> already has one, every BAM on <em>Fast</em>, done by the seed. And the age map of <code>lindqvist_h/wgs/2019_tumor_normal/from_core</code> shows four hard links to the core's FASTQ files, counted once, at the core.</p></li><li><p><strong>Scans.</strong> Six snapshots of each filesystem, a month apart, each with its full index (<code>PINAX_KEEP_SNAPSHOTS</code> keeps six), and whether automatic ingest is watching for new scans. Click a date to open that scan: the header says it is an older one, every report and link stays on it, and <em>Back to the latest</em> returns. Choose another scan beside the date on any report.</p></li><li><p><strong>People and access.</strong> <em>Add person</em>: a username, a name, an email, and a lab; the panel shows the folders they will see. Grant or remove the storage administrator role. <em>Deactivate</em> them, and they cannot sign in (their access is kept, unused); <em>Reactivate</em> restores it. Each change is in the person's record and the audit log. On the <em>Labs and departments</em> tab, each lab's folders and members; <em>Add lab or department</em> adds one (a slug, a name, and whether it is a lab or a department, which decides its free tier), and its page changes its details or deactivates it: its members stop seeing its folders, which stay its own (and charged to it) until they are moved.</p></li><li><p><strong>Site roles.</strong> <em>Site roles</em> on the <em>People</em> tab lists the three people with one, each given on their page and in the audit log. Switch to each in turn:</p>
+<ul><li><strong>Helen Marsh</strong>, an auditor, sees every page an administrator does, from <em>All data</em> and <em>Folders and labs</em> to <em>People and access</em> and the audit log, and no button that changes anything. The server refuses her changes too.</li><li><strong>Daniel Osei</strong>, in research finance, lands on <em>Chargeback</em>. His sidebar is <em>Storage charges</em> (of any lab or department), <em>Chargeback</em> with its statement, <em>Costs</em>, and <em>Capacity</em>, to read; he sees no folders. <em>API tokens</em>, under his name, has his <em>Monthly ledger import</em>, which reads the statement every month.</li><li><strong>Grace Whitfield</strong>, head of Basic Sciences, sees the division's labs as their members do, to read. <em>My data</em> is the Alvarez, Fujimoto, and Kowalski labs, 28.5 TiB, and <em>Storage charges</em> and <em>Cleanup plans</em> choose among them. On the age map of <code>fujimoto_a/projects/2022_tumor_atlas</code>, the panel lists the folder's tags and whether it is in the lab's plan, with no button to change either: tagging and planning stay with each lab's PI and delegates.</li></ul></li><li><p><strong>API tokens.</strong> As Priya Natarajan, <em>API tokens</em> in the sidebar: her own token, the service tokens for the storage dashboards and the finance warehouse, and Daniel Osei's, Rohan Dasgupta's, and Mateo Reyes's, with when each was last used. <em>Make token</em>, reading only, shows it once; then, in a terminal:</p>
+<div class="code"><pre><code class="language-bash">curl -H &quot;Authorization: Bearer THE-TOKEN&quot; &quot;http://127.0.0.1:8001/script/api/admin/costs/charges?fmt=csv&quot;</code></pre></div>
+<p>This month's chargeback statement, as Priya sees it. <em>Revoke</em> it, and the same request answers <em>401</em>.</p></li><li><p><strong>The audit log.</strong> As Helen Marsh, the auditor, <em>Audit log</em>: every change above, newest first, with who made it, from where, and with which token. Choose <em>Rohan Dasgupta</em> for his cleanup plan, <em>Change: All: API tokens</em> for every token made and revoked, or the filesystem <em>Fast</em> and the folder <code>dasgupta_r</code> for everything done to that lab's folder. <em>Download CSV</em> has them all.</p></li><li><p><strong>Access review.</strong> Still as Helen, <em>Access review</em>: two things worth a look (Riya Patel, who can sign in and sees nothing, and Rohan Dasgupta's <em>Sequencing pipeline tags</em>, a token that can make changes as Rohan, such as tagging the lab's folders), every site role, each lab's members and folders, and each person's access, with when each was given. Type <code>Basic Sciences</code> in <em>Find</em> for that division: its three labs and Grace Whitfield. Helen's review is under <em>Reviews</em>; <em>Record a review</em> adds another, and it is in the audit log.</p></li><li><p><strong>Import from CSV.</strong> In a terminal, <code>uv run pinax import examples/import</code> lists the 14 changes the example files would make: two departments, a lab, three people, their memberships, and owners for the three unmapped folders. Add <code>--apply</code>, and <em>Folders and labs</em> shows no unmapped folders; every change is in the audit log.</p></li><li><p><strong>Logs and metrics.</strong> The terminal running <code>pinax serve</code> has a line for each request, with who made it, from where, how long it took, and its request ID; each change made above is there too, as a <code>pinax.audit</code> line. Stop the server, and start it again with metrics on:</p>
+<div class="code"><pre><code class="language-bash">PINAX_METRICS_TOKEN=demo-metrics-token-0123456789 uv run pinax serve</code></pre></div>
+<div class="code"><pre><code class="language-bash">curl -s -H &quot;Authorization: Bearer demo-metrics-token-0123456789&quot; http://127.0.0.1:8001/metrics | grep '^pinax_filesystem'</code></pre></div>
+<p>Each filesystem's size, files, cold data, capacity, use, and growth, and the day <em>Fast</em> could fill at the fast end of its trend. <code>uv run pinax db status</code> says the catalog is up to date.</p></li></ol>
+<h2 id="afterwards">Afterwards</h2>
+<p>Changes made during the walk-through (a folder mapped, a person or lab added, an import applied) stay until you seed again:</p>
+<div class="code"><pre><code class="language-bash">uv run pinax seed</code></pre></div>
+
+      <nav class="doc-pager" aria-label="Pages">
+        <a class="prev" href="concepts.html"><span>Previous</span>How Pinax sees storage</a>
+        <a class="next" href="my-data.html"><span>Next</span>Signing in and My data</a>
+      </nav>
+    </main>
+
+    <aside class="toc" aria-label="On this page">
+      <h4>On this page</h4>
+      <ul></ul>
+    </aside>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-about">
+          <a class="brand" href="../"><img src="../assets/img/pinax-mark.svg" alt="" width="30" height="30" /><span class="brand-name">Pinax</span></a>
+          <p>File system reporting for research storage, built on fs-inventory scans. Free and open source under the Apache License 2.0.</p>
+        </div>
+        <div>
+          <h4>Use</h4>
+          <ul>
+            <li><a href="../docs/my-data.html">User guide</a></li>
+            <li><a href="../docs/age-map.html">The age map</a></li>
+            <li><a href="../docs/charges.html">Storage charges</a></li>
+            <li><a href="../docs/demo.html">The demo</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Run</h4>
+          <ul>
+            <li><a href="../docs/install.html">Installing</a></li>
+            <li><a href="../docs/administration.html">Administration</a></li>
+            <li><a href="../docs/configuration.html">Configuration</a></li>
+            <li><a href="../docs/troubleshooting.html">Troubleshooting</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Project</h4>
+          <ul>
+            <li><a href="https://github.com/robert-mcdermott/pinax">GitHub</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/releases">Releases</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/blob/main/CHANGELOG.md">Changelog</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/issues">Issues</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">Pinax 0.14.0 · Apache License 2.0 · The screenshots are of the demo, whose labs, people, and data are fictional.</div>
+    </div>
+  </footer>
+</body>
+</html>

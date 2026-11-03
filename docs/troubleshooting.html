@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Troubleshooting · Pinax</title>
+  <meta name="description" content="What a problem looks like, why it happens, and what to do." />
+  <meta property="og:title" content="Troubleshooting" />
+  <meta property="og:description" content="What a problem looks like, why it happens, and what to do." />
+  <meta name="theme-color" content="#18365D" />
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="../assets/css/site.css" />
+  <script>try { const t = localStorage.getItem('pinax-site-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+  <script src="../assets/js/site.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container">
+      <a class="brand" href="../"><img src="../assets/img/pinax-mark.svg" alt="" width="34" height="34" /><span class="brand-name">Pinax<small>Explore your data</small></span></a>
+      <nav class="site-nav" id="site-nav" aria-label="Main">
+        <a href="../#features">Features</a>
+        <a href="../docs/my-data.html">User guide</a>
+        <a href="../docs/administration.html">Administration</a>
+        <a href="../docs/install.html">Install</a>
+        <a href="../docs/" aria-current="page">Documentation</a>
+      </nav>
+      <div class="header-actions">
+        <a class="icon-button" href="https://github.com/robert-mcdermott/pinax" aria-label="Pinax on GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg></a>
+        <button class="icon-button theme-toggle" type="button" aria-label="Switch between light and dark"><svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg><svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+        <button class="icon-button nav-toggle" type="button" aria-label="Menu" aria-controls="site-nav" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      </div>
+    </div>
+  </header>
+
+  <div class="docs-layout">
+    <aside class="docs-sidebar" aria-label="Documentation">
+      <button class="btn docs-menu-toggle" type="button" aria-expanded="false">Documentation menu <span aria-hidden="true">▾</span></button>
+      <nav>
+        <h4>Start</h4>
+        <ul>
+          <li><a href="./">Documentation</a></li>
+          <li><a href="concepts.html">How Pinax sees storage</a></li>
+          <li><a href="demo.html">The demo</a></li>
+        </ul>
+        <h4>User guide</h4>
+        <ul>
+          <li><a href="my-data.html">Signing in and My data</a></li>
+          <li><a href="age-map.html">The age map</a></li>
+          <li><a href="history.html">History and forecasts</a></li>
+          <li><a href="changes.html">Change map and what changed</a></li>
+          <li><a href="reports.html">Reports</a></li>
+          <li><a href="find-files.html">Finding files</a></li>
+          <li><a href="charges.html">Storage charges</a></li>
+          <li><a href="cleanup-plans.html">Cleanup plans</a></li>
+          <li><a href="tags.html">Tags and collections</a></li>
+          <li><a href="saved-views.html">Saved views and earlier scans</a></li>
+          <li><a href="api-tokens.html">API tokens for scripts</a></li>
+        </ul>
+        <h4>Administration</h4>
+        <ul>
+          <li><a href="administration.html">Administering Pinax</a></li>
+          <li><a href="folders-and-labs.html">Folders and labs</a></li>
+          <li><a href="people.html">People and access</a></li>
+          <li><a href="scans.html">Scans and storage health</a></li>
+          <li><a href="capacity.html">Capacity</a></li>
+          <li><a href="costs.html">Costs and chargeback</a></li>
+          <li><a href="tags-admin.html">Tags, categories, plans, and the audit log</a></li>
+          <li><a href="import.html">Importing labs and people</a></li>
+        </ul>
+        <h4>Installation and operations</h4>
+        <ul>
+          <li><a href="setup.html">Trying Pinax on your own data</a></li>
+          <li><a href="install.html">Installing on a server</a></li>
+          <li><a href="scanning.html">Scans and ingest</a></li>
+          <li><a href="database.html">The catalog and backups</a></li>
+          <li><a href="upgrading.html">Upgrading</a></li>
+          <li><a href="sizing.html">Sizing</a></li>
+          <li><a href="statements.html">Charges and statements</a></li>
+          <li><a href="operations.html">Logs, metrics, and operations</a></li>
+          <li><a href="entra-id.html">Signing in with Entra ID</a></li>
+          <li><a href="configuration.html">Configuration</a></li>
+        </ul>
+        <h4>Reference</h4>
+        <ul>
+          <li><a href="cli.html">Command line</a></li>
+          <li><a href="troubleshooting.html" aria-current="page">Troubleshooting</a></li>
+          <li><a href="architecture.html">Architecture</a></li>
+          <li><a href="development.html">Development</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <main id="main" class="doc">
+      <h1>Troubleshooting</h1>
+      <p class="doc-lede">What a problem looks like, why it happens, and what to do.</p>
+<p>What a problem looks like, why it happens, and what to do, for the people who run Pinax. Start with the log (<code>journalctl -u pinax-web -u pinax-ingest</code>, or <code>PINAX_LOG_FILE</code>): every failed request is a warning there with its request ID, which is also the <code>X-Request-ID</code> of the response a person saw (<a href="operations.html#logs">Logs</a>). <code>/api/health</code> and <code>pinax db status</code> answer the first questions in a second.</p>
+<h2 id="pinax-does-not-start">Pinax does not start</h2>
+<div class="table-wrap"><table><thead><tr><th>What you see</th><th>Why</th><th>What to do</th></tr></thead><tbody><tr><td><code>PINAX_AUTH_MODE=demo lets anyone sign in as anyone, so it is refused when PINAX_ENVIRONMENT=prod</code></td><td>The demo's sign-in on a production server</td><td>Set <code>PINAX_AUTH_MODE</code> to <code>local</code> (or leave it out: outside the demo, <code>local</code> is the default) or <code>header</code> (<a href="install.html#6-signing-in">Signing in</a>)</td></tr><tr><td><code>PINAX_METRICS_TOKEN must be at least 16 characters</code></td><td>A metrics token too short to guard <code>/metrics</code></td><td><code>openssl rand -hex 32</code> makes one (<a href="operations.html#metrics">Metrics</a>)</td></tr><tr><td><code>The catalog (...) is at revision ..., and this Pinax needs revision ...</code></td><td>A release with a migration, with <code>PINAX_DB_AUTO_UPGRADE=false</code></td><td>Back the catalog up, then <code>pinax db upgrade</code> (or apply <code>pinax db upgrade --sql</code>) (<a href="upgrading.html#upgrading">Upgrading</a>)</td></tr><tr><td><code>... which this Pinax does not know: a newer Pinax has upgraded it</code></td><td>An older release started on a catalog a newer one upgraded</td><td>Run the newer release, or restore the backup made before the upgrade</td></tr><tr><td><code>The catalog's database needs a driver that is not installed (psycopg)</code></td><td><code>PINAX_DATABASE_URL</code> is PostgreSQL, without the driver</td><td><code>uv sync --frozen --no-dev --extra postgres</code> (<a href="database.html#postgresql">PostgreSQL</a>)</td></tr><tr><td><code>connection refused</code>, <code>password authentication failed</code>, <code>no password supplied</code></td><td>PostgreSQL unreachable, or no password for the role</td><td>Check the host and port, and the <code>pinax</code> user's <code>~/.pgpass</code> (mode 0600, or the driver ignores it)</td></tr><tr><td><code>Pinax cannot write its log file ...</code></td><td><code>PINAX_LOG_FILE</code> or <code>PINAX_AUDIT_LOG</code> in a folder the <code>pinax</code> user cannot write</td><td>Use <code>/var/log/pinax/</code> (the units make it) or another writable folder</td></tr><tr><td><code>address already in use</code></td><td>Another program on the port</td><td><code>pinax serve --port</code> another, and point the proxy at it</td></tr></tbody></table></div>
+<h2 id="signing-in">Signing in</h2>
+<div class="table-wrap"><table><thead><tr><th>What you see</th><th>Why</th><th>What to do</th></tr></thead><tbody><tr><td>Nobody can sign in, because Entra ID is failing</td><td>The provider is down, or a setting is wrong or has expired (such as the client secret)</td><td>An emergency account signs in at <code>/auth/emergency</code> (<a href="entra-id.html#when-entra-id-fails-the-emergency-sign-in">When Entra ID fails</a>); on the server, fix the settings, or switch to local sign-in for a while</td></tr><tr><td>The alert <code>PinaxEmergencySignIn</code> fires</td><td>Someone signed in, or tried to, with an emergency account</td><td>The audit log's <code>auth.emergency_*</code> events name the account and address; ask who holds its password</td></tr><tr><td><em>You can't use Pinax yet</em>, or another message after signing in with Entra ID</td><td>Pinax refused the sign-in, or could not finish it, and says why</td><td><a href="entra-id.html#troubleshooting">Signing in with Entra ID</a> lists each message and what to do</td></tr><tr><td><em>Unknown user</em>, after signing in through single sign-on</td><td>The username the proxy sends is not a person in Pinax, or differs from theirs</td><td>Add them, with the exact name the header carries (with Entra ID, usually the user principal name) (<a href="people.html#people-and-access">People and access</a>)</td></tr><tr><td><em>Sign in through the single sign-on proxy</em></td><td>A request with the sign-on header that did not come from a trusted proxy</td><td>Make <code>PINAX_TRUSTED_PROXIES</code> the proxy's address; requests must not reach Pinax's port around the proxy</td></tr><tr><td><em>This account has been deactivated</em></td><td>They were deactivated</td><td>Reactivate them in <em>People and access</em></td></tr><tr><td>Local sign-in fails for a correct password</td><td>Five failures in a row lock the account for 15 minutes; the answer is the same whatever went wrong</td><td>Wait, or give a new temporary password, which unlocks it: their page in <em>People and access</em>, or <code>pinax user password USERNAME</code></td></tr><tr><td>Signed in, but asked to choose a password</td><td>They signed in with a temporary password</td><td>They choose their own; nothing else works until then</td></tr><tr><td>Signed in on HTTP, then signed out at once</td><td>Session cookies are Secure in production, and a browser sends them only over HTTPS</td><td>Serve Pinax over HTTPS, or set <code>PINAX_COOKIE_SECURE=false</code> for a trial</td></tr></tbody></table></div>
+<h2 id="someone-cannot-see-what-they-expect">Someone cannot see what they expect</h2>
+<div class="table-wrap"><table><thead><tr><th>What you see</th><th>Why</th><th>What to do</th></tr></thead><tbody><tr><td><em>My data</em> is empty</td><td>They belong to no lab, or their labs own no folders</td><td>Add them to their lab (their page in <em>People and access</em>), and map the lab's folders (<em>Folders and labs</em>)</td></tr><tr><td>A lab's folder is missing</td><td>The folder is mapped to no lab, or to another, or the lab is inactive</td><td><em>Folders and labs</em>, with <em>Unmapped only</em> for folders no one owns</td></tr><tr><td>A new folder is missing</td><td>It was created after the newest scan</td><td>It appears after the next scan is ingested</td></tr><tr><td>A report says an older scan</td><td>Someone chose an earlier scan beside the date; links keep the choice</td><td><em>Back to the latest</em> in the header</td></tr><tr><td>A report says the totals are lower bounds</td><td>fs-inventory could not read a folder below (permissions), or the scan stalled</td><td><em>Storage health</em> lists folders not read completely; give the scanning account read access to metadata</td></tr><tr><td>A division head's <em>My data</em> is empty</td><td>No active lab has their division as its <em>Division</em>, spelled the same</td><td>Set each lab's <em>Division</em> on its page in <em>People and access</em>; the site role follows it (<a href="people.html#site-roles">Site roles</a>)</td></tr><tr><td>Finance sees no folders; an auditor or a division head has no buttons to change things</td><td>Their roles read, and finance sees charges, not folders</td><td>As designed. A lab's tags and cleanup plan are changed by its PI and delegates, and the site's settings by administrators</td></tr></tbody></table></div>
+<h2 id="scans-and-ingest">Scans and ingest</h2>
+<div class="table-wrap"><table><thead><tr><th>What you see</th><th>Why</th><th>What to do</th></tr></thead><tbody><tr><td>A new scan does not appear</td><td>Automatic ingest is not running, or the scan is not finished</td><td><em>Scans</em> shows automatic ingest's state; <code>systemctl status pinax-ingest</code>. A scan is ingested once its manifest says it finished</td></tr><tr><td><em>Scans</em> says <em>skipped</em></td><td>The scan's status was incomplete (stalled directories are missing) or it failed verification</td><td>Its message says why. Fix the cause and scan again; or, accepting lower bounds, <code>pinax ingest SCAN --allow-incomplete</code></td></tr><tr><td><em>Scans</em> says <em>failed</em></td><td>The index could not be built: usually the disk filled, or the scan is damaged</td><td>Its message says why; <code>pinax ingest</code> the scan again once fixed</td></tr><tr><td><code>scan ... is already snapshot N</code></td><td>The scan was ingested before</td><td>Nothing to do; to build its index again, <code>pinax rebuild N</code></td></tr><tr><td><code>no filesystem is registered for ...</code></td><td>The scan's root matches no filesystem</td><td><code>pinax filesystem add</code> with the root the scan records, or <code>--fs SLUG</code></td></tr><tr><td>Automatic ingest <em>not responding</em></td><td>The watcher stopped or hangs</td><td><code>journalctl -u pinax-ingest</code>; <code>systemctl restart pinax-ingest</code></td></tr><tr><td><code>/api/health</code> is <code>degraded</code>, <code>indexes_missing</code></td><td>A ready snapshot's index folder is gone</td><td><code>pinax rebuild SNAPSHOT_ID</code> rebuilds it from its scan</td></tr><tr><td>The disk under <code>PINAX_VAR_ROOT</code> fills</td><td>Indexes, and room for the one being built</td><td>Lower <code>PINAX_KEEP_SNAPSHOTS</code>; delete scans of pruned snapshots (Pinax never deletes scans) (<a href="sizing.html#sizing">Sizing</a>)</td></tr></tbody></table></div>
+<h2 id="numbers">Numbers</h2>
+<div class="table-wrap"><table><thead><tr><th>What you see</th><th>Why</th><th>What to do</th></tr></thead><tbody><tr><td>A total looks wrong</td><td></td><td><code>pinax check SNAPSHOT_ID</code> compares every directory with <code>fs-inventory rollup</code> and lists any difference (<a href="scanning.html#checking-a-filesystems-numbers">Checking a filesystem's numbers</a>)</td></tr><tr><td>Size and space on disk differ a lot</td><td>Compressed or sparse files use less space than their size; many small files use more</td><td>Both are right; reports show both where they differ</td></tr><tr><td>A folder is smaller than <code>du</code> says</td><td>Hard links are counted once, at their first link by path</td><td>The age map's panel says what a folder's extra links hold</td></tr><tr><td>Access times look wrong</td><td>Many filesystems do not record access times reliably (<code>noatime</code>, <code>relatime</code>)</td><td>Rely on <em>Last change</em>; show access only where the filesystem records it</td></tr><tr><td>History has no forecast</td><td>A forecast needs six scans over eight weeks, after any step (a project moved in or out)</td><td>It appears as scans accumulate</td></tr><tr><td><em>Capacity</em> has no fill date</td><td>At its trend the filesystem does not fill within three years, or a larger capacity is scheduled before it would</td><td>The earliest date at the fast end of the trend's range is still shown</td></tr><tr><td>A past month's charge changed</td><td>A price, a free tier, or a folder's owner was changed back to before that month</td><td>Each change is in the audit log; statements already sent are not changed by Pinax (<a href="statements.html#charges-and-statements">Charges and statements</a>)</td></tr></tbody></table></div>
+<h2 id="pages-and-queries">Pages and queries</h2>
+<div class="table-wrap"><table><thead><tr><th>What you see</th><th>Why</th><th>What to do</th></tr></thead><tbody><tr><td><em>Pinax stopped this after 180 seconds</em></td><td>A search or comparison of a whole filesystem read for longer than <code>PINAX_QUERY_TIMEOUT</code></td><td>Search within a folder or narrow it; an administrator can run it in the background (<em>Searches</em>); or raise the limit with the proxy's (<a href="configuration.html#queries">Configuration</a>)</td></tr><tr><td><em>Pinax is already running as many searches of whole filesystems as it allows</em></td><td><code>PINAX_WIDE_QUERIES</code> turns were all in use</td><td>Try again shortly, or raise it if the server has the cores and memory</td></tr><tr><td>Pages are slow while a search runs</td><td>Searches of whole filesystems use every core, <code>PINAX_WIDE_QUERIES</code> (2) at a time</td><td>Fewer at once leave the rest more of the cores, and searches wait longer for a turn (<a href="sizing.html#many-people-at-once">Many people at once</a>)</td></tr><tr><td><em>Pinax is busy: more people are using it at once than it can serve</em></td><td>No catalog connection was free within 10 seconds (<code>pinax_catalog_busy_total</code>, and <code>Turned away</code> in the log)</td><td>Usually a moment of heavy use: try again shortly. If it recurs, with PostgreSQL raise <code>PINAX_DATABASE_POOL_SIZE</code> within the database's <code>max_connections</code> (<a href="sizing.html#many-people-at-once">Many people at once</a>)</td></tr><tr><td>Every page is slow at busy times, with only two or three cores busy</td><td>One web process does each page's Python work one thread at a time: about 250 to 300 people at once on a laptop</td><td>A server with faster cores; see <a href="sizing.html#many-people-at-once">Many people at once</a>, and <code>PINAX_WEB_THREADS</code> for when fewer threads serve more</td></tr><tr><td>Lines marked <em>(slow)</em> in the log</td><td>Requests over <code>PINAX_SLOW_REQUEST_SECONDS</code></td><td>The line names the route and the time in index queries; see <a href="sizing.html#sizing">Sizing</a></td></tr><tr><td><em>Something went wrong</em> on a page</td><td>An error on the server</td><td>The log has it, with the request's ID</td></tr></tbody></table></div>
+<h2 id="api-tokens-and-scripts">API tokens and scripts</h2>
+<div class="table-wrap"><table><thead><tr><th>What you see</th><th>Why</th><th>What to do</th></tr></thead><tbody><tr><td>401, <code>Send a live API token as Authorization: Bearer &lt;token&gt;</code></td><td>No token, a mistyped one, or one that expired, was revoked, or belongs to someone deactivated</td><td><em>API tokens</em> (or the person's page) shows each token's state; make a new one if it ended. On <code>/script/api/</code> a token is the only way in</td></tr><tr><td><em>403 The token '...' only reads</em></td><td>A change made with a token that reads only</td><td>Make a token with <em>Your access</em> for a script that changes things (<a href="api-tokens.html#api-tokens-for-scripts">API tokens for scripts</a>)</td></tr><tr><td><em>403 A search in the background is a person's</em></td><td>A service token starting a search in the background</td><td>Start it with a person's own token</td></tr><tr><td><em>403 Tokens are made and revoked, and passwords changed, in Pinax's pages</em></td><td>A token used on the token or password routes</td><td>As designed: a leaked token cannot make another</td></tr><tr><td>Through oauth2-proxy, a script gets a sign-in page or a redirect</td><td>The proxy's configuration does not let <code>/script/api/</code> through, or the script calls <code>/api/</code></td><td><code>skip_auth_routes</code> in <code>deploy/oauth2-proxy/pinax.cfg</code> includes <code>^/script/api/</code>; scripts call <code>https://pinax.example.org/script/api/...</code> (<a href="install.html#single-sign-on-with-oauth2-proxy">Single sign-on with oauth2-proxy</a>)</td></tr><tr><td>A token made with <em>Your access</em> no longer changes what it did</td><td>Its person's access changed: a token is never more than its person</td><td>As designed; it follows their access as it is now</td></tr></tbody></table></div>
+<h2 id="monitoring">Monitoring</h2>
+<div class="table-wrap"><table><thead><tr><th>What you see</th><th>Why</th><th>What to do</th></tr></thead><tbody><tr><td><code>/metrics</code> answers 404</td><td>Metrics are off</td><td>Set <code>PINAX_METRICS_TOKEN</code> and restart <code>pinax-web</code></td></tr><tr><td><code>/metrics</code> answers 401</td><td>The token is missing or different</td><td>Prometheus sends it as <code>Authorization: Bearer ...</code> from <code>credentials_file</code></td></tr><tr><td>Through oauth2-proxy, Prometheus gets a sign-in page</td><td>The proxy's configuration does not let <code>/metrics</code> through</td><td><code>skip_auth_routes</code> in <code>deploy/oauth2-proxy/pinax.cfg</code> includes <code>GET=^/metrics$</code></td></tr><tr><td>No <code>process_*</code> metrics</td><td>They exist on Linux only</td><td></td></tr><tr><td>The alert <code>PinaxBusy</code> fires</td><td>Requests were turned away as busy in the last 15 minutes</td><td>As for <em>Pinax is busy</em> under <a href="#pages-and-queries">Pages and queries</a></td></tr></tbody></table></div>
+
+      <nav class="doc-pager" aria-label="Pages">
+        <a class="prev" href="cli.html"><span>Previous</span>Command line</a>
+        <a class="next" href="architecture.html"><span>Next</span>Architecture</a>
+      </nav>
+    </main>
+
+    <aside class="toc" aria-label="On this page">
+      <h4>On this page</h4>
+      <ul></ul>
+    </aside>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-about">
+          <a class="brand" href="../"><img src="../assets/img/pinax-mark.svg" alt="" width="30" height="30" /><span class="brand-name">Pinax</span></a>
+          <p>File system reporting for research storage, built on fs-inventory scans. Free and open source under the Apache License 2.0.</p>
+        </div>
+        <div>
+          <h4>Use</h4>
+          <ul>
+            <li><a href="../docs/my-data.html">User guide</a></li>
+            <li><a href="../docs/age-map.html">The age map</a></li>
+            <li><a href="../docs/charges.html">Storage charges</a></li>
+            <li><a href="../docs/demo.html">The demo</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Run</h4>
+          <ul>
+            <li><a href="../docs/install.html">Installing</a></li>
+            <li><a href="../docs/administration.html">Administration</a></li>
+            <li><a href="../docs/configuration.html">Configuration</a></li>
+            <li><a href="../docs/troubleshooting.html">Troubleshooting</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Project</h4>
+          <ul>
+            <li><a href="https://github.com/robert-mcdermott/pinax">GitHub</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/releases">Releases</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/blob/main/CHANGELOG.md">Changelog</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/issues">Issues</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">Pinax 0.14.0 · Apache License 2.0 · The screenshots are of the demo, whose labs, people, and data are fictional.</div>
+    </div>
+  </footer>
+</body>
+</html>

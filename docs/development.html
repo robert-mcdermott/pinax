@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Development · Pinax</title>
+  <meta name="description" content="Working on Pinax: setup, conventions, tests and CI, migrations, the HTTP API, benchmarks, and the load test." />
+  <meta property="og:title" content="Development" />
+  <meta property="og:description" content="Working on Pinax: setup, conventions, tests and CI, migrations, the HTTP API, benchmarks, and the load test." />
+  <meta name="theme-color" content="#18365D" />
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="../assets/css/site.css" />
+  <script>try { const t = localStorage.getItem('pinax-site-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+  <script src="../assets/js/site.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container">
+      <a class="brand" href="../"><img src="../assets/img/pinax-mark.svg" alt="" width="34" height="34" /><span class="brand-name">Pinax<small>Explore your data</small></span></a>
+      <nav class="site-nav" id="site-nav" aria-label="Main">
+        <a href="../#features">Features</a>
+        <a href="../docs/my-data.html">User guide</a>
+        <a href="../docs/administration.html">Administration</a>
+        <a href="../docs/install.html">Install</a>
+        <a href="../docs/" aria-current="page">Documentation</a>
+      </nav>
+      <div class="header-actions">
+        <a class="icon-button" href="https://github.com/robert-mcdermott/pinax" aria-label="Pinax on GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg></a>
+        <button class="icon-button theme-toggle" type="button" aria-label="Switch between light and dark"><svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg><svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+        <button class="icon-button nav-toggle" type="button" aria-label="Menu" aria-controls="site-nav" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      </div>
+    </div>
+  </header>
+
+  <div class="docs-layout">
+    <aside class="docs-sidebar" aria-label="Documentation">
+      <button class="btn docs-menu-toggle" type="button" aria-expanded="false">Documentation menu <span aria-hidden="true">▾</span></button>
+      <nav>
+        <h4>Start</h4>
+        <ul>
+          <li><a href="./">Documentation</a></li>
+          <li><a href="concepts.html">How Pinax sees storage</a></li>
+          <li><a href="demo.html">The demo</a></li>
+        </ul>
+        <h4>User guide</h4>
+        <ul>
+          <li><a href="my-data.html">Signing in and My data</a></li>
+          <li><a href="age-map.html">The age map</a></li>
+          <li><a href="history.html">History and forecasts</a></li>
+          <li><a href="changes.html">Change map and what changed</a></li>
+          <li><a href="reports.html">Reports</a></li>
+          <li><a href="find-files.html">Finding files</a></li>
+          <li><a href="charges.html">Storage charges</a></li>
+          <li><a href="cleanup-plans.html">Cleanup plans</a></li>
+          <li><a href="tags.html">Tags and collections</a></li>
+          <li><a href="saved-views.html">Saved views and earlier scans</a></li>
+          <li><a href="api-tokens.html">API tokens for scripts</a></li>
+        </ul>
+        <h4>Administration</h4>
+        <ul>
+          <li><a href="administration.html">Administering Pinax</a></li>
+          <li><a href="folders-and-labs.html">Folders and labs</a></li>
+          <li><a href="people.html">People and access</a></li>
+          <li><a href="scans.html">Scans and storage health</a></li>
+          <li><a href="capacity.html">Capacity</a></li>
+          <li><a href="costs.html">Costs and chargeback</a></li>
+          <li><a href="tags-admin.html">Tags, categories, plans, and the audit log</a></li>
+          <li><a href="import.html">Importing labs and people</a></li>
+        </ul>
+        <h4>Installation and operations</h4>
+        <ul>
+          <li><a href="setup.html">Trying Pinax on your own data</a></li>
+          <li><a href="install.html">Installing on a server</a></li>
+          <li><a href="scanning.html">Scans and ingest</a></li>
+          <li><a href="database.html">The catalog and backups</a></li>
+          <li><a href="upgrading.html">Upgrading</a></li>
+          <li><a href="sizing.html">Sizing</a></li>
+          <li><a href="statements.html">Charges and statements</a></li>
+          <li><a href="operations.html">Logs, metrics, and operations</a></li>
+          <li><a href="entra-id.html">Signing in with Entra ID</a></li>
+          <li><a href="configuration.html">Configuration</a></li>
+        </ul>
+        <h4>Reference</h4>
+        <ul>
+          <li><a href="cli.html">Command line</a></li>
+          <li><a href="troubleshooting.html">Troubleshooting</a></li>
+          <li><a href="architecture.html">Architecture</a></li>
+          <li><a href="development.html" aria-current="page">Development</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <main id="main" class="doc">
+      <h1>Development</h1>
+      <p class="doc-lede">Working on Pinax: setup, conventions, tests and CI, migrations, the HTTP API, benchmarks, and the load test.</p>
+<p>How the code is organized, the conventions to follow, and how to extend the interface without breaking the light and dark themes or the validated chart colors.</p>
+<h2 id="setup-and-everyday-commands">Setup and everyday commands</h2>
+<div class="code"><pre><code class="language-bash">scripts/install-fs-inventory.sh</code></pre></div>
+<div class="code"><pre><code class="language-bash">uv sync</code></pre></div>
+<div class="code"><pre><code class="language-bash">uv run pinax seed</code></pre></div>
+<div class="code"><pre><code class="language-bash">uv run pinax serve</code></pre></div>
+<div class="code"><pre><code class="language-bash">uv run pytest</code></pre></div>
+<div class="code"><pre><code class="language-bash">uvx ruff check src tests bench</code></pre></div>
+<p>Use <code>uv</code> for everything: <code>uv add &lt;package&gt;</code> for dependencies and <code>uv run</code> for scripts. Tests create their own temporary catalog and snapshot folders and never touch the demo. The end-to-end test and the rollup cross-check tests run the real fs-inventory binary and are skipped when it is not installed.</p>
+<h3 id="tests-on-postgresql">Tests on PostgreSQL</h3>
+<p>The catalog runs on SQLite or PostgreSQL, and the whole suite runs on both. With <code>PINAX_TEST_DATABASE_URL</code> set, each test gets a schema of its own in that database, dropped afterwards. A throwaway PostgreSQL in a container, with its data in memory:</p>
+<div class="code"><pre><code class="language-bash">podman run -d --name pinax-pg-test -e POSTGRES_USER=pinax -e POSTGRES_PASSWORD=pinax-test -e POSTGRES_DB=pinax -p 127.0.0.1:55432:5432 --tmpfs /var/lib/postgresql/data docker.io/library/postgres:16 -c fsync=off -c max_connections=200</code></pre></div>
+<div class="code"><pre><code class="language-bash">uv sync --extra postgres</code></pre></div>
+<div class="code"><pre><code class="language-bash">PINAX_TEST_DATABASE_URL=postgresql://pinax:pinax-test@127.0.0.1:55432/pinax uv run pytest</code></pre></div>
+<p><code>docker</code> takes the same arguments. Tests about SQLite catalogs only (<code>conftest.sqlite_only</code>) are skipped there.</p>
+<h3 id="continuous-integration">Continuous integration</h3>
+<p>GitHub Actions run the same checks for every push (<code>.github/workflows/ci.yml</code>), each job on a fresh Ubuntu runner:</p>
+<div class="table-wrap"><table><thead><tr><th>Job</th><th>What it runs</th></tr></thead><tbody><tr><td>Lint</td><td><code>uvx ruff check src tests bench</code>, with ruff pinned</td></tr><tr><td>Tests on SQLite</td><td><code>scripts/install-fs-inventory.sh</code>, <code>uv sync --frozen</code>, <code>uv run pytest</code></td></tr><tr><td>Tests on PostgreSQL</td><td>the throwaway PostgreSQL above, then the same with <code>--extra postgres</code> and <code>PINAX_TEST_DATABASE_URL</code></td></tr></tbody></table></div>
+<p>Both suites install the pinned fs-inventory, so the tests that run the real binary run there rather than being skipped. A pull request from a branch of this repository shows the runs of its pushes; one from a fork gets its own. The workflow pins uv (<code>0.13.1</code>), ruff, and the actions (by commit, with the version beside each), so a run means the same thing from one month to the next; update them together, deliberately.</p>
+<h2 id="code-layout">Code layout</h2>
+<div class="code"><pre><code class="language-text">src/pinax/
+  config.py        settings (see docs/CONFIGURATION.md)
+  db.py            catalog engine and sessions (SQLite in WAL mode, or PostgreSQL)
+  migrate.py       the catalog's migrations: upgrading at start-up, `pinax db`; revisions in migrations/versions/
+  dbcopy.py        `pinax db copy`: a whole catalog into another, empty database
+  logs.py          system and audit logs: a line per request with its ID, person, and address; audit events logged
+                   once committed; text or JSON
+  metrics.py       Prometheus metrics at /metrics: each filesystem's scans, size, and capacity from the catalog, and
+                   the web app's requests, queries, and audit events
+  models.py        catalog schema: people and their site roles, labs, folder ownership, filesystems, snapshots,
+                   folder history, capacity, marked folders, API tokens, audit
+  categories.py    file categories (the built-in ones, the catalog's, and changing, checking, and previewing
+                   them), type normalization, age buckets
+  ingest/build.py  fs-inventory scan -&gt; snapshot index (DuckDB SQL)
+  crosscheck.py    `pinax check`: every directory of an index against fs-inventory rollup
+  index.py         SnapshotIndex: read-only queries over one index; Stats: additive totals
+  snapshots.py     running scans, ingest (one at a time, under a file lock), retention, the cache of open indexes
+  watch.py         `pinax ingest --watch`: each new scan under a folder once, and a heartbeat for *Scans*
+  onboard.py       `pinax import`: labs, people, memberships, and folder ownership from CSV (docs/IMPORT.md)
+  people.py        people: adding, editing, site roles, deactivation (shared by the app and the CLI)
+  labs.py          labs and departments: adding, editing, deactivation; slug rules shared with the import
+  signin.py        local sign-in: password hashes, sessions, lockout
+  oidc.py          sign-in with Entra ID, or another OpenID Connect provider (Authlib), at /auth/; sessions as local
+  tokens.py        API tokens: making (hashed, shown once), finding, what each may do, revoking
+  audit.py         the audit log: filters, pages of events, and its CSV
+  review.py        the access review: who has access to what, since when, what is worth a look; its sign-off
+  ownership.py     who owned each top-level folder when, for charging past months
+  costs.py         prices and free tiers per filesystem, from a day on
+  charges.py       monthly charges: time-weighted, per lab or department and filesystem; and the months ahead
+  forecast.py      where a size is heading: the trend of its recent scans, with a range and a backtest
+  capacity.py      each filesystem's capacity, what the storage reports, and when it fills
+  marks.py         marked folders: followed from scan to scan by path, and by inode when they move
+  plans.py         cleanup plans: the folders each lab means to delete, move, or compress
+  tags.py          folder tags: the standard list, labs' own tags, and tagging folders
+  views.py         saved views: pages people keep and share with their labs
+  jobs.py          searches in the background: worker threads, results kept as Parquet
+  auth.py          identity (demo cookie, SSO header, Pinax's session, or API token), what each person sees and may
+                   change, and `/script/api/` for scripts
+  explore.py       explore and report services: resolving places, merging results across places
+  serialize.py     JSON views of catalog objects
+  api/             routers: identity, sign-in, explore, admin, access, costs, capacity, categories, plans, tags,
+                   views, tokens, audit, review, health
+  seed.py          demo filesystems, people, and scans
+  cli.py, main.py  command line and FastAPI app
+  static/          index.html, app/, css/pinax.css, js/, img/
+bench/             synth_scan.py (synthetic scans of any size), bench_index.py (build and query timings),
+                   bench_charges.py (monthly charges over a synthetic year of weekly scans), load_setup.py and
+                   load.py (the load test: many people at once)
+tests/             pytest suite; scanfix.py writes exact fs-inventory-shaped scans</code></pre></div>
+<h2 id="backend-conventions">Backend conventions</h2>
+<ul><li><strong>Routers stay thin</strong>: parse input, call a service in <code>explore.py</code> (or <code>snapshots.py</code>), return JSON.</li><li><strong>Authorization is server-side, on every call.</strong> Resolve places with <code>explore.resolve</code>, which checks that the path is canonical and inside the filesystem, and that the person may see its top-level folder. Never trust the client for paths or labs. Answer 404, not 403, for folders a person may not see.</li><li><strong>Seeing and changing are separate questions.</strong> Guard a read that administrators and auditors may make with <code>require_sees_all</code>, one that finance may make too with <code>require_sees_charges</code>, and every change to the site's settings with <code>require_admin</code>. A lab's data is seen by <code>Identity.labs_seen</code> (its members and its division's heads) and changed by <code>Identity.lab_roles</code> (its PI and delegates). A request with an API token is the token's person, or a service with a role, and <code>tokens.may</code> decides what the token may do besides.</li><li><strong>Bind every value.</strong> Index queries take parameters; SQL fragments are built only from fixed lists (<code>METRICS</code>, <code>FILE_SORTS</code>). Never interpolate request input into SQL.</li><li><strong>The index is immutable.</strong> A snapshot index is never changed after it is built; build a new one instead. New per-directory measures go in <code>ADDITIVE</code> or <code>EXTREMES</code> in <code>ingest/build.py</code>, which flow through the roll-up, <code>Stats</code>, and the API automatically. Bump <code>INDEX_VERSION</code> when the layout or a measure's meaning changes.</li><li><strong>Changes between scans</strong> are kept per directory for the measures in <code>CHANGE_MEASURES</code> (<code>ingest/build.py</code>); a measure added there is compared with the previous scan's in <code>_change_measures()</code> in <code>crosscheck.py</code>.</li><li><strong>The index must agree with fs-inventory.</strong> A change to the build keeps <code>uv run pinax check</code> passing on the demo scans and on a synthetic scan (see Benchmarks). A measure fs-inventory rollup also computes is added to <code>_measures()</code> in <code>crosscheck.py</code>.</li><li><strong>Age buckets use whole microseconds</strong> (<code>epoch_us</code>), never fractional days, so a file exactly on an edge is in the older bucket, as in fs-inventory rollup.</li><li><strong>Times</strong> come out of DuckDB as epoch seconds (<code>epoch(...)</code>), never as timezone-aware values.</li><li><strong>Schema changes</strong> to the catalog are migrations (Alembic, <code>src/pinax/migrations/versions/</code>): edit <code>models.py</code>, bring a catalog up to date (<code>uv run pinax db upgrade</code>), then <code>uv run pinax db revision &quot;What it changes&quot;</code> writes the next revision from the difference. Read it before keeping it: Alembic sees a renamed column as one dropped and one added, and a new column on existing rows needs a server default or <code>nullable=True</code>. Never change a revision that has been released. <code>tests/test_migrations.py</code> checks that the migrations make the models' schema; run it on PostgreSQL too (<a href="#tests-on-postgresql">Tests on PostgreSQL</a>).</li><li><strong>Logging</strong>: <code>log = logging.getLogger(&quot;pinax.&lt;module&gt;&quot;)</code>; the request's ID, person, and address are added to every line on their own. Never log a query string, a request body, a password, or a token, and name the catalog with <code>migrate.describe</code> (which hides its password). An audit event needs nothing more: adding an <code>AuditEvent</code> logs it once committed.</li><li><strong>New settings</strong>: add the field to <code>config.py</code>, and document it in <code>docs/CONFIGURATION.md</code> and <code>.env.example</code>.</li></ul>
+<h2 id="http-api">HTTP API</h2>
+<p>Documented automatically at <code>/api/docs</code>. Scripts send an API token as <code>Authorization: Bearer ...</code>, to <code>/api/...</code> or, through a sign-on proxy, to <code>/script/api/...</code>, where only a token counts. The main endpoints, each taking optional <code>fs</code> and <code>path</code> (without them, the person's home), and <code>lab</code> to limit home to one lab:</p>
+<div class="table-wrap"><table><thead><tr><th>Endpoint</th><th>Returns</th></tr></thead><tbody><tr><td><code>GET /api/tree?metric=&amp;depth=1\|2</code></td><td>The node, its children (and grandchildren) as treemap tiles, breadcrumbs, scan date</td></tr><tr><td><code>GET /api/types</code></td><td>Bytes and files by category and type</td></tr><tr><td><code>GET /api/owners</code></td><td>Bytes and files by owner, flagging deleted accounts</td></tr><tr><td><code>GET /api/cold?older=N</code></td><td>Self-contained folders unchanged for at least age bucket N</td></tr><tr><td><code>GET /api/files?q=&amp;category=&amp;ext=&amp;min_size=&amp;older=&amp;newer=&amp;uid=&amp;sort=&amp;fmt=csv</code></td><td>Files, with totals; CSV download</td></tr><tr><td><code>POST</code>, <code>GET /api/files/jobs</code>; <code>GET</code>, <code>DELETE /api/files/jobs/{id}</code>; <code>GET /api/files/jobs/{id}/csv</code></td><td>A search in the background, the person's searches, one with a page of its results, stopping or deleting one, and its CSV</td></tr><tr><td><code>GET /api/home</code>, <code>GET /api/history?fs=&amp;path=&amp;lab=</code></td><td>Folder cards and lab totals; a place's history, with the forecast of its size</td></tr><tr><td><code>GET /api/admin/overview</code>, <code>/health</code>, <code>/names</code>, <code>/snapshots</code>, <code>/labs</code>, <code>/people</code></td><td>Administrator views, for administrators and auditors</td></tr><tr><td><code>POST /api/admin/folders</code>, <code>POST /api/admin/labs/{slug}/members</code></td><td>Folder ownership and membership changes</td></tr><tr><td><code>GET /api/admin/people/{username}</code>; <code>POST /api/admin/people</code>, <code>PUT /api/admin/people/{username}</code>, <code>POST /api/admin/people/{username}/password</code>, <code>/deactivate</code> and <code>/reactivate</code></td><td>A person, with their labs, site roles (<code>roles</code>), tokens, and history; adding, changing, a temporary password, deactivating</td></tr><tr><td><code>GET</code>, <code>PUT /api/admin/labs/{slug}</code>, <code>POST /api/admin/labs</code>, <code>POST /api/admin/labs/{slug}/deactivate</code> and <code>/reactivate</code></td><td>A lab or department, with its record; adding, changing, and deactivating one</td></tr><tr><td><code>GET /api/charges?month=&amp;lab=&amp;history=</code></td><td>A person's labs' charges for a month, with their past months and the next twelve at their trend (<code>ahead</code>)</td></tr><tr><td><code>GET /api/charges/split?lab=&amp;month=&amp;tag=</code></td><td>A lab's month split by a tag's values, and the tags its folders have to split by</td></tr><tr><td><code>GET /api/plans?lab=</code>, <code>/api/plans/here?fs=&amp;path=</code>; <code>POST /api/plans</code>, <code>PUT</code>, <code>DELETE /api/plans/{id}</code>, <code>POST /api/plans/{id}/moved</code></td><td>A person's labs' cleanup plans; a folder's place in its lab's plan; adding, changing, and taking out a folder; confirming or dismissing a move</td></tr><tr><td><code>GET /api/plans/suggestions?lab=</code>, <code>/api/plans/all</code></td><td>Folders worth adding to a lab's plan; every lab's plan, for administrators and auditors</td></tr><tr><td><code>GET</code>, <code>POST /api/admin/tags</code>; <code>PUT</code>, <code>DELETE /api/admin/tags/{id}</code>, <code>POST /api/admin/tags/{id}/active</code></td><td>The standard tags and labs' own; adding, changing, retiring, and deleting an unused one</td></tr><tr><td><code>GET</code>, <code>POST /api/admin/categories</code>; <code>PUT</code>, <code>DELETE /api/admin/categories/{key}</code>, <code>POST /api/admin/categories/{key}/move</code>; <code>POST /api/admin/categories/preview</code>, <code>/api/admin/categories/try</code></td><td>The file categories in order, each's bytes in the latest scans, and the snapshots built with others and how long rebuilding them takes; adding, changing, removing, and moving one; what a change would do before it is saved; trying a pattern on a sample of names</td></tr><tr><td><code>GET /api/tags/here?fs=&amp;path=</code>, <code>/api/tags/below?fs=&amp;path=</code>; <code>POST /api/tags/folders</code>, <code>DELETE /api/tags/folders/{id}</code>; <code>POST /api/tags/custom</code>; <code>POST /api/admin/tags/{id}/merge</code></td><td>A folder's tags and those it inherits; the tagged folders below one; tagging and untagging; a lab's own tag; folding one into a standard tag</td></tr><tr><td><code>GET /api/tags/filters</code>, <code>/api/tags/collection?want=ID[:value]</code> (repeated)</td><td>The tags a person can look for, with their values; the folders that have every wanted tag, with totals, history, and forecast</td></tr><tr><td><code>GET</code>, <code>POST /api/views</code>; <code>PUT</code>, <code>DELETE /api/views/{id}</code></td><td>A person's views and those shared with their labs; saving, renaming, sharing, deleting</td></tr><tr><td><code>GET /api/admin/costs</code>, <code>/api/admin/costs/charges?month=&amp;fmt=csv</code>, <code>/api/admin/costs/ahead</code></td><td>Prices and free tiers; every lab's charges for a month, or its CSV statement; every lab's next twelve months, added up (for administrators, auditors, and finance)</td></tr><tr><td><code>GET /api/admin/capacity</code>, <code>POST /api/admin/capacity/{fs}</code>, <code>DELETE /api/admin/capacity/{fs}/{id}</code></td><td>Each filesystem's capacity, its schedule, and when it fills; setting and removing a capacity from a day on</td></tr><tr><td><code>GET</code>, <code>POST /api/tokens</code>, <code>DELETE /api/tokens/{id}</code>; <code>GET</code>, <code>POST /api/admin/tokens</code></td><td>A person's API tokens, making one (its secret is in this answer only), revoking one; everyone's, and making a service token</td></tr><tr><td><code>GET /api/admin/audit?person=&amp;action=&amp;lab=&amp;fs=&amp;path=&amp;since=&amp;until=&amp;offset=&amp;limit=&amp;fmt=csv</code></td><td>A page of audit events, newest first, with the total and what to filter by; every one that matches as CSV</td></tr><tr><td><code>GET /api/admin/access-review?fmt=csv</code>, <code>POST /api/admin/access-review/sign-off</code></td><td>Who has access to what, with when each was given and what is worth a look, or its CSV; recording a review</td></tr><tr><td><code>GET /auth/login?next=</code>, <code>/auth/callback</code>, <code>/auth/logout</code>, <code>/auth/signed-out</code></td><td>With <code>PINAX_AUTH_MODE=oidc</code> only (404 otherwise): to the provider, back with its code, signing out of Pinax and the provider, and the page after</td></tr><tr><td><code>GET</code>, <code>POST /auth/emergency</code></td><td>The emergency sign-in (a form), with <code>oidc</code> and an emergency account only (404 otherwise)</td></tr><tr><td><code>GET /api/health</code>; <code>GET /metrics</code></td><td>Health for load balancers (no sign-in); Prometheus metrics, only with <code>PINAX_METRICS_TOKEN</code> as a bearer token</td></tr></tbody></table></div>
+<h2 id="frontend-conventions">Frontend conventions</h2>
+<p>The interface is plain HTML, CSS, and JavaScript modules with no framework or build step, adapted from Tundra.</p>
+<ul><li><code>js/core.js</code>: safe <code>html</code> templating, <code>api()</code>, formatting, icons, the header and theme toggle, toasts and modals, the hash router, and Pinax helpers (<code>displayPath</code>, <code>placeHash</code>, <code>parseQuery</code>).</li><li><code>js/viz.js</code>: age buckets, color modes, size metrics, legends, and small charts (age bars, histograms, bars).</li><li><code>js/treemap.js</code>: the squarified treemap, drawn as positioned links so tiles are real navigation targets.</li><li><code>js/timechart.js</code>: charts over time (stacked columns and lines on a shared date axis, with a hover and keyboard readout that several charts share, and a forecast drawn after the last scan, <code>ahead</code>); <code>js/history.js</code> draws the history view with it.</li><li><code>js/capacity.js</code>: <em>Capacity</em>, each filesystem's capacity and when it fills (<code>capacity.py</code>, <code>api/capacity.py</code>).</li><li><code>js/plans.js</code>: <em>Cleanup plans</em>, and the cleanup plan box in the age map's panel (<code>plans.py</code>, <code>api/plans.py</code>).</li><li><code>js/tags.js</code>: <em>Tags</em>, the standard tags for administrators, and the tags box in the age map's panel (<code>tags.py</code>, <code>api/tags.py</code>).</li><li><code>js/collections.js</code>: <em>Collections</em>, finding data by tag.</li><li><code>js/views.js</code>: <em>Save view</em> on every report's header, and the saved views on the home pages.</li><li><code>js/searches.js</code>: <em>Searches</em>, searches run in the background.</li><li><code>js/costs.js</code>: <em>Costs</em>, each filesystem's prices and free tiers (<code>costs.py</code>, <code>api/costs.py</code>).</li><li><code>js/charges.js</code>: <em>Storage charges</em>, what a person's labs pay each month and how, and <em>Chargeback</em>, every lab's charges for a month, for administrators, auditors, and finance (<code>charges.py</code>, <code>api/costs.py</code>).</li><li><code>js/tokens.js</code>: <em>API tokens</em>, a person's own and, for administrators and auditors, everyone's; the tokens on a person's page (<code>tokens.py</code>, <code>api/tokens.py</code>).</li><li><code>js/audit.js</code>: <em>Audit log</em> (<code>audit.py</code>, <code>api/audit.py</code>); <code>js/review.js</code>: <em>Access review</em> (<code>review.py</code>, <code>api/review.py</code>).</li><li><code>js/changes.js</code>: the change map, on <code>js/treemap.js</code>, with its seven-step gold-to-teal scale (<code>--chg-*</code>); <code>js/changed.js</code>: what changed, the same comparison as lists.</li><li><code>js/shell.js</code>: the sidebar and the scope header (breadcrumbs, the scan date and its picker, links to every report for the same folder). The chosen scan is <code>state.at</code>, read from the address by the router and added by <code>placeQuery</code> to every place link and report request; <code>hashAt(day)</code> is the same page at another scan.</li><li><code>js/explore.js</code>, <code>js/reports.js</code>, <code>js/admin.js</code>: the views. <code>js/app.js</code>: routes and the home page.</li><li><strong>Escape everything.</strong> Build markup with <code>html</code>; use <code>raw()</code> only for markup you wrote.</li><li>A view is <code>(element, query)</code>. The place (filesystem and path) lives in the URL, so every view is bookmarkable.</li></ul>
+<h2 id="themes-and-colors">Themes and colors</h2>
+<p>Light by default; the toggle sets <code>data-theme=&quot;dark&quot;</code> on <code>&lt;html&gt;</code> and remembers it under <code>pinax-theme</code>. A one-line script in each page's <code>&lt;head&gt;</code> applies it before the page draws. Components use the semantic tokens inherited from Tundra (<code>--bg</code>, <code>--surface</code>, <code>--text</code>, <code>--accent</code>, ...); never hard-code colors.</p>
+<h3 id="chart-colors">Chart colors</h3>
+<p>Charts use their own tokens in <code>css/pinax.css</code>, defined separately for each theme:</p>
+<div class="table-wrap"><table><thead><tr><th>Tokens</th><th>Used for</th></tr></thead><tbody><tr><td><code>--age-0</code> … <code>--age-6</code></td><td>Age buckets, youngest to oldest: hot to cold. Red for under two years, blue from two years (the default cold threshold), palest either side of the split</td></tr><tr><td><code>--share-0</code> … <code>--share-4</code></td><td>&quot;Share of&quot; color modes (teal), lowest to highest</td></tr><tr><td><code>--tile-none</code></td><td>Tiles with no files, or none of the chosen kind (a true gray, apart from the palest blue)</td></tr><tr><td><code>--chg-n3</code> … <code>--chg-p3</code></td><td>The change map: gold for shrinking, a true gray for no change, teal for growing</td></tr><tr><td><code>--tile-frame</code>, <code>--tile-ink</code></td><td>The frame around nested tiles; dark label text on light tiles</td></tr></tbody></table></div>
+<p>The ramps were checked with the dataviz ordinal validator (monotone lightness, adjacent steps at least 0.06 apart in OKLCH lightness, a single hue within 40 degrees, and the step nearest the surface at least 2:1 against it). The age scale and the change map are two arms each, checked as two ordinal ramps out from the split, with the steps either side of it, and the no-files and no-change grays, at least ΔE 15 apart with normal vision and 8 under color-vision deficiencies. In dark mode each arm brightens outward instead of darkening, so the most recent and the oldest data stand out most on navy; red is recent and blue is old in both themes. Re-run the validator if you change any step.</p>
+<p>Rules:</p>
+<ul><li><strong>Age is ordinal</strong>: always use the age scale for it, in bucket order: red is recent, blue is cold. Never use those reds and blues for anything else; the change map has its own gold and teal.</li><li><strong>Single-series bars</strong> (categories, owners) use <code>--chart-1</code>; the label names each bar.</li><li><strong>Tile labels</strong> pick white or <code>--tile-ink</code>, whichever contrasts more with the tile, at draw time.</li><li><strong>Never color alone</strong>: tooltips, tables, and labels carry every value; each chart has a legend and a table view.</li><li>Check both themes and a 375-pixel-wide window for anything new.</li></ul>
+<h3 id="logo">Logo</h3>
+<p>The Pinax mark (<code>img/pinax-mark.svg</code>) is a tablet divided like a treemap, in the brand palette. Use the mark on navy in the header, <code>img/pinax-logo.svg</code> (mark and wordmark) where there is room, and <code>img/favicon.svg</code> for tabs.</p>
+<h2 id="benchmarks">Benchmarks</h2>
+<p><code>bench/synth_scan.py</code> writes a synthetic fs-inventory scan of any size in DuckDB (ten million files in about twenty seconds); <code>bench/bench_index.py</code> builds an index from it and times the queries the interface makes. Use them to check that a change keeps directory-level queries flat as scans grow. <code>uv run pinax check SCAN_DIR</code> builds a temporary index from the same scan and compares every directory with fs-inventory rollup.</p>
+<p><code>synth_scan.py --wide N --deep D</code> adds what real filesystems have and the model lacks: a folder of N files, a folder of N/10 subfolders, and a chain D folders deep. <code>bench_index.py</code> prints the scan's shape (counts only: depth, widest folders, longest path, flagged names, links, mount points) and the query timings, never a path or a name, so a run on a real filesystem can be recorded as it is (<code>--json FILE</code> saves it). <code>--patterns N</code> builds with N patterns on file names, of the kinds a site writes, and <code>--categories N</code> with N file categories (one for each of the synthetic scan's types, ahead of the defaults), to measure what a site's own categories cost a build.</p>
+<p><code>synth_scan.py --evolve SCAN -o OUT --days 30</code> writes SCAN as it might look 30 days later, for checking and timing comparisons between scans: <code>--remove</code> (2%) of its projects deleted, <code>--grow</code> (5%) of its folders with files gaining about a fifth more, <code>--touch</code> (1%) of its files rewritten, and <code>--new-tops</code> (1) top-level folders copied from existing ones; new and rewritten files are dated within the days, and the rest is unchanged, so older. The manifest records what changed (<code>evolved</code>) and the scan it came from. Evolve the result again for a longer history. Ingest them in order, or build with <code>build_index(..., previous=...)</code>, and <code>pinax check</code> compares the change with fs-inventory rollup of both:</p>
+<div class="code"><pre><code class="language-bash">uv run python bench/synth_scan.py --evolve /scratch/synth-10m -o /scratch/synth-10m-next --days 30</code></pre></div>
+<p><code>--started</code> dates a scan in the past, so a scan and the ones evolved from it can end today.</p>
+<h3 id="the-load-test">The load test</h3>
+<p>The benchmarks above time one request at a time; the load test measures many people at once. <code>bench/load_setup.py</code> makes an installation in a folder of its own: three synthetic scans a month apart, the last one today, ingested in order; a lab for each top-level folder, with a PI and members, over five divisions; storage administrators, an auditor, finance, and a head of each division; a price and a free tier; and one made-up password for everyone. It takes about two minutes at ten million files, and 2.8 GB. <code>--database-url</code> puts the catalog on an empty PostgreSQL database instead of SQLite.</p>
+<div class="code"><pre><code class="language-bash">uv run python bench/load_setup.py /scratch/load-10m --files 10000000</code></pre></div>
+<p><code>bench/load.py</code> starts <code>pinax serve</code> from it (or uses <code>--url</code>), and simulated people each sign in with the password, as a browser does on a first visit, then open one page after another, <code>--think</code> seconds apart (5 to 15). A page is the API requests the interface makes for it, sent together; each role has its sidebar's pages, people of labs in their lab's folders and its projects, administrators everywhere. <code>--people</code> arrive over <code>--ramp</code> seconds (60), and <code>--minutes</code> (5) are measured after that, in the proportions of <code>--mix</code>. Who does what follows <code>--seed</code>, so two runs make the same requests.</p>
+<div class="code"><pre><code class="language-bash">uv run python bench/load.py /scratch/load-10m --people 50 --minutes 5</code></pre></div>
+<p>Two harder cases. <code>--searchers N</code> adds N storage administrators searching whole filesystems, by name, path, and age, one search after another: each reads every file, <code>PINAX_WIDE_QUERIES</code> run at once, and the others wait for a turn. <code>--ramp 0</code> has everyone sign in at the same moment, each password checked with scrypt, slow by design. <code>--set PINAX_SETTING=VALUE</code> (repeatable) gives the server it starts a setting of its own, to measure a change without editing the installation.</p>
+<div class="code"><pre><code class="language-bash">uv run python bench/load.py /scratch/load-10m --people 100 --searchers 6 --set PINAX_QUERY_TIMEOUT=30</code></pre></div>
+<p>The report, in the installation's <code>reports/</code> as Markdown and JSON, has each page's and each API route's median, 95th and 99th percentile times, errors, and requests a second; the server's memory and the cores it keeps busy, sampled every second; the searchers' searches, finished and stopped, with what Pinax said; and whether the budgets of wave 14 are met. A request on a kept-alive connection the server closed just then is sent again, as browsers do, and counted. <code>--compare A.json B.json</code> says whether two runs agree: each page's median, and the pages a second, within 10%. The load test and Pinax share the computer, so a laptop shows where Pinax slows and why more than what a server does. <code>tests/test_load.py</code> runs a small one, so it keeps working.</p>
+<h2 id="deployment-files">Deployment files</h2>
+<p><code>deploy/</code> holds what <code>docs/DEPLOYMENT.md</code> installs: the systemd units, <code>pinax.env</code>, and an oauth2-proxy configuration. <code>tests/test_deploy.py</code> checks that each unit's command is one <code>pinax</code> accepts and that the settings they name exist. <code>scripts/sso-check.py --oauth2-proxy PATH</code> runs a real oauth2-proxy against a stand-in OpenID Connect provider on this machine and checks header mode end to end.</p>
+<p>The interface shows control characters and bidirectional overrides in names as escapes (<code>visible()</code> in <code>core.js</code>, applied to every value <code>html</code> puts in text). Attribute values keep the exact text, since some are read back.</p>
+<h2 id="documentation-and-the-website">Documentation and the website</h2>
+<p>The guides are Markdown in <code>docs/</code> (<a href="./">README.md</a> is their map), and the website is built from them: <code>node docs/site/build.mjs</code> makes <code>site/</code>, each page a guide or some of its sections, with screenshots of the demo in both themes (<a href="https://github.com/robert-mcdermott/pinax/blob/main/docs/site/README.md">site/README.md</a>). A change that users or administrators would notice updates the guide it belongs in: the user guide, the administration guide, the command line, configuration, deployment, or troubleshooting. <code>tests/test_docs.py</code> checks that every command and subcommand has its section in <code>docs/CLI.md</code>, that every guide is on a page of the site, and that every screenshot a guide shows exists in both themes. <code>node docs/capture/capture.mjs</code> captures the screenshots from a demo of its own; re-capture them when the interface or the demo changes.</p>
+<h2 id="demo-data">Demo data</h2>
+<p><code>seed.py</code> defines the demo filesystems (<code>FILESYSTEMS</code>), labs (<code>LABS</code>), unmapped folders, people (<code>PEOPLE</code>), each folder's layout (<code>lab_files</code>), problem names, the six months of activity between its scans (<code>month_files</code>, <code>REMOVED</code>, <code>MOVED</code>, <code>COMPRESSED</code>, <code>JOINS</code>, summed up in <code>MONTHS</code>), and the demo-only rewrite of each scan's owners and date (<code>_make_demo_scan</code>). Sizes and times are deterministic for a given <code>--scale</code>, relative to when it runs.</p>
+
+      <nav class="doc-pager" aria-label="Pages">
+        <a class="prev" href="architecture.html"><span>Previous</span>Architecture</a>
+        
+      </nav>
+    </main>
+
+    <aside class="toc" aria-label="On this page">
+      <h4>On this page</h4>
+      <ul></ul>
+    </aside>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-about">
+          <a class="brand" href="../"><img src="../assets/img/pinax-mark.svg" alt="" width="30" height="30" /><span class="brand-name">Pinax</span></a>
+          <p>File system reporting for research storage, built on fs-inventory scans. Free and open source under the Apache License 2.0.</p>
+        </div>
+        <div>
+          <h4>Use</h4>
+          <ul>
+            <li><a href="../docs/my-data.html">User guide</a></li>
+            <li><a href="../docs/age-map.html">The age map</a></li>
+            <li><a href="../docs/charges.html">Storage charges</a></li>
+            <li><a href="../docs/demo.html">The demo</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Run</h4>
+          <ul>
+            <li><a href="../docs/install.html">Installing</a></li>
+            <li><a href="../docs/administration.html">Administration</a></li>
+            <li><a href="../docs/configuration.html">Configuration</a></li>
+            <li><a href="../docs/troubleshooting.html">Troubleshooting</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Project</h4>
+          <ul>
+            <li><a href="https://github.com/robert-mcdermott/pinax">GitHub</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/releases">Releases</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/blob/main/CHANGELOG.md">Changelog</a></li>
+            <li><a href="https://github.com/robert-mcdermott/pinax/issues">Issues</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">Pinax 0.14.0 · Apache License 2.0 · The screenshots are of the demo, whose labs, people, and data are fictional.</div>
+    </div>
+  </footer>
+</body>
+</html>
